@@ -1,3 +1,0 @@
-deployment_id,event_message,execution_time_ms,function_id,id,method,status_code,timestamp,version
-dtnotuyagygexmkyqtgb_8f85ba20-54c0-4eb7-96bc-9a97cc714699_15,POST | 400 | https://dtnotuyagygexmkyqtgb.functions.supabase.co/stripe-webhook,443,8f85ba20-54c0-4eb7-96bc-9a97cc714699,621d5e65-851f-4800-bce4-e1a2447cfb82,POST,400,1762995417466000,15
-dtnotuyagygexmkyqtgb_8f85ba20-54c0-4eb7-96bc-9a97cc714699_15,POST | 400 | https://dtnotuyagygexmkyqtgb.functions.supabase.co/stripe-webhook,396,8f85ba20-54c0-4eb7-96bc-9a97cc714699,614d79b8-c010-4ef3-abfe-a03f2fa334a5,POST,400,1762995285714000,15

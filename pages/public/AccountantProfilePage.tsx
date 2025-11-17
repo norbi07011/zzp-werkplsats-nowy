@@ -27,6 +27,7 @@ import {
 } from "../../components/icons";
 import { AddToTeamButton } from "../../components/AddToTeamButton";
 import { useAuth } from "../../contexts/AuthContext";
+import { ReviewAccountantModal } from "../../src/components/employer/ReviewAccountantModal";
 
 export default function AccountantProfilePage() {
   const { id } = useParams<{ id: string }>();
@@ -50,8 +51,9 @@ export default function AccountantProfilePage() {
   useEffect(() => {
     if (id) {
       loadAccountantData();
+      trackProfileView();
     }
-  }, [id]);
+  }, [id, authUser]);
 
   // Load employer ID if user is employer
   useEffect(() => {
@@ -75,6 +77,25 @@ export default function AccountantProfilePage() {
 
     loadEmployerId();
   }, [authUser]);
+
+  const trackProfileView = async () => {
+    if (!authUser || !id || !employerId) return;
+
+    try {
+      await supabase.from("profile_views").insert({
+        accountant_id: id,
+        employer_id: employerId,
+        viewed_at: new Date().toISOString(),
+      });
+
+      console.log("✅ Profile view tracked for accountant:", id);
+    } catch (error) {
+      console.error(
+        "⚠️ Error tracking profile view (accountant_id column might not exist yet):",
+        error
+      );
+    }
+  };
 
   const loadAccountantData = async () => {
     if (!id) return;
@@ -146,17 +167,17 @@ export default function AccountantProfilePage() {
       return;
     }
 
-    if (!employerId || !accountant?.id) {
+    if (!accountant?.id) {
       alert("⚠️ Ładowanie danych... Spróbuj ponownie za chwilę.");
       return;
     }
 
-    // Check if employer already reviewed this accountant
+    // Check if user already reviewed this accountant
     try {
       const { data: existingReview, error } = await supabase
         .from("accountant_reviews")
         .select("id, rating, created_at")
-        .eq("employer_id", employerId)
+        .eq("reviewer_id", authUser.id)
         .eq("accountant_id", accountant.id)
         .maybeSingle();
 
@@ -251,9 +272,17 @@ export default function AccountantProfilePage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="flex flex-col md:flex-row gap-8 items-start">
             {/* Avatar */}
-            <div className="w-32 h-32 bg-white/10 backdrop-blur-sm rounded-2xl flex items-center justify-center text-5xl font-bold border-4 border-white/20">
-              {accountant.full_name.charAt(0)}
-            </div>
+            {accountant.avatar_url ? (
+              <img
+                src={accountant.avatar_url}
+                alt={accountant.full_name}
+                className="w-32 h-32 rounded-2xl object-cover border-4 border-white/20 shadow-xl"
+              />
+            ) : (
+              <div className="w-32 h-32 bg-white/10 backdrop-blur-sm rounded-2xl flex items-center justify-center text-5xl font-bold border-4 border-white/20">
+                {accountant.full_name.charAt(0)}
+              </div>
+            )}
 
             {/* Info */}
             <div className="flex-1">
@@ -490,28 +519,15 @@ export default function AccountantProfilePage() {
         </Modal>
       )}
 
-      {/* Review Modal - TODO: Create ReviewAccountantModal component */}
-      {accountant && authUser && authUser.role === "employer" && employerId && (
-        <div>
-          {/* Placeholder - need to create ReviewAccountantModal component */}
-          {isReviewModalOpen && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-              <div className="bg-white rounded-lg p-6 max-w-md">
-                <h3 className="text-lg font-bold mb-4">Wystaw opinię</h3>
-                <p className="text-gray-600 mb-4">
-                  Funkcja wystawiania opinii dla księgowych będzie wkrótce
-                  dostępna.
-                </p>
-                <button
-                  onClick={() => setIsReviewModalOpen(false)}
-                  className="w-full bg-amber-600 text-white py-2 rounded-lg hover:bg-amber-700"
-                >
-                  Zamknij
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
+      {/* Review Modal */}
+      {accountant && authUser && authUser.role === "employer" && (
+        <ReviewAccountantModal
+          isOpen={isReviewModalOpen}
+          onClose={() => setIsReviewModalOpen(false)}
+          accountantId={accountant.id}
+          reviewerId={authUser.id}
+          onSuccess={loadAccountantData}
+        />
       )}
     </div>
   );

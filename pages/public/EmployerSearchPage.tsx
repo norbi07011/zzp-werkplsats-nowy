@@ -221,7 +221,7 @@ export default function EmployerSearchPage() {
                 {/* Action buttons */}
                 <div className="px-6 pb-6 flex gap-3">
                   <Link
-                    to={`/employer/${employer.id}`}
+                    to={`/public/employer/${employer.id}`}
                     className="flex-1 bg-amber-600 text-white px-6 py-3 rounded-xl font-semibold hover:bg-amber-700 transition-colors text-center"
                   >
                     Zobacz profil

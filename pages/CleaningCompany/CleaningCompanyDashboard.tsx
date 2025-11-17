@@ -467,6 +467,15 @@ const CleaningCompanyDashboard = () => {
     setShowPortfolioModal(false);
   };
 
+  const handleViewSubscription = () => {
+    window.location.href = "/cleaning-company/subscription";
+  };
+
+  const handleContactSupport = () => {
+    window.location.href =
+      "mailto:support@zzpwerkplaats.nl?subject=Wsparcie dla firmy sprzątającej";
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 flex items-center justify-center">
@@ -540,36 +549,134 @@ const CleaningCompanyDashboard = () => {
           </div>
         </div>
 
-        {/* Faktury Button */}
-        <Link
-          to="/faktury"
-          onClick={() => {
-            console.log(
-              "🧾 FAKTURY BUTTON CLICKED - Dashboard: CLEANING_COMPANY"
-            );
-          }}
-          className="bg-green-600 text-white rounded-2xl p-6 hover:bg-green-700 transition-all shadow-xl hover:shadow-2xl flex items-center gap-4 mb-8"
-        >
-          <svg
-            className="w-12 h-12 flex-shrink-0"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-            />
-          </svg>
-          <div>
-            <h3 className="text-2xl font-bold mb-1">Faktury & BTW</h3>
-            <p className="text-green-100">
-              Wasz prywatny program do zarządzania fakturami
-            </p>
+        {/* Szybkie działania Card */}
+        <div className="bg-white rounded-lg shadow p-6 mb-8">
+          <h2 className="text-xl font-bold text-gray-900 mb-6">
+            ⚡ Szybkie działania
+          </h2>
+
+          <div className="space-y-3">
+            <Link
+              to="/employers"
+              className="w-full px-4 py-3 bg-orange-600 text-white rounded-lg font-medium hover:bg-orange-700 flex items-center justify-center gap-2"
+            >
+              <svg
+                className="w-5 h-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                />
+              </svg>
+              Szukaj pracodawców
+            </Link>
+
+            <Link
+              to="/workers"
+              className="w-full px-4 py-3 bg-cyan-600 text-white rounded-lg font-medium hover:bg-cyan-700 flex items-center justify-center gap-2"
+            >
+              <svg
+                className="w-5 h-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                />
+              </svg>
+              Szukaj pracowników
+            </Link>
+
+            <Link
+              to="/accountants"
+              className="w-full px-4 py-3 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 flex items-center justify-center gap-2"
+            >
+              <svg
+                className="w-5 h-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"
+                />
+              </svg>
+              Szukaj księgowych
+            </Link>
+
+            <Link
+              to="/faktury"
+              className="w-full px-4 py-3 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 flex items-center justify-center gap-2"
+            >
+              <svg
+                className="w-5 h-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                />
+              </svg>
+              Faktury & BTW
+            </Link>
+
+            <button
+              onClick={handleViewSubscription}
+              className="w-full px-4 py-3 bg-purple-600 text-white rounded-lg font-medium hover:bg-purple-700 flex items-center justify-center gap-2"
+            >
+              <svg
+                className="w-5 h-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"
+                />
+              </svg>
+              Subskrypcja
+            </button>
+
+            <button
+              onClick={handleContactSupport}
+              className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg font-medium text-gray-700 hover:bg-gray-50 flex items-center justify-center gap-2"
+            >
+              <svg
+                className="w-5 h-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-5 0a4 4 0 11-8 0 4 4 0 018 0z"
+                />
+              </svg>
+              Wsparcie
+            </button>
           </div>
-        </Link>
+        </div>
 
         {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">

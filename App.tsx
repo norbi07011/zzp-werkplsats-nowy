@@ -250,7 +250,7 @@ function App() {
                         />
                         {/* Public profile pages - beautiful full panels */}
                         <Route
-                          path="/employer/profile/:id"
+                          path="/public/employer/:id"
                           element={<EmployerPublicProfilePage />}
                         />
                         <Route

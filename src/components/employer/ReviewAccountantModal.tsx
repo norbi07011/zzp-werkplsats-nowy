@@ -7,7 +7,7 @@ interface ReviewAccountantModalProps {
   isOpen: boolean;
   onClose: () => void;
   accountantId: string;
-  employerId: string;
+  reviewerId: string; // authUser.id (profiles.id / auth.uid())
   onSuccess?: () => void;
 }
 
@@ -15,7 +15,7 @@ export const ReviewAccountantModal: React.FC<ReviewAccountantModalProps> = ({
   isOpen,
   onClose,
   accountantId,
-  employerId,
+  reviewerId,
   onSuccess,
 }) => {
   const [rating, setRating] = useState(0);
@@ -53,7 +53,7 @@ export const ReviewAccountantModal: React.FC<ReviewAccountantModalProps> = ({
     try {
       console.log("📤 Submitting accountant review:", {
         accountantId,
-        employerId,
+        reviewerId,
         rating,
         professionalismRating,
         communicationRating,
@@ -66,7 +66,7 @@ export const ReviewAccountantModal: React.FC<ReviewAccountantModalProps> = ({
         .from("accountant_reviews")
         .insert({
           accountant_id: accountantId,
-          reviewer_id: employerId, // profiles.id (employer's profile_id)
+          reviewer_id: reviewerId, // authUser.id (profiles.id / auth.uid())
           reviewer_type: "employer",
           rating,
           professionalism_rating: professionalismRating || null,

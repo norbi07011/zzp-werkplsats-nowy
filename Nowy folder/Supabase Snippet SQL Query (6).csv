@@ -1,2 +1,0 @@
-id,user_id,date,description,category,supplier,amount,vat_amount,vat_rate,is_deductible,deductible_percentage,receipt_url,receipt_base64,client_id,invoice_id,payment_method,is_paid,notes,created_at,updated_at
-41d45eed-3bed-4e24-8780-3644222fb24e,7daf8488-988b-4a73-973d-ea2e0e63a5af,2025-10-20,oooo,it_equipment,ooooo,100.00,21.00,21.00,true,100.00,null,null,null,null,cash,false,ooooo,2025-10-29 01:54:40.693263+00,2025-10-29 01:54:40.693263+00

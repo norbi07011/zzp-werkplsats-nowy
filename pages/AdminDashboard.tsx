@@ -222,6 +222,9 @@ export const AdminDashboard: React.FC = () => {
     approvedApplications: 0,
     weeklyTestSlots: 0,
     generatedCertificates: 0, // NEW: Certyfikaty wygenerowane przez admina
+    accountantsAverageRating: 0, // NEW: Średnia ocena księgowych
+    accountantsTotalReviews: 0, // NEW: Liczba recenzji księgowych
+    accountantsProfileViews: 0, // NEW: Odwiedziny profili księgowych
   });
   const [recentActivities, setRecentActivities] = useState<any[]>([]);
   const [systemStatus, setSystemStatus] = useState<any[]>([]);
@@ -284,6 +287,9 @@ export const AdminDashboard: React.FC = () => {
         { count: approvedAppsCount },
         { count: weeklyTestSlotsCount },
         { count: generatedCertsCount }, // NEW: Total generated certificates
+        { data: accountantsData }, // NEW: Accountants for ratings stats
+        { count: accountantReviewsCount }, // NEW: Total accountant reviews
+        { count: accountantProfileViewsCount }, // NEW: Total profile views for accountants
       ] = await Promise.all([
         workersQuery,
         employersQuery,
@@ -334,6 +340,21 @@ export const AdminDashboard: React.FC = () => {
         supabase
           .from("generated_certificates")
           .select("*", { count: "exact", head: true }),
+        // TASK 5.9: accountantsData - get all accountants with rating and rating_count
+        supabase
+          .from("accountants")
+          .select("rating, rating_count")
+          .eq("is_active", true),
+        // TASK 5.10: accountantReviewsCount - total accountant reviews count
+        supabase
+          .from("accountant_reviews")
+          .select("*", { count: "exact", head: true })
+          .eq("status", "approved"),
+        // TASK 5.11: accountantProfileViewsCount - total profile views for accountants
+        supabase
+          .from("profile_views")
+          .select("*", { count: "exact", head: true })
+          .not("accountant_id", "is", null),
       ]);
 
       // Calculate monthlyRevenue (MRR)
@@ -341,6 +362,24 @@ export const AdminDashboard: React.FC = () => {
         (sum: number, worker: any) => sum + (worker.monthly_fee || 0),
         0
       );
+
+      // Calculate average rating for accountants
+      const accountantsAverageRating =
+        accountantsData && accountantsData.length > 0
+          ? accountantsData.reduce(
+              (sum: number, acc: any) => sum + (acc.rating || 0),
+              0
+            ) / accountantsData.length
+          : 0;
+
+      // Calculate total reviews for accountants
+      const accountantsTotalReviews =
+        accountantsData && accountantsData.length > 0
+          ? accountantsData.reduce(
+              (sum: number, acc: any) => sum + (acc.rating_count || 0),
+              0
+            )
+          : 0;
 
       setStats({
         pendingSchedules: pendingSchedules || 0,
@@ -362,6 +401,10 @@ export const AdminDashboard: React.FC = () => {
         approvedApplications: approvedAppsCount || 0,
         weeklyTestSlots: weeklyTestSlotsCount || 0,
         generatedCertificates: generatedCertsCount || 0, // NEW: Total admin-generated certificates
+        accountantsAverageRating:
+          Number(accountantsAverageRating.toFixed(2)) || 0,
+        accountantsTotalReviews: accountantsTotalReviews || 0,
+        accountantsProfileViews: accountantProfileViewsCount || 0,
       });
 
       // Fetch recent activities (notifications/messages)
@@ -465,6 +508,11 @@ export const AdminDashboard: React.FC = () => {
     navigate("/admin/settings");
   };
 
+  const handleContactSupport = () => {
+    window.location.href =
+      "mailto:support@zzpwerkplaats.nl?subject=Wsparcie dla administratora";
+  };
+
   const adminModules = [
     {
       title: "Zarządzanie Terminami",
@@ -513,9 +561,9 @@ export const AdminDashboard: React.FC = () => {
       icon: "📊",
       color: "cyber" as const,
       stats: {
-        label: "Accountants",
-        value: stats.activeAccountants.toString(),
-        trend: "",
+        label: `${stats.activeAccountants} księgowych`,
+        value: `⭐ ${stats.accountantsAverageRating}`,
+        trend: `${stats.accountantsTotalReviews} opinii · ${stats.accountantsProfileViews} wyświetleń`,
       },
     },
     {
@@ -827,6 +875,34 @@ export const AdminDashboard: React.FC = () => {
             ))}
 
             <Link
+              to="/employers"
+              onClick={() => {
+                console.log(
+                  "👔 SEARCH EMPLOYERS BUTTON CLICKED - Dashboard: ADMIN"
+                );
+              }}
+              className="bg-orange-600 text-white rounded-lg p-6 hover:bg-orange-700 transition-all shadow-lg hover:shadow-xl flex flex-col items-center justify-center gap-3"
+            >
+              <svg
+                className="w-12 h-12"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                />
+              </svg>
+              <div className="text-center">
+                <h3 className="text-lg font-bold">Szukaj pracodawców</h3>
+                <p className="text-sm text-orange-100 mt-1">Baza pracodawców</p>
+              </div>
+            </Link>
+
+            <Link
               to="/faktury"
               onClick={() => {
                 console.log("🧾 FAKTURY BUTTON CLICKED - Dashboard: ADMIN");
@@ -851,6 +927,111 @@ export const AdminDashboard: React.FC = () => {
                 <p className="text-sm text-green-100 mt-1">Program do faktur</p>
               </div>
             </Link>
+
+            <Link
+              to="/workers"
+              onClick={() => {
+                console.log(
+                  "🔍 SEARCH WORKERS BUTTON CLICKED - Dashboard: ADMIN"
+                );
+              }}
+              className="bg-cyan-600 text-white rounded-lg p-6 hover:bg-cyan-700 transition-all shadow-lg hover:shadow-xl flex flex-col items-center justify-center gap-3"
+            >
+              <svg
+                className="w-12 h-12"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                />
+              </svg>
+              <div className="text-center">
+                <h3 className="text-lg font-bold">Szukaj pracowników</h3>
+                <p className="text-sm text-cyan-100 mt-1">Baza pracowników</p>
+              </div>
+            </Link>
+
+            <Link
+              to="/cleaning-companies"
+              onClick={() => {
+                console.log(
+                  "🏢 CLEANING COMPANIES BUTTON CLICKED - Dashboard: ADMIN"
+                );
+              }}
+              className="bg-blue-600 text-white rounded-lg p-6 hover:bg-blue-700 transition-all shadow-lg hover:shadow-xl flex flex-col items-center justify-center gap-3"
+            >
+              <svg
+                className="w-12 h-12"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
+                />
+              </svg>
+              <div className="text-center">
+                <h3 className="text-lg font-bold">Szukaj firm sprzątających</h3>
+                <p className="text-sm text-blue-100 mt-1">Baza firm</p>
+              </div>
+            </Link>
+
+            <Link
+              to="/accountants"
+              onClick={() => {
+                console.log("📊 ACCOUNTANTS BUTTON CLICKED - Dashboard: ADMIN");
+              }}
+              className="bg-indigo-600 text-white rounded-lg p-6 hover:bg-indigo-700 transition-all shadow-lg hover:shadow-xl flex flex-col items-center justify-center gap-3"
+            >
+              <svg
+                className="w-12 h-12"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                />
+              </svg>
+              <div className="text-center">
+                <h3 className="text-lg font-bold">Szukaj księgowych</h3>
+                <p className="text-sm text-indigo-100 mt-1">Baza księgowych</p>
+              </div>
+            </Link>
+
+            <button
+              onClick={handleContactSupport}
+              className="bg-white border-2 border-gray-300 text-gray-700 rounded-lg p-6 hover:bg-gray-50 transition-all shadow-lg hover:shadow-xl flex flex-col items-center justify-center gap-3"
+            >
+              <svg
+                className="w-12 h-12"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-5 0a4 4 0 11-8 0 4 4 0 018 0z"
+                />
+              </svg>
+              <div className="text-center">
+                <h3 className="text-lg font-bold">Wsparcie</h3>
+                <p className="text-sm text-gray-600 mt-1">Kontakt techniczny</p>
+              </div>
+            </button>
           </div>
         </div>
 

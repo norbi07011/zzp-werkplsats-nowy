@@ -389,9 +389,17 @@ export default function AccountantSearchPage() {
                       {/* LARGE RECTANGULAR PHOTO - 256px height */}
                       <div className="relative h-64 bg-gradient-to-br from-amber-50 to-amber-100">
                         <div className="w-full h-full flex items-center justify-center">
-                          <div className="w-32 h-32 bg-gradient-to-br from-amber-400 to-amber-600 rounded-full flex items-center justify-center text-white text-5xl font-bold shadow-lg">
-                            {accountant.full_name.charAt(0)}
-                          </div>
+                          {accountant.avatar_url ? (
+                            <img
+                              src={accountant.avatar_url}
+                              alt={accountant.full_name}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <div className="w-32 h-32 bg-gradient-to-br from-amber-400 to-amber-600 rounded-full flex items-center justify-center text-white text-5xl font-bold shadow-lg">
+                              {accountant.full_name.charAt(0)}
+                            </div>
+                          )}
                         </div>
 
                         {/* Verification badge on photo */}
