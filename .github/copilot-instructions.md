@@ -1,5 +1,3 @@
-# ZZP Werkplaats - AI Coding Agent Instructions
-
 ## ⚠️ ABSOLUTNIE OBOWIĄZKOWE - PRZED JAKĄKOLWIEK ZMIANĄ
 
 ### WORKFLOW PRZED TWORZENIEM/MODYFIKACJĄ PLIKÓW:
@@ -98,7 +96,8 @@ W raporcie wyjaśniaj jasno i prosto:
 2) co jest teraz OK,  
 3) co musimy poprawić,  
 4) jakie są kolejne kroki i w jakiej kolejności.  
-Zero tłumaczenia o liniach kodu — mów normalnie, ludzkim językiem.
+Zero tłumaczenia o liniach kodu — mów normalnie, ludzkim językiem. tumacz to jak bys tumaczyła dzecku 5 letniemu 
+
 
 ---
 

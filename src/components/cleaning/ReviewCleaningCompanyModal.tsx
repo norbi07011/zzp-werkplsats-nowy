@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { createReview } from "../../services/reviewService";
+import { createCleaningReview } from "../../services/cleaningReviewService";
 
 interface StarRatingProps {
   rating: number;
@@ -69,32 +69,34 @@ export const StarRating: React.FC<StarRatingProps> = ({
   );
 };
 
-interface ReviewWorkerModalProps {
+interface ReviewCleaningCompanyModalProps {
   isOpen: boolean;
   onClose: () => void;
-  workerId: string;
-  workerName: string;
-  employerId?: string; // Optional - for employer reviews
-  cleaningCompanyId?: string; // Optional - for cleaning company reviews
+  cleaningCompanyId: string;
+  cleaningCompanyName: string;
+  employerId?: string;
+  workerId?: string;
+  accountantId?: string;
   onSuccess?: () => void;
 }
 
-export const ReviewWorkerModal: React.FC<ReviewWorkerModalProps> = ({
+export const ReviewCleaningCompanyModal: React.FC<
+  ReviewCleaningCompanyModalProps
+> = ({
   isOpen,
   onClose,
-  workerId,
-  workerName,
-  employerId,
   cleaningCompanyId,
+  cleaningCompanyName,
+  employerId,
+  workerId,
+  accountantId,
   onSuccess,
 }) => {
   const [rating, setRating] = useState(0);
-  const [communicationRating, setCommunicationRating] = useState(0);
-  const [punctualityRating, setPunctualityRating] = useState(0);
-  const [qualityRating, setQualityRating] = useState(0);
-  const [safetyRating, setSafetyRating] = useState(0);
   const [comment, setComment] = useState("");
-  const [wouldRecommend, setWouldRecommend] = useState<boolean | null>(null);
+  const [workType, setWorkType] = useState("");
+  const [workDate, setWorkDate] = useState("");
+  const [workDuration, setWorkDuration] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
 
@@ -110,34 +112,30 @@ export const ReviewWorkerModal: React.FC<ReviewWorkerModalProps> = ({
     setError("");
 
     try {
-      const result = await createReview({
-        worker_id: workerId,
-        employer_id: employerId,
+      const result = await createCleaningReview({
         cleaning_company_id: cleaningCompanyId,
+        employer_id: employerId,
+        worker_id: workerId,
+        accountant_id: accountantId,
         rating,
-        comment: comment.trim() || undefined,
-        communication_rating:
-          communicationRating > 0 ? communicationRating : undefined,
-        punctuality_rating:
-          punctualityRating > 0 ? punctualityRating : undefined,
-        quality_rating: qualityRating > 0 ? qualityRating : undefined,
-        safety_rating: safetyRating > 0 ? safetyRating : undefined,
-        would_recommend: wouldRecommend ?? undefined,
+        review_text: comment.trim() || undefined,
+        work_type: workType.trim() || undefined,
+        work_date: workDate || undefined,
+        work_duration_hours: workDuration
+          ? parseFloat(workDuration)
+          : undefined,
       });
 
       if (result.success) {
-        // Success - close modal and notify parent
         onSuccess?.();
         onClose();
 
         // Reset form
         setRating(0);
-        setCommunicationRating(0);
-        setPunctualityRating(0);
-        setQualityRating(0);
-        setSafetyRating(0);
         setComment("");
-        setWouldRecommend(null);
+        setWorkType("");
+        setWorkDate("");
+        setWorkDuration("");
       } else {
         setError(result.error || "Nie udało się wystawić opinii");
       }
@@ -156,7 +154,7 @@ export const ReviewWorkerModal: React.FC<ReviewWorkerModalProps> = ({
       <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
         <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center">
           <h2 className="text-2xl font-bold text-gray-900">
-            ⭐ Wystaw opinię: {workerName}
+            ⭐ Wystaw opinię: {cleaningCompanyName}
           </h2>
           <button
             onClick={onClose}
@@ -187,51 +185,18 @@ export const ReviewWorkerModal: React.FC<ReviewWorkerModalProps> = ({
 
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
             <p className="text-sm text-blue-800">
-              💡 <strong>Twoja opinia pomaga innym pracodawcom!</strong>{" "}
-              Wypełnij formularz szczegółowo, aby ułatwić przyszłym klientom
-              decyzję o współpracy z tym pracownikiem.
+              💡 <strong>Twoja opinia pomaga innym!</strong> Wypełnij formularz
+              szczegółowo, aby ułatwić przyszłym klientom decyzję o współpracy z
+              tą firmą sprzątającą.
             </p>
           </div>
 
-          {/* Overall Rating */}
           <StarRating
             rating={rating}
             onRatingChange={setRating}
-            label="Ogólna ocena"
+            label="Ogólna ocena usług sprzątania"
           />
 
-          {/* Detailed Ratings */}
-          <div className="bg-gray-50 p-4 rounded-lg space-y-4">
-            <h3 className="font-semibold text-gray-900 mb-3">
-              Oceny szczegółowe (opcjonalne)
-            </h3>
-
-            <StarRating
-              rating={communicationRating}
-              onRatingChange={setCommunicationRating}
-              label="📞 Komunikacja"
-            />
-
-            <StarRating
-              rating={punctualityRating}
-              onRatingChange={setPunctualityRating}
-              label="⏰ Punktualność"
-            />
-
-            <StarRating
-              rating={qualityRating}
-              onRatingChange={setQualityRating}
-              label="🔨 Jakość pracy"
-            />
-
-            <StarRating
-              rating={safetyRating}
-              onRatingChange={setSafetyRating}
-              label="🦺 Bezpieczeństwo i porządek"
-            />
-          </div>
-
-          {/* Comment */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               💬 Komentarz (opcjonalnie)
@@ -240,46 +205,61 @@ export const ReviewWorkerModal: React.FC<ReviewWorkerModalProps> = ({
               value={comment}
               onChange={(e) => setComment(e.target.value)}
               rows={6}
-              placeholder={`Opisz swoją współpracę z ${workerName}...\n\nNp.: Co było mocną stroną pracownika? Czy wystąpiły jakieś problemy? Czy polecasz dla określonych typów projektów?`}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+              placeholder={`Opisz swoją współpracę z ${cleaningCompanyName}...\n\nNp.: Jak wyglądały usługi? Czy firma była punktualna? Czy polecasz?`}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
             />
             <p className="text-xs text-gray-500 mt-1">
               {comment.length} znaków
             </p>
           </div>
 
-          {/* Would Recommend */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              👍 Czy poleciłbyś tego pracownika innym?
-            </label>
-            <div className="flex gap-4">
-              <button
-                type="button"
-                onClick={() => setWouldRecommend(true)}
-                className={`flex-1 px-4 py-3 rounded-lg border-2 transition-all ${
-                  wouldRecommend === true
-                    ? "border-green-500 bg-green-50 text-green-800"
-                    : "border-gray-300 bg-white text-gray-700 hover:border-green-300"
-                }`}
-              >
-                ✅ Tak, polecam
-              </button>
-              <button
-                type="button"
-                onClick={() => setWouldRecommend(false)}
-                className={`flex-1 px-4 py-3 rounded-lg border-2 transition-all ${
-                  wouldRecommend === false
-                    ? "border-red-500 bg-red-50 text-red-800"
-                    : "border-gray-300 bg-white text-gray-700 hover:border-red-300"
-                }`}
-              >
-                ❌ Nie polecam
-              </button>
+          <div className="bg-gray-50 p-4 rounded-lg space-y-4">
+            <h3 className="font-semibold text-gray-900 mb-3">
+              Szczegóły zlecenia (opcjonalne)
+            </h3>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                🏢 Rodzaj prac
+              </label>
+              <input
+                type="text"
+                value={workType}
+                onChange={(e) => setWorkType(e.target.value)}
+                placeholder="Np.: Sprzątanie biura, mieszkania, budowy..."
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                📅 Data wykonania
+              </label>
+              <input
+                type="date"
+                value={workDate}
+                onChange={(e) => setWorkDate(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                ⏱️ Czas trwania (godziny)
+              </label>
+              <input
+                type="number"
+                step="0.5"
+                min="0"
+                max="100"
+                value={workDuration}
+                onChange={(e) => setWorkDuration(e.target.value)}
+                placeholder="Np.: 4 lub 8.5"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+              />
             </div>
           </div>
 
-          {/* Submit Buttons */}
           <div className="flex gap-3 pt-4 border-t border-gray-200">
             <button
               type="button"
@@ -292,7 +272,7 @@ export const ReviewWorkerModal: React.FC<ReviewWorkerModalProps> = ({
             <button
               type="submit"
               disabled={isSubmitting || rating === 0}
-              className="flex-1 px-4 py-3 bg-orange-600 text-white rounded-lg hover:bg-orange-700 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex-1 px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isSubmitting ? "⏳ Wysyłanie..." : "⭐ Wyślij opinię"}
             </button>

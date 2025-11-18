@@ -14,6 +14,9 @@ import {
   MessageSquare,
   ArrowLeft,
   Users,
+  CheckCircleIcon,
+  ExternalLink,
+  Globe,
 } from "../../components/icons";
 
 interface CleaningCompany {
@@ -47,8 +50,15 @@ interface CleaningCompany {
 interface CleaningReview {
   id: string;
   cleaning_company_id: string;
-  employer_id: string;
+  employer_id?: string | null;
+  worker_id?: string | null;
+  accountant_id?: string | null;
   rating: number;
+  quality_rating?: number | null;
+  punctuality_rating?: number | null;
+  communication_rating?: number | null;
+  safety_rating?: number | null;
+  would_recommend?: boolean | null;
   review_text: string | null;
   work_date: string | null;
   created_at: string | null;
@@ -377,35 +387,6 @@ export default function CleaningCompanyPublicProfilePage() {
                     </div>
                   </div>
                 </div>
-
-                {/* Contact Buttons */}
-                <div className="flex flex-col gap-2">
-                  {company.phone && (
-                    <button
-                      onClick={handleCallClick}
-                      className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2"
-                    >
-                      <Phone className="w-5 h-5" />
-                      Zadzwoń
-                    </button>
-                  )}
-                  {company.email && (
-                    <button
-                      onClick={handleEmailClick}
-                      className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
-                    >
-                      <Mail className="w-5 h-5" />
-                      Email
-                    </button>
-                  )}
-                  <button
-                    onClick={handleOpenContact}
-                    className="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 flex items-center gap-2"
-                  >
-                    <MessageSquare className="w-5 h-5" />
-                    Wiadomość
-                  </button>
-                </div>
               </div>
             </div>
           </div>
@@ -554,98 +535,16 @@ export default function CleaningCompanyPublicProfilePage() {
             )}
 
             {activeTab === "reviews" && (
-              <div>
-                <div className="flex items-center justify-between mb-6">
-                  <h3 className="text-xl font-semibold text-gray-900">
-                    Opinie ({reviews.length})
-                  </h3>
-                  {user && user.role === "employer" && employerId && (
-                    <button
-                      onClick={() => setIsReviewModalOpen(true)}
-                      className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
-                    >
-                      Dodaj opinię
-                    </button>
-                  )}
-                </div>
-                {reviews.length > 0 ? (
-                  <div className="space-y-6">
-                    {reviews.map((review) => (
-                      <div
-                        key={review.id}
-                        className="bg-gray-50 rounded-lg p-6"
-                      >
-                        <div className="flex items-center gap-2 mb-3">
-                          {[1, 2, 3, 4, 5].map((star) => (
-                            <Star
-                              key={star}
-                              className={`w-5 h-5 ${
-                                star <= review.rating
-                                  ? "text-yellow-400 fill-current"
-                                  : "text-gray-300"
-                              }`}
-                            />
-                          ))}
-                          <span className="text-sm text-gray-600 ml-2">
-                            {review.created_at
-                              ? new Date(review.created_at).toLocaleDateString(
-                                  "pl-PL"
-                                )
-                              : "Brak daty"}
-                          </span>
-                        </div>
-                        {review.review_text && (
-                          <p className="text-gray-700">{review.review_text}</p>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-12">
-                    <p className="text-gray-600 mb-4">Brak opinii</p>
-                    {user && user.role === "employer" && employerId && (
-                      <button
-                        onClick={() => setIsReviewModalOpen(true)}
-                        className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
-                      >
-                        Dodaj pierwszą opinię
-                      </button>
-                    )}
-                  </div>
-                )}
-              </div>
+              <ReviewsTab reviews={reviews} company={company} />
             )}
 
             {activeTab === "contact" && (
-              <div className="space-y-6">
-                <h3 className="text-xl font-semibold text-gray-900">
-                  Dane kontaktowe
-                </h3>
-                <div className="space-y-4">
-                  {company.phone && (
-                    <div className="flex items-center gap-3 text-gray-700">
-                      <Phone className="w-5 h-5 text-blue-600" />
-                      <span>{company.phone}</span>
-                    </div>
-                  )}
-                  {company.email && (
-                    <div className="flex items-center gap-3 text-gray-700">
-                      <Mail className="w-5 h-5 text-blue-600" />
-                      <span>{company.email}</span>
-                    </div>
-                  )}
-                  {company.location_city && (
-                    <div className="flex items-center gap-3 text-gray-700">
-                      <MapPin className="w-5 h-5 text-blue-600" />
-                      <span>
-                        {company.location_city}
-                        {company.location_province &&
-                          `, ${company.location_province}`}
-                      </span>
-                    </div>
-                  )}
-                </div>
-              </div>
+              <ContactTab
+                company={company}
+                employerId={employerId}
+                onOpenContact={() => setIsContactModalOpen(true)}
+                onOpenReview={() => setIsReviewModalOpen(true)}
+              />
             )}
           </div>
         </div>
@@ -700,16 +599,537 @@ export default function CleaningCompanyPublicProfilePage() {
       </Modal>
 
       {/* Review Modal */}
-      {company && employerId && (
+      {company && (
         <ReviewCleaningCompanyModal
           isOpen={isReviewModalOpen}
           onClose={() => setIsReviewModalOpen(false)}
           companyId={company.id}
           companyName={company.company_name}
-          employerId={employerId}
           onSuccess={loadCompanyData}
         />
       )}
+    </div>
+  );
+}
+
+// ==================== TAB COMPONENTS ====================
+
+function ReviewsTab({
+  reviews,
+  company,
+}: {
+  reviews: CleaningReview[];
+  company: CleaningCompany;
+}) {
+  if (reviews.length === 0) {
+    return (
+      <div className="bg-white rounded-lg shadow-sm p-12 text-center">
+        <MessageSquare className="w-16 h-16 mx-auto mb-4 text-gray-400" />
+        <h3 className="text-lg font-semibold text-gray-900 mb-2">
+          Brak opinii
+        </h3>
+        <p className="text-gray-600">Ta firma nie ma jeszcze opinii</p>
+      </div>
+    );
+  }
+
+  const averageRating = company.average_rating || 0;
+  const totalReviews = company.total_reviews || reviews.length;
+
+  // Calculate average detailed ratings
+  const reviewsWithDetailed = reviews.filter(
+    (r) =>
+      r.quality_rating ||
+      r.punctuality_rating ||
+      r.communication_rating ||
+      r.safety_rating
+  );
+
+  const avgQuality =
+    reviewsWithDetailed.length > 0
+      ? reviewsWithDetailed.reduce(
+          (sum, r) => sum + (r.quality_rating || 0),
+          0
+        ) / reviewsWithDetailed.length
+      : 0;
+
+  const avgPunctuality =
+    reviewsWithDetailed.length > 0
+      ? reviewsWithDetailed.reduce(
+          (sum, r) => sum + (r.punctuality_rating || 0),
+          0
+        ) / reviewsWithDetailed.length
+      : 0;
+
+  const avgCommunication =
+    reviewsWithDetailed.length > 0
+      ? reviewsWithDetailed.reduce(
+          (sum, r) => sum + (r.communication_rating || 0),
+          0
+        ) / reviewsWithDetailed.length
+      : 0;
+
+  const avgSafety =
+    reviewsWithDetailed.length > 0
+      ? reviewsWithDetailed.reduce(
+          (sum, r) => sum + (r.safety_rating || 0),
+          0
+        ) / reviewsWithDetailed.length
+      : 0;
+
+  const recommendPercentage =
+    reviews.length > 0
+      ? (reviews.filter((r) => r.would_recommend === true).length /
+          reviews.length) *
+        100
+      : 0;
+
+  return (
+    <div className="space-y-6">
+      {/* Stats */}
+      <div className="bg-white rounded-lg shadow-sm p-6">
+        <div className="flex items-center gap-8 mb-6">
+          <div className="text-center">
+            <div className="text-5xl font-bold text-gray-900 mb-2">
+              {averageRating.toFixed(1)}
+            </div>
+            <div className="flex items-center gap-1 justify-center mb-1">
+              {[...Array(5)].map((_, i) => (
+                <Star
+                  key={i}
+                  className={`w-5 h-5 ${
+                    i < Math.round(averageRating)
+                      ? "fill-yellow-400 text-yellow-400"
+                      : "text-gray-300"
+                  }`}
+                />
+              ))}
+            </div>
+            <div className="text-sm text-gray-600">
+              {totalReviews} {totalReviews === 1 ? "opinia" : "opinii"}
+            </div>
+          </div>
+
+          <div className="flex-1 space-y-2">
+            {[5, 4, 3, 2, 1].map((stars) => {
+              const count = reviews.filter((r) => r.rating === stars).length;
+              const percentage =
+                reviews.length > 0 ? (count / reviews.length) * 100 : 0;
+
+              return (
+                <div key={stars} className="flex items-center gap-3">
+                  <span className="text-sm text-gray-600 w-8">{stars}★</span>
+                  <div className="flex-1 bg-gray-200 rounded-full h-2">
+                    <div
+                      className="bg-yellow-400 h-2 rounded-full transition-all"
+                      style={{ width: `${percentage}%` }}
+                    />
+                  </div>
+                  <span className="text-sm text-gray-600 w-12">{count}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Detailed Ratings */}
+        {reviewsWithDetailed.length > 0 && (
+          <div className="mt-6 pt-6 border-t border-gray-200">
+            <h3 className="font-semibold text-gray-900 mb-4">
+              Średnie oceny szczegółowe
+            </h3>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {avgQuality > 0 && (
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-blue-600 mb-1">
+                    {avgQuality.toFixed(1)}
+                  </div>
+                  <div className="text-sm text-gray-600">Jakość pracy</div>
+                </div>
+              )}
+              {avgPunctuality > 0 && (
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-green-600 mb-1">
+                    {avgPunctuality.toFixed(1)}
+                  </div>
+                  <div className="text-sm text-gray-600">Punktualność</div>
+                </div>
+              )}
+              {avgCommunication > 0 && (
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-purple-600 mb-1">
+                    {avgCommunication.toFixed(1)}
+                  </div>
+                  <div className="text-sm text-gray-600">Komunikacja</div>
+                </div>
+              )}
+              {avgSafety > 0 && (
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-orange-600 mb-1">
+                    {avgSafety.toFixed(1)}
+                  </div>
+                  <div className="text-sm text-gray-600">BHP</div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Recommendation Percentage */}
+        {recommendPercentage > 0 && (
+          <div className="mt-6 pt-6 border-t border-gray-200">
+            <div className="bg-green-50 rounded-lg p-4 text-center">
+              <div className="text-3xl font-bold text-green-600 mb-1">
+                {Math.round(recommendPercentage)} %
+              </div>
+              <div className="text-sm text-gray-700">
+                osób poleca tego pracownika
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Reviews List */}
+      <div className="space-y-4">
+        {reviews.map((review) => (
+          <div key={review.id} className="bg-white rounded-lg shadow-sm p-6">
+            <div className="flex items-start gap-4">
+              <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-lg font-bold text-white shadow-md">
+                {review.employer_id ? "P" : review.worker_id ? "W" : "K"}
+              </div>
+
+              <div className="flex-1">
+                <div className="flex items-start justify-between mb-3">
+                  <div>
+                    <div className="flex items-center gap-3 mb-1">
+                      <h4 className="font-semibold text-gray-900">
+                        {review.employer_id
+                          ? "Pracodawca"
+                          : review.worker_id
+                          ? "Pracownik"
+                          : "Księgowy"}
+                      </h4>
+                      <div className="flex items-center gap-1">
+                        {[...Array(5)].map((_, i) => (
+                          <Star
+                            key={i}
+                            className={`w-4 h-4 ${
+                              i < review.rating
+                                ? "fill-yellow-400 text-yellow-400"
+                                : "text-gray-300"
+                            }`}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                    <span className="text-sm text-gray-500">
+                      {review.created_at
+                        ? new Date(review.created_at).toLocaleDateString(
+                            "pl-PL",
+                            {
+                              year: "numeric",
+                              month: "long",
+                              day: "numeric",
+                            }
+                          )
+                        : "Brak daty"}
+                    </span>
+                  </div>
+                  {review.would_recommend !== null &&
+                    review.would_recommend !== undefined && (
+                      <div className="text-sm">
+                        {review.would_recommend ? (
+                          <span className="text-green-600 flex items-center gap-1">
+                            ✅ Poleca
+                          </span>
+                        ) : (
+                          <span className="text-red-600 flex items-center gap-1">
+                            ❌ Nie poleca
+                          </span>
+                        )}
+                      </div>
+                    )}
+                </div>
+
+                {/* Detailed Ratings Breakdown */}
+                {(review.quality_rating ||
+                  review.punctuality_rating ||
+                  review.communication_rating ||
+                  review.safety_rating) && (
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4 p-4 bg-gray-50 rounded-lg">
+                    {review.quality_rating && (
+                      <div className="text-center">
+                        <div className="text-sm text-gray-600 mb-1">Jakość</div>
+                        <div className="flex items-center justify-center gap-1">
+                          {[...Array(5)].map((_, i) => (
+                            <Star
+                              key={i}
+                              className={`w-3 h-3 ${
+                                i < review.quality_rating!
+                                  ? "fill-blue-500 text-blue-500"
+                                  : "text-gray-300"
+                              }`}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {review.punctuality_rating && (
+                      <div className="text-center">
+                        <div className="text-sm text-gray-600 mb-1">
+                          Punktualność
+                        </div>
+                        <div className="flex items-center justify-center gap-1">
+                          {[...Array(5)].map((_, i) => (
+                            <Star
+                              key={i}
+                              className={`w-3 h-3 ${
+                                i < review.punctuality_rating!
+                                  ? "fill-green-500 text-green-500"
+                                  : "text-gray-300"
+                              }`}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {review.communication_rating && (
+                      <div className="text-center">
+                        <div className="text-sm text-gray-600 mb-1">
+                          Komunikacja
+                        </div>
+                        <div className="flex items-center justify-center gap-1">
+                          {[...Array(5)].map((_, i) => (
+                            <Star
+                              key={i}
+                              className={`w-3 h-3 ${
+                                i < review.communication_rating!
+                                  ? "fill-purple-500 text-purple-500"
+                                  : "text-gray-300"
+                              }`}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {review.safety_rating && (
+                      <div className="text-center">
+                        <div className="text-sm text-gray-600 mb-1">BHP</div>
+                        <div className="flex items-center justify-center gap-1">
+                          {[...Array(5)].map((_, i) => (
+                            <Star
+                              key={i}
+                              className={`w-3 h-3 ${
+                                i < review.safety_rating!
+                                  ? "fill-orange-500 text-orange-500"
+                                  : "text-gray-300"
+                              }`}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {review.review_text && (
+                  <p className="text-gray-700 leading-relaxed mb-3">
+                    {review.review_text}
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ContactTab({
+  company,
+  employerId,
+  onOpenContact,
+  onOpenReview,
+}: {
+  company: CleaningCompany;
+  employerId: string | null;
+  onOpenContact: () => void;
+  onOpenReview: () => void;
+}) {
+  const { user } = useAuth();
+
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {/* Contact Information */}
+      <div className="bg-white rounded-lg shadow-sm p-6">
+        <h2 className="text-xl font-bold text-gray-900 mb-6">
+          Dane kontaktowe
+        </h2>
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Nazwa firmy
+            </label>
+            <p className="text-lg text-gray-900">{company.company_name}</p>
+          </div>
+
+          {company.email && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Email
+              </label>
+              <a
+                href={`mailto:${company.email}`}
+                className="text-lg text-blue-600 hover:text-blue-700 hover:underline flex items-center gap-2"
+              >
+                <Mail className="w-5 h-5" />
+                {company.email}
+              </a>
+            </div>
+          )}
+
+          {company.phone && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Telefon
+              </label>
+              <a
+                href={`tel:${company.phone}`}
+                className="text-lg text-blue-600 hover:text-blue-700 hover:underline flex items-center gap-2"
+              >
+                <Phone className="w-5 h-5" />
+                {company.phone}
+              </a>
+            </div>
+          )}
+
+          {company.location_city && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Lokalizacja
+              </label>
+              <p className="text-lg text-gray-900 flex items-start gap-2">
+                <MapPin className="w-5 h-5 text-gray-400 flex-shrink-0 mt-1" />
+                <span>
+                  {company.location_city}
+                  {company.location_province &&
+                    `, ${company.location_province}`}
+                </span>
+              </p>
+            </div>
+          )}
+
+          {company.service_radius_km && (
+            <div className="pt-4 border-t border-gray-200">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Zasięg działania
+              </label>
+              <p className="text-lg text-gray-900">
+                {company.service_radius_km} km
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Quick Contact Card */}
+      <div className="bg-gradient-to-br from-blue-50 to-purple-50 rounded-lg p-6 border border-blue-200">
+        <h3 className="text-lg font-bold text-gray-900 mb-4">
+          Wyślij wiadomość
+        </h3>
+        <p className="text-sm text-gray-600 mb-6">
+          Zainteresowany usługami {company.company_name}? Skontaktuj się przez
+          platformę:
+        </p>
+
+        <div className="space-y-3">
+          <button
+            onClick={onOpenContact}
+            disabled={!user}
+            className={`block w-full text-white text-center py-3 rounded-lg font-medium transition-colors shadow-sm hover:shadow-md ${
+              !user
+                ? "bg-gray-400 cursor-not-allowed"
+                : "bg-blue-600 hover:bg-blue-700"
+            }`}
+            title={!user ? "Zaloguj się, aby wysłać wiadomość" : ""}
+          >
+            📨 Wyślij wiadomość {!user && "(zaloguj się)"}
+          </button>
+
+          <button
+            onClick={onOpenReview}
+            disabled={!user}
+            className={`block w-full text-white text-center py-3 rounded-lg font-medium transition-colors shadow-sm hover:shadow-md ${
+              !user
+                ? "bg-gray-400 cursor-not-allowed"
+                : "bg-orange-600 hover:bg-orange-700"
+            }`}
+            title={
+              !user
+                ? "Zaloguj się, aby wystawić opinię"
+                : "Wystaw opinię o tej firmie"
+            }
+          >
+            ⭐ Wystaw opinię {!user && "(zaloguj się)"}
+          </button>
+        </div>
+
+        <div className="mt-4 pt-4 border-t border-blue-200">
+          <p className="text-xs text-gray-600 mb-2">
+            Lub skontaktuj się bezpośrednio:
+          </p>
+          <div className="space-y-2">
+            {company.phone && (
+              <a
+                href={`tel:${company.phone}`}
+                className="block text-sm text-blue-600 hover:text-blue-700 hover:underline"
+              >
+                📞 {company.phone}
+              </a>
+            )}
+            {company.email && (
+              <a
+                href={`mailto:${company.email}`}
+                className="block text-sm text-blue-600 hover:text-blue-700 hover:underline"
+              >
+                ✉️ {company.email}
+              </a>
+            )}
+          </div>
+        </div>
+
+        {/* Company Stats */}
+        {(company.team_size || company.years_experience) && (
+          <div className="mt-6 pt-6 border-t border-blue-200">
+            <div className="grid grid-cols-2 gap-4">
+              {company.team_size && (
+                <div className="bg-white rounded-lg p-4 text-center">
+                  <Users className="w-6 h-6 mx-auto mb-2 text-blue-600" />
+                  <div className="text-2xl font-bold text-gray-900">
+                    {company.team_size}
+                  </div>
+                  <div className="text-xs text-gray-600">
+                    {company.team_size === 1 ? "Osoba" : "Osoby"}
+                  </div>
+                </div>
+              )}
+              {company.years_experience && (
+                <div className="bg-white rounded-lg p-4 text-center">
+                  <Briefcase className="w-6 h-6 mx-auto mb-2 text-blue-600" />
+                  <div className="text-2xl font-bold text-gray-900">
+                    {company.years_experience}
+                  </div>
+                  <div className="text-xs text-gray-600">
+                    {company.years_experience === 1 ? "Rok" : "Lat"}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

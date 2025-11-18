@@ -6,7 +6,7 @@
  * Used by: Workers, Employers, Accountants, Cleaning Companies
  */
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { supabase } from "../../lib/supabase";
 
 interface CoverImageUploaderProps {
@@ -26,6 +26,7 @@ export function CoverImageUploader({
   const [preview, setPreview] = useState<string | null>(
     currentCoverUrl || null
   );
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -137,7 +138,11 @@ export function CoverImageUploader({
 
         {/* Upload Button Overlay */}
         <div className="absolute inset-0 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity bg-black/40">
-          <label className="cursor-pointer bg-white text-gray-900 px-6 py-3 rounded-lg font-semibold shadow-lg hover:bg-gray-100 transition-colors">
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploading}
+            className="cursor-pointer bg-white text-gray-900 px-6 py-3 rounded-lg font-semibold shadow-lg hover:bg-gray-100 transition-colors disabled:opacity-50"
+          >
             {uploading ? (
               <div className="flex items-center gap-2">
                 <span className="animate-spin">⏳</span>
@@ -149,31 +154,29 @@ export function CoverImageUploader({
                 <span>{preview ? "Zmień" : "Dodaj"} zdjęcie</span>
               </div>
             )}
-            <input
-              type="file"
-              accept="image/*"
-              onChange={handleFileChange}
-              disabled={uploading}
-              className="hidden"
-            />
-          </label>
+          </button>
         </div>
       </div>
 
+      {/* Hidden File Input */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        onChange={handleFileChange}
+        disabled={uploading}
+        className="hidden"
+      />
+
       {/* Action Buttons */}
       <div className="flex gap-3">
-        <label className="flex-1 cursor-pointer">
-          <div className="px-4 py-2 bg-blue-600 text-white text-center rounded-lg hover:bg-blue-700 transition-colors font-medium">
-            {uploading ? "⏳ Wysyłanie..." : "📤 Wybierz zdjęcie"}
-          </div>
-          <input
-            type="file"
-            accept="image/*"
-            onChange={handleFileChange}
-            disabled={uploading}
-            className="hidden"
-          />
-        </label>
+        <button
+          onClick={() => fileInputRef.current?.click()}
+          disabled={uploading}
+          className="flex-1 px-4 py-2 bg-blue-600 text-white text-center rounded-lg hover:bg-blue-700 transition-colors font-medium disabled:opacity-50"
+        >
+          {uploading ? "⏳ Wysyłanie..." : "📤 Wybierz zdjęcie"}
+        </button>
 
         {preview && (
           <button

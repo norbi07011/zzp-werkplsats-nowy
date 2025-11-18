@@ -1,7 +1,14 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
+import { useAuth } from "../../contexts/AuthContext";
 import { Modal } from "../../components/Modal";
+import { ReviewEmployerModal } from "../../src/components/employer/ReviewEmployerModal";
+import {
+  getEmployerReviews,
+  getEmployerReviewStats,
+} from "../../src/services/employerReviewService";
+import type { EmployerReviewStats } from "../../src/services/employerReviewService";
 import {
   BuildingOfficeIcon,
   MapPin,
@@ -14,6 +21,8 @@ import {
   CheckCircleIcon,
   ClockIcon,
   ExternalLink,
+  MessageSquare,
+  ArrowLeft,
 } from "../../components/icons";
 
 interface Employer {
@@ -21,6 +30,7 @@ interface Employer {
   profile_id: string;
   company_name: string | null;
   logo_url: string | null;
+  cover_image_url: string | null;
   description: string | null;
   industry: string | null;
   company_size: string | null;
@@ -71,13 +81,27 @@ interface Job {
 export default function EmployerPublicProfilePage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   const [employer, setEmployer] = useState<Employer | null>(null);
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"about" | "jobs" | "contact">(
-    "about"
+  const [activeTab, setActiveTab] = useState<
+    "about" | "jobs" | "contact" | "reviews"
+  >("about");
+
+  // Reviews state
+  const [reviews, setReviews] = useState<any[]>([]);
+  const [reviewStats, setReviewStats] = useState<EmployerReviewStats | null>(
+    null
   );
+  const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
+  const [workerId, setWorkerId] = useState<string | null>(null);
+  const [accountantId, setAccountantId] = useState<string | null>(null);
+  const [cleaningCompanyId, setCleaningCompanyId] = useState<string | null>(
+    null
+  );
+  const [hasReviewed, setHasReviewed] = useState<boolean>(false);
 
   // Contact modal
   const [isContactModalOpen, setIsContactModalOpen] = useState(false);
@@ -116,6 +140,66 @@ export default function EmployerPublicProfilePage() {
 
       if (!jobsError && jobsData) {
         setJobs(jobsData as any);
+      }
+
+      // Load employer reviews
+      const reviewsResult = await getEmployerReviews(id);
+      if (reviewsResult.success && reviewsResult.reviews) {
+        setReviews(reviewsResult.reviews);
+      }
+
+      // Load review stats
+      const statsResult = await getEmployerReviewStats(id);
+      if (statsResult.success && statsResult.stats) {
+        setReviewStats(statsResult.stats);
+      }
+
+      // Load logged-in user's worker/accountant/cleaning_company ID
+      if (user?.id) {
+        // Check if user is a worker
+        const { data: workerData } = await supabase
+          .from("workers")
+          .select("id")
+          .eq("profile_id", user.id)
+          .maybeSingle();
+
+        if (workerData) {
+          setWorkerId(workerData.id);
+        } else {
+          // Check if user is an accountant
+          const { data: accountantData } = await supabase
+            .from("accountants")
+            .select("id")
+            .eq("profile_id", user.id)
+            .maybeSingle();
+
+          if (accountantData) {
+            setAccountantId(accountantData.id);
+          } else {
+            // Check if user is a cleaning company
+            const { data: cleaningCompanyData } = await supabase
+              .from("cleaning_companies")
+              .select("id")
+              .eq("profile_id", user.id)
+              .maybeSingle();
+
+            if (cleaningCompanyData) {
+              setCleaningCompanyId(cleaningCompanyData.id);
+            }
+          }
+        }
+      }
+
+      // Sprawdź czy użytkownik już wystawił opinię
+      if (user?.id) {
+        const { data: existingReview } = await supabase
+          .from("employer_reviews")
+          .select("id")
+          .eq("employer_id", id)
+          .eq("reviewer_id", user.id)
+          .maybeSingle();
+
+        setHasReviewed(!!existingReview);
       }
     } catch (error) {
       console.error("Error loading employer data:", error);
@@ -196,26 +280,46 @@ export default function EmployerPublicProfilePage() {
 
   const rating = employer.avg_rating || 0;
 
-  // Make handler available to ContactTab
+  // Make handlers available to ContactTab
   (window as any).handleOpenContact = handleOpenContact;
+  (window as any).handleOpenReviewModal = () => setIsReviewModalOpen(true);
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header Section */}
-      <div className="bg-gradient-to-r from-green-600 to-emerald-700 text-white">
-        <div className="max-w-7xl mx-auto px-4 py-12">
-          <div className="flex flex-col md:flex-row items-start md:items-center gap-6">
+      {/* Cover Image Header */}
+      <div className="relative h-64 bg-gradient-to-r from-green-600 to-emerald-700">
+        {employer.cover_image_url && (
+          <img
+            src={employer.cover_image_url}
+            alt="Cover"
+            className="w-full h-full object-cover"
+          />
+        )}
+        <div className="absolute inset-0 bg-black bg-opacity-30"></div>
+        <button
+          onClick={() => navigate(-1)}
+          className="absolute top-6 left-6 flex items-center gap-2 px-4 py-2 bg-white rounded-lg shadow-lg hover:bg-gray-50"
+        >
+          <ArrowLeft className="w-5 h-5" />
+          <span>Wstecz</span>
+        </button>
+      </div>
+
+      {/* Profile Info */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-16 relative z-10">
+        <div className="bg-white rounded-lg shadow-lg p-8">
+          <div className="flex flex-col md:flex-row gap-6">
             {/* Company Logo */}
             <div className="flex-shrink-0">
               {employer.logo_url ? (
                 <img
                   src={employer.logo_url}
                   alt={employer.company_name || "Company logo"}
-                  className="w-32 h-32 rounded-xl border-4 border-white object-cover bg-white shadow-lg"
+                  className="w-32 h-32 rounded-full border-4 border-white shadow-lg object-cover bg-white"
                 />
               ) : (
-                <div className="w-32 h-32 rounded-xl border-4 border-white bg-white flex items-center justify-center shadow-lg">
-                  <BuildingOfficeIcon className="w-16 h-16 text-gray-400" />
+                <div className="w-32 h-32 rounded-full border-4 border-white shadow-lg bg-green-100 flex items-center justify-center">
+                  <BuildingOfficeIcon className="w-16 h-16 text-green-600" />
                 </div>
               )}
             </div>
@@ -224,26 +328,26 @@ export default function EmployerPublicProfilePage() {
             <div className="flex-1">
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <h1 className="text-4xl font-bold mb-2">
+                  <h1 className="text-3xl font-bold text-gray-900 mb-2">
                     {employer.company_name || "Nazwa firmy"}
                   </h1>
 
                   <div className="flex flex-wrap items-center gap-4 mb-4">
                     {employer.industry && (
-                      <span className="flex items-center gap-2 text-green-100">
+                      <span className="flex items-center gap-2 text-gray-600">
                         <Briefcase className="w-4 h-4" />
                         {employer.industry}
                       </span>
                     )}
                     {employer.city && (
-                      <span className="flex items-center gap-2 text-green-100">
+                      <span className="flex items-center gap-2 text-gray-600">
                         <MapPin className="w-4 h-4" />
                         {employer.city}
                         {employer.country ? `, ${employer.country}` : ""}
                       </span>
                     )}
                     {employer.company_size && (
-                      <span className="flex items-center gap-2 text-green-100">
+                      <span className="flex items-center gap-2 text-gray-600">
                         <User className="w-4 h-4" />
                         {employer.company_size}
                       </span>
@@ -252,21 +356,21 @@ export default function EmployerPublicProfilePage() {
 
                   <div className="flex flex-wrap items-center gap-3">
                     {employer.verified && (
-                      <span className="flex items-center gap-1 bg-white text-green-700 px-3 py-1 rounded-full text-sm font-medium">
+                      <span className="flex items-center gap-1 bg-green-50 border-2 border-green-400 text-green-700 px-3 py-1 rounded-full text-sm font-medium">
                         <CheckCircleIcon className="w-4 h-4" />
                         Zweryfikowany
                       </span>
                     )}
 
                     {rating > 0 && (
-                      <span className="flex items-center gap-1 bg-white text-amber-700 px-3 py-1 rounded-full text-sm font-medium">
+                      <span className="flex items-center gap-1 bg-amber-50 border-2 border-amber-300 text-amber-700 px-3 py-1 rounded-full text-sm font-medium">
                         <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
                         {rating.toFixed(1)} ({employer.rating_count || 0}{" "}
                         opinii)
                       </span>
                     )}
 
-                    <span className="flex items-center gap-1 bg-white/20 px-3 py-1 rounded-full text-sm">
+                    <span className="flex items-center gap-1 bg-gray-100 px-3 py-1 rounded-full text-sm text-gray-700">
                       <Briefcase className="w-4 h-4" />
                       {jobs.length} aktywnych ofert
                     </span>
@@ -275,9 +379,9 @@ export default function EmployerPublicProfilePage() {
 
                 <button
                   onClick={() => navigate("/employers")}
-                  className="px-4 py-2 bg-white text-green-700 rounded-lg hover:bg-green-50 transition-colors font-medium"
+                  className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-semibold shadow-lg"
                 >
-                  Powrót
+                  Zobacz oferty
                 </button>
               </div>
             </div>
@@ -297,6 +401,11 @@ export default function EmployerPublicProfilePage() {
                 icon: "💼",
               },
               { id: "contact", label: "Kontakt", icon: "📞" },
+              {
+                id: "reviews",
+                label: `Opinie (${reviews.length})`,
+                icon: "⭐",
+              },
             ].map((tab) => (
               <button
                 key={tab.id}
@@ -324,7 +433,23 @@ export default function EmployerPublicProfilePage() {
             {activeTab === "jobs" && (
               <JobsTab jobs={jobs} employer={employer} />
             )}
-            {activeTab === "contact" && <ContactTab employer={employer} />}
+            {activeTab === "contact" && (
+              <ContactTab
+                employer={employer}
+                user={user}
+                workerId={workerId}
+                accountantId={accountantId}
+                cleaningCompanyId={cleaningCompanyId}
+                hasReviewed={hasReviewed}
+              />
+            )}
+            {activeTab === "reviews" && (
+              <ReviewsTab
+                reviews={reviews}
+                employer={employer}
+                stats={reviewStats}
+              />
+            )}
           </div>
 
           {/* Sidebar */}
@@ -399,6 +524,23 @@ export default function EmployerPublicProfilePage() {
             </button>
           </div>
         </Modal>
+      )}
+
+      {/* Review Employer Modal */}
+      {employer && (
+        <ReviewEmployerModal
+          isOpen={isReviewModalOpen}
+          onClose={() => setIsReviewModalOpen(false)}
+          employerId={employer.id}
+          employerName={employer.company_name || "Ten pracodawca"}
+          workerId={workerId || undefined}
+          accountantId={accountantId || undefined}
+          cleaningCompanyId={cleaningCompanyId || undefined}
+          onSuccess={() => {
+            setIsReviewModalOpen(false);
+            loadEmployerData(); // Reload reviews
+          }}
+        />
       )}
     </div>
   );
@@ -538,7 +680,21 @@ function JobsTab({ jobs, employer }: { jobs: Job[]; employer: Employer }) {
   );
 }
 
-function ContactTab({ employer }: { employer: Employer }) {
+function ContactTab({
+  employer,
+  user,
+  workerId,
+  accountantId,
+  cleaningCompanyId,
+  hasReviewed,
+}: {
+  employer: Employer;
+  user: any;
+  workerId: string | null;
+  accountantId: string | null;
+  cleaningCompanyId: string | null;
+  hasReviewed: boolean;
+}) {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
       {/* Contact Info Card */}
@@ -668,6 +824,40 @@ function ContactTab({ employer }: { employer: Employer }) {
             className="block w-full bg-green-600 text-white text-center py-3 rounded-lg font-medium hover:bg-green-700 transition-colors shadow-sm hover:shadow-md"
           >
             📨 Wyślij wiadomość
+          </button>
+
+          {/* Review Button */}
+          <button
+            onClick={() => (window as any).handleOpenReviewModal?.()}
+            disabled={
+              !user ||
+              (!workerId && !accountantId && !cleaningCompanyId) ||
+              hasReviewed
+            }
+            className={`block w-full text-white text-center py-3 rounded-lg font-medium transition-colors shadow-sm hover:shadow-md ${
+              !user ||
+              (!workerId && !accountantId && !cleaningCompanyId) ||
+              hasReviewed
+                ? "bg-gray-400 cursor-not-allowed"
+                : "bg-orange-600 hover:bg-orange-700"
+            }`}
+            title={
+              !user
+                ? "Zaloguj się, aby wystawić opinię"
+                : !workerId && !accountantId && !cleaningCompanyId
+                ? "Tylko pracownicy, księgowi i firmy sprzątające mogą wystawiać opinie"
+                : hasReviewed
+                ? "Już wystawiłeś opinię o tym pracodawcy"
+                : "Wystaw opinię o tym pracodawcy"
+            }
+          >
+            {hasReviewed ? "✓ Już wystawiłeś opinię" : "⭐ Wystaw opinię"}
+            {!user && " (zaloguj się)"}
+            {user &&
+              !workerId &&
+              !accountantId &&
+              !cleaningCompanyId &&
+              " (tylko dla pracowników)"}
           </button>
         </div>
 
@@ -983,6 +1173,286 @@ function GoogleReviewsCard({ employer }: { employer: Employer }) {
             />
           </svg>
         </a>
+      )}
+    </div>
+  );
+}
+
+// ==================== REVIEWS TAB ====================
+
+function ReviewsTab({
+  reviews,
+  employer,
+  stats,
+}: {
+  reviews: any[];
+  employer: Employer;
+  stats: EmployerReviewStats | null;
+}) {
+  return (
+    <div className="space-y-6">
+      {/* Reviews Stats Widget */}
+      <div className="bg-white rounded-lg shadow-sm p-6">
+        <h3 className="text-lg font-bold text-gray-900 mb-4">
+          Statystyki ocen
+        </h3>
+
+        {/* Overall rating */}
+        <div className="flex items-center gap-8 mb-6">
+          <div className="text-center">
+            <div className="text-5xl font-bold text-gray-900">
+              {stats?.average_rating.toFixed(1) || "0.0"}
+            </div>
+            <div className="flex gap-1 my-2 justify-center">
+              {[1, 2, 3, 4, 5].map((star) => (
+                <Star
+                  key={star}
+                  className={`w-5 h-5 ${
+                    star <= Math.round(stats?.average_rating || 0)
+                      ? "fill-yellow-400 text-yellow-400"
+                      : "text-gray-300"
+                  }`}
+                />
+              ))}
+            </div>
+            <div className="text-sm text-gray-600">
+              {stats?.total_reviews || 0}{" "}
+              {stats?.total_reviews === 1 ? "opinia" : "opinii"}
+            </div>
+          </div>
+
+          {reviews.length > 0 && stats && (
+            <div className="flex-1">
+              <h4 className="text-sm font-semibold text-gray-900 mb-3">
+                Średnie oceny szczegółowe
+              </h4>
+              <div className="grid grid-cols-3 gap-4">
+                {stats.average_communication > 0 && (
+                  <div className="text-center p-3 bg-blue-50 rounded-lg">
+                    <div className="text-sm font-medium text-blue-900">
+                      Komunikacja
+                    </div>
+                    <div className="text-2xl font-bold text-blue-700">
+                      {stats.average_communication.toFixed(1)}
+                    </div>
+                    <div className="flex gap-1 justify-center mt-1">
+                      {[1, 2, 3, 4, 5].map((s) => (
+                        <Star
+                          key={s}
+                          className={`w-3 h-3 ${
+                            s <= Math.round(stats.average_communication)
+                              ? "fill-yellow-400 text-yellow-400"
+                              : "text-gray-300"
+                          }`}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {stats.average_professionalism > 0 && (
+                  <div className="text-center p-3 bg-purple-50 rounded-lg">
+                    <div className="text-sm font-medium text-purple-900">
+                      Profesjonalizm
+                    </div>
+                    <div className="text-2xl font-bold text-purple-700">
+                      {stats.average_professionalism.toFixed(1)}
+                    </div>
+                    <div className="flex gap-1 justify-center mt-1">
+                      {[1, 2, 3, 4, 5].map((s) => (
+                        <Star
+                          key={s}
+                          className={`w-3 h-3 ${
+                            s <= Math.round(stats.average_professionalism)
+                              ? "fill-yellow-400 text-yellow-400"
+                              : "text-gray-300"
+                          }`}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {stats.average_payment > 0 && (
+                  <div className="text-center p-3 bg-green-50 rounded-lg">
+                    <div className="text-sm font-medium text-green-900">
+                      Terminowość płatności
+                    </div>
+                    <div className="text-2xl font-bold text-green-700">
+                      {stats.average_payment.toFixed(1)}
+                    </div>
+                    <div className="flex gap-1 justify-center mt-1">
+                      {[1, 2, 3, 4, 5].map((s) => (
+                        <Star
+                          key={s}
+                          className={`w-3 h-3 ${
+                            s <= Math.round(stats.average_payment)
+                              ? "fill-yellow-400 text-yellow-400"
+                              : "text-gray-300"
+                          }`}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {stats.recommendation_percentage > 0 && (
+                <div className="mt-4 p-3 bg-green-50 rounded-lg text-center">
+                  <div className="text-sm text-green-900 font-medium">
+                    👍 {stats.recommendation_percentage.toFixed(0)}% osób poleca
+                    tego pracodawcę
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Reviews List */}
+      {reviews.length === 0 ? (
+        <div className="bg-white rounded-lg shadow-sm p-12 text-center">
+          <div className="text-gray-400 text-5xl mb-4">⭐</div>
+          <h3 className="text-xl font-bold text-gray-900 mb-2">Brak opinii</h3>
+          <p className="text-gray-600 mb-6">
+            {employer.company_name || "Ten pracodawca"} nie ma jeszcze opinii.
+          </p>
+          <p className="text-sm text-gray-500">
+            Aby wystawić opinię, przejdź do zakładki "Kontakt"
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {reviews.map((review) => (
+            <div
+              key={review.id}
+              className="bg-white rounded-lg shadow-sm p-6 border border-gray-200"
+            >
+              <div className="flex gap-4">
+                {/* Avatar */}
+                <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold text-xl flex-shrink-0">
+                  {(review as any).profiles?.full_name
+                    ?.substring(0, 1)
+                    .toUpperCase() || "U"}
+                </div>
+
+                {/* Review Content */}
+                <div className="flex-1">
+                  {/* Header: Name + Rating + Date */}
+                  <div className="flex items-start justify-between mb-3">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h4 className="font-bold text-gray-900">
+                          {(review as any).profiles?.full_name ||
+                            "Użytkownik anonimowy"}
+                        </h4>
+                        <div className="flex gap-0.5">
+                          {[1, 2, 3, 4, 5].map((star) => (
+                            <Star
+                              key={star}
+                              className={`w-4 h-4 ${
+                                star <= review.rating
+                                  ? "fill-yellow-400 text-yellow-400"
+                                  : "text-gray-300"
+                              }`}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                      <span className="text-sm text-gray-500">
+                        {new Date(review.created_at).toLocaleDateString(
+                          "pl-PL"
+                        )}
+                      </span>
+                    </div>
+
+                    {review.would_recommend && (
+                      <div className="flex items-center gap-1 bg-green-50 text-green-700 px-3 py-1 rounded-full text-sm font-medium">
+                        <span>👍</span>
+                        Poleca
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Comment */}
+                  {review.comment && (
+                    <p className="text-gray-700 mb-4 whitespace-pre-wrap">
+                      {review.comment}
+                    </p>
+                  )}
+
+                  {/* Detailed Ratings */}
+                  {(review.professionalism_rating ||
+                    review.communication_rating ||
+                    review.payment_rating) && (
+                    <div className="grid grid-cols-3 gap-3 pt-4 border-t border-gray-100">
+                      {review.professionalism_rating && (
+                        <div className="text-center">
+                          <div className="text-sm text-gray-600 mb-1">
+                            Profesjonalizm
+                          </div>
+                          <div className="flex gap-0.5 justify-center">
+                            {[1, 2, 3, 4, 5].map((s) => (
+                              <Star
+                                key={s}
+                                className={`w-3 h-3 ${
+                                  s <= review.professionalism_rating
+                                    ? "fill-yellow-400 text-yellow-400"
+                                    : "text-gray-300"
+                                }`}
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {review.communication_rating && (
+                        <div className="text-center">
+                          <div className="text-sm text-gray-600 mb-1">
+                            Komunikacja
+                          </div>
+                          <div className="flex gap-0.5 justify-center">
+                            {[1, 2, 3, 4, 5].map((s) => (
+                              <Star
+                                key={s}
+                                className={`w-3 h-3 ${
+                                  s <= review.communication_rating
+                                    ? "fill-yellow-400 text-yellow-400"
+                                    : "text-gray-300"
+                                }`}
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {review.payment_rating && (
+                        <div className="text-center">
+                          <div className="text-sm text-gray-600 mb-1">
+                            Terminowość płatności
+                          </div>
+                          <div className="flex gap-0.5 justify-center">
+                            {[1, 2, 3, 4, 5].map((s) => (
+                              <Star
+                                key={s}
+                                className={`w-3 h-3 ${
+                                  s <= review.payment_rating
+                                    ? "fill-yellow-400 text-yellow-400"
+                                    : "text-gray-300"
+                                }`}
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
       )}
     </div>
   );

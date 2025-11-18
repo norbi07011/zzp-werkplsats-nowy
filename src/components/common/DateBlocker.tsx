@@ -117,6 +117,87 @@ const DateBlocker = ({
     });
   };
 
+  // Group consecutive dates into ranges
+  const groupDateRanges = (
+    dates: UnavailableDate[]
+  ): Array<{
+    startDate: string;
+    endDate: string;
+    reason: string;
+    type: UnavailableDateType;
+    dates: UnavailableDate[]; // Original dates in this range
+  }> => {
+    if (dates.length === 0) return [];
+
+    // Sort dates by date string
+    const sortedDates = [...dates].sort(
+      (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+    );
+
+    const ranges: Array<{
+      startDate: string;
+      endDate: string;
+      reason: string;
+      type: UnavailableDateType;
+      dates: UnavailableDate[];
+    }> = [];
+
+    let currentRange: {
+      startDate: string;
+      endDate: string;
+      reason: string;
+      type: UnavailableDateType;
+      dates: UnavailableDate[];
+    } | null = null;
+
+    sortedDates.forEach((blocked) => {
+      if (!currentRange) {
+        // Start new range
+        currentRange = {
+          startDate: blocked.date,
+          endDate: blocked.date,
+          reason: blocked.reason,
+          type: blocked.type,
+          dates: [blocked],
+        };
+        return;
+      }
+
+      // Check if this date is consecutive and has same reason & type
+      const prevDate = new Date(currentRange.endDate);
+      const currDate = new Date(blocked.date);
+      const dayDiff =
+        (currDate.getTime() - prevDate.getTime()) / (1000 * 60 * 60 * 24);
+
+      if (
+        dayDiff === 1 &&
+        blocked.reason === currentRange.reason &&
+        blocked.type === currentRange.type
+      ) {
+        // Extend current range
+        currentRange.endDate = blocked.date;
+        currentRange.dates.push(blocked);
+      } else {
+        // Save current range and start new one
+        ranges.push(currentRange);
+        currentRange = {
+          startDate: blocked.date,
+          endDate: blocked.date,
+          reason: blocked.reason,
+          type: blocked.type,
+          dates: [blocked],
+        };
+      }
+    });
+
+    // Add last range
+    if (currentRange) {
+      ranges.push(currentRange);
+    }
+
+    return ranges;
+  };
+
   // Get today's date in YYYY-MM-DD format for min attribute
   const today = new Date().toISOString().split("T")[0];
 
@@ -288,35 +369,41 @@ const DateBlocker = ({
           </div>
         ) : (
           <div className="space-y-2">
-            {blockedDates
-              .sort(
-                (a, b) =>
-                  new Date(a.date).getTime() - new Date(b.date).getTime()
-              )
-              .map((blocked) => (
+            {groupDateRanges(blockedDates).map((range, index) => {
+              const isSingleDay = range.startDate === range.endDate;
+              const dateDisplay = isSingleDay
+                ? formatDate(range.startDate)
+                : `${formatDate(range.startDate)} do ${formatDate(
+                    range.endDate
+                  )}`;
+
+              return (
                 <div
-                  key={blocked.date}
+                  key={`${range.startDate}-${index}`}
                   className="bg-white border border-gray-200 rounded-lg p-3 flex items-center justify-between hover:shadow-md transition-shadow"
                 >
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">
-                      <p className="font-medium text-gray-800">
-                        {formatDate(blocked.date)}
-                      </p>
+                      <p className="font-medium text-gray-800">{dateDisplay}</p>
                       <span
                         className={`text-xs px-2 py-1 rounded-full ${getTypeColor(
-                          blocked.type
+                          range.type
                         )}`}
                       >
-                        {getTypeLabel(blocked.type)}
+                        {getTypeLabel(range.type)}
                       </span>
                     </div>
-                    <p className="text-sm text-gray-600">{blocked.reason}</p>
+                    <p className="text-sm text-gray-600">{range.reason}</p>
                   </div>
                   <button
-                    onClick={() => onUnblock(blocked)}
+                    onClick={() => {
+                      // Delete all dates in this range
+                      range.dates.forEach((date) => onUnblock(date));
+                    }}
                     className="ml-4 text-red-600 hover:text-red-700 p-2 rounded-lg hover:bg-red-50 transition-colors"
-                    title="Usuń blokadę"
+                    title={`Usuń blokadę (${range.dates.length} ${
+                      range.dates.length === 1 ? "dzień" : "dni"
+                    })`}
                   >
                     <svg
                       className="w-5 h-5"
@@ -333,7 +420,8 @@ const DateBlocker = ({
                     </svg>
                   </button>
                 </div>
-              ))}
+              );
+            })}
           </div>
         )}
       </div>

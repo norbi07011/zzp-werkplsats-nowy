@@ -255,169 +255,117 @@ export const CleaningCompanySearch: React.FC<CleaningCompanySearchProps> = ({
               </p>
             </div>
           ) : (
-            <div className="space-y-4">
-              <div className="text-sm text-gray-600 mb-4">
+            <div>
+              <div className="text-sm text-gray-600 mb-6">
                 Znaleziono {filteredCompanies.length}{" "}
                 {filteredCompanies.length === 1 ? "firma" : "firm"}
               </div>
 
-              {filteredCompanies.map((company) => (
-                <div
-                  key={company.id}
-                  className="bg-white rounded-lg shadow hover:shadow-lg transition-shadow p-6"
-                >
-                  <div className="flex justify-between items-start mb-4">
-                    <div>
-                      <Link to={`/public/cleaning-company/${company.id}`}>
-                        <h3 className="text-xl font-bold text-gray-900 hover:text-blue-600 transition-colors">
-                          {company.company_name}
-                        </h3>
-                      </Link>
-                      <p className="text-gray-600 text-sm">
-                        {company.owner_name}
-                      </p>
-                      {company.location_city && (
-                        <p className="text-gray-500 text-sm">
-                          📍 {company.location_city}
-                          {company.service_radius_km &&
-                            ` (zasięg: ${company.service_radius_km}km)`}
-                        </p>
+              {/* GRID PIONOWYCH KART */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {filteredCompanies.map((company) => (
+                  <div
+                    key={company.id}
+                    className="bg-white rounded-lg shadow-md hover:shadow-xl transition-all overflow-hidden flex flex-col"
+                  >
+                    {/* DUŻE ZDJĘCIE NA GÓRZE */}
+                    <div className="relative w-full h-72 bg-gradient-to-br from-blue-500 to-purple-600">
+                      {company.portfolio_images &&
+                      company.portfolio_images.length > 0 ? (
+                        <img
+                          src={company.portfolio_images[0]}
+                          alt={company.company_name}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <span className="text-white text-6xl font-bold">
+                            {company.company_name
+                              ?.substring(0, 1)
+                              .toUpperCase()}
+                          </span>
+                        </div>
+                      )}
+
+                      {/* Rating badge - TOP RIGHT */}
+                      {company.average_rating && company.total_reviews && (
+                        <div className="absolute top-3 right-3 bg-yellow-50 border-2 border-yellow-400 rounded-lg px-3 py-2 text-center shadow-lg">
+                          <div className="flex items-center gap-1 text-yellow-600">
+                            <span className="text-xl font-bold">
+                              {company.average_rating.toFixed(1)}
+                            </span>
+                            <span className="text-lg">⭐</span>
+                          </div>
+                          <p className="text-xs text-gray-600 font-medium">
+                            {company.total_reviews}{" "}
+                            {company.total_reviews === 1 ? "op." : "op."}
+                          </p>
+                        </div>
                       )}
                     </div>
 
-                    {company.average_rating && (
-                      <div className="text-right">
-                        <div className="flex items-center gap-1 text-yellow-500 mb-1">
-                          <span className="text-lg font-bold">
-                            {company.average_rating.toFixed(1)}
-                          </span>
-                          <span>⭐</span>
-                        </div>
-                        <p className="text-xs text-gray-500">
-                          ({company.total_reviews || 0} opinii)
+                    {/* CONTENT */}
+                    <div className="p-5 flex flex-col flex-1">
+                      {/* Company name */}
+                      <Link to={`/public/cleaning-company/${company.id}`}>
+                        <h3 className="text-xl font-bold text-gray-900 hover:text-blue-600 transition-colors mb-2">
+                          {company.company_name}
+                        </h3>
+                      </Link>
+
+                      {/* Location */}
+                      {company.location_city && (
+                        <p className="text-gray-600 text-sm mb-4 flex items-center gap-1">
+                          <span>📍</span>
+                          {company.location_city}
+                          {company.service_radius_km &&
+                            ` • ${company.service_radius_km}km`}
                         </p>
-                      </div>
-                    )}
-                  </div>
+                      )}
 
-                  {/* Stawka */}
-                  {company.hourly_rate_min && company.hourly_rate_max && (
-                    <div className="mb-4">
-                      <span className="text-2xl font-bold text-blue-600">
-                        €{company.hourly_rate_min} - €{company.hourly_rate_max}
-                      </span>
-                      <span className="text-gray-600 text-sm"> / godz</span>
-                    </div>
-                  )}
-
-                  {/* Specjalizacja */}
-                  {company.specialization &&
-                    company.specialization.length > 0 && (
-                      <div className="mb-4">
-                        <div className="flex flex-wrap gap-2">
-                          {company.specialization.map((spec, idx) => (
-                            <span
-                              key={idx}
-                              className="text-xs bg-blue-100 text-blue-800 px-3 py-1 rounded-full"
-                            >
-                              {spec}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                  {/* Dostępność - simplified */}
-                  {company.availability && (
-                    <div className="mb-4 bg-gray-50 p-4 rounded-lg">
-                      <h4 className="text-sm font-semibold text-gray-700 mb-2">
-                        Dostępność ({countAvailableDays(company.availability)}{" "}
-                        dni/tydzień)
-                      </h4>
-                      <div className="flex gap-2 flex-wrap">
-                        {DAYS.map((day) => (
-                          <span
-                            key={day}
-                            className={`
-                              px-3 py-1 text-xs rounded-lg
-                              ${
-                                company.availability[day]
-                                  ? "bg-green-100 text-green-800"
-                                  : "bg-gray-100 text-gray-400"
-                              }
-                            `}
-                          >
-                            {DAY_LABELS[day]}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Bio */}
-                  {company.bio && (
-                    <p className="text-gray-600 text-sm mb-4">{company.bio}</p>
-                  )}
-
-                  {/* Doświadczenie */}
-                  <div className="flex gap-4 text-sm text-gray-600 mb-4">
-                    {company.team_size && (
-                      <span>
-                        👷 {company.team_size}{" "}
-                        {company.team_size === 1 ? "osoba" : "osoby"}
-                      </span>
-                    )}
-                    {company.years_experience && (
-                      <span>
-                        📅 {company.years_experience} lat doświadczenia
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Portfolio images */}
-                  {company.portfolio_images &&
-                    company.portfolio_images.length > 0 && (
-                      <div className="mb-4">
-                        <h4 className="text-sm font-semibold text-gray-700 mb-2">
-                          Portfolio
-                        </h4>
-                        <div className="grid grid-cols-4 gap-2">
-                          {company.portfolio_images
-                            .slice(0, 4)
-                            .map((img, idx) => (
-                              <img
-                                key={idx}
-                                src={img}
-                                alt={`Portfolio ${idx + 1}`}
-                                className="w-full h-20 object-cover rounded-lg"
-                              />
+                      {/* AVAILABILITY DAYS */}
+                      {company.availability && (
+                        <div className="mb-4 flex-1">
+                          <h4 className="text-xs font-semibold text-gray-700 mb-2 uppercase tracking-wide">
+                            📅 Dostępne dni (
+                            {countAvailableDays(company.availability)})
+                          </h4>
+                          <div className="grid grid-cols-4 gap-1.5">
+                            {DAYS.map((day) => (
+                              <span
+                                key={day}
+                                className={`
+                                  px-2 py-1.5 text-xs text-center rounded font-medium transition-all
+                                  ${
+                                    company.availability[day]
+                                      ? "bg-green-100 text-green-800 border border-green-300"
+                                      : "bg-gray-100 text-gray-400"
+                                  }
+                                `}
+                              >
+                                {DAY_LABELS[day]}
+                              </span>
                             ))}
+                          </div>
                         </div>
-                      </div>
-                    )}
+                      )}
 
-                  {/* Actions */}
-                  <div className="flex gap-3">
-                    <Link
-                      to={`/public/cleaning-company/${company.id}`}
-                      className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg font-semibold hover:bg-blue-700 transition-colors text-center"
-                    >
-                      Zobacz profil
-                    </Link>
-                    {company.phone && (
-                      <a
-                        href={`tel:${company.phone}`}
-                        className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-                      >
-                        📞 Zadzwoń
-                      </a>
-                    )}
-                    <button className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
-                      ⭐ Zapisz
-                    </button>
+                      {/* ACTION BUTTONS */}
+                      <div className="flex flex-col gap-2 mt-auto">
+                        <Link
+                          to={`/public/cleaning-company/${company.id}`}
+                          className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg font-semibold hover:bg-blue-700 transition-colors text-center shadow-sm"
+                        >
+                          Zobacz profil
+                        </Link>
+                        <button className="w-full py-3 px-4 border-2 border-yellow-400 bg-yellow-50 text-yellow-700 rounded-lg hover:bg-yellow-100 transition-colors font-semibold shadow-sm">
+                          ⭐ Zapisz
+                        </button>
+                      </div>
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
           )}
         </div>

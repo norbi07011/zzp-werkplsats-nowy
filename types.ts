@@ -776,16 +776,23 @@ export const getAvailableDaysList = (
 export interface CleaningReview {
   id: string;
   cleaning_company_id: string;
-  employer_id: string;
+  employer_id?: string | null;
+  worker_id?: string | null;
+  accountant_id?: string | null;
 
-  // Ocena i treść
-  rating: number; // 1-5
+  // Oceny
+  rating: number; // 1-5 (ogólna ocena)
+  quality_rating?: number | null; // 1-5 (jakość pracy)
+  punctuality_rating?: number | null; // 1-5 (punktualność)
+  communication_rating?: number | null; // 1-5 (komunikacja)
+  safety_rating?: number | null; // 1-5 (BHP)
+  would_recommend?: boolean | null;
   review_text?: string;
 
-  // Szczegóły pracy
+  // Szczegóły pracy (opcjonalne - legacy fields)
   work_date?: string;
   work_duration_hours?: number;
-  work_type?: string; // np. 'after_construction', 'deep_cleaning'
+  work_type?: string;
 
   // Odpowiedź od firmy
   response_text?: string;
@@ -795,7 +802,7 @@ export interface CleaningReview {
   created_at: string;
   updated_at: string;
 
-  // Relacje (opcjonalne, JOIN z employers)
+  // Relacje (opcjonalne, JOIN)
   employer?: {
     id: string;
     company_name: string;

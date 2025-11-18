@@ -18,7 +18,7 @@
     "forceConsistentCasingInFileNames": true,
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
-    "ignoreDeprecations": "5.0",
+    "ignoreDeprecations": "6.0",
     "baseUrl": ".",
     "paths": {
       "@/*": ["src/*"]
@@ -35,7 +35,7 @@
     "**/*_OLD*.tsx",
     "**/*_BACKUP*.tsx",
     "**/*_SKELETON*.tsx",
-    "**/*_NEW*.tsx",
-    "**/*.TEMP.tsx"
+    "**/*_NEW*.tsx"
   ]
 }
+

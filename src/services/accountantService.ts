@@ -30,6 +30,8 @@ export interface Accountant {
   portfolio_images?: string[];
   rating: number;
   rating_count: number;
+  average_rating?: number; // New column updated by trigger
+  review_count?: number; // New column updated by trigger
   total_clients: number;
   profile_views?: number;
   years_experience: number;

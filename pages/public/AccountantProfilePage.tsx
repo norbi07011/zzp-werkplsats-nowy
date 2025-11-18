@@ -5,10 +5,13 @@ import {
   getAccountant,
   getAccountantServices,
   getAccountantReviews,
+  getUnavailableDates,
+  getAvailability,
   type Accountant,
   type AccountantService,
   type AccountantReview,
 } from "../../src/services/accountantService";
+import type { UnavailableDate } from "../../types";
 import { Modal } from "../../components/Modal";
 import {
   Star,
@@ -36,6 +39,10 @@ export default function AccountantProfilePage() {
   const [accountant, setAccountant] = useState<Accountant | null>(null);
   const [services, setServices] = useState<AccountantService[]>([]);
   const [reviews, setReviews] = useState<AccountantReview[]>([]);
+  const [unavailableDates, setUnavailableDates] = useState<UnavailableDate[]>(
+    []
+  );
+  const [availability, setAvailability] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<
     "about" | "services" | "reviews" | "contact"
@@ -51,9 +58,8 @@ export default function AccountantProfilePage() {
   useEffect(() => {
     if (id) {
       loadAccountantData();
-      trackProfileView();
     }
-  }, [id, authUser]);
+  }, [id]);
 
   // Load employer ID if user is employer
   useEffect(() => {
@@ -78,6 +84,13 @@ export default function AccountantProfilePage() {
     loadEmployerId();
   }, [authUser]);
 
+  // Track profile view after employerId is loaded
+  useEffect(() => {
+    if (employerId && id) {
+      trackProfileView();
+    }
+  }, [employerId, id]);
+
   const trackProfileView = async () => {
     if (!authUser || !id || !employerId) return;
 
@@ -101,15 +114,25 @@ export default function AccountantProfilePage() {
     if (!id) return;
 
     try {
-      const [accountantData, servicesData, reviewsData] = await Promise.all([
+      const [
+        accountantData,
+        servicesData,
+        reviewsData,
+        unavailableData,
+        availabilityData,
+      ] = await Promise.all([
         getAccountant(id),
         getAccountantServices(id),
         getAccountantReviews(id),
+        getUnavailableDates(id), // Load unavailable dates for this accountant
+        getAvailability(id), // Load weekly availability
       ]);
 
       setAccountant(accountantData);
       setServices(servicesData);
       setReviews(reviewsData);
+      setUnavailableDates(unavailableData);
+      setAvailability(availabilityData);
     } catch (error) {
       console.error("Error loading accountant:", error);
     } finally {
@@ -163,7 +186,7 @@ export default function AccountantProfilePage() {
 
   const handleOpenReview = async () => {
     if (!authUser) {
-      alert("Zaloguj się jako pracodawca aby wystawić opinię");
+      alert("Zaloguj się, aby wystawić opinię");
       return;
     }
 
@@ -254,98 +277,107 @@ export default function AccountantProfilePage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Back Button */}
-      <div className="bg-white border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <button
-            onClick={() => navigate("/accountants")}
-            className="inline-flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Wróć do wyszukiwarki księgowych
-          </button>
-        </div>
+      {/* Cover Image Header */}
+      <div className="relative h-64 bg-gradient-to-r from-amber-600 to-amber-700">
+        {accountant.cover_image_url && (
+          <img
+            src={accountant.cover_image_url}
+            alt="Cover"
+            className="w-full h-full object-cover"
+          />
+        )}
+        <div className="absolute inset-0 bg-black bg-opacity-30"></div>
+        <button
+          onClick={() => navigate("/accountants")}
+          className="absolute top-6 left-6 flex items-center gap-2 px-4 py-2 bg-white rounded-lg shadow-lg hover:bg-gray-50 transition-colors"
+        >
+          <ArrowLeft className="w-5 h-5" />
+          <span>Wróć do wyszukiwarki</span>
+        </button>
       </div>
 
-      {/* Header */}
-      <div className="bg-gradient-to-r from-amber-600 to-amber-700 text-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      {/* Profile Info Card */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-16 relative z-10">
+        <div className="bg-white rounded-lg shadow-lg p-8">
           <div className="flex flex-col md:flex-row gap-8 items-start">
             {/* Avatar */}
-            {accountant.avatar_url ? (
-              <img
-                src={accountant.avatar_url}
-                alt={accountant.full_name}
-                className="w-32 h-32 rounded-2xl object-cover border-4 border-white/20 shadow-xl"
-              />
-            ) : (
-              <div className="w-32 h-32 bg-white/10 backdrop-blur-sm rounded-2xl flex items-center justify-center text-5xl font-bold border-4 border-white/20">
-                {accountant.full_name.charAt(0)}
-              </div>
-            )}
+            <div className="w-32 h-32 rounded-full border-4 border-white shadow-lg flex-shrink-0">
+              {accountant.avatar_url ? (
+                <img
+                  src={accountant.avatar_url}
+                  alt={accountant.full_name}
+                  className="w-full h-full rounded-full object-cover"
+                />
+              ) : (
+                <div className="w-full h-full bg-gradient-to-br from-amber-400 to-amber-600 rounded-full flex items-center justify-center text-white text-5xl font-bold">
+                  {accountant.full_name.charAt(0)}
+                </div>
+              )}
+            </div>
 
             {/* Info */}
             <div className="flex-1">
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <h1 className="text-4xl font-bold mb-2">
-                    {accountant.full_name}
-                  </h1>
-                  {accountant.company_name && (
-                    <p className="text-xl text-amber-100 mb-4">
-                      {accountant.company_name}
-                    </p>
-                  )}
+              <h1 className="text-4xl font-bold text-gray-900 mb-2">
+                {accountant.full_name}
+              </h1>
+              {accountant.company_name && (
+                <p className="text-xl text-gray-600 mb-4">
+                  {accountant.company_name}
+                </p>
+              )}
 
-                  {/* Rating */}
-                  <div className="flex items-center gap-4 mb-4">
-                    <div className="flex items-center gap-2 bg-white/10 backdrop-blur-sm px-4 py-2 rounded-lg">
-                      <Star className="w-5 h-5 fill-yellow-400 text-yellow-400" />
-                      <span className="text-lg font-semibold">
-                        {accountant.rating.toFixed(1)}
-                      </span>
-                      <span className="text-amber-100">
-                        ({accountant.rating_count} opinii)
-                      </span>
-                    </div>
-                    {accountant.is_verified && (
-                      <div className="flex items-center gap-2 bg-white/10 backdrop-blur-sm px-4 py-2 rounded-lg">
-                        <CheckCircleIcon className="w-5 h-5 text-green-400" />
-                        <span className="font-medium">Zweryfikowany</span>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Quick Info */}
-                  <div className="flex flex-wrap gap-4 text-amber-100">
-                    {accountant.city && (
-                      <div className="flex items-center gap-2">
-                        <MapPin className="w-4 h-4" />
-                        <span>{accountant.city}</span>
-                      </div>
-                    )}
-                    <div className="flex items-center gap-2">
-                      <Briefcase className="w-4 h-4" />
-                      <span>
-                        {accountant.years_experience} lat doświadczenia
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Award className="w-4 h-4" />
-                      <span>{accountant.total_clients} klientów</span>
-                    </div>
-                  </div>
+              {/* Rating & Badges */}
+              <div className="flex items-center gap-4 mb-4 flex-wrap">
+                <div className="flex items-center gap-2 bg-yellow-50 border-2 border-yellow-400 px-4 py-2 rounded-lg">
+                  <Star className="w-5 h-5 fill-yellow-400 text-yellow-400" />
+                  <span className="text-lg font-semibold text-yellow-800">
+                    {(
+                      accountant.average_rating ||
+                      accountant.rating ||
+                      0
+                    ).toFixed(1)}
+                  </span>
+                  <span className="text-yellow-700">
+                    ({accountant.review_count || accountant.rating_count || 0}{" "}
+                    opinii)
+                  </span>
                 </div>
+                {accountant.is_verified && (
+                  <div className="flex items-center gap-2 bg-green-50 border-2 border-green-400 px-4 py-2 rounded-lg">
+                    <CheckCircleIcon className="w-5 h-5 text-green-600" />
+                    <span className="font-medium text-green-700">
+                      Zweryfikowany
+                    </span>
+                  </div>
+                )}
+              </div>
 
-                {/* Contact Button */}
-                <a
-                  href={`mailto:${accountant.email}`}
-                  className="px-6 py-3 bg-white text-amber-700 font-semibold rounded-lg hover:bg-amber-50 transition-colors shadow-lg"
-                >
-                  Skontaktuj się
-                </a>
+              {/* Quick Info */}
+              <div className="flex flex-wrap gap-4 text-gray-600">
+                {accountant.city && (
+                  <div className="flex items-center gap-2">
+                    <MapPin className="w-4 h-4" />
+                    <span>{accountant.city}</span>
+                  </div>
+                )}
+                <div className="flex items-center gap-2">
+                  <Briefcase className="w-4 h-4" />
+                  <span>{accountant.years_experience} lat doświadczenia</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Award className="w-4 h-4" />
+                  <span>{accountant.total_clients} klientów</span>
+                </div>
               </div>
             </div>
+
+            {/* Contact Button */}
+            <a
+              href={`mailto:${accountant.email}`}
+              className="px-6 py-3 bg-amber-600 text-white font-semibold rounded-lg hover:bg-amber-700 transition-colors shadow-lg"
+            >
+              Skontaktuj się
+            </a>
           </div>
         </div>
       </div>
@@ -389,7 +421,13 @@ export default function AccountantProfilePage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Main Content */}
           <div className="lg:col-span-2 space-y-6">
-            {activeTab === "about" && <AboutTab accountant={accountant} />}
+            {activeTab === "about" && (
+              <AboutTab
+                accountant={accountant}
+                unavailableDates={unavailableDates}
+                availability={availability}
+              />
+            )}
             {activeTab === "services" && <ServicesTab services={services} />}
             {activeTab === "reviews" && (
               <ReviewsTab reviews={reviews} accountant={accountant} />
@@ -520,12 +558,11 @@ export default function AccountantProfilePage() {
       )}
 
       {/* Review Modal */}
-      {accountant && authUser && authUser.role === "employer" && (
+      {accountant && authUser && (
         <ReviewAccountantModal
           isOpen={isReviewModalOpen}
           onClose={() => setIsReviewModalOpen(false)}
           accountantId={accountant.id}
-          reviewerId={authUser.id}
           onSuccess={loadAccountantData}
         />
       )}
@@ -611,21 +648,72 @@ function ReviewsTab({
     );
   }
 
+  // Calculate average detailed ratings
+  const reviewsWithDetailed = reviews.filter(
+    (r) =>
+      r.professionalism_rating ||
+      r.communication_rating ||
+      r.quality_rating ||
+      r.timeliness_rating
+  );
+
+  const avgProfessionalism =
+    reviewsWithDetailed.length > 0
+      ? reviewsWithDetailed.reduce(
+          (sum, r) => sum + (r.professionalism_rating || 0),
+          0
+        ) / reviewsWithDetailed.length
+      : 0;
+
+  const avgCommunication =
+    reviewsWithDetailed.length > 0
+      ? reviewsWithDetailed.reduce(
+          (sum, r) => sum + (r.communication_rating || 0),
+          0
+        ) / reviewsWithDetailed.length
+      : 0;
+
+  const avgQuality =
+    reviewsWithDetailed.length > 0
+      ? reviewsWithDetailed.reduce(
+          (sum, r) => sum + (r.quality_rating || 0),
+          0
+        ) / reviewsWithDetailed.length
+      : 0;
+
+  const avgTimeliness =
+    reviewsWithDetailed.length > 0
+      ? reviewsWithDetailed.reduce(
+          (sum, r) => sum + (r.timeliness_rating || 0),
+          0
+        ) / reviewsWithDetailed.length
+      : 0;
+
+  const recommendPercentage =
+    reviews.length > 0
+      ? (reviews.filter((r) => r.would_recommend === true).length /
+          reviews.length) *
+        100
+      : 0;
+
   return (
     <div className="space-y-6">
       {/* Stats */}
       <div className="bg-white rounded-lg shadow-sm p-6">
-        <div className="flex items-center gap-8">
+        <div className="flex items-center gap-8 mb-6">
           <div className="text-center">
             <div className="text-5xl font-bold text-gray-900 mb-2">
-              {accountant.rating.toFixed(1)}
+              {(accountant.average_rating || accountant.rating || 0).toFixed(1)}
             </div>
             <div className="flex items-center gap-1 justify-center mb-1">
               {[...Array(5)].map((_, i) => (
                 <Star
                   key={i}
                   className={`w-5 h-5 ${
-                    i < Math.round(accountant.rating)
+                    i <
+                    Math.round(
+                      accountant.average_rating || accountant.rating || 0
+                    )
                       ? "fill-yellow-400 text-yellow-400"
                       : "text-gray-300"
                   }`}
@@ -633,7 +721,7 @@ function ReviewsTab({
               ))}
             </div>
             <div className="text-sm text-gray-600">
-              {accountant.rating_count} opinii
+              {accountant.review_count || accountant.rating_count || 0} opinii
             </div>
           </div>
 
@@ -657,6 +745,63 @@ function ReviewsTab({
             })}
           </div>
         </div>
+
+        {/* Detailed Ratings */}
+        {reviewsWithDetailed.length > 0 && (
+          <div className="mt-6 pt-6 border-t border-gray-200">
+            <h3 className="font-semibold text-gray-900 mb-4">
+              Średnie oceny szczegółowe
+            </h3>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {avgProfessionalism > 0 && (
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-blue-600 mb-1">
+                    {avgProfessionalism.toFixed(1)}
+                  </div>
+                  <div className="text-sm text-gray-600">Profesjonalizm</div>
+                </div>
+              )}
+              {avgCommunication > 0 && (
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-green-600 mb-1">
+                    {avgCommunication.toFixed(1)}
+                  </div>
+                  <div className="text-sm text-gray-600">Komunikacja</div>
+                </div>
+              )}
+              {avgQuality > 0 && (
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-purple-600 mb-1">
+                    {avgQuality.toFixed(1)}
+                  </div>
+                  <div className="text-sm text-gray-600">Jakość usług</div>
+                </div>
+              )}
+              {avgTimeliness > 0 && (
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-orange-600 mb-1">
+                    {avgTimeliness.toFixed(1)}
+                  </div>
+                  <div className="text-sm text-gray-600">Terminowość</div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Recommendation Percentage */}
+        {recommendPercentage > 0 && (
+          <div className="mt-6 pt-6 border-t border-gray-200">
+            <div className="bg-green-50 rounded-lg p-4 text-center">
+              <div className="text-3xl font-bold text-green-600 mb-1">
+                {Math.round(recommendPercentage)} %
+              </div>
+              <div className="text-sm text-gray-700">
+                osób poleca tego księgowego
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Reviews List */}
@@ -690,6 +835,107 @@ function ReviewsTab({
                   </span>
                 </div>
 
+                {/* Detailed Ratings Breakdown */}
+                {(review.professionalism_rating ||
+                  review.communication_rating ||
+                  review.quality_rating ||
+                  review.timeliness_rating) && (
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4 p-4 bg-gray-50 rounded-lg">
+                    {review.professionalism_rating && (
+                      <div className="text-center">
+                        <div className="text-sm text-gray-600 mb-1">
+                          Profesjonalizm
+                        </div>
+                        <div className="flex items-center justify-center gap-1">
+                          {[...Array(5)].map((_, i) => (
+                            <Star
+                              key={i}
+                              className={`w-3 h-3 ${
+                                i < review.professionalism_rating!
+                                  ? "fill-blue-500 text-blue-500"
+                                  : "text-gray-300"
+                              }`}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {review.communication_rating && (
+                      <div className="text-center">
+                        <div className="text-sm text-gray-600 mb-1">
+                          Komunikacja
+                        </div>
+                        <div className="flex items-center justify-center gap-1">
+                          {[...Array(5)].map((_, i) => (
+                            <Star
+                              key={i}
+                              className={`w-3 h-3 ${
+                                i < review.communication_rating!
+                                  ? "fill-green-500 text-green-500"
+                                  : "text-gray-300"
+                              }`}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {review.quality_rating && (
+                      <div className="text-center">
+                        <div className="text-sm text-gray-600 mb-1">
+                          Jakość usług
+                        </div>
+                        <div className="flex items-center justify-center gap-1">
+                          {[...Array(5)].map((_, i) => (
+                            <Star
+                              key={i}
+                              className={`w-3 h-3 ${
+                                i < review.quality_rating!
+                                  ? "fill-purple-500 text-purple-500"
+                                  : "text-gray-300"
+                              }`}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {review.timeliness_rating && (
+                      <div className="text-center">
+                        <div className="text-sm text-gray-600 mb-1">
+                          Terminowość
+                        </div>
+                        <div className="flex items-center justify-center gap-1">
+                          {[...Array(5)].map((_, i) => (
+                            <Star
+                              key={i}
+                              className={`w-3 h-3 ${
+                                i < review.timeliness_rating!
+                                  ? "fill-orange-500 text-orange-500"
+                                  : "text-gray-300"
+                              }`}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Recommendation Badge */}
+                {review.would_recommend !== null &&
+                  review.would_recommend !== undefined && (
+                    <div className="mb-3">
+                      <span
+                        className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium ${
+                          review.would_recommend
+                            ? "bg-green-100 text-green-800"
+                            : "bg-red-100 text-red-800"
+                        }`}
+                      >
+                        {review.would_recommend ? "✓ Poleca" : "✗ Nie poleca"}
+                      </span>
+                    </div>
+                  )}
+
                 <p className="text-gray-700">{review.comment}</p>
               </div>
             </div>
@@ -700,7 +946,103 @@ function ReviewsTab({
   );
 }
 
-function AboutTab({ accountant }: { accountant: Accountant }) {
+function AboutTab({
+  accountant,
+  unavailableDates,
+  availability,
+}: {
+  accountant: Accountant;
+  unavailableDates: UnavailableDate[];
+  availability: any;
+}) {
+  // Group consecutive dates into ranges
+  const groupDateRanges = (
+    dates: UnavailableDate[]
+  ): Array<{
+    startDate: string;
+    endDate: string;
+    reason: string;
+    type: string;
+  }> => {
+    if (dates.length === 0) return [];
+
+    const sortedDates = [...dates].sort(
+      (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+    );
+
+    const ranges: Array<{
+      startDate: string;
+      endDate: string;
+      reason: string;
+      type: string;
+    }> = [];
+
+    let currentRange: {
+      startDate: string;
+      endDate: string;
+      reason: string;
+      type: string;
+    } | null = null;
+
+    sortedDates.forEach((blocked) => {
+      if (!currentRange) {
+        currentRange = {
+          startDate: blocked.date,
+          endDate: blocked.date,
+          reason: blocked.reason,
+          type: blocked.type,
+        };
+        return;
+      }
+
+      const prevDate = new Date(currentRange.endDate);
+      const currDate = new Date(blocked.date);
+      const dayDiff =
+        (currDate.getTime() - prevDate.getTime()) / (1000 * 60 * 60 * 24);
+
+      if (
+        dayDiff === 1 &&
+        blocked.reason === currentRange.reason &&
+        blocked.type === currentRange.type
+      ) {
+        currentRange.endDate = blocked.date;
+      } else {
+        ranges.push(currentRange);
+        currentRange = {
+          startDate: blocked.date,
+          endDate: blocked.date,
+          reason: blocked.reason,
+          type: blocked.type,
+        };
+      }
+    });
+
+    if (currentRange) {
+      ranges.push(currentRange);
+    }
+
+    return ranges;
+  };
+
+  const formatDate = (dateStr: string): string => {
+    const date = new Date(dateStr);
+    return date.toLocaleDateString("pl-PL", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+  };
+
+  const getTypeLabel = (type: string): string => {
+    const labels: Record<string, string> = {
+      vacation: "🏖️ Urlop",
+      holiday: "🎄 Święto",
+      fully_booked: "📅 Zajęte",
+      other: "📝 Inne",
+    };
+    return labels[type] || type;
+  };
+
   return (
     <div className="space-y-6">
       {/* Bio */}
@@ -735,6 +1077,108 @@ function AboutTab({ accountant }: { accountant: Accountant }) {
             <InfoField label="Licencja" value={accountant.license_number} />
           )}
         </div>
+      </div>
+
+      {/* Availability Section */}
+      <div className="bg-white rounded-lg shadow-sm p-6">
+        <h3 className="text-xl font-semibold text-gray-900 mb-4 flex items-center gap-2">
+          📅 Dostępność
+        </h3>
+
+        {/* Weekly Availability */}
+        {availability && (
+          <div className="mb-6">
+            <h4 className="font-semibold text-gray-800 mb-3">
+              Dostępność w tygodniu
+            </h4>
+            <div className="grid grid-cols-7 gap-2">
+              {["Pn", "Wt", "Śr", "Cz", "Pt", "Więc", "Nd"].map(
+                (day, index) => {
+                  const dayKey = [
+                    "monday",
+                    "tuesday",
+                    "wednesday",
+                    "thursday",
+                    "friday",
+                    "saturday",
+                    "sunday",
+                  ][index];
+                  const isAvailable = availability[dayKey];
+                  return (
+                    <div
+                      key={dayKey}
+                      className={`text-center p-3 rounded-lg border ${
+                        isAvailable
+                          ? "bg-green-50 border-green-200 text-green-800"
+                          : "bg-gray-50 border-gray-200 text-gray-400"
+                      }`}
+                    >
+                      <div className="text-xs font-medium">{day}</div>
+                      <div className="text-xs mt-1">
+                        {isAvailable ? "✓" : "✗"}
+                      </div>
+                    </div>
+                  );
+                }
+              )}
+            </div>
+            <p className="text-xs text-gray-500 mt-3 text-center">
+              Dostępne dni w tygodniu (zielone = dostępny, szare = niedostępny)
+            </p>
+            <div className="mt-4 grid grid-cols-2 gap-4">
+              <div className="bg-white border border-gray-200 rounded-lg p-4">
+                <p className="text-sm text-gray-600">Dostępne dni</p>
+                <p className="text-2xl font-bold text-blue-600">
+                  {Object.values(availability).filter(Boolean).length}
+                </p>
+              </div>
+              <div className="bg-white border border-gray-200 rounded-lg p-4">
+                <p className="text-sm text-gray-600">Preferowane</p>
+                <p className="text-2xl font-bold text-gray-700">
+                  5 dni/tydzień
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Unavailable Dates */}
+        {unavailableDates.length > 0 && (
+          <div>
+            <h4 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
+              🚫 Niedostępne terminy
+              <span className="text-sm font-normal text-gray-500">
+                ({unavailableDates.length}{" "}
+                {unavailableDates.length === 1 ? "dzień" : "dni"})
+              </span>
+            </h4>
+            <div className="space-y-2">
+              {groupDateRanges(unavailableDates).map((range, index) => {
+                const isSingleDay = range.startDate === range.endDate;
+                const dateDisplay = isSingleDay
+                  ? formatDate(range.startDate)
+                  : `${formatDate(range.startDate)} do ${formatDate(
+                      range.endDate
+                    )}`;
+
+                return (
+                  <div
+                    key={`${range.startDate}-${index}`}
+                    className="bg-gray-50 border border-gray-200 rounded-lg p-3"
+                  >
+                    <div className="flex items-center gap-2 mb-1">
+                      <p className="font-medium text-gray-800">{dateDisplay}</p>
+                      <span className="text-xs px-2 py-1 rounded-full bg-blue-100 text-blue-800">
+                        {getTypeLabel(range.type)}
+                      </span>
+                    </div>
+                    <p className="text-sm text-gray-600">{range.reason}</p>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

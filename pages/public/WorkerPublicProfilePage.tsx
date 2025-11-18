@@ -37,6 +37,7 @@ interface Worker {
   years_experience: number;
   availability_status: "available" | "busy" | "unavailable";
   avatar_url?: string;
+  cover_image_url?: string;
   portfolio_images?: string[];
   linkedin_url?: string;
   website?: string;
@@ -81,7 +82,7 @@ export default function WorkerPublicProfilePage() {
   const [projects, setProjects] = useState<WorkerProject[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<
-    "about" | "skills" | "portfolio" | "reviews" | "contact"
+    "about" | "portfolio" | "reviews" | "contact"
   >("about");
 
   // Contact & Review modals
@@ -90,6 +91,21 @@ export default function WorkerPublicProfilePage() {
   const [contactSubject, setContactSubject] = useState("");
   const [contactMessage, setContactMessage] = useState("");
   const [employerId, setEmployerId] = useState<string | null>(null);
+  const [cleaningCompanyId, setCleaningCompanyId] = useState<string | null>(
+    null
+  );
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [lightboxImage, setLightboxImage] = useState<string>("");
+
+  const openLightbox = (imageUrl: string) => {
+    setLightboxImage(imageUrl);
+    setLightboxOpen(true);
+  };
+
+  const closeLightbox = () => {
+    setLightboxOpen(false);
+    setLightboxImage("");
+  };
 
   useEffect(() => {
     if (id) {
@@ -97,9 +113,9 @@ export default function WorkerPublicProfilePage() {
     }
   }, [id]);
 
-  // Load employer ID if user is employer
+  // Load employer/cleaning company ID if user is employer OR cleaning_company
   useEffect(() => {
-    const loadEmployerId = async () => {
+    const loadReviewerIds = async () => {
       if (user && user.role === "employer") {
         try {
           const { data, error } = await supabase
@@ -109,15 +125,56 @@ export default function WorkerPublicProfilePage() {
             .maybeSingle();
 
           if (!error && data) {
+            console.log(
+              "✅ EMPLOYER ID LOADED:",
+              data.id,
+              "for user:",
+              user.id
+            );
             setEmployerId(data.id);
+          } else {
+            console.warn("⚠️ No employer found for user:", user.id, error);
           }
         } catch (err) {
-          console.error("Error loading employer ID:", err);
+          console.error("❌ Error loading employer ID:", err);
         }
+      } else if (user && user.role === "cleaning_company") {
+        // NEW: Support cleaning_company reviews
+        try {
+          const { data, error } = await supabase
+            .from("cleaning_companies")
+            .select("id")
+            .eq("profile_id", user.id)
+            .maybeSingle();
+
+          if (!error && data) {
+            console.log(
+              "✅ CLEANING COMPANY ID LOADED:",
+              data.id,
+              "for user:",
+              user.id
+            );
+            setCleaningCompanyId(data.id);
+          } else {
+            console.warn(
+              "⚠️ No cleaning company found for user:",
+              user.id,
+              error
+            );
+          }
+        } catch (err) {
+          console.error("❌ Error loading cleaning company ID:", err);
+        }
+      } else {
+        console.log(
+          "ℹ️ User role:",
+          user?.role,
+          "(not employer or cleaning_company)"
+        );
       }
     };
 
-    loadEmployerId();
+    loadReviewerIds();
   }, [user]);
 
   const handleOpenContact = () => {
@@ -162,26 +219,77 @@ export default function WorkerPublicProfilePage() {
 
   const handleOpenReview = async () => {
     if (!user) {
-      alert("Zaloguj się jako pracodawca aby wystawić opinię");
+      alert("Zaloguj się aby wystawić opinię");
       return;
     }
 
-    if (!employerId || !worker?.id) {
-      alert("⚠️ Ładowanie danych... Spróbuj ponownie za chwilę.");
+    console.log(
+      "🔍 handleOpenReview - employerId:",
+      employerId,
+      "cleaningCompanyId:",
+      cleaningCompanyId,
+      "worker?.id:",
+      worker?.id,
+      "user.role:",
+      user.role
+    );
+
+    // Check if at least one reviewer ID exists
+    if ((!employerId && !cleaningCompanyId) || !worker?.id) {
+      alert(
+        `⚠️ Ładowanie danych... Spróbuj ponownie za chwilę.\n\n` +
+          `Debug info:\n` +
+          `- Employer ID: ${employerId || "BRAK"}\n` +
+          `- Cleaning Company ID: ${cleaningCompanyId || "BRAK"}\n` +
+          `- Worker ID: ${worker?.id || "BRAK"}\n` +
+          `- User role: ${user.role}`
+      );
+      console.warn(
+        "⚠️ Missing data - employerId:",
+        employerId ?? "NULL",
+        "cleaningCompanyId:",
+        cleaningCompanyId ?? "NULL",
+        "worker?.id:",
+        worker?.id ?? "NULL"
+      );
       return;
     }
 
-    // Check if employer already reviewed this worker
+    // Check if reviewer already reviewed this worker (check both employer and cleaning_company)
     try {
-      const { data: existingReview, error } = await supabase
-        .from("reviews")
-        .select("id, rating, created_at")
-        .eq("employer_id", employerId)
-        .eq("worker_id", worker.id)
-        .maybeSingle();
+      let existingReview = null;
 
-      if (error && error.code !== "PGRST116") {
-        console.error("Error checking existing review:", error);
+      if (employerId) {
+        const { data, error } = await supabase
+          .from("reviews")
+          .select("id, rating, created_at")
+          .eq("employer_id", employerId)
+          .eq("worker_id", worker.id)
+          .maybeSingle();
+
+        if (!error || error.code === "PGRST116") {
+          existingReview = data;
+        } else {
+          console.error("Error checking existing employer review:", error);
+        }
+      }
+
+      if (!existingReview && cleaningCompanyId) {
+        const { data, error } = await supabase
+          .from("reviews")
+          .select("id, rating, created_at")
+          .eq("cleaning_company_id", cleaningCompanyId)
+          .eq("worker_id", worker.id)
+          .maybeSingle();
+
+        if (!error || error.code === "PGRST116") {
+          existingReview = data;
+        } else {
+          console.error(
+            "Error checking existing cleaning company review:",
+            error
+          );
+        }
       }
 
       if (existingReview) {
@@ -212,21 +320,52 @@ export default function WorkerPublicProfilePage() {
     if (!id) return;
 
     try {
-      // Load worker profile
+      // Load worker profile WITH profile data (full_name, email, phone)
       const { data: workerData, error: workerError } = await supabase
         .from("workers")
-        .select("*")
+        .select(
+          `
+          *,
+          profiles!workers_profile_id_fkey(
+            full_name,
+            email,
+            phone
+          )
+        `
+        )
         .eq("id", id)
         .single();
 
       if (workerError) throw workerError;
 
-      // Map Supabase data to Worker interface (using as any for now - schema mismatch)
+      // Map Supabase data to Worker interface
       if (workerData) {
-        setWorker(workerData as any);
+        const profile = (workerData as any).profiles;
+        setWorker({
+          ...workerData,
+          full_name: profile?.full_name || "Nieznane imię",
+          email: profile?.email || "",
+          phone: profile?.phone || workerData.phone,
+          // Map location fields correctly
+          city: workerData.location_city,
+          postal_code: workerData.location_postal_code,
+          country: workerData.location_country || "NL",
+          // Map availability status
+          availability_status: workerData.is_available
+            ? "available"
+            : "unavailable",
+        } as any);
+        console.log(
+          "✅ Worker loaded:",
+          profile?.full_name,
+          "rating:",
+          workerData.rating,
+          "reviews:",
+          workerData.rating_count
+        );
       }
 
-      // Load reviews from reviews table
+      // Load reviews from reviews table (reviewer_id → profiles)
       const { data: reviewsData, error: reviewsError } = await supabase
         .from("reviews")
         .select(
@@ -241,14 +380,20 @@ export default function WorkerPublicProfilePage() {
           would_recommend,
           created_at,
           employer_id,
-          profiles!reviews_reviewer_id_fkey(full_name)
+          reviewer_id,
+          profiles!reviews_reviewer_id_fkey(
+            full_name
+          )
         `
         )
         .eq("worker_id", id)
         .eq("status", "approved")
         .order("created_at", { ascending: false });
 
-      if (!reviewsError && reviewsData) {
+      if (reviewsError) {
+        console.error("❌ Error loading reviews:", reviewsError);
+      } else if (reviewsData) {
+        console.log("✅ Reviews loaded:", reviewsData.length, "reviews");
         setReviews(
           reviewsData.map((review) => ({
             id: review.id,
@@ -324,33 +469,41 @@ export default function WorkerPublicProfilePage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Back Button */}
-      <div className="bg-white border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <button
-            onClick={() => navigate("/workers")}
-            className="inline-flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Wróć do wyszukiwarki pracowników
-          </button>
-        </div>
+      {/* Cover Image Header */}
+      <div className="relative h-64 bg-gradient-to-r from-blue-600 to-indigo-700">
+        {worker.cover_image_url && (
+          <img
+            src={worker.cover_image_url}
+            alt="Cover"
+            className="w-full h-full object-cover"
+          />
+        )}
+        <div className="absolute inset-0 bg-black bg-opacity-30"></div>
+        <button
+          onClick={() => navigate("/workers")}
+          className="absolute top-6 left-6 flex items-center gap-2 px-4 py-2 bg-white rounded-lg shadow-lg hover:bg-gray-50"
+        >
+          <ArrowLeft className="w-5 h-5" />
+          <span>Wróć do wyszukiwarki</span>
+        </button>
       </div>
 
-      {/* Header */}
-      <div className="bg-gradient-to-r from-blue-600 to-indigo-700 text-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      {/* Profile Info */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-16 relative z-10">
+        <div className="bg-white rounded-lg shadow-lg p-8">
           <div className="flex flex-col md:flex-row gap-8 items-start">
             {/* Avatar */}
-            <div className="w-32 h-32 bg-white/10 backdrop-blur-sm rounded-2xl flex items-center justify-center text-5xl font-bold border-4 border-white/20">
+            <div className="flex-shrink-0">
               {worker.avatar_url ? (
                 <img
                   src={worker.avatar_url}
                   alt={worker.full_name}
-                  className="w-full h-full rounded-2xl object-cover"
+                  className="w-32 h-32 rounded-full border-4 border-white shadow-lg object-cover"
                 />
               ) : (
-                worker.full_name.charAt(0)
+                <div className="w-32 h-32 rounded-full border-4 border-white shadow-lg bg-blue-100 flex items-center justify-center text-5xl font-bold text-blue-600">
+                  {worker.full_name.charAt(0)}
+                </div>
               )}
             </div>
 
@@ -358,45 +511,47 @@ export default function WorkerPublicProfilePage() {
             <div className="flex-1">
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <h1 className="text-4xl font-bold mb-2">
+                  <h1 className="text-3xl font-bold text-gray-900 mb-2">
                     {worker.full_name}
                   </h1>
                   {worker.specialization && (
-                    <p className="text-xl text-blue-100 mb-4">
+                    <p className="text-xl text-gray-600 mb-4">
                       {worker.specialization}
                     </p>
                   )}
 
                   {/* Rating & Status */}
                   <div className="flex items-center gap-4 mb-4 flex-wrap">
-                    <div className="flex items-center gap-2 bg-white/10 backdrop-blur-sm px-4 py-2 rounded-lg">
+                    <div className="flex items-center gap-2 bg-gray-100 px-4 py-2 rounded-lg">
                       <Star className="w-5 h-5 fill-yellow-400 text-yellow-400" />
-                      <span className="text-lg font-semibold">
+                      <span className="text-lg font-semibold text-gray-900">
                         {worker.rating.toFixed(1)}
                       </span>
-                      <span className="text-blue-100">
+                      <span className="text-gray-600">
                         ({worker.rating_count} opinii)
                       </span>
                     </div>
 
                     {worker.is_verified && (
-                      <div className="flex items-center gap-2 bg-white/10 backdrop-blur-sm px-4 py-2 rounded-lg">
-                        <CheckCircleIcon className="w-5 h-5 text-green-400" />
-                        <span className="font-medium">Zweryfikowany</span>
+                      <div className="flex items-center gap-2 bg-green-50 border-2 border-green-400 px-4 py-2 rounded-lg">
+                        <CheckCircleIcon className="w-5 h-5 text-green-600" />
+                        <span className="font-medium text-green-700">
+                          Zweryfikowany
+                        </span>
                       </div>
                     )}
 
                     <div
                       className={`px-4 py-2 rounded-lg font-medium ${
                         availabilityColors[worker.availability_status]
-                      } bg-opacity-20 border border-white/30`}
+                      }`}
                     >
                       {availabilityLabels[worker.availability_status]}
                     </div>
                   </div>
 
                   {/* Quick Info */}
-                  <div className="flex flex-wrap gap-4 text-blue-100">
+                  <div className="flex flex-wrap gap-4 text-gray-700">
                     {worker.city && (
                       <div className="flex items-center gap-2">
                         <MapPin className="w-4 h-4" />
@@ -425,38 +580,38 @@ export default function WorkerPublicProfilePage() {
                   {/* ✅ FAZA 4: ZZP Certification Badge */}
                   {(worker as any).zzp_certificate_issued &&
                     (worker as any).zzp_certificate_number && (
-                      <div className="mt-6 bg-gradient-to-r from-yellow-400/20 to-orange-400/20 backdrop-blur-sm border-2 border-yellow-400/50 rounded-xl p-4 shadow-xl">
+                      <div className="mt-6 bg-gradient-to-r from-yellow-50 to-orange-50 border-2 border-yellow-400 rounded-xl p-4 shadow-md">
                         <div className="flex items-center gap-3">
                           <div className="text-4xl">🏆</div>
                           <div className="flex-1">
                             <div className="flex items-center gap-2 mb-1">
-                              <h3 className="text-lg font-bold text-white">
+                              <h3 className="text-lg font-bold text-gray-900">
                                 Certyfikat Premium ZZP
                               </h3>
                               {(worker as any).certificate_status ===
                                 "active" && (
-                                <span className="bg-green-500/80 text-white text-xs font-bold px-2 py-1 rounded-full">
+                                <span className="bg-green-500 text-white text-xs font-bold px-2 py-1 rounded-full">
                                   AKTYWNY
                                 </span>
                               )}
                               {(worker as any).certificate_status ===
                                 "expired" && (
-                                <span className="bg-red-500/80 text-white text-xs font-bold px-2 py-1 rounded-full">
+                                <span className="bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">
                                   WYGASŁ
                                 </span>
                               )}
                               {(worker as any).certificate_status ===
                                 "revoked" && (
-                                <span className="bg-gray-800/80 text-white text-xs font-bold px-2 py-1 rounded-full">
+                                <span className="bg-gray-800 text-white text-xs font-bold px-2 py-1 rounded-full">
                                   COFNIĘTY
                                 </span>
                               )}
                             </div>
-                            <code className="text-sm font-mono text-yellow-200 bg-yellow-900/30 px-2 py-1 rounded">
+                            <code className="text-sm font-mono text-yellow-800 bg-yellow-100 px-2 py-1 rounded">
                               {(worker as any).zzp_certificate_number}
                             </code>
                             {(worker as any).certificate_issued_at && (
-                              <p className="text-xs text-blue-100 mt-2">
+                              <p className="text-xs text-gray-600 mt-2">
                                 Wydany:{" "}
                                 {new Date(
                                   (worker as any).certificate_issued_at
@@ -500,8 +655,8 @@ export default function WorkerPublicProfilePage() {
 
                         {/* Warning messages for expired/revoked */}
                         {(worker as any).certificate_status === "expired" && (
-                          <div className="mt-3 bg-red-900/50 border border-red-500/50 rounded-lg p-3 text-sm">
-                            <p className="text-red-200">
+                          <div className="mt-3 bg-red-50 border border-red-300 rounded-lg p-3 text-sm">
+                            <p className="text-red-700">
                               ⚠️ <strong>Certyfikat wygasł</strong> - ten
                               pracownik może być w trakcie odnowienia
                               certyfikatu.
@@ -510,8 +665,8 @@ export default function WorkerPublicProfilePage() {
                         )}
 
                         {(worker as any).certificate_status === "revoked" && (
-                          <div className="mt-3 bg-gray-900/70 border border-gray-700 rounded-lg p-3 text-sm">
-                            <p className="text-gray-300">
+                          <div className="mt-3 bg-gray-100 border border-gray-400 rounded-lg p-3 text-sm">
+                            <p className="text-gray-700">
                               🚫 <strong>Certyfikat cofnięty</strong> -
                               skontaktuj się z administracją po więcej
                               informacji.
@@ -525,7 +680,7 @@ export default function WorkerPublicProfilePage() {
                 {/* Contact Button */}
                 <a
                   href={`mailto:${worker.email}`}
-                  className="px-6 py-3 bg-white text-blue-700 font-semibold rounded-lg hover:bg-blue-50 transition-colors shadow-lg"
+                  className="px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors shadow-lg"
                 >
                   Skontaktuj się
                 </a>
@@ -541,7 +696,6 @@ export default function WorkerPublicProfilePage() {
           <div className="flex gap-1">
             {[
               { id: "about", label: "O mnie", icon: "📋" },
-              { id: "skills", label: "Umiejętności", icon: "🎯" },
               { id: "portfolio", label: "Portfolio", icon: "📸" },
               {
                 id: "reviews",
@@ -576,8 +730,9 @@ export default function WorkerPublicProfilePage() {
           {/* Main Content */}
           <div className="lg:col-span-2 space-y-6">
             {activeTab === "about" && <AboutTab worker={worker} />}
-            {activeTab === "skills" && <SkillsTab worker={worker} />}
-            {activeTab === "portfolio" && <PortfolioTab worker={worker} />}
+            {activeTab === "portfolio" && (
+              <PortfolioTab worker={worker} onImageClick={openLightbox} />
+            )}
             {activeTab === "reviews" && (
               <ReviewsTab reviews={reviews} worker={worker} />
             )}
@@ -659,15 +814,40 @@ export default function WorkerPublicProfilePage() {
       )}
 
       {/* Review Modal */}
-      {worker && user && user.role === "employer" && employerId && (
+      {worker && user && (employerId || cleaningCompanyId) && (
         <ReviewWorkerModal
           isOpen={isReviewModalOpen}
           onClose={() => setIsReviewModalOpen(false)}
           workerId={worker.id}
           workerName={worker.full_name}
-          employerId={employerId}
+          employerId={employerId || undefined}
+          cleaningCompanyId={cleaningCompanyId || undefined}
           onSuccess={handleReviewSuccess}
         />
+      )}
+
+      {/* Lightbox Modal */}
+      {lightboxOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-90 p-4"
+          onClick={closeLightbox}
+        >
+          <button
+            onClick={closeLightbox}
+            className="absolute top-4 right-4 text-white text-4xl font-bold hover:text-gray-300 transition-colors z-10"
+          >
+            ×
+          </button>
+          <img
+            src={lightboxImage}
+            alt="Portfolio powiększone"
+            className="max-w-full max-h-full object-contain"
+            onClick={(e) => e.stopPropagation()}
+          />
+          <div className="absolute bottom-4 left-0 right-0 text-center text-white text-sm">
+            Kliknij poza zdjęciem aby zamknąć
+          </div>
+        </div>
       )}
     </div>
   );
@@ -1027,6 +1207,25 @@ function AboutTab({ worker }: { worker: Worker }) {
         </p>
       </div>
 
+      {/* Skills Section */}
+      {worker.skills && worker.skills.length > 0 && (
+        <div className="bg-white rounded-lg shadow-sm p-6">
+          <h3 className="text-xl font-semibold text-gray-900 mb-4 flex items-center gap-2">
+            🎯 Umiejętności
+          </h3>
+          <div className="flex flex-wrap gap-3">
+            {worker.skills.map((skill) => (
+              <span
+                key={skill}
+                className="px-4 py-2 bg-blue-50 text-blue-700 rounded-lg text-sm font-medium hover:bg-blue-100 transition-colors"
+              >
+                {skill}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Professional Info */}
       <div className="bg-white rounded-lg shadow-sm p-6">
         <h3 className="text-xl font-semibold text-gray-900 mb-4">
@@ -1060,21 +1259,161 @@ function AboutTab({ worker }: { worker: Worker }) {
         </div>
       </div>
 
-      {/* Portfolio */}
-      {worker.portfolio_images && worker.portfolio_images.length > 0 && (
+      {/* Availability Schedule - NOWA SEKCJA */}
+      {(worker as any).availability && (
         <div className="bg-white rounded-lg shadow-sm p-6">
-          <h3 className="text-xl font-semibold text-gray-900 mb-4">
-            Portfolio
+          <h3 className="text-xl font-semibold text-gray-900 mb-4 flex items-center gap-2">
+            <Calendar className="w-5 h-5 text-blue-600" />
+            Dni dostępności
           </h3>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-            {worker.portfolio_images.map((img, idx) => (
-              <img
-                key={idx}
-                src={img}
-                alt={`Portfolio ${idx + 1}`}
-                className="w-full h-40 object-cover rounded-lg shadow hover:shadow-lg transition-shadow"
-              />
-            ))}
+
+          {/* Preferred days per week */}
+          {(worker as any).preferred_days_per_week && (
+            <div className="mb-4 p-3 bg-blue-50 rounded-lg">
+              <p className="text-sm text-blue-800">
+                📅 Preferowana liczba dni w tygodniu:{" "}
+                <strong>{(worker as any).preferred_days_per_week} dni</strong>
+              </p>
+            </div>
+          )}
+
+          {/* Days grid */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-2">
+            {[
+              { key: "monday", label: "Pn", fullName: "Poniedziałek" },
+              { key: "tuesday", label: "Wt", fullName: "Wtorek" },
+              { key: "wednesday", label: "Śr", fullName: "Środa" },
+              { key: "thursday", label: "Cz", fullName: "Czwartek" },
+              { key: "friday", label: "Pt", fullName: "Piątek" },
+              { key: "saturday", label: "So", fullName: "Sobota" },
+              { key: "sunday", label: "Nd", fullName: "Niedziela" },
+            ].map((day) => {
+              const isAvailable = (worker as any).availability[day.key];
+              return (
+                <div
+                  key={day.key}
+                  className={`p-3 rounded-lg border-2 text-center transition-all ${
+                    isAvailable
+                      ? "bg-green-50 border-green-400 text-green-800"
+                      : "bg-gray-50 border-gray-200 text-gray-400"
+                  }`}
+                  title={`${day.fullName}: ${
+                    isAvailable ? "Dostępny" : "Niedostępny"
+                  }`}
+                >
+                  <div className="font-bold text-sm">{day.label}</div>
+                  <div className="text-xl mt-1">{isAvailable ? "✓" : "✗"}</div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Unavailable dates */}
+          {(worker as any).unavailable_dates &&
+            (worker as any).unavailable_dates.length > 0 && (
+              <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                <h4 className="text-sm font-semibold text-yellow-900 mb-2 flex items-center gap-2">
+                  ⚠️ Dni niedostępności
+                </h4>
+                <div className="space-y-2">
+                  {(worker as any).unavailable_dates.map(
+                    (unavail: any, idx: number) => (
+                      <div
+                        key={idx}
+                        className="flex items-center gap-2 text-sm text-yellow-800"
+                      >
+                        <span className="font-medium">
+                          {new Date(unavail.date).toLocaleDateString("pl-PL", {
+                            day: "2-digit",
+                            month: "long",
+                            year: "numeric",
+                          })}
+                        </span>
+                        {unavail.type && (
+                          <span className="px-2 py-0.5 bg-yellow-200 rounded text-xs font-medium">
+                            {unavail.type === "vacation"
+                              ? "🏖️ Urlop"
+                              : "📅 " + unavail.type}
+                          </span>
+                        )}
+                        {unavail.reason && (
+                          <span className="text-yellow-700">
+                            - {unavail.reason}
+                          </span>
+                        )}
+                      </div>
+                    )
+                  )}
+                </div>
+              </div>
+            )}
+        </div>
+      )}
+
+      {/* Additional Equipment & Info - NOWA SEKCJA */}
+      {((worker as any).own_vehicle ||
+        (worker as any).own_tools?.length > 0) && (
+        <div className="bg-white rounded-lg shadow-sm p-6">
+          <h3 className="text-xl font-semibold text-gray-900 mb-4 flex items-center gap-2">
+            🛠️ Wyposażenie i udogodnienia
+          </h3>
+
+          <div className="space-y-3">
+            {/* Own Vehicle */}
+            {(worker as any).own_vehicle && (
+              <div className="flex items-center gap-3 p-3 bg-green-50 border border-green-200 rounded-lg">
+                <div className="text-2xl">🚗</div>
+                <div>
+                  <p className="font-medium text-green-900">Własny pojazd</p>
+                  {(worker as any).vehicle_type && (
+                    <p className="text-sm text-green-700">
+                      Typ: {(worker as any).vehicle_type}
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Own Tools */}
+            {(worker as any).own_tools &&
+              (worker as any).own_tools.length > 0 && (
+                <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-xl">🔧</span>
+                    <p className="font-medium text-blue-900">
+                      Własne narzędzia
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {(worker as any).own_tools.map(
+                      (tool: string, idx: number) => (
+                        <span
+                          key={idx}
+                          className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-sm"
+                        >
+                          {tool}
+                        </span>
+                      )
+                    )}
+                  </div>
+                </div>
+              )}
+
+            {/* Service Radius */}
+            {(worker as any).radius_km && (
+              <div className="flex items-center gap-3 p-3 bg-purple-50 border border-purple-200 rounded-lg">
+                <div className="text-2xl">📍</div>
+                <div>
+                  <p className="font-medium text-purple-900">
+                    Promień działania
+                  </p>
+                  <p className="text-sm text-purple-700">
+                    {(worker as any).radius_km} km od{" "}
+                    {worker.city || "lokalizacji"}
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -1082,7 +1421,13 @@ function AboutTab({ worker }: { worker: Worker }) {
   );
 }
 
-function PortfolioTab({ worker }: { worker: Worker }) {
+function PortfolioTab({
+  worker,
+  onImageClick,
+}: {
+  worker: Worker;
+  onImageClick?: (url: string) => void;
+}) {
   if (!worker.portfolio_images || worker.portfolio_images.length === 0) {
     return (
       <div className="bg-white rounded-lg shadow-sm p-12 text-center">
@@ -1100,17 +1445,26 @@ function PortfolioTab({ worker }: { worker: Worker }) {
   return (
     <div className="bg-white rounded-lg shadow-sm p-6">
       <h2 className="text-2xl font-bold text-gray-900 mb-6">Portfolio prac</h2>
+      <p className="text-sm text-gray-600 mb-4">
+        💡 Kliknij na zdjęcie aby je powiększyć
+      </p>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {worker.portfolio_images.map((img, idx) => (
           <div
             key={idx}
-            className="aspect-square rounded-lg overflow-hidden border-2 border-gray-200 hover:border-blue-400 transition-all duration-200 group cursor-pointer shadow-sm hover:shadow-md"
+            onClick={() => onImageClick?.(img)}
+            className="aspect-square rounded-lg overflow-hidden border-2 border-gray-200 hover:border-blue-400 transition-all duration-200 group cursor-pointer shadow-sm hover:shadow-md relative"
           >
             <img
               src={img}
               alt={`Portfolio ${idx + 1}`}
               className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
             />
+            <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-200 flex items-center justify-center">
+              <span className="text-white text-4xl opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                🔍
+              </span>
+            </div>
           </div>
         ))}
       </div>

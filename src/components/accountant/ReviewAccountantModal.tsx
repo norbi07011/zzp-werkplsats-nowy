@@ -1,27 +1,101 @@
 import React, { useState } from "react";
-import { supabase } from "../../lib/supabase";
-import { StarRating } from "./ReviewWorkerModal";
-import { useAuth } from "../../../contexts/AuthContext";
+import { createAccountantReview } from "../../services/accountantReviewService";
 
-interface ReviewCleaningCompanyModalProps {
+interface StarRatingProps {
+  rating: number;
+  onRatingChange: (rating: number) => void;
+  label?: string;
+  disabled?: boolean;
+}
+
+export const StarRating: React.FC<StarRatingProps> = ({
+  rating,
+  onRatingChange,
+  label,
+  disabled = false,
+}) => {
+  const [hoverRating, setHoverRating] = useState(0);
+
+  return (
+    <div className="flex flex-col gap-2">
+      {label && (
+        <label className="block text-sm font-medium text-gray-700">
+          {label} {!disabled && <span className="text-red-500">*</span>}
+        </label>
+      )}
+      <div className="flex gap-1">
+        {[1, 2, 3, 4, 5].map((star) => (
+          <button
+            key={star}
+            type="button"
+            disabled={disabled}
+            onClick={() => !disabled && onRatingChange(star)}
+            onMouseEnter={() => !disabled && setHoverRating(star)}
+            onMouseLeave={() => setHoverRating(0)}
+            className={`transition-all ${
+              disabled ? "cursor-default" : "cursor-pointer hover:scale-110"
+            }`}
+          >
+            <svg
+              className={`w-8 h-8 ${
+                star <= (hoverRating || rating)
+                  ? "text-yellow-400 fill-current"
+                  : "text-gray-300"
+              }`}
+              fill={star <= (hoverRating || rating) ? "currentColor" : "none"}
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"
+              />
+            </svg>
+          </button>
+        ))}
+      </div>
+      {!disabled && rating > 0 && (
+        <p className="text-sm text-gray-600">
+          {rating === 1 && "⭐ Słabo"}
+          {rating === 2 && "⭐⭐ Przeciętnie"}
+          {rating === 3 && "⭐⭐⭐ Dobrze"}
+          {rating === 4 && "⭐⭐⭐⭐ Bardzo dobrze"}
+          {rating === 5 && "⭐⭐⭐⭐⭐ Wybitnie"}
+        </p>
+      )}
+    </div>
+  );
+};
+
+interface ReviewAccountantModalProps {
   isOpen: boolean;
   onClose: () => void;
-  companyId: string;
-  companyName: string;
-  employerId?: string; // DEPRECATED - zachowane dla backward compatibility
+  accountantId: string;
+  accountantName: string;
+  workerId?: string;
+  employerId?: string;
+  cleaningCompanyId?: string;
   onSuccess?: () => void;
 }
 
-export const ReviewCleaningCompanyModal: React.FC<
-  ReviewCleaningCompanyModalProps
-> = ({ isOpen, onClose, companyId, companyName, onSuccess }) => {
-  const { user } = useAuth();
+export const ReviewAccountantModal: React.FC<ReviewAccountantModalProps> = ({
+  isOpen,
+  onClose,
+  accountantId,
+  accountantName,
+  workerId,
+  employerId,
+  cleaningCompanyId,
+  onSuccess,
+}) => {
   const [rating, setRating] = useState(0);
   const [communicationRating, setCommunicationRating] = useState(0);
-  const [punctualityRating, setPunctualityRating] = useState(0);
+  const [professionalismRating, setProfessionalismRating] = useState(0);
   const [qualityRating, setQualityRating] = useState(0);
-  const [safetyRating, setSafetyRating] = useState(0);
-  const [reviewText, setReviewText] = useState("");
+  const [timelinessRating, setTimelinessRating] = useState(0);
+  const [comment, setComment] = useState("");
   const [wouldRecommend, setWouldRecommend] = useState<boolean | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -29,18 +103,8 @@ export const ReviewCleaningCompanyModal: React.FC<
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!user) {
-      setError("Musisz być zalogowany, aby wystawić opinię");
-      return;
-    }
-
     if (rating === 0) {
       setError("Proszę wystawić ogólną ocenę (gwiazdki)");
-      return;
-    }
-
-    if (!reviewText.trim()) {
-      setError("Proszę dodać treść opinii");
       return;
     }
 
@@ -48,93 +112,39 @@ export const ReviewCleaningCompanyModal: React.FC<
     setError("");
 
     try {
-      // Prepare review data - set appropriate column based on user role
-      const reviewData: any = {
-        cleaning_company_id: companyId,
+      const result = await createAccountantReview({
+        accountant_id: accountantId,
+        worker_id: workerId,
+        employer_id: employerId,
+        cleaning_company_id: cleaningCompanyId,
         rating,
-        review_text: reviewText.trim(),
+        comment: comment.trim() || undefined,
         communication_rating:
-          communicationRating > 0 ? communicationRating : null,
-        punctuality_rating: punctualityRating > 0 ? punctualityRating : null,
-        quality_rating: qualityRating > 0 ? qualityRating : null,
-        safety_rating: safetyRating > 0 ? safetyRating : null,
-        would_recommend: wouldRecommend,
-      };
+          communicationRating > 0 ? communicationRating : undefined,
+        professionalism_rating:
+          professionalismRating > 0 ? professionalismRating : undefined,
+        quality_rating: qualityRating > 0 ? qualityRating : undefined,
+        timeliness_rating: timelinessRating > 0 ? timelinessRating : undefined,
+        would_recommend: wouldRecommend ?? undefined,
+      });
 
-      // Fetch appropriate ID from role-specific table
-      if (user.role === "employer") {
-        const { data: employerData, error: employerError } = await supabase
-          .from("employers")
-          .select("id")
-          .eq("profile_id", user.id)
-          .single();
+      if (result.success) {
+        onSuccess?.();
+        onClose();
 
-        if (employerError || !employerData) {
-          throw new Error("Nie znaleziono profilu pracodawcy");
-        }
-        reviewData.employer_id = employerData.id;
-      } else if (user.role === "worker") {
-        const { data: workerData, error: workerError } = await supabase
-          .from("workers")
-          .select("id")
-          .eq("profile_id", user.id)
-          .single();
-
-        if (workerError || !workerData) {
-          throw new Error("Nie znaleziono profilu pracownika");
-        }
-        reviewData.worker_id = workerData.id;
-      } else if (user.role === "accountant") {
-        const { data: accountantData, error: accountantError } = await supabase
-          .from("accountants")
-          .select("id")
-          .eq("profile_id", user.id)
-          .single();
-
-        if (accountantError || !accountantData) {
-          throw new Error("Nie znaleziono profilu księgowego");
-        }
-        reviewData.accountant_id = accountantData.id;
+        setRating(0);
+        setCommunicationRating(0);
+        setProfessionalismRating(0);
+        setQualityRating(0);
+        setTimelinessRating(0);
+        setComment("");
+        setWouldRecommend(null);
       } else {
-        throw new Error("Nieobsługiwana rola użytkownika");
+        setError(result.error || "Nie udało się wystawić opinii");
       }
-
-      const { data, error: insertError } = await supabase
-        .from("cleaning_reviews")
-        .insert(reviewData)
-        .select()
-        .single();
-
-      if (insertError) throw insertError;
-
-      console.log("✅ Cleaning company review created:", data);
-
-      // Success
-      onSuccess?.();
-      onClose();
-
-      // Reset form
-      setRating(0);
-      setCommunicationRating(0);
-      setPunctualityRating(0);
-      setQualityRating(0);
-      setSafetyRating(0);
-      setReviewText("");
-      setWouldRecommend(null);
-    } catch (err: any) {
+    } catch (err) {
       console.error("Error submitting review:", err);
-
-      // Handle duplicate review error (unique constraint violation)
-      if (
-        err.code === "23505" &&
-        err.message?.includes("unique_employer_review")
-      ) {
-        setError(
-          "Już wystawiłeś opinię dla tej firmy. Możesz edytować swoją istniejącą opinię w panelu."
-        );
-      } else {
-        setError(err.message || "Nie udało się wystawić opinii");
-      }
+      setError("Wystąpił nieoczekiwany błąd podczas wystawiania opinii");
     } finally {
       setIsSubmitting(false);
     }
@@ -147,7 +157,7 @@ export const ReviewCleaningCompanyModal: React.FC<
       <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
         <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center">
           <h2 className="text-2xl font-bold text-gray-900">
-            ⭐ Wystaw opinię: {companyName}
+            ⭐ Wystaw opinię: {accountantName}
           </h2>
           <button
             onClick={onClose}
@@ -180,18 +190,16 @@ export const ReviewCleaningCompanyModal: React.FC<
             <p className="text-sm text-blue-800">
               💡 <strong>Twoja opinia pomaga innym!</strong> Wypełnij formularz
               szczegółowo, aby ułatwić przyszłym klientom decyzję o współpracy z
-              tą firmą sprzątającą.
+              tym księgowym.
             </p>
           </div>
 
-          {/* Overall Rating */}
           <StarRating
             rating={rating}
             onRatingChange={setRating}
             label="Ogólna ocena"
           />
 
-          {/* Detailed Ratings */}
           <div className="bg-gray-50 p-4 rounded-lg space-y-4">
             <h3 className="font-semibold text-gray-900 mb-3">
               Oceny szczegółowe (opcjonalne)
@@ -204,45 +212,43 @@ export const ReviewCleaningCompanyModal: React.FC<
             />
 
             <StarRating
-              rating={punctualityRating}
-              onRatingChange={setPunctualityRating}
-              label="⏰ Punktualność"
+              rating={professionalismRating}
+              onRatingChange={setProfessionalismRating}
+              label="💼 Profesjonalizm"
             />
 
             <StarRating
               rating={qualityRating}
               onRatingChange={setQualityRating}
-              label="🧹 Jakość pracy"
+              label="📊 Jakość usług księgowych"
             />
 
             <StarRating
-              rating={safetyRating}
-              onRatingChange={setSafetyRating}
-              label="🦺 Bezpieczeństwo i porządek"
+              rating={timelinessRating}
+              onRatingChange={setTimelinessRating}
+              label="⏰ Terminowość"
             />
           </div>
 
-          {/* Comment */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              💬 Treść opinii <span className="text-red-500">*</span>
+              💬 Komentarz (opcjonalnie)
             </label>
             <textarea
-              value={reviewText}
-              onChange={(e) => setReviewText(e.target.value)}
+              value={comment}
+              onChange={(e) => setComment(e.target.value)}
               rows={6}
-              placeholder={`Opisz swoją współpracę z ${companyName}...\n\nNp.: Co było mocną stroną firmy? Czy wystąpiły jakieś problemy? Czy polecasz dla określonych typów zleceń?`}
+              placeholder={`Opisz swoją współpracę z ${accountantName}...\n\nNp.: Jak wyglądała współpraca? Czy księgowy był pomocny? Czy polecasz?`}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
             />
             <p className="text-xs text-gray-500 mt-1">
-              {reviewText.length} znaków
+              {comment.length} znaków
             </p>
           </div>
 
-          {/* Would Recommend */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              👍 Czy poleciłbyś tę firmę innym?
+              👍 Czy poleciłbyś tego księgowego innym?
             </label>
             <div className="flex gap-4">
               <button
@@ -270,7 +276,6 @@ export const ReviewCleaningCompanyModal: React.FC<
             </div>
           </div>
 
-          {/* Submit Buttons */}
           <div className="flex gap-3 pt-4 border-t border-gray-200">
             <button
               type="button"
@@ -282,7 +287,7 @@ export const ReviewCleaningCompanyModal: React.FC<
             </button>
             <button
               type="submit"
-              disabled={isSubmitting || rating === 0 || !reviewText.trim()}
+              disabled={isSubmitting || rating === 0}
               className="flex-1 px-4 py-3 bg-orange-600 text-white rounded-lg hover:bg-orange-700 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isSubmitting ? "⏳ Wysyłanie..." : "⭐ Wyślij opinię"}

@@ -2,12 +2,13 @@ import React, { useState } from "react";
 import { supabase } from "../../lib/supabase";
 import { StarRating } from "./ReviewWorkerModal";
 import { updateAccountantRating } from "../../services/accountantService";
+import { useAuth } from "../../../contexts/AuthContext";
 
 interface ReviewAccountantModalProps {
   isOpen: boolean;
   onClose: () => void;
   accountantId: string;
-  reviewerId: string; // authUser.id (profiles.id / auth.uid())
+  reviewerId?: string; // DEPRECATED - zachowane dla backward compatibility
   onSuccess?: () => void;
 }
 
@@ -15,9 +16,9 @@ export const ReviewAccountantModal: React.FC<ReviewAccountantModalProps> = ({
   isOpen,
   onClose,
   accountantId,
-  reviewerId,
   onSuccess,
 }) => {
+  const { user } = useAuth();
   const [rating, setRating] = useState(0);
   const [professionalismRating, setProfessionalismRating] = useState(0);
   const [communicationRating, setCommunicationRating] = useState(0);
@@ -30,6 +31,11 @@ export const ReviewAccountantModal: React.FC<ReviewAccountantModalProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!user) {
+      setError("Musisz być zalogowany, aby wystawić opinię");
+      return;
+    }
 
     // Validation
     if (rating === 0) {
@@ -53,7 +59,8 @@ export const ReviewAccountantModal: React.FC<ReviewAccountantModalProps> = ({
     try {
       console.log("📤 Submitting accountant review:", {
         accountantId,
-        reviewerId,
+        reviewerId: user.id,
+        userRole: user.role,
         rating,
         professionalismRating,
         communicationRating,
@@ -62,21 +69,60 @@ export const ReviewAccountantModal: React.FC<ReviewAccountantModalProps> = ({
         wouldRecommend,
       });
 
+      // Prepare review data
+      const reviewData: any = {
+        accountant_id: accountantId,
+        reviewer_id: user.id,
+        reviewer_type: user.role,
+        rating,
+        professionalism_rating: professionalismRating || null,
+        communication_rating: communicationRating || null,
+        quality_rating: qualityRating || null,
+        timeliness_rating: timelinessRating || null,
+        comment: comment.trim(),
+        would_recommend: wouldRecommend,
+        status: "approved",
+      };
+
+      // Fetch appropriate ID from role-specific table
+      if (user.role === "employer") {
+        const { data: employerData, error: employerError } = await supabase
+          .from("employers")
+          .select("id")
+          .eq("profile_id", user.id)
+          .single();
+
+        if (employerError || !employerData) {
+          throw new Error("Nie znaleziono profilu pracodawcy");
+        }
+        reviewData.employer_id = employerData.id;
+      } else if (user.role === "worker") {
+        const { data: workerData, error: workerError } = await supabase
+          .from("workers")
+          .select("id")
+          .eq("profile_id", user.id)
+          .single();
+
+        if (workerError || !workerData) {
+          throw new Error("Nie znaleziono profilu pracownika");
+        }
+        reviewData.worker_id = workerData.id;
+      } else if (user.role === "cleaning_company") {
+        const { data: cleaningData, error: cleaningError } = await supabase
+          .from("cleaning_companies")
+          .select("id")
+          .eq("profile_id", user.id)
+          .single();
+
+        if (cleaningError || !cleaningData) {
+          throw new Error("Nie znaleziono profilu firmy sprzątającej");
+        }
+        reviewData.cleaning_company_id = cleaningData.id;
+      }
+
       const { data, error: insertError } = await supabase
         .from("accountant_reviews")
-        .insert({
-          accountant_id: accountantId,
-          reviewer_id: reviewerId, // authUser.id (profiles.id / auth.uid())
-          reviewer_type: "employer",
-          rating,
-          professionalism_rating: professionalismRating || null,
-          communication_rating: communicationRating || null,
-          quality_rating: qualityRating || null,
-          timeliness_rating: timelinessRating || null,
-          comment: comment.trim(),
-          would_recommend: wouldRecommend,
-          status: "approved", // Auto-approve for now
-        })
+        .insert(reviewData)
         .select()
         .single();
 

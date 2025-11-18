@@ -35,7 +35,6 @@ import AccountantSearchPage from "./pages/public/AccountantSearchPage";
 import EmployerSearchPage from "./pages/public/EmployerSearchPage";
 import EmployerPublicProfilePage from "./pages/public/EmployerPublicProfilePage";
 import WorkerPublicProfilePage from "./pages/public/WorkerPublicProfilePage";
-import CleaningCompanyPublicProfilePage from "./pages/public/CleaningCompanyPublicProfilePage";
 import FeedPage from "./pages/FeedPage_PREMIUM"; // 🚀 ULTRA-PREMIUM FEED 2025
 import TeamDashboard from "./components/TeamDashboard";
 
@@ -160,9 +159,7 @@ const WorkerSearch = lazy(() =>
     default: m.WorkerSearch,
   }))
 );
-const CleaningCompanySearch = lazy(
-  () => import("./pages/employer/CleaningCompanySearch")
-);
+// ❌ REMOVED: CleaningCompanySearch - moved to archiwum/smieci
 // ❌ REMOVED: CleaningCompanyPublicProfile - moved to archiwum/smieci
 // ❌ REMOVED: AccountantPublicProfile - moved to archiwum/smieci
 const SubscriptionManager = lazy(() =>
@@ -189,8 +186,7 @@ const WorkerSubscriptionSelectionPage = lazy(
 // ❌ REMOVED: CleaningDashboard, CleaningReviewsPage, CleaningPortfolioPage - moved to archiwum
 // CleaningCompanyProfile removed - use Dashboard Settings tab instead
 
-// Invoice Module (for ZZP workers) ✅ ACTIVE
-import InvoiceApp from "./src/modules/invoices/InvoiceApp";
+// ❌ REMOVED: Invoice Module - moved to archiwum
 
 function App() {
   return (
@@ -250,7 +246,7 @@ function App() {
                         />
                         {/* Public profile pages - beautiful full panels */}
                         <Route
-                          path="/public/employer/:id"
+                          path="/employer/profile/:id"
                           element={<EmployerPublicProfilePage />}
                         />
                         <Route
@@ -260,10 +256,6 @@ function App() {
                         <Route
                           path="/accountant/profile/:id"
                           element={<AccountantProfilePage />}
-                        />
-                        <Route
-                          path="/public/cleaning-company/:id"
-                          element={<CleaningCompanyPublicProfilePage />}
                         />
                         {/* Legacy routes - redirect to new structure */}
                         <Route
@@ -325,14 +317,6 @@ function App() {
                           element={
                             <ProtectedRoute>
                               <WorkerSearch />
-                            </ProtectedRoute>
-                          }
-                        />
-                        <Route
-                          path="/cleaning-companies"
-                          element={
-                            <ProtectedRoute>
-                              <CleaningCompanySearch />
                             </ProtectedRoute>
                           }
                         />
@@ -522,23 +506,7 @@ function App() {
                         <Route index element={<CleaningCompanyDashboard />} />
                       </Route>
 
-                      {/* Invoice Module - For ALL Users */}
-                      <Route
-                        path="/faktury"
-                        element={
-                          <ProtectedRoute
-                            requiredRole={[
-                              "worker",
-                              "employer",
-                              "admin",
-                              "accountant",
-                              "cleaning_company",
-                            ]}
-                          >
-                            <InvoiceApp />
-                          </ProtectedRoute>
-                        }
-                      />
+                      {/* ❌ REMOVED: Invoice Module - moved to archiwum */}
 
                       {/* 404 */}
                       <Route path="*" element={<Navigate to="/" replace />} />

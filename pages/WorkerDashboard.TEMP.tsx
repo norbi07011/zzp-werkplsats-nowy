@@ -8,27 +8,60 @@
  * UPDATED: November 10, 2025 - Dashboard Unification
  */
 
-import { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { supabase } from '@/lib/supabase';
-import workerProfileService from '../services/workerProfileService';
-import type { WorkerProfileData, WorkerStats, WorkerMessage, WorkerReview, WeeklyAvailability, UnavailableDate } from '../services/workerProfileService';
-import { MOCK_JOBS, MOCK_PROFILES } from '../constants';
-import { JobCard } from '../components/JobCard';
-import { Job, Profile, Application, ApplicationStatus } from '../types';
-import { BriefcaseIcon, AcademicCapIcon, CheckCircleIcon } from '../components/icons';
-import { DashboardHeader, TabNavigation } from '../components/DashboardComponents';
-import { SubscriptionPanel } from '../src/components/subscription/SubscriptionPanel';
-import { CertificateApplicationForm } from '../src/components/subscription/CertificateApplicationForm';
-import FeedPage from '../pages/FeedPage';
-import { PageContainer, PageHeader, StatsGrid, StatCard, ContentCard } from '../components/common/PageContainer';
-import AvailabilityCalendar from '../src/components/common/AvailabilityCalendar';
-import DateBlocker from '../src/components/common/DateBlocker';
-import MessageModal from '../src/components/common/MessageModal';
-import ReviewCard from '../src/components/common/ReviewCard';
-import PortfolioUploadModal from '../src/components/common/PortfolioUploadModal';
+import { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
+import { supabase } from "@/lib/supabase";
+import workerProfileService from "../services/workerProfileService";
+import type {
+  WorkerProfileData,
+  WorkerStats,
+  WorkerMessage,
+  WorkerReview,
+  WeeklyAvailability,
+  UnavailableDate,
+} from "../services/workerProfileService";
+import { MOCK_JOBS, MOCK_PROFILES } from "../constants";
+import { JobCard } from "../components/JobCard";
+import { Job, Profile, Application, ApplicationStatus } from "../types";
+import {
+  BriefcaseIcon,
+  AcademicCapIcon,
+  CheckCircleIcon,
+} from "../components/icons";
+import {
+  DashboardHeader,
+  TabNavigation,
+} from "../components/DashboardComponents";
+import { SubscriptionPanel } from "../src/components/subscription/SubscriptionPanel";
+import { CertificateApplicationForm } from "../src/components/subscription/CertificateApplicationForm";
+import FeedPage from "../pages/FeedPage";
+import {
+  PageContainer,
+  PageHeader,
+  StatsGrid,
+  StatCard,
+  ContentCard,
+} from "../components/common/PageContainer";
+import AvailabilityCalendar from "../src/components/common/AvailabilityCalendar";
+import DateBlocker from "../src/components/common/DateBlocker";
+import MessageModal from "../src/components/common/MessageModal";
+import ReviewCard from "../src/components/common/ReviewCard";
+import PortfolioUploadModal from "../src/components/common/PortfolioUploadModal";
 
-type View = 'feed' | 'overview' | 'profile' | 'portfolio' | 'applications' | 'verification' | 'edit-profile' | 'earnings' | 'reviews' | 'analytics' | 'subscription' | 'certificate-application' | 'messages';
+type View =
+  | "feed"
+  | "overview"
+  | "profile"
+  | "portfolio"
+  | "applications"
+  | "verification"
+  | "edit-profile"
+  | "earnings"
+  | "reviews"
+  | "analytics"
+  | "subscription"
+  | "certificate-application"
+  | "messages";
 
 // ===================================================================
 // MAIN WORKER DASHBOARD COMPONENT
@@ -36,18 +69,20 @@ type View = 'feed' | 'overview' | 'profile' | 'portfolio' | 'applications' | 've
 
 export default function WorkerDashboard() {
   const navigate = useNavigate();
-  
+
   // State Management
-  const [activeView, setActiveView] = useState<View>('feed');
-  const [activeProfileTab, setActiveProfileTab] = useState<string>('overview');
+  const [activeView, setActiveView] = useState<View>("feed");
+  const [activeProfileTab, setActiveProfileTab] = useState<string>("overview");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  
+
   // Data State
-  const [userId, setUserId] = useState<string>('');
-  const [workerProfile, setWorkerProfile] = useState<WorkerProfileData | null>(null);
+  const [userId, setUserId] = useState<string>("");
+  const [workerProfile, setWorkerProfile] = useState<WorkerProfileData | null>(
+    null
+  );
   const [certificates, setCertificates] = useState<any[]>([]);
   const [jobs, setJobs] = useState<Job[]>([]);
   const [applications, setApplications] = useState<any[]>([]);
@@ -59,34 +94,34 @@ export default function WorkerDashboard() {
   const [messages, setMessages] = useState<any[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [selectedMessage, setSelectedMessage] = useState<any>(null);
-  const [replyContent, setReplyContent] = useState('');
-  
+  const [replyContent, setReplyContent] = useState("");
+
   // Form State for Profile Edit
   const [profileForm, setProfileForm] = useState({
-    full_name: '',
-    phone: '',
-    email: '',
-    location_city: '',
-    specialization: '',
-    bio: '',
+    full_name: "",
+    phone: "",
+    email: "",
+    location_city: "",
+    specialization: "",
+    bio: "",
     hourly_rate: 0,
     years_experience: 0,
-    language: 'nl' as const,
+    language: "nl" as const,
   });
-  
+
   // Skills State
   const [skills, setSkills] = useState<string[]>([]);
-  const [newSkill, setNewSkill] = useState('');
-  
+  const [newSkill, setNewSkill] = useState("");
+
   // Settings State
   const [notificationSettings, setNotificationSettings] = useState({
     email_enabled: true,
     sms_enabled: false,
     push_enabled: true,
   });
-  
+
   const [privacySettings, setPrivacySettings] = useState({
-    profile_visibility: 'public' as const,
+    profile_visibility: "public" as const,
     show_email: false,
     show_phone: false,
     show_location: true,
@@ -94,25 +129,25 @@ export default function WorkerDashboard() {
 
   // Portfolio Form State
   const [portfolioForm, setPortfolioForm] = useState({
-    title: '',
-    description: '',
-    project_url: '',
+    title: "",
+    description: "",
+    project_url: "",
     tags: [] as string[],
-    start_date: '',
-    end_date: '',
-    client_name: '',
+    start_date: "",
+    end_date: "",
+    client_name: "",
   });
   const [showPortfolioModal, setShowPortfolioModal] = useState(false);
   const [editingProjectId, setEditingProjectId] = useState<string | null>(null);
 
   // Job Application State
   const [selectedJob, setSelectedJob] = useState<any>(null);
-  const [coverLetter, setCoverLetter] = useState('');
+  const [coverLetter, setCoverLetter] = useState("");
 
   // ===================================================================
   // NEW DASHBOARD STATE (from CleaningDashboard)
   // ===================================================================
-  
+
   // Dashboard data
   const [stats, setStats] = useState<WorkerStats | null>(null);
   const [recentMessages, setRecentMessages] = useState<WorkerMessage[]>([]);
@@ -127,13 +162,17 @@ export default function WorkerDashboard() {
     saturday: false,
     sunday: false,
   });
-  const [unavailableDates, setUnavailableDates] = useState<UnavailableDate[]>([]);
+  const [unavailableDates, setUnavailableDates] = useState<UnavailableDate[]>(
+    []
+  );
   const [portfolioImages, setPortfolioImages] = useState<string[]>([]);
-  
+
   // UI state
   const [showMessageModal, setShowMessageModal] = useState(false);
-  const [activeTab, setActiveTab] = useState<'overview' | 'portfolio' | 'subscription' | 'verification'>('overview');
-  
+  const [activeTab, setActiveTab] = useState<
+    "overview" | "portfolio" | "subscription" | "verification"
+  >("overview");
+
   // Refs for scrolling
   const reviewsRef = useRef<HTMLDivElement>(null);
   const messagesRef = useRef<HTMLDivElement>(null);
@@ -147,8 +186,9 @@ export default function WorkerDashboard() {
     try {
       // Fetch messages where worker is recipient
       const { data, error } = await supabase
-        .from('messages')
-        .select(`
+        .from("messages")
+        .select(
+          `
           id,
           sender_id,
           recipient_id,
@@ -160,19 +200,20 @@ export default function WorkerDashboard() {
             full_name,
             email
           )
-        `)
-        .eq('recipient_id', userId)
-        .order('created_at', { ascending: false });
+        `
+        )
+        .eq("recipient_id", userId)
+        .order("created_at", { ascending: false });
 
       if (error) throw error;
 
       setMessages(data || []);
-      
+
       // Count unread messages
       const unread = (data || []).filter((msg: any) => !msg.is_read).length;
       setUnreadCount(unread);
     } catch (err) {
-      console.error('Error loading messages:', err);
+      console.error("Error loading messages:", err);
       setMessages([]);
       setUnreadCount(0);
     }
@@ -188,9 +229,11 @@ export default function WorkerDashboard() {
       setError(null);
 
       // Get current user
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) {
-        navigate('/login');
+        navigate("/login");
         return;
       }
 
@@ -201,18 +244,18 @@ export default function WorkerDashboard() {
       if (profile) {
         setWorkerProfile(profile);
         setSkills(profile.skills || []);
-        
+
         // Populate form
         setProfileForm({
-          full_name: profile.full_name || '',
-          phone: profile.phone || '',
-          email: profile.email || '',
-          location_city: profile.location_city || '',
-          specialization: profile.specialization || '',
-          bio: profile.bio || '',
+          full_name: profile.full_name || "",
+          phone: profile.phone || "",
+          email: profile.email || "",
+          location_city: profile.location_city || "",
+          specialization: profile.specialization || "",
+          bio: profile.bio || "",
           hourly_rate: profile.hourly_rate || 0,
           years_experience: profile.years_experience || 0,
-          language: profile.language || 'nl',
+          language: profile.language || "nl",
         });
       }
 
@@ -221,13 +264,16 @@ export default function WorkerDashboard() {
         const certs = await workerProfileService.getWorkerCertificates(user.id);
         setCertificates(certs);
       } catch (error) {
-        console.warn('[WORKER-DASH] Could not load certificates (non-critical):', error);
+        console.warn(
+          "[WORKER-DASH] Could not load certificates (non-critical):",
+          error
+        );
         setCertificates([]); // Continue with empty certificates
       }
 
       // TEMPORARILY DISABLED - RLS Policy issues causing 408 timeouts
       // TODO: Fix RLS policies in Supabase before re-enabling
-      
+
       // Load portfolio projects
       // const portfolioProjects = await workerProfileService.getPortfolioProjects(user.id);
       setPortfolio([]); // Mock: empty until DB fixed
@@ -239,9 +285,15 @@ export default function WorkerDashboard() {
       // Load earnings
       // const earningsData = await workerProfileService.getEarnings(user.id);
       setEarnings([]); // Mock: empty until DB fixed
-      
+
       // const stats = await workerProfileService.getEarningsStats(user.id);
-      setEarningsStats({ total: 0, thisMonth: 0, lastMonth: 0, pending: 0, paid: 0 }); // Mock
+      setEarningsStats({
+        total: 0,
+        thisMonth: 0,
+        lastMonth: 0,
+        pending: 0,
+        paid: 0,
+      }); // Mock
 
       // Load reviews - FIXED: Now uses reviewee_id instead of worker_id
       const reviewsData = await workerProfileService.getReviews(user.id);
@@ -252,17 +304,21 @@ export default function WorkerDashboard() {
         const analyticsData = await workerProfileService.getAnalytics(user.id);
         setAnalytics(analyticsData);
       } catch (err) {
-        console.warn('[WORKER-DASH] Could not load analytics:', err);
+        console.warn("[WORKER-DASH] Could not load analytics:", err);
         // Set default analytics data
-        setAnalytics({ 
-          profile_views: 0, 
-          job_views: 0, 
-          applications_sent: 0, 
+        setAnalytics({
+          profile_views: 0,
+          job_views: 0,
+          applications_sent: 0,
           applications_accepted: 0,
           total_earnings: 0,
-          average_rating: reviews.length > 0 ? reviews.reduce((sum: number, r: any) => sum + r.rating, 0) / reviews.length : 0,
+          average_rating:
+            reviews.length > 0
+              ? reviews.reduce((sum: number, r: any) => sum + r.rating, 0) /
+                reviews.length
+              : 0,
           completed_jobs: 0,
-          response_rate: 0
+          response_rate: 0,
         });
       }
 
@@ -282,26 +338,33 @@ export default function WorkerDashboard() {
             workerProfileService.getRecentMessages(user.id, 5),
             workerProfileService.getWorkerReviews(profile.id, 3),
           ]);
-          
+
           setStats(statsData);
           setRecentMessages(messagesData);
           setDashboardReviews(reviewsData);
-          setAvailability(profile.availability || {
-            monday: true, tuesday: true, wednesday: true, thursday: true,
-            friday: true, saturday: false, sunday: false,
-          });
+          setAvailability(
+            profile.availability || {
+              monday: true,
+              tuesday: true,
+              wednesday: true,
+              thursday: true,
+              friday: true,
+              saturday: false,
+              sunday: false,
+            }
+          );
           setUnavailableDates(profile.unavailable_dates || []);
           setIsAvailable(profile.is_available ?? true);
           setPortfolioImages(profile.portfolio_images || []);
         } catch (dashErr) {
-          console.warn('[WORKER-DASH] Could not load dashboard data:', dashErr);
+          console.warn("[WORKER-DASH] Could not load dashboard data:", dashErr);
         }
       }
 
       setLoading(false);
     } catch (err) {
-      console.error('Error loading data:', err);
-      setError('Nie udało się załadować danych profilu');
+      console.error("Error loading data:", err);
+      setError("Nie udało się załadować danych profilu");
       setLoading(false);
     }
   };
@@ -313,21 +376,21 @@ export default function WorkerDashboard() {
   const handleMarkAsRead = async (messageId: string) => {
     try {
       const { error } = await supabase
-        .from('messages')
+        .from("messages")
         .update({ is_read: true, read_at: new Date().toISOString() })
-        .eq('id', messageId);
+        .eq("id", messageId);
 
       if (error) throw error;
 
       // Update local state
-      setMessages(prevMessages => 
-        prevMessages.map(msg => 
+      setMessages((prevMessages) =>
+        prevMessages.map((msg) =>
           msg.id === messageId ? { ...msg, is_read: true } : msg
         )
       );
-      setUnreadCount(prev => Math.max(0, prev - 1));
+      setUnreadCount((prev) => Math.max(0, prev - 1));
     } catch (err) {
-      console.error('Error marking message as read:', err);
+      console.error("Error marking message as read:", err);
     }
   };
 
@@ -336,28 +399,26 @@ export default function WorkerDashboard() {
 
     try {
       setSaving(true);
-      
-      const { error } = await supabase
-        .from('messages')
-        .insert({
-          sender_id: userId,
-          recipient_id: selectedMessage.sender_id,
-          subject: `Re: ${selectedMessage.subject}`,
-          content: replyContent,
-          is_read: false,
-        });
+
+      const { error } = await supabase.from("messages").insert({
+        sender_id: userId,
+        recipient_id: selectedMessage.sender_id,
+        subject: `Re: ${selectedMessage.subject}`,
+        content: replyContent,
+        is_read: false,
+      });
 
       if (error) throw error;
 
-      setSuccess('Odpowiedź wysłana!');
-      setReplyContent('');
+      setSuccess("Odpowiedź wysłana!");
+      setReplyContent("");
       setSelectedMessage(null);
-      
+
       // Reload messages
       await loadMessages(userId);
     } catch (err) {
-      console.error('Error sending reply:', err);
-      setError('Nie udało się wysłać odpowiedzi');
+      console.error("Error sending reply:", err);
+      setError("Nie udało się wysłać odpowiedzi");
     } finally {
       setSaving(false);
     }
@@ -374,19 +435,22 @@ export default function WorkerDashboard() {
     setSuccess(null);
 
     try {
-      const updated = await workerProfileService.updateWorkerProfile(userId, profileForm);
-      
+      const updated = await workerProfileService.updateWorkerProfile(
+        userId,
+        profileForm
+      );
+
       if (updated) {
-        setSuccess('✅ Profil zapisany pomyślnie!');
+        setSuccess("✅ Profil zapisany pomyślnie!");
         await loadAllData(); // Reload data
-        
+
         setTimeout(() => setSuccess(null), 3000);
       } else {
-        throw new Error('Update failed');
+        throw new Error("Update failed");
       }
     } catch (err) {
-      console.error('Profile update error:', err);
-      setError('❌ Nie udało się zapisać profilu');
+      console.error("Profile update error:", err);
+      setError("❌ Nie udało się zapisać profilu");
     } finally {
       setSaving(false);
     }
@@ -399,16 +463,16 @@ export default function WorkerDashboard() {
     try {
       setSaving(true);
       const avatarUrl = await workerProfileService.uploadAvatar(userId, file);
-      
+
       if (avatarUrl) {
-        setSuccess('✅ Avatar zaktualizowany!');
+        setSuccess("✅ Avatar zaktualizowany!");
         await loadAllData();
         setTimeout(() => setSuccess(null), 2000);
       } else {
-        setError('❌ Nie udało się przesłać avatara');
+        setError("❌ Nie udało się przesłać avatara");
       }
     } catch (err) {
-      setError('❌ Błąd przesyłania avatara');
+      setError("❌ Błąd przesyłania avatara");
     } finally {
       setSaving(false);
     }
@@ -423,22 +487,28 @@ export default function WorkerDashboard() {
 
     const updatedSkills = [...skills, newSkill.trim()];
     setSkills(updatedSkills);
-    setNewSkill('');
+    setNewSkill("");
 
-    const success = await workerProfileService.updateWorkerSkills(userId, updatedSkills);
+    const success = await workerProfileService.updateWorkerSkills(
+      userId,
+      updatedSkills
+    );
     if (success) {
-      setSuccess('✅ Umiejętność dodana!');
+      setSuccess("✅ Umiejętność dodana!");
       setTimeout(() => setSuccess(null), 2000);
     }
   };
 
   const handleRemoveSkill = async (skillToRemove: string) => {
-    const updatedSkills = skills.filter(s => s !== skillToRemove);
+    const updatedSkills = skills.filter((s) => s !== skillToRemove);
     setSkills(updatedSkills);
 
-    const success = await workerProfileService.updateWorkerSkills(userId, updatedSkills);
+    const success = await workerProfileService.updateWorkerSkills(
+      userId,
+      updatedSkills
+    );
     if (success) {
-      setSuccess('✅ Umiejętność usunięta!');
+      setSuccess("✅ Umiejętność usunięta!");
       setTimeout(() => setSuccess(null), 2000);
     }
   };
@@ -449,26 +519,32 @@ export default function WorkerDashboard() {
 
   const handleNotificationSettingsUpdate = async () => {
     setSaving(true);
-    const success = await workerProfileService.updateNotificationSettings(userId, notificationSettings);
-    
+    const success = await workerProfileService.updateNotificationSettings(
+      userId,
+      notificationSettings
+    );
+
     if (success) {
-      setSuccess('✅ Ustawienia powiadomień zapisane!');
+      setSuccess("✅ Ustawienia powiadomień zapisane!");
       setTimeout(() => setSuccess(null), 2000);
     } else {
-      setError('❌ Nie udało się zapisać ustawień');
+      setError("❌ Nie udało się zapisać ustawień");
     }
     setSaving(false);
   };
 
   const handlePrivacySettingsUpdate = async () => {
     setSaving(true);
-    const success = await workerProfileService.updatePrivacySettings(userId, privacySettings);
-    
+    const success = await workerProfileService.updatePrivacySettings(
+      userId,
+      privacySettings
+    );
+
     if (success) {
-      setSuccess('✅ Ustawienia prywatności zapisane!');
+      setSuccess("✅ Ustawienia prywatności zapisane!");
       setTimeout(() => setSuccess(null), 2000);
     } else {
-      setError('❌ Nie udało się zapisać ustawień');
+      setError("❌ Nie udało się zapisać ustawień");
     }
     setSaving(false);
   };
@@ -477,53 +553,60 @@ export default function WorkerDashboard() {
   // CERTIFICATE HANDLERS
   // ===================================================================
 
-  const handleCertificateUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleCertificateUpload = async (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     try {
       setSaving(true);
-      
+
       // Upload file
-      const fileUrl = await workerProfileService.uploadCertificateFile(userId, file);
-      if (!fileUrl) throw new Error('Upload failed');
+      const fileUrl = await workerProfileService.uploadCertificateFile(
+        userId,
+        file
+      );
+      if (!fileUrl) throw new Error("Upload failed");
 
       // Add certificate record
       const cert = await workerProfileService.addCertificate(userId, {
-        certificate_type: 'Doświadczenie',
-        issuer: 'Manual Upload',
+        certificate_type: "Doświadczenie",
+        issuer: "Manual Upload",
         issue_date: new Date().toISOString(),
         file_url: fileUrl,
       });
 
       if (cert) {
-        setSuccess('✅ Certyfikat dodany!');
+        setSuccess("✅ Certyfikat dodany!");
         await loadAllData();
         setTimeout(() => setSuccess(null), 2000);
       }
     } catch (err) {
-      setError('❌ Nie udało się dodać certyfikatu');
+      setError("❌ Nie udało się dodać certyfikatu");
     } finally {
       setSaving(false);
     }
   };
 
   const handleCertificateDelete = async (certificateId: string) => {
-    if (!confirm('Czy na pewno chcesz usunąć ten certyfikat?')) return;
+    if (!confirm("Czy na pewno chcesz usunąć ten certyfikat?")) return;
 
     try {
       setSaving(true);
-      const success = await workerProfileService.deleteCertificate(certificateId);
-      
+      const success = await workerProfileService.deleteCertificate(
+        certificateId
+      );
+
       if (success) {
-        setSuccess('✅ Certyfikat usunięty!');
+        setSuccess("✅ Certyfikat usunięty!");
         await loadAllData();
         setTimeout(() => setSuccess(null), 2000);
       } else {
-        setError('❌ Nie udało się usunąć certyfikatu');
+        setError("❌ Nie udało się usunąć certyfikatu");
       }
     } catch (err) {
-      setError('❌ Błąd usuwania certyfikatu');
+      setError("❌ Błąd usuwania certyfikatu");
     } finally {
       setSaving(false);
     }
@@ -541,15 +624,21 @@ export default function WorkerDashboard() {
     try {
       if (editingProjectId) {
         // Update existing project
-        const success = await workerProfileService.updatePortfolioProject(editingProjectId, portfolioForm);
+        const success = await workerProfileService.updatePortfolioProject(
+          editingProjectId,
+          portfolioForm
+        );
         if (success) {
-          setSuccess('✅ Projekt zaktualizowany!');
+          setSuccess("✅ Projekt zaktualizowany!");
         }
       } else {
         // Add new project
-        const project = await workerProfileService.addPortfolioProject(userId, portfolioForm);
+        const project = await workerProfileService.addPortfolioProject(
+          userId,
+          portfolioForm
+        );
         if (project) {
-          setSuccess('✅ Projekt dodany!');
+          setSuccess("✅ Projekt dodany!");
         }
       }
 
@@ -558,46 +647,53 @@ export default function WorkerDashboard() {
       resetPortfolioForm();
       setTimeout(() => setSuccess(null), 2000);
     } catch (err) {
-      setError('❌ Nie udało się zapisać projektu');
+      setError("❌ Nie udało się zapisać projektu");
     } finally {
       setSaving(false);
     }
   };
 
   const handlePortfolioDelete = async (projectId: string) => {
-    if (!confirm('Czy na pewno chcesz usunąć ten projekt?')) return;
+    if (!confirm("Czy na pewno chcesz usunąć ten projekt?")) return;
 
     try {
       setSaving(true);
-      const success = await workerProfileService.deletePortfolioProject(projectId);
-      
+      const success = await workerProfileService.deletePortfolioProject(
+        projectId
+      );
+
       if (success) {
-        setSuccess('✅ Projekt usunięty!');
+        setSuccess("✅ Projekt usunięty!");
         await loadAllData();
         setTimeout(() => setSuccess(null), 2000);
       }
     } catch (err) {
-      setError('❌ Nie udało się usunąć projektu');
+      setError("❌ Nie udało się usunąć projektu");
     } finally {
       setSaving(false);
     }
   };
 
-  const handlePortfolioImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePortfolioImageUpload = async (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     try {
       setSaving(true);
-      const imageUrl = await workerProfileService.uploadPortfolioImage(userId, file);
-      
+      const imageUrl = await workerProfileService.uploadPortfolioImage(
+        userId,
+        file
+      );
+
       if (imageUrl) {
         setPortfolioForm({ ...portfolioForm, image_url: imageUrl });
-        setSuccess('✅ Zdjęcie przesłane!');
+        setSuccess("✅ Zdjęcie przesłane!");
         setTimeout(() => setSuccess(null), 2000);
       }
     } catch (err) {
-      setError('❌ Nie udało się przesłać zdjęcia');
+      setError("❌ Nie udało się przesłać zdjęcia");
     } finally {
       setSaving(false);
     }
@@ -605,13 +701,13 @@ export default function WorkerDashboard() {
 
   const resetPortfolioForm = () => {
     setPortfolioForm({
-      title: '',
-      description: '',
-      project_url: '',
+      title: "",
+      description: "",
+      project_url: "",
       tags: [],
-      start_date: '',
-      end_date: '',
-      client_name: '',
+      start_date: "",
+      end_date: "",
+      client_name: "",
     });
     setEditingProjectId(null);
   };
@@ -621,11 +717,11 @@ export default function WorkerDashboard() {
       setPortfolioForm({
         title: project.title,
         description: project.description,
-        project_url: project.project_url || '',
+        project_url: project.project_url || "",
         tags: project.tags || [],
         start_date: project.start_date,
-        end_date: project.end_date || '',
-        client_name: project.client_name || '',
+        end_date: project.end_date || "",
+        client_name: project.client_name || "",
       });
       setEditingProjectId(project.id);
     } else {
@@ -654,35 +750,37 @@ export default function WorkerDashboard() {
       );
 
       if (application) {
-        setSuccess('✅ Aplikacja wysłana!');
+        setSuccess("✅ Aplikacja wysłana!");
         await loadAllData();
         setSelectedJob(null);
-        setCoverLetter('');
+        setCoverLetter("");
         setTimeout(() => setSuccess(null), 2000);
       } else {
-        setError('❌ Nie udało się wysłać aplikacji');
+        setError("❌ Nie udało się wysłać aplikacji");
       }
     } catch (err) {
-      setError('❌ Błąd wysyłania aplikacji');
+      setError("❌ Błąd wysyłania aplikacji");
     } finally {
       setSaving(false);
     }
   };
 
   const handleWithdrawApplication = async (applicationId: string) => {
-    if (!confirm('Czy na pewno chcesz wycofać tę aplikację?')) return;
+    if (!confirm("Czy na pewno chcesz wycofać tę aplikację?")) return;
 
     try {
       setSaving(true);
-      const success = await workerProfileService.withdrawApplication(applicationId);
-      
+      const success = await workerProfileService.withdrawApplication(
+        applicationId
+      );
+
       if (success) {
-        setSuccess('✅ Aplikacja wycofana!');
+        setSuccess("✅ Aplikacja wycofana!");
         await loadAllData();
         setTimeout(() => setSuccess(null), 2000);
       }
     } catch (err) {
-      setError('❌ Nie udało się wycofać aplikacji');
+      setError("❌ Nie udało się wycofać aplikacji");
     } finally {
       setSaving(false);
     }
@@ -694,51 +792,72 @@ export default function WorkerDashboard() {
 
   const handleToggleAvailability = async () => {
     if (!workerProfile) return;
-    
+
     try {
       setSaving(true);
       const newStatus = !isAvailable;
-      await workerProfileService.toggleAvailability(workerProfile.id, newStatus);
+      await workerProfileService.toggleAvailability(
+        workerProfile.id,
+        newStatus
+      );
       setIsAvailable(newStatus);
-      setSuccess(newStatus ? '✅ Jesteś teraz dostępny do pracy!' : '✅ Status zmieniony na niedostępny');
+      setSuccess(
+        newStatus
+          ? "✅ Jesteś teraz dostępny do pracy!"
+          : "✅ Status zmieniony na niedostępny"
+      );
       setTimeout(() => setSuccess(null), 2000);
     } catch (err) {
-      console.error('[WORKER-DASH] Toggle availability error:', err);
-      setError('❌ Nie udało się zmienić statusu dostępności');
+      console.error("[WORKER-DASH] Toggle availability error:", err);
+      setError("❌ Nie udało się zmienić statusu dostępności");
     } finally {
       setSaving(false);
     }
   };
 
-  const handleAvailabilityChange = async (newAvailability: WeeklyAvailability) => {
+  const handleAvailabilityChange = async (
+    newAvailability: WeeklyAvailability
+  ) => {
     if (!workerProfile) return;
-    
+
     try {
       setSaving(true);
-      await workerProfileService.updateAvailability(workerProfile.id, newAvailability);
+      await workerProfileService.updateAvailability(
+        workerProfile.id,
+        newAvailability
+      );
       setAvailability(newAvailability);
-      setSuccess('✅ Dostępność zaktualizowana!');
+      setSuccess("✅ Dostępność zaktualizowana!");
       setTimeout(() => setSuccess(null), 2000);
     } catch (err) {
-      console.error('[WORKER-DASH] Update availability error:', err);
-      setError('❌ Nie udało się zaktualizować dostępności');
+      console.error("[WORKER-DASH] Update availability error:", err);
+      setError("❌ Nie udało się zaktualizować dostępności");
     } finally {
       setSaving(false);
     }
   };
 
-  const handleBlockDate = async (date: string, reason: string, type: 'vacation' | 'holiday' | 'fully_booked') => {
+  const handleBlockDate = async (
+    date: string,
+    reason: string,
+    type: "vacation" | "holiday" | "fully_booked"
+  ) => {
     if (!workerProfile) return;
-    
+
     try {
       setSaving(true);
-      await workerProfileService.blockDate(workerProfile.id, date, reason, type);
+      await workerProfileService.blockDate(
+        workerProfile.id,
+        date,
+        reason,
+        type
+      );
       setUnavailableDates([...unavailableDates, { date, reason, type }]);
-      setSuccess('✅ Data zablokowana!');
+      setSuccess("✅ Data zablokowana!");
       setTimeout(() => setSuccess(null), 2000);
     } catch (err) {
-      console.error('[WORKER-DASH] Block date error:', err);
-      setError('❌ Nie udało się zablokować daty');
+      console.error("[WORKER-DASH] Block date error:", err);
+      setError("❌ Nie udało się zablokować daty");
     } finally {
       setSaving(false);
     }
@@ -746,16 +865,16 @@ export default function WorkerDashboard() {
 
   const handleUnblockDate = async (date: string) => {
     if (!workerProfile) return;
-    
+
     try {
       setSaving(true);
       await workerProfileService.unblockDate(workerProfile.id, date);
-      setUnavailableDates(unavailableDates.filter(d => d.date !== date));
-      setSuccess('✅ Data odblokowana!');
+      setUnavailableDates(unavailableDates.filter((d) => d.date !== date));
+      setSuccess("✅ Data odblokowana!");
       setTimeout(() => setSuccess(null), 2000);
     } catch (err) {
-      console.error('[WORKER-DASH] Unblock date error:', err);
-      setError('❌ Nie udało się odblokować daty');
+      console.error("[WORKER-DASH] Unblock date error:", err);
+      setError("❌ Nie udało się odblokować daty");
     } finally {
       setSaving(false);
     }
@@ -767,13 +886,16 @@ export default function WorkerDashboard() {
 
     try {
       setSaving(true);
-      const avatarUrl = await workerProfileService.uploadWorkerAvatar(workerProfile.id, file);
+      const avatarUrl = await workerProfileService.uploadWorkerAvatar(
+        workerProfile.id,
+        file
+      );
       setWorkerProfile({ ...workerProfile, avatar_url: avatarUrl });
-      setSuccess('✅ Avatar zaktualizowany!');
+      setSuccess("✅ Avatar zaktualizowany!");
       setTimeout(() => setSuccess(null), 2000);
     } catch (err) {
-      console.error('[WORKER-DASH] Avatar upload error:', err);
-      setError('❌ Nie udało się wgrać avatara');
+      console.error("[WORKER-DASH] Avatar upload error:", err);
+      setError("❌ Nie udało się wgrać avatara");
     } finally {
       setSaving(false);
     }
@@ -787,25 +909,34 @@ export default function WorkerDashboard() {
     }
   };
 
-  const handleRespondToReview = async (reviewId: string, responseText: string) => {
+  const handleRespondToReview = async (
+    reviewId: string,
+    responseText: string
+  ) => {
     if (!responseText.trim()) return;
-    
+
     try {
       setSaving(true);
       await workerProfileService.respondToReview(reviewId, responseText);
-      
+
       // Update local state
-      setDashboardReviews(dashboardReviews.map(review =>
-        review.id === reviewId
-          ? { ...review, response: responseText, response_date: new Date().toISOString() }
-          : review
-      ));
-      
-      setSuccess('✅ Odpowiedź wysłana!');
+      setDashboardReviews(
+        dashboardReviews.map((review) =>
+          review.id === reviewId
+            ? {
+                ...review,
+                response: responseText,
+                response_date: new Date().toISOString(),
+              }
+            : review
+        )
+      );
+
+      setSuccess("✅ Odpowiedź wysłana!");
       setTimeout(() => setSuccess(null), 2000);
     } catch (err) {
-      console.error('[WORKER-DASH] Respond to review error:', err);
-      setError('❌ Nie udało się wysłać odpowiedzi');
+      console.error("[WORKER-DASH] Respond to review error:", err);
+      setError("❌ Nie udało się wysłać odpowiedzi");
     } finally {
       setSaving(false);
     }
@@ -813,40 +944,47 @@ export default function WorkerDashboard() {
 
   const handlePortfolioUpload = async (file: File) => {
     if (!workerProfile) return;
-    
+
     try {
       setSaving(true);
-      const imageUrl = await workerProfileService.uploadWorkerPortfolioImage(workerProfile.id, file);
+      const imageUrl = await workerProfileService.uploadWorkerPortfolioImage(
+        workerProfile.id,
+        file
+      );
       setPortfolioImages([...portfolioImages, imageUrl]);
-      setSuccess('✅ Zdjęcie dodane do portfolio!');
+      setSuccess("✅ Zdjęcie dodane do portfolio!");
       setTimeout(() => setSuccess(null), 2000);
     } catch (err) {
-      console.error('[WORKER-DASH] Portfolio upload error:', err);
-      setError('❌ Nie udało się wgrać zdjęcia');
+      console.error("[WORKER-DASH] Portfolio upload error:", err);
+      setError("❌ Nie udało się wgrać zdjęcia");
     } finally {
       setSaving(false);
     }
   };
 
   const handlePortfolioDelete = async (imageUrl: string) => {
-    if (!workerProfile || !confirm('Czy na pewno chcesz usunąć to zdjęcie?')) return;
-    
+    if (!workerProfile || !confirm("Czy na pewno chcesz usunąć to zdjęcie?"))
+      return;
+
     try {
       setSaving(true);
-      await workerProfileService.deleteWorkerPortfolioImage(workerProfile.id, imageUrl);
-      setPortfolioImages(portfolioImages.filter(img => img !== imageUrl));
-      setSuccess('✅ Zdjęcie usunięte!');
+      await workerProfileService.deleteWorkerPortfolioImage(
+        workerProfile.id,
+        imageUrl
+      );
+      setPortfolioImages(portfolioImages.filter((img) => img !== imageUrl));
+      setSuccess("✅ Zdjęcie usunięte!");
       setTimeout(() => setSuccess(null), 2000);
     } catch (err) {
-      console.error('[WORKER-DASH] Portfolio delete error:', err);
-      setError('❌ Nie udało się usunąć zdjęcia');
+      console.error("[WORKER-DASH] Portfolio delete error:", err);
+      setError("❌ Nie udało się usunąć zdjęcia");
     } finally {
       setSaving(false);
     }
   };
 
   const scrollToSection = (ref: React.RefObject<HTMLDivElement>) => {
-    ref.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    ref.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
   // ===================================================================
@@ -855,23 +993,23 @@ export default function WorkerDashboard() {
 
   const renderContent = () => {
     switch (activeView) {
-      case 'feed':
+      case "feed":
         return renderFeed();
-      case 'overview':
+      case "overview":
         return renderOverview();
-      case 'profile':
+      case "profile":
         return renderProfile();
-      case 'portfolio':
+      case "portfolio":
         return renderPortfolio();
-      case 'subscription':
+      case "subscription":
         return renderSubscription();
-      case 'certificate-application':
+      case "certificate-application":
         return renderCertificateApplication();
-      case 'reviews':
+      case "reviews":
         return renderReviewsAndAnalytics();
-      case 'verification':
+      case "verification":
         return renderVerification();
-      case 'messages':
+      case "messages":
         return renderMessages();
       default:
         return renderFeed();
@@ -889,4 +1027,4 @@ export default function WorkerDashboard() {
   // ===================================================================
   // OVERVIEW TAB
   // ===================================================================
-
+}
