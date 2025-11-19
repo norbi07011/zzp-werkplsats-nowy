@@ -241,71 +241,92 @@ export const SupportTicketsManager: React.FC = () => {
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Status
               </label>
-              <select
-                multiple
-                value={filters.status || []}
-                onChange={(e) => {
-                  const values = Array.from(
-                    e.target.selectedOptions,
-                    (option) => option.value
-                  ) as TicketStatus[];
-                  setFilters({ ...filters, status: values });
-                }}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="new">Nowe</option>
-                <option value="in_progress">W trakcie</option>
-                <option value="waiting_user">Oczekuje</option>
-                <option value="resolved">Rozwiązane</option>
-                <option value="closed">Zamknięte</option>
-              </select>
+              <div className="space-y-2">
+                {[
+                  { value: "new", label: "Nowe" },
+                  { value: "in_progress", label: "W trakcie" },
+                  { value: "waiting_user", label: "Oczekuje" },
+                  { value: "resolved", label: "Rozwiązane" },
+                  { value: "closed", label: "Zamknięte" },
+                ].map((option) => (
+                  <label key={option.value} className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-1 rounded">
+                    <input
+                      type="checkbox"
+                      checked={(filters.status || []).includes(option.value as TicketStatus)}
+                      onChange={(e) => {
+                        const currentStatus = filters.status || [];
+                        const newStatus = e.target.checked
+                          ? [...currentStatus, option.value as TicketStatus]
+                          : currentStatus.filter((s) => s !== option.value);
+                        setFilters({ ...filters, status: newStatus });
+                      }}
+                      className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                    />
+                    <span className="text-sm text-gray-700">{option.label}</span>
+                  </label>
+                ))}
+              </div>
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Priorytet
               </label>
-              <select
-                multiple
-                value={filters.priority || []}
-                onChange={(e) => {
-                  const values = Array.from(
-                    e.target.selectedOptions,
-                    (option) => option.value
-                  ) as TicketPriority[];
-                  setFilters({ ...filters, priority: values });
-                }}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="low">Niski</option>
-                <option value="medium">Średni</option>
-                <option value="high">Wysoki</option>
-                <option value="critical">Krytyczny</option>
-              </select>
+              <div className="space-y-2">
+                {[
+                  { value: "low", label: "Niski" },
+                  { value: "medium", label: "Średni" },
+                  { value: "high", label: "Wysoki" },
+                  { value: "critical", label: "Krytyczny" },
+                ].map((option) => (
+                  <label key={option.value} className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-1 rounded">
+                    <input
+                      type="checkbox"
+                      checked={(filters.priority || []).includes(option.value as TicketPriority)}
+                      onChange={(e) => {
+                        const currentPriority = filters.priority || [];
+                        const newPriority = e.target.checked
+                          ? [...currentPriority, option.value as TicketPriority]
+                          : currentPriority.filter((p) => p !== option.value);
+                        setFilters({ ...filters, priority: newPriority });
+                      }}
+                      className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                    />
+                    <span className="text-sm text-gray-700">{option.label}</span>
+                  </label>
+                ))}
+              </div>
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Kategoria
               </label>
-              <select
-                multiple
-                value={filters.category || []}
-                onChange={(e) => {
-                  const values = Array.from(
-                    e.target.selectedOptions,
-                    (option) => option.value
-                  ) as TicketCategory[];
-                  setFilters({ ...filters, category: values });
-                }}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="technical">Techniczny</option>
-                <option value="billing">Płatności</option>
-                <option value="account">Konto</option>
-                <option value="bug">Błąd</option>
-                <option value="other">Inne</option>
-              </select>
+              <div className="space-y-2">
+                {[
+                  { value: "technical", label: "Techniczny" },
+                  { value: "billing", label: "Płatności" },
+                  { value: "account", label: "Konto" },
+                  { value: "bug", label: "Błąd" },
+                  { value: "other", label: "Inne" },
+                ].map((option) => (
+                  <label key={option.value} className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-1 rounded">
+                    <input
+                      type="checkbox"
+                      checked={(filters.category || []).includes(option.value as TicketCategory)}
+                      onChange={(e) => {
+                        const currentCategory = filters.category || [];
+                        const newCategory = e.target.checked
+                          ? [...currentCategory, option.value as TicketCategory]
+                          : currentCategory.filter((c) => c !== option.value);
+                        setFilters({ ...filters, category: newCategory });
+                      }}
+                      className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                    />
+                    <span className="text-sm text-gray-700">{option.label}</span>
+                  </label>
+                ))}
+              </div>
             </div>
 
             <div>
