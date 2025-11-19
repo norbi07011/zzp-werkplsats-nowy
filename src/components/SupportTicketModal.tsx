@@ -165,15 +165,19 @@ export const SupportTicketModal: React.FC<SupportTicketModalProps> = ({
     }
 
     try {
-      await closeTicket(ticketToRate, rating, ratingComment.trim() || undefined);
+      await closeTicket(
+        ticketToRate,
+        rating,
+        ratingComment.trim() || undefined
+      );
       toast.success("✅ Zgłoszenie zamknięte - dziękujemy za opinię!");
-      
+
       // Reset rating modal
       setShowRatingModal(false);
       setTicketToRate(null);
       setRating(0);
       setRatingComment("");
-      
+
       loadTickets();
       setSelectedTicket(null);
     } catch (error: any) {
@@ -191,7 +195,7 @@ export const SupportTicketModal: React.FC<SupportTicketModalProps> = ({
   return (
     <>
       <Toaster position="top-right" richColors />
-      
+
       {/* Rating Modal */}
       {showRatingModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60]">
@@ -199,9 +203,7 @@ export const SupportTicketModal: React.FC<SupportTicketModalProps> = ({
             <h3 className="text-xl font-bold text-gray-900 mb-4">
               ⭐ Oceń naszą pomoc
             </h3>
-            <p className="text-gray-600 mb-6">
-              Jak oceniasz jakość wsparcia?
-            </p>
+            <p className="text-gray-600 mb-6">Jak oceniasz jakość wsparcia?</p>
 
             {/* Star Rating */}
             <div className="flex justify-center gap-2 mb-6">

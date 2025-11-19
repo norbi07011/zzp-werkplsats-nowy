@@ -51,6 +51,8 @@ export interface SupportTicket {
   status: TicketStatus;
   assigned_to: string | null;
   assigned_at: string | null;
+  assigned_admin_name?: string | null; // Imię przypisanego admina
+  assigned_admin_email?: string | null; // Email przypisanego admina
   first_response_at: string | null;
   resolved_at: string | null;
   closed_at: string | null;
@@ -416,7 +418,13 @@ export const getAllTickets = async (
 
   let query = supabase
     .from("support_tickets")
-    .select("*")
+    .select(`
+      *,
+      admin:profiles!assigned_to(
+        full_name,
+        email
+      )
+    `)
     .order("created_at", { ascending: false });
 
   // Apply filters
@@ -450,8 +458,16 @@ export const getAllTickets = async (
     throw error;
   }
 
-  console.log(`✅ Admin: Fetched ${data.length} tickets`);
-  return data as SupportTicket[];
+  // Map admin data to flat structure
+  const tickets = data.map((ticket: any) => ({
+    ...ticket,
+    assigned_admin_name: ticket.admin?.full_name || null,
+    assigned_admin_email: ticket.admin?.email || null,
+    admin: undefined, // Remove nested object
+  }));
+
+  console.log(`✅ Admin: Fetched ${tickets.length} tickets`);
+  return tickets as SupportTicket[];
 };
 
 /**

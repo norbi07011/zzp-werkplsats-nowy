@@ -453,7 +453,16 @@ export const SupportTicketsManager: React.FC = () => {
                     <div>
                       <span className="text-gray-600">Przypisany:</span>{" "}
                       {selectedTicket.assigned_to ? (
-                        <strong>Tak</strong>
+                        <div className="inline-flex flex-col">
+                          <strong className="text-green-700">
+                            {selectedTicket.assigned_admin_name || "Admin"}
+                          </strong>
+                          {selectedTicket.assigned_admin_email && (
+                            <span className="text-xs text-gray-500">
+                              {selectedTicket.assigned_admin_email}
+                            </span>
+                          )}
+                        </div>
                       ) : (
                         <button
                           onClick={() => handleAssignTicket(selectedTicket.id)}
