@@ -14,6 +14,7 @@ import React from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
 import workerProfileService from "../services/workerProfileService";
+import { SupportTicketModal } from "../src/components/SupportTicketModal";
 import type { WorkerProfileData } from "../services/workerProfileService";
 import { MOCK_JOBS, MOCK_PROFILES } from "../constants";
 import { JobCard } from "../components/JobCard";
@@ -1026,9 +1027,10 @@ export default function WorkerDashboard() {
     window.location.href = "/worker/subscription";
   };
 
+  const [showSupportModal, setShowSupportModal] = useState(false);
+
   const handleContactSupport = () => {
-    window.location.href =
-      "mailto:support@zzpwerkplaats.nl?subject=Wsparcie dla pracownika";
+    setShowSupportModal(true);
   };
 
   // ===================================================================
@@ -3772,6 +3774,12 @@ export default function WorkerDashboard() {
           {renderSubscription()}
         </TabPanel>
       </div>
+
+      {/* Support Ticket Modal */}
+      <SupportTicketModal
+        isOpen={showSupportModal}
+        onClose={() => setShowSupportModal(false)}
+      />
     </div>
   );
 }

@@ -56,6 +56,9 @@ const WorkersManager = lazy(() => import("./pages/Admin/WorkersManager"));
 const EmployersManager = lazy(() => import("./pages/Admin/EmployersManager"));
 const MediaManager = lazy(() => import("./pages/Admin/MediaManager"));
 const MessagesManager = lazy(() => import("./pages/Admin/MessagesManager"));
+const SupportTicketsManager = lazy(
+  () => import("./pages/Admin/SupportTicketsManager")
+);
 const BillingManager = lazy(() => import("./pages/Admin/BillingManager"));
 // ❌ REMOVED: AnalyticsManager (DUPLICATE - using DataAnalyticsPage instead)
 const SecurityManager = lazy(() => import("./pages/Admin/SecurityManager"));
@@ -383,6 +386,10 @@ function App() {
                         {/* OLD: AdminAppointmentsPage removed - using AppointmentsManager (enterprise) below */}
                         <Route path="media" element={<MediaManager />} />
                         <Route path="messages" element={<MessagesManager />} />
+                        <Route
+                          path="support"
+                          element={<SupportTicketsManager />}
+                        />
                         <Route path="billing" element={<BillingManager />} />
                         {/* ❌ REMOVED: analytics → AnalyticsManager (DUPLICATE - using DataAnalyticsPage below) */}
                         <Route path="security" element={<SecurityManager />} />

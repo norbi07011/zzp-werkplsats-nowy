@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import React from "react";
 import { flushSync } from "react-dom";
 import { useNavigate, Link } from "react-router-dom";
+import { SupportTicketModal } from "../../src/components/SupportTicketModal";
 import { supabase } from "../../src/lib/supabase";
 import { useAuth } from "../../contexts/AuthContext";
 import { CompanyInfoEditModal } from "../../src/components/cleaning/CompanyInfoEditModal";
@@ -475,9 +476,10 @@ const CleaningCompanyDashboard = () => {
     window.location.href = "/cleaning-company/subscription";
   };
 
+  const [showSupportModal, setShowSupportModal] = useState(false);
+
   const handleContactSupport = () => {
-    window.location.href =
-      "mailto:support@zzpwerkplaats.nl?subject=Wsparcie dla firmy sprzątającej";
+    setShowSupportModal(true);
   };
 
   if (loading) {
@@ -1179,6 +1181,12 @@ const CleaningCompanyDashboard = () => {
           onMarkAsRead={handleMarkAsRead}
         />
       )}
+
+      {/* Support Ticket Modal */}
+      <SupportTicketModal
+        isOpen={showSupportModal}
+        onClose={() => setShowSupportModal(false)}
+      />
     </div>
   );
 };

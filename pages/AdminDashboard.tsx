@@ -5,6 +5,8 @@ import { useToasts } from "../contexts/ToastContext";
 import { LoadingOverlay } from "../components/Loading";
 // @ts-ignore - Using any type to allow zzp_exam_applications queries
 import { supabase } from "../src/lib/supabase";
+import { SupportTicketModal } from "../src/components/SupportTicketModal";
+import { getTicketStats } from "../src/services/supportTicketService";
 
 // Lazy load modals (only when opened)
 const AddWorkerModal = lazy(() =>
@@ -204,6 +206,7 @@ export const AdminDashboard: React.FC = () => {
   const [showAddWorkerModal, setShowAddWorkerModal] = useState(false);
   const [showNewsletterModal, setShowNewsletterModal] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
+  const [showSupportModal, setShowSupportModal] = useState(false);
 
   // Real data from database (NIE HARDCODED!)
   const [stats, setStats] = useState({
@@ -225,6 +228,8 @@ export const AdminDashboard: React.FC = () => {
     accountantsAverageRating: 0, // NEW: Średnia ocena księgowych
     accountantsTotalReviews: 0, // NEW: Liczba recenzji księgowych
     accountantsProfileViews: 0, // NEW: Odwiedziny profili księgowych
+    supportTicketsNew: 0, // NEW: Support tickets - nowe zgłoszenia
+    supportTicketsTotal: 0, // NEW: Support tickets - wszystkie zgłoszenia
   });
   const [recentActivities, setRecentActivities] = useState<any[]>([]);
   const [systemStatus, setSystemStatus] = useState<any[]>([]);
@@ -357,6 +362,18 @@ export const AdminDashboard: React.FC = () => {
           .not("accountant_id", "is", null),
       ]);
 
+      // Fetch support tickets stats
+      let supportTicketsStats = { new: 0, total: 0 };
+      try {
+        const ticketStats = await getTicketStats();
+        supportTicketsStats = {
+          new: ticketStats.new || 0,
+          total: ticketStats.total || 0,
+        };
+      } catch (error) {
+        console.error("Error loading support tickets stats:", error);
+      }
+
       // Calculate monthlyRevenue (MRR)
       const monthlyRevenue = (activeWorkers || []).reduce(
         (sum: number, worker: any) => sum + (worker.monthly_fee || 0),
@@ -405,6 +422,8 @@ export const AdminDashboard: React.FC = () => {
           Number(accountantsAverageRating.toFixed(2)) || 0,
         accountantsTotalReviews: accountantsTotalReviews || 0,
         accountantsProfileViews: accountantProfileViewsCount || 0,
+        supportTicketsNew: supportTicketsStats.new, // NEW: Support tickets - nowe
+        supportTicketsTotal: supportTicketsStats.total, // NEW: Support tickets - wszystkie
       });
 
       // Fetch recent activities (notifications/messages)
@@ -509,8 +528,7 @@ export const AdminDashboard: React.FC = () => {
   };
 
   const handleContactSupport = () => {
-    window.location.href =
-      "mailto:support@zzpwerkplaats.nl?subject=Wsparcie dla administratora";
+    setShowSupportModal(true);
   };
 
   const adminModules = [
@@ -680,6 +698,18 @@ export const AdminDashboard: React.FC = () => {
       icon: "💬",
       color: "cyber" as const,
       stats: { label: "", value: "0", trend: "" },
+    },
+    {
+      title: "Support Tickets",
+      description: "Zgłoszenia użytkowników, help desk, wsparcie techniczne",
+      path: "/admin/support",
+      icon: "🎫",
+      color: "success" as const,
+      stats: {
+        label: "Nowe zgłoszenia",
+        value: stats.supportTicketsNew.toString(),
+        trend: `${stats.supportTicketsTotal} wszystkich ticketów`,
+      },
     },
     {
       title: "Powiadomienia",
@@ -1293,6 +1323,12 @@ export const AdminDashboard: React.FC = () => {
           onClose={() => setShowReportModal(false)}
         />
       </Suspense>
+
+      {/* Support Modal (not lazy - critical feature) */}
+      <SupportTicketModal
+        isOpen={showSupportModal}
+        onClose={() => setShowSupportModal(false)}
+      />
     </div>
   );
 };

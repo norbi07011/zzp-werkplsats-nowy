@@ -9,6 +9,7 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
+import { SupportTicketModal } from "../../src/components/SupportTicketModal";
 import { supabase } from "@/lib/supabase";
 import {
   PageContainer,
@@ -341,9 +342,10 @@ export const EmployerDashboard = () => {
     window.location.href = "/employer/subscription";
   };
 
+  const [showSupportModal, setShowSupportModal] = useState(false);
+
   const handleContactSupport = () => {
-    window.location.href =
-      "mailto:support@zzpwerkplaats.nl?subject=Wsparcie dla pracodawcy";
+    setShowSupportModal(true);
   };
 
   const handleRepeatSearch = async (searchId: string) => {
@@ -1825,6 +1827,12 @@ export const EmployerDashboard = () => {
           </div>
         </div>
       )}
+
+      {/* Support Ticket Modal */}
+      <SupportTicketModal
+        isOpen={showSupportModal}
+        onClose={() => setShowSupportModal(false)}
+      />
     </PageContainer>
   );
 };

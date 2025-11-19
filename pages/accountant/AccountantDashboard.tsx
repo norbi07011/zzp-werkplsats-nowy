@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../../contexts/AuthContext";
+import { SupportTicketModal } from "../../src/components/SupportTicketModal";
 import {
   getAccountantByProfileId,
   getMyReviews,
@@ -570,9 +571,10 @@ export default function AccountantDashboard() {
     window.location.href = "/accountant/subscription";
   };
 
+  const [showSupportModal, setShowSupportModal] = useState(false);
+
   const handleContactSupport = () => {
-    window.location.href =
-      "mailto:support@zzpwerkplaats.nl?subject=Wsparcie dla księgowego";
+    setShowSupportModal(true);
   };
 
   const renderTopTabs = () => (
@@ -2640,6 +2642,12 @@ export default function AccountantDashboard() {
 
         <TabPanel isActive={activeTab === "team"}>{renderTeam()}</TabPanel>
       </main>
+
+      {/* Support Ticket Modal */}
+      <SupportTicketModal
+        isOpen={showSupportModal}
+        onClose={() => setShowSupportModal(false)}
+      />
     </div>
   );
 }
