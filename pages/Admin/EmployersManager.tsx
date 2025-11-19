@@ -617,10 +617,10 @@ export const EmployersManager = () => {
                           </td>
                           <td className="px-6 py-4">
                             <div className="text-white font-semibold">
-                              €{company.total_spent.toFixed(2)}
+                              €{(company.total_spent ?? 0).toFixed(2)}
                             </div>
                             <div className="text-xs text-gray-400">
-                              {company.total_appointments} spotkań
+                              {company.total_appointments ?? 0} spotkań
                             </div>
                           </td>
                           <td className="px-6 py-4">

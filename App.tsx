@@ -19,6 +19,7 @@ import { ExperienceCertificatePage } from "./pages/public/ExperienceCertificateP
 import { ForEmployersPage } from "./pages/public/ForEmployersPage";
 import { ContactPage } from "./pages/public/ContactPage";
 import { LoginPage } from "./pages/public/LoginPage";
+import { RegisterSelectPage } from "./pages/public/RegisterSelectPage";
 import { RegisterEmployerPage } from "./pages/public/RegisterEmployerPage";
 import { RegisterWorkerPage } from "./pages/public/RegisterWorkerPage";
 import { RegisterAccountantPage } from "./pages/public/RegisterAccountantPage";
@@ -38,6 +39,7 @@ import WorkerPublicProfilePage from "./pages/public/WorkerPublicProfilePage";
 import CleaningCompanyPublicProfilePage from "./pages/public/CleaningCompanyPublicProfilePage";
 import FeedPage from "./pages/FeedPage_PREMIUM"; // 🚀 ULTRA-PREMIUM FEED 2025
 import TeamDashboard from "./components/TeamDashboard";
+import { Settings } from "./pages/Settings";
 
 // Admin pages (LAZY LOADED - 70% bundle reduction!)
 const AdminDashboard = lazy(() =>
@@ -228,6 +230,10 @@ function App() {
                         />
                         <Route path="/login" element={<LoginPage />} />
                         <Route
+                          path="/register"
+                          element={<RegisterSelectPage />}
+                        />
+                        <Route
                           path="/register/employer"
                           element={<RegisterEmployerPage />}
                         />
@@ -312,6 +318,7 @@ function App() {
                       <Route element={<AuthenticatedLayout />}>
                         <Route path="/feed" element={<FeedPage />} />
                         <Route path="/team" element={<TeamDashboard />} />
+                        <Route path="/settings" element={<Settings />} />
                         <Route
                           path="/accountants"
                           element={<AccountantSearchPage />}

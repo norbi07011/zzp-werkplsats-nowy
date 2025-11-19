@@ -8,9 +8,13 @@ import { CompanyInfoEditModal } from "../../src/components/cleaning/CompanyInfoE
 import PortfolioUploadModal from "../../src/components/cleaning/PortfolioUploadModal";
 import DateBlocker from "../../src/components/cleaning/DateBlocker";
 import { MessageModal } from "../../src/components/cleaning/MessageModal";
+import {
+  UnifiedDashboardTabs,
+  useUnifiedTabs,
+  TabPanel,
+  type UnifiedTab,
+} from "../../components/UnifiedDashboardTabs";
 import type { CleaningCompany, UnavailableDate } from "../../types";
-
-type Tab = "panel" | "profile" | "portfolio" | "opinie" | "kalendarz";
 
 interface Review {
   id: string;
@@ -58,7 +62,7 @@ interface Notification {
 const CleaningCompanyDashboard = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<Tab>("panel");
+  const { activeTab, setActiveTab } = useUnifiedTabs("overview");
   const [loading, setLoading] = useState(true);
   const [companyData, setCompanyData] = useState<CleaningCompany | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -549,361 +553,386 @@ const CleaningCompanyDashboard = () => {
           </div>
         </div>
 
-        {/* Szybkie działania Card */}
-        <div className="bg-white rounded-lg shadow p-6 mb-8">
-          <h2 className="text-xl font-bold text-gray-900 mb-6">
-            ⚡ Szybkie działania
-          </h2>
+        {/* Unified Dashboard Tabs */}
+        <UnifiedDashboardTabs
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          role="cleaning_company"
+          unreadMessages={messages.filter((m) => !m.is_read).length}
+        />
 
-          <div className="space-y-3">
-            <Link
-              to="/employers"
-              className="w-full px-4 py-3 bg-orange-600 text-white rounded-lg font-medium hover:bg-orange-700 flex items-center justify-center gap-2"
-            >
-              <svg
-                className="w-5 h-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
+        {/* Tab Panels */}
+        <TabPanel isActive={activeTab === "overview"}>
+          {/* Szybkie działania Card */}
+          <div className="bg-white rounded-lg shadow p-6 mb-8">
+            <h2 className="text-xl font-bold text-gray-900 mb-6">
+              ⚡ Szybkie działania
+            </h2>
+
+            <div className="space-y-3">
+              <Link
+                to="/employers"
+                className="w-full px-4 py-3 bg-orange-600 text-white rounded-lg font-medium hover:bg-orange-700 flex items-center justify-center gap-2"
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                />
-              </svg>
-              Szukaj pracodawców
-            </Link>
-
-            <Link
-              to="/workers"
-              className="w-full px-4 py-3 bg-cyan-600 text-white rounded-lg font-medium hover:bg-cyan-700 flex items-center justify-center gap-2"
-            >
-              <svg
-                className="w-5 h-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                />
-              </svg>
-              Szukaj pracowników
-            </Link>
-
-            <Link
-              to="/accountants"
-              className="w-full px-4 py-3 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 flex items-center justify-center gap-2"
-            >
-              <svg
-                className="w-5 h-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"
-                />
-              </svg>
-              Szukaj księgowych
-            </Link>
-
-            <Link
-              to="/faktury"
-              className="w-full px-4 py-3 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 flex items-center justify-center gap-2"
-            >
-              <svg
-                className="w-5 h-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                />
-              </svg>
-              Faktury & BTW
-            </Link>
-
-            <button
-              onClick={handleViewSubscription}
-              className="w-full px-4 py-3 bg-purple-600 text-white rounded-lg font-medium hover:bg-purple-700 flex items-center justify-center gap-2"
-            >
-              <svg
-                className="w-5 h-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"
-                />
-              </svg>
-              Subskrypcja
-            </button>
-
-            <button
-              onClick={handleContactSupport}
-              className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg font-medium text-gray-700 hover:bg-gray-50 flex items-center justify-center gap-2"
-            >
-              <svg
-                className="w-5 h-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-5 0a4 4 0 11-8 0 4 4 0 018 0z"
-                />
-              </svg>
-              Wsparcie
-            </button>
-          </div>
-        </div>
-
-        {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <div className="bg-gradient-to-br from-orange-100 to-orange-50 rounded-xl p-6 shadow-md">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-orange-600 mb-1">Opinie łącznie</p>
-                <p className="text-3xl font-bold text-orange-900">
-                  {stats.totalReviews}
-                </p>
-              </div>
-              <span className="text-4xl">⭐</span>
-            </div>
-          </div>
-
-          <div className="bg-gradient-to-br from-purple-100 to-purple-50 rounded-xl p-6 shadow-md">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-purple-600 mb-1">Średnia ocena</p>
-                <p className="text-3xl font-bold text-purple-900">
-                  {stats.averageRating > 0
-                    ? stats.averageRating.toFixed(1)
-                    : "0.0"}{" "}
-                  / 5.0
-                </p>
-              </div>
-              <span className="text-4xl">📊</span>
-            </div>
-          </div>
-
-          <div className="bg-gradient-to-br from-blue-100 to-blue-50 rounded-xl p-6 shadow-md">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-blue-600 mb-1">
-                  Wyświetlenia profilu
-                </p>
-                <p className="text-3xl font-bold text-blue-900">
-                  {stats.profileViews}
-                </p>
-              </div>
-              <span className="text-4xl">👁️</span>
-            </div>
-          </div>
-
-          <div className="bg-gradient-to-br from-green-100 to-green-50 rounded-xl p-6 shadow-md">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-green-600 mb-1">Kontakty (30 dni)</p>
-                <p className="text-3xl font-bold text-green-900">
-                  {stats.contactAttempts}
-                </p>
-              </div>
-              <span className="text-4xl">📞</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Main Content Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Left Column */}
-          <div className="space-y-6">
-            {/* Profile Photo */}
-            <div className="bg-white rounded-xl shadow-md p-6">
-              <h3 className="font-bold text-lg mb-4">📸 Zdjęcie profilowe</h3>
-              <div className="text-center">
-                <div className="relative inline-block">
-                  <img
-                    src={companyData.avatar_url || "/default-avatar.png"}
-                    alt="Profile"
-                    className="w-32 h-32 rounded-full object-cover mx-auto border-4 border-purple-200"
+                <svg
+                  className="w-5 h-5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
                   />
-                </div>
-                <p className="text-sm text-gray-600 mt-2">
-                  Adres URL przekierowany poprawnie do profilu rozszerzonego
-                  firmy
-                </p>
-                <p className="text-xs text-blue-600 mt-1">
-                  https://zzp-werkplaats.nl/firma/vsvs
-                </p>
-                <div className="mt-4 space-y-2">
-                  <button
-                    onClick={() => setShowEditModal(true)}
-                    className="w-full bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
-                  >
-                    📝 Edytuj dane firmy
-                  </button>
-                  <button className="w-full bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600">
-                    🗑️ Usuń
-                  </button>
-                </div>
-              </div>
-            </div>
+                </svg>
+                Szukaj pracodawców
+              </Link>
 
-            {/* Availability */}
-            <div className="bg-white rounded-xl shadow-md p-6">
-              <h3 className="font-bold text-lg mb-4">📅 Twoja dostępność</h3>
-              <p className="text-sm text-gray-600 mb-4">
-                Wybierz dni w których możesz przyjąć zlecenia (pracujesz)
-              </p>
-              <div className="space-y-2">
-                {[
-                  { key: "monday", label: "Poniedziałek" },
-                  { key: "tuesday", label: "Wtorek" },
-                  { key: "wednesday", label: "Środa" },
-                  { key: "thursday", label: "Czwartek" },
-                  { key: "friday", label: "Piątek" },
-                  { key: "saturday", label: "Sobota" },
-                  { key: "sunday", label: "Niedziela" },
-                ].map((day) => (
-                  <label
-                    key={day.key}
-                    className="flex items-center space-x-3 cursor-pointer"
-                  >
-                    <input
-                      type="checkbox"
-                      className="w-5 h-5 text-blue-600 rounded"
-                      checked={
-                        companyData.availability &&
-                        typeof companyData.availability === "object" &&
-                        day.key in companyData.availability
-                          ? (companyData.availability as any)[day.key]
-                          : false
-                      }
-                      onChange={(e) =>
-                        handleAvailabilityChange(day.key, e.target.checked)
-                      }
-                    />
-                    <span className="text-gray-700">{day.label}</span>
-                  </label>
-                ))}
-              </div>
-              <div className="mt-4 pt-4 border-t">
-                <p className="text-xs text-gray-500">
-                  Preferowana liczba dni:{" "}
-                  {companyData.preferred_days_per_week || 2} dni/tydzień
-                </p>
-              </div>
-            </div>
-          </div>
+              <Link
+                to="/workers"
+                className="w-full px-4 py-3 bg-cyan-600 text-white rounded-lg font-medium hover:bg-cyan-700 flex items-center justify-center gap-2"
+              >
+                <svg
+                  className="w-5 h-5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                  />
+                </svg>
+                Szukaj pracowników
+              </Link>
 
-          {/* Middle Column */}
-          <div className="space-y-6">
-            {/* Dane firmy */}
-            <div className="bg-white rounded-xl shadow-md p-6">
-              <h3 className="font-bold text-lg mb-4">ℹ️ Dane firmy</h3>
-              <div className="space-y-3">
-                <div>
-                  <p className="text-sm text-gray-600">Kontakt</p>
-                  <p className="font-semibold">{companyData.email || "Brak"}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-600">Zespół</p>
-                  <p className="font-semibold">
-                    {companyData.team_size || 1} osoba
-                  </p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-600">Miasto</p>
-                  <p className="font-semibold">
-                    {companyData.location_city || "Brak"}
-                  </p>
-                </div>
-              </div>
-              <button className="mt-4 text-blue-600 hover:text-blue-800 text-sm">
-                Zobacz wszystkie →
+              <Link
+                to="/accountants"
+                className="w-full px-4 py-3 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 flex items-center justify-center gap-2"
+              >
+                <svg
+                  className="w-5 h-5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"
+                  />
+                </svg>
+                Szukaj księgowych
+              </Link>
+
+              <Link
+                to="/faktury"
+                className="w-full px-4 py-3 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 flex items-center justify-center gap-2"
+              >
+                <svg
+                  className="w-5 h-5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                  />
+                </svg>
+                Faktury & BTW
+              </Link>
+
+              <button
+                onClick={handleViewSubscription}
+                className="w-full px-4 py-3 bg-purple-600 text-white rounded-lg font-medium hover:bg-purple-700 flex items-center justify-center gap-2"
+              >
+                <svg
+                  className="w-5 h-5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"
+                  />
+                </svg>
+                Subskrypcja
+              </button>
+
+              <button
+                onClick={handleContactSupport}
+                className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg font-medium text-gray-700 hover:bg-gray-50 flex items-center justify-center gap-2"
+              >
+                <svg
+                  className="w-5 h-5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-5 0a4 4 0 11-8 0 4 4 0 018 0z"
+                  />
+                </svg>
+                Wsparcie
               </button>
             </div>
+          </div>
 
-            {/* Zarezerwowane daty */}
-            <div className="bg-white rounded-xl shadow-md p-6">
-              <h3 className="font-bold text-lg mb-4">📅 Zarezerwuj datami</h3>
-              <p className="text-sm text-gray-600 mb-4">
-                Zablokuj daty, kiedy się nie pojawicie (np. przerwa, urlop)
-              </p>
-              <DateBlocker
-                blockedDates={blockedDates}
-                onBlock={handleBlockDate}
-                onUnblock={handleUnblockDate}
-              />
-              <div className="mt-4">
-                <p className="text-sm font-semibold mb-2">Dostępne dni:</p>
-                <p className="text-2xl font-bold text-blue-600">
-                  {blockedDates.length > 0
-                    ? Math.max(0, 30 - blockedDates.length)
-                    : 30}
-                </p>
-                <p className="text-sm font-semibold mt-4 mb-2">Preferowane:</p>
-                <p className="text-lg text-gray-700">
-                  {companyData?.preferred_days_per_week || 2} dni/tydzień
-                </p>
+          {/* Stats Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+            <div className="bg-gradient-to-br from-orange-100 to-orange-50 rounded-xl p-6 shadow-md">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-orange-600 mb-1">Opinie łącznie</p>
+                  <p className="text-3xl font-bold text-orange-900">
+                    {stats.totalReviews}
+                  </p>
+                </div>
+                <span className="text-4xl">⭐</span>
+              </div>
+            </div>
+
+            <div className="bg-gradient-to-br from-purple-100 to-purple-50 rounded-xl p-6 shadow-md">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-purple-600 mb-1">Średnia ocena</p>
+                  <p className="text-3xl font-bold text-purple-900">
+                    {stats.averageRating > 0
+                      ? stats.averageRating.toFixed(1)
+                      : "0.0"}{" "}
+                    / 5.0
+                  </p>
+                </div>
+                <span className="text-4xl">📊</span>
+              </div>
+            </div>
+
+            <div className="bg-gradient-to-br from-blue-100 to-blue-50 rounded-xl p-6 shadow-md">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-blue-600 mb-1">
+                    Wyświetlenia profilu
+                  </p>
+                  <p className="text-3xl font-bold text-blue-900">
+                    {stats.profileViews}
+                  </p>
+                </div>
+                <span className="text-4xl">👁️</span>
+              </div>
+            </div>
+
+            <div className="bg-gradient-to-br from-green-100 to-green-50 rounded-xl p-6 shadow-md">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-green-600 mb-1">
+                    Kontakty (30 dni)
+                  </p>
+                  <p className="text-3xl font-bold text-green-900">
+                    {stats.contactAttempts}
+                  </p>
+                </div>
+                <span className="text-4xl">📞</span>
               </div>
             </div>
           </div>
+        </TabPanel>
 
-          {/* Right Column */}
-          <div className="space-y-6">
-            {/* Portfolio */}
-            <div className="bg-white rounded-xl shadow-md p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="font-bold text-lg">
-                  🎨 Portfolio zdjęć (
-                  {companyData.portfolio_images?.length || 0} zdjęć)
-                </h3>
-                <button
-                  onClick={() => setShowPortfolioModal(true)}
-                  className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm"
-                >
-                  Dodaj zdjęcia
-                </button>
-              </div>
-              <p className="text-sm text-gray-600 mb-4">
-                Pokazuj swoją pracę - dodaj zdjęcia projektów gotowe
-              </p>
-              <div className="grid grid-cols-2 gap-4">
-                {companyData.portfolio_images
-                  ?.slice(0, 2)
-                  .map((img: string, i: number) => (
+        {/* Profile Tab */}
+        <TabPanel isActive={activeTab === "profile"}>
+          {/* Main Content Grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            {/* Left Column */}
+            <div className="space-y-6">
+              {/* Profile Photo */}
+              <div className="bg-white rounded-xl shadow-md p-6">
+                <h3 className="font-bold text-lg mb-4">📸 Zdjęcie profilowe</h3>
+                <div className="text-center">
+                  <div className="relative inline-block">
                     <img
-                      key={i}
-                      src={img}
-                      alt={`Portfolio ${i + 1}`}
-                      className="w-full h-40 object-cover rounded-lg"
+                      src={companyData.avatar_url || "/default-avatar.png"}
+                      alt="Profile"
+                      className="w-32 h-32 rounded-full object-cover mx-auto border-4 border-purple-200"
                     />
+                  </div>
+                  <p className="text-sm text-gray-600 mt-2">
+                    Adres URL przekierowany poprawnie do profilu rozszerzonego
+                    firmy
+                  </p>
+                  <p className="text-xs text-blue-600 mt-1">
+                    https://zzp-werkplaats.nl/firma/vsvs
+                  </p>
+                  <div className="mt-4 space-y-2">
+                    <button
+                      onClick={() => setShowEditModal(true)}
+                      className="w-full bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+                    >
+                      📝 Edytuj dane firmy
+                    </button>
+                    <button className="w-full bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600">
+                      🗑️ Usuń
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Availability */}
+              <div className="bg-white rounded-xl shadow-md p-6">
+                <h3 className="font-bold text-lg mb-4">📅 Twoja dostępność</h3>
+                <p className="text-sm text-gray-600 mb-4">
+                  Wybierz dni w których możesz przyjąć zlecenia (pracujesz)
+                </p>
+                <div className="space-y-2">
+                  {[
+                    { key: "monday", label: "Poniedziałek" },
+                    { key: "tuesday", label: "Wtorek" },
+                    { key: "wednesday", label: "Środa" },
+                    { key: "thursday", label: "Czwartek" },
+                    { key: "friday", label: "Piątek" },
+                    { key: "saturday", label: "Sobota" },
+                    { key: "sunday", label: "Niedziela" },
+                  ].map((day) => (
+                    <label
+                      key={day.key}
+                      className="flex items-center space-x-3 cursor-pointer"
+                    >
+                      <input
+                        type="checkbox"
+                        className="w-5 h-5 text-blue-600 rounded"
+                        checked={
+                          companyData.availability &&
+                          typeof companyData.availability === "object" &&
+                          day.key in companyData.availability
+                            ? (companyData.availability as any)[day.key]
+                            : false
+                        }
+                        onChange={(e) =>
+                          handleAvailabilityChange(day.key, e.target.checked)
+                        }
+                      />
+                      <span className="text-gray-700">{day.label}</span>
+                    </label>
                   ))}
+                </div>
+                <div className="mt-4 pt-4 border-t">
+                  <p className="text-xs text-gray-500">
+                    Preferowana liczba dni:{" "}
+                    {companyData.preferred_days_per_week || 2} dni/tydzień
+                  </p>
+                </div>
               </div>
             </div>
 
+            {/* Middle Column */}
+            <div className="space-y-6">
+              {/* Dane firmy */}
+              <div className="bg-white rounded-xl shadow-md p-6">
+                <h3 className="font-bold text-lg mb-4">ℹ️ Dane firmy</h3>
+                <div className="space-y-3">
+                  <div>
+                    <p className="text-sm text-gray-600">Kontakt</p>
+                    <p className="font-semibold">
+                      {companyData.email || "Brak"}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600">Zespół</p>
+                    <p className="font-semibold">
+                      {companyData.team_size || 1} osoba
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600">Miasto</p>
+                    <p className="font-semibold">
+                      {companyData.location_city || "Brak"}
+                    </p>
+                  </div>
+                </div>
+                <button className="mt-4 text-blue-600 hover:text-blue-800 text-sm">
+                  Zobacz wszystkie →
+                </button>
+              </div>
+
+              {/* Zarezerwowane daty */}
+              <div className="bg-white rounded-xl shadow-md p-6">
+                <h3 className="font-bold text-lg mb-4">📅 Zarezerwuj datami</h3>
+                <p className="text-sm text-gray-600 mb-4">
+                  Zablokuj daty, kiedy się nie pojawicie (np. przerwa, urlop)
+                </p>
+                <DateBlocker
+                  blockedDates={blockedDates}
+                  onBlock={handleBlockDate}
+                  onUnblock={handleUnblockDate}
+                />
+                <div className="mt-4">
+                  <p className="text-sm font-semibold mb-2">Dostępne dni:</p>
+                  <p className="text-2xl font-bold text-blue-600">
+                    {blockedDates.length > 0
+                      ? Math.max(0, 30 - blockedDates.length)
+                      : 30}
+                  </p>
+                  <p className="text-sm font-semibold mt-4 mb-2">
+                    Preferowane:
+                  </p>
+                  <p className="text-lg text-gray-700">
+                    {companyData?.preferred_days_per_week || 2} dni/tydzień
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Right Column */}
+            <div className="space-y-6">
+              {/* Portfolio */}
+              <div className="bg-white rounded-xl shadow-md p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-bold text-lg">
+                    🎨 Portfolio zdjęć (
+                    {companyData.portfolio_images?.length || 0} zdjęć)
+                  </h3>
+                  <button
+                    onClick={() => setShowPortfolioModal(true)}
+                    className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm"
+                  >
+                    Dodaj zdjęcia
+                  </button>
+                </div>
+                <p className="text-sm text-gray-600 mb-4">
+                  Pokazuj swoją pracę - dodaj zdjęcia projektów gotowe
+                </p>
+                <div className="grid grid-cols-2 gap-4">
+                  {companyData.portfolio_images
+                    ?.slice(0, 2)
+                    .map((img: string, i: number) => (
+                      <img
+                        key={i}
+                        src={img}
+                        alt={`Portfolio ${i + 1}`}
+                        className="w-full h-40 object-cover rounded-lg"
+                      />
+                    ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </TabPanel>
+
+        {/* Reviews Tab */}
+        <TabPanel isActive={activeTab === "reviews"}>
+          <div className="max-w-4xl mx-auto">
             {/* Reviews */}
             <div className="bg-white rounded-xl shadow-md p-6">
               <h3 className="font-bold text-lg mb-4">⭐ Opinie od klientów</h3>
@@ -966,7 +995,12 @@ const CleaningCompanyDashboard = () => {
                 )}
               </div>
             </div>
+          </div>
+        </TabPanel>
 
+        {/* Messages Tab */}
+        <TabPanel isActive={activeTab === "messages"}>
+          <div className="max-w-4xl mx-auto">
             {/* Messages */}
             <div className="bg-white rounded-xl shadow-md p-6">
               <div className="flex items-center justify-between mb-4">
@@ -1059,9 +1093,9 @@ const CleaningCompanyDashboard = () => {
               </div>
             </div>
           </div>
-        </div>
+        </TabPanel>
 
-        {/* Subscription Cards */}
+        {/* Subscription Cards - visible in all tabs */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
           <div className="bg-gradient-to-br from-yellow-400 to-orange-400 rounded-2xl p-8 text-white relative overflow-hidden">
             <div className="absolute top-0 right-0 text-9xl opacity-20">🏆</div>

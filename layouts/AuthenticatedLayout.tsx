@@ -16,61 +16,35 @@ export const AuthenticatedLayout = () => {
     navigate("/");
   };
 
-  // Navigation items based on role
+  // Unified navigation - simple & consistent for all roles
   const getNavItems = () => {
     if (!user) return [];
 
-    switch (user.role) {
-      case "admin":
-        return [
-          { to: "/admin", label: "Dashboard" },
-          { to: "/admin/appointments", label: "Zgłoszenia" },
-          { to: "/admin/workers", label: "Pracownicy" },
-          { to: "/admin/employers", label: "Pracodawcy" },
-          { to: "/admin/certificates", label: "Certyfikaty" },
-          { to: "/admin/scheduler", label: "Harmonogram" },
-          { to: "/admin/enterprise-integration", label: "Enterprise" },
-          { to: "/invoices", label: "📄 Faktury" },
-        ];
-      case "employer":
-        return [
-          { to: "/employer", label: "Panel" },
-          { to: "/feed", label: "Tablica" },
-          { to: "/team", label: "👥 Drużyna" },
-          { to: "/employer/search", label: "Wyszukaj pracowników" },
-          { to: "/accountants", label: "Księgowi" },
-          { to: "/employer/subscription", label: "Subskrypcje" },
-          { to: "/invoices", label: "📄 Faktury" },
-        ];
-      case "worker":
-        return [
-          { to: "/feed", label: "Tablica" },
-          { to: "/worker", label: "📊 Mój Panel" },
-          { to: "/team", label: "👥 Drużyna" },
-          { to: "/accountants", label: "Znajdź Księgowego" },
-          { to: "/employers", label: "Znajdź Pracodawcę" },
-          { to: "/invoices", label: "📄 Faktury" },
-        ];
-      case "accountant":
-        return [
-          { to: "/accountant/dashboard", label: "Tablica" },
-          { to: "/team", label: "👥 Drużyna" },
-          { to: "/employers", label: "Wyszukaj Pracodawcę" },
-          { to: "/workers", label: "Wyszukaj Pracownika" },
-          { to: "/invoices", label: "📄 Faktury" },
-        ];
-      case "cleaning_company":
-        return [
-          { to: "/cleaning-company", label: "🏠 Panel" },
-          { to: "/feed", label: "Tablica" },
-          { to: "/team", label: "👥 Drużyna" },
-          { to: "/accountants", label: "Znajdź Księgowego" },
-          { to: "/employers", label: "Znajdź Pracodawcę" },
-          { to: "/invoices", label: "📄 Faktury" },
-        ];
-      default:
-        return [];
-    }
+    // Get role-specific panel route
+    const getPanelRoute = () => {
+      switch (user.role) {
+        case "admin":
+          return "/admin";
+        case "employer":
+          return "/employer";
+        case "worker":
+          return "/worker";
+        case "accountant":
+          return "/accountant/dashboard";
+        case "cleaning_company":
+          return "/cleaning-company";
+        default:
+          return "/";
+      }
+    };
+
+    // ✅ UNIFIED NAVIGATION (4 links for all roles)
+    return [
+      { to: getPanelRoute(), label: "🏠 Panel" },
+      { to: "/feed", label: "📰 Feed" },
+      { to: "/team", label: "👥 Team" },
+      { to: "/settings", label: "⚙️ Settings" },
+    ];
   };
 
   return (

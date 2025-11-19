@@ -28,6 +28,12 @@ import {
   TabNavigation,
 } from "../components/DashboardComponents";
 import { NotificationBellCertification } from "../components/NotificationBellCertification";
+import {
+  UnifiedDashboardTabs,
+  useUnifiedTabs,
+  TabPanel,
+  type UnifiedTab,
+} from "../components/UnifiedDashboardTabs";
 import { SubscriptionPanel } from "../src/components/subscription/SubscriptionPanel";
 import { CertificateApplicationForm } from "../src/components/subscription/CertificateApplicationForm";
 import FeedPage from "../pages/FeedPage";
@@ -41,39 +47,9 @@ import {
 import DateBlocker from "../src/components/common/DateBlocker";
 import { CoverImageUploader } from "../src/components/common/CoverImageUploader";
 
-type View =
-  | "feed"
-  | "overview"
-  | "profile"
-  | "portfolio"
-  | "applications"
-  | "verification"
-  | "edit-profile"
-  | "earnings"
-  | "reviews"
-  | "analytics"
-  | "subscription"
-  | "certificate-application"
-  | "messages";
-
 // ===================================================================
 // CONSTANT TAB CONFIGURATIONS (prevent infinite re-render)
 // ===================================================================
-
-const MAIN_TABS = [
-  { id: "panel", label: "📊 Mój Panel", icon: "📊" },
-  { id: "reviews", label: "⭐ Opinie", icon: "⭐" },
-  { id: "messages", label: "📬 Wiadomości", icon: "📬" },
-  { id: "portfolio", label: "🎨 Portfolio", icon: "🎨" },
-  { id: "settings", label: "⚙️ Ustawienia", icon: "⚙️" },
-] as const;
-
-const INNER_TABS = [
-  { id: "overview", label: "📊 Mój Panel" },
-  { id: "portfolio", label: "🎨 Portfolio" },
-  { id: "subscription", label: "💳 Subskrypcja" },
-  { id: "verification", label: "🏆 Certyfikaty" },
-] as const;
 
 const WEEK_DAYS_PL = ["Pon", "Wt", "Śr", "Czw", "Pt", "Sb", "Nd"] as const;
 const WEEK_DAYS_DB = [
@@ -129,18 +105,10 @@ export default function WorkerDashboard() {
   }
 
   // State Management
-  const [activeView, setActiveView] = useState<View>("overview"); // Changed from 'feed' to 'overview'
+  const { activeTab, setActiveTab } = useUnifiedTabs("overview");
+
+  // Profile sub-tabs (used in renderProfile function inside Settings tab)
   const [activeProfileTab, setActiveProfileTab] = useState<string>("overview");
-
-  // ✅ NEW: Tab navigation state - główne zakładki jak w CleaningDashboard
-  const [activeTab, setActiveTab] = useState<
-    "panel" | "reviews" | "messages" | "portfolio" | "settings"
-  >("panel");
-
-  // ✅ NEW: State dla wewnętrznych tabów (jak w CleaningDashboard)
-  const [innerTab, setInnerTab] = useState<
-    "overview" | "portfolio" | "subscription" | "verification"
-  >("overview");
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -1121,539 +1089,493 @@ export default function WorkerDashboard() {
           />
         </StatsGrid>
 
-        {/* ✅ WEWNĘTRZNE TABY (jak w CleaningDashboard) */}
-        <div className="bg-white border-b border-gray-200 sticky top-0 z-10 shadow-sm rounded-t-lg">
-          <nav className="flex space-x-8 overflow-x-auto px-6">
-            {INNER_TABS.map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setInnerTab(tab.id as any)}
-                className={`
-                  py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap transition-colors
-                  ${
-                    innerTab === tab.id
-                      ? "border-blue-600 text-blue-600"
-                      : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-                  }
-                `}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </nav>
+        {/* PROFILE MANAGEMENT - 3 cards */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+          {/* Avatar Card */}
+          <ContentCard>
+            <h3 className="text-lg font-semibold text-gray-800 mb-3">
+              Zdjęcie profilowe
+            </h3>
+            <div className="flex flex-col items-center gap-4">
+              {workerProfile?.avatar_url ? (
+                <img
+                  src={workerProfile.avatar_url}
+                  alt="Avatar"
+                  className="w-32 h-32 rounded-full object-cover border-4 border-blue-100 shadow-lg"
+                />
+              ) : (
+                <div className="w-32 h-32 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white font-bold text-5xl border-4 border-blue-100 shadow-lg">
+                  {workerProfile?.full_name?.[0]?.toUpperCase() || "W"}
+                </div>
+              )}
+              <label className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium cursor-pointer flex items-center justify-center gap-2 transition-colors w-full">
+                <span>📷 Zmień zdjęcie</span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleAvatarUpload}
+                />
+              </label>
+            </div>
+          </ContentCard>
+
+          {/* Cover Image Section */}
+          {workerProfile && (
+            <ContentCard>
+              <h3 className="text-lg font-semibold text-gray-800 mb-3">
+                🖼️ Zdjęcie w tle profilu
+              </h3>
+              <CoverImageUploader
+                currentCoverUrl={workerProfile.cover_image_url}
+                onUploadSuccess={handleCoverImageUploadSuccess}
+                profileType="worker"
+                profileId={workerProfile.id}
+              />
+            </ContentCard>
+          )}
+
+          {/* Worker Info Card */}
+          <ContentCard>
+            <h3 className="text-lg font-semibold text-gray-800 mb-3">
+              Dane osobowe
+            </h3>
+            <div className="space-y-2 text-sm text-gray-600">
+              <p>📧 {workerProfile.email || "Brak emaila"}</p>
+              <p>📱 {workerProfile.phone || "Brak telefonu"}</p>
+              <p>📍 {workerProfile.location_city || "Brak lokalizacji"}</p>
+            </div>
+            <button
+              onClick={() => setActiveTab("settings")}
+              className="mt-4 w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+            >
+              ✏️ Edytuj dane
+            </button>
+          </ContentCard>
+
+          {/* Status Card */}
+          <ContentCard>
+            <h3 className="text-lg font-semibold text-gray-800 mb-3">
+              Status dostępności
+            </h3>
+            <p className="text-sm text-gray-600 mb-4">
+              Twój profil jest widoczny dla pracodawców
+            </p>
+            <button
+              onClick={() =>
+                alert(
+                  "Funkcja dostępności - wkrótce! (wymaga migracji bazy danych)"
+                )
+              }
+              className="w-full bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+            >
+              ✓ Dostępny do pracy
+            </button>
+          </ContentCard>
         </div>
 
-        {/* ✅ WEWNĘTRZNA ZAWARTOŚĆ TABÓW */}
-        {innerTab === "overview" && (
-          <>
-            {/* PROFILE MANAGEMENT - 3 cards */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-              {/* Avatar Card */}
-              <ContentCard>
-                <h3 className="text-lg font-semibold text-gray-800 mb-3">
-                  Zdjęcie profilowe
-                </h3>
-                <div className="flex flex-col items-center gap-4">
-                  {workerProfile?.avatar_url ? (
-                    <img
-                      src={workerProfile.avatar_url}
-                      alt="Avatar"
-                      className="w-32 h-32 rounded-full object-cover border-4 border-blue-100 shadow-lg"
-                    />
-                  ) : (
-                    <div className="w-32 h-32 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white font-bold text-5xl border-4 border-blue-100 shadow-lg">
-                      {workerProfile?.full_name?.[0]?.toUpperCase() || "W"}
-                    </div>
-                  )}
-                  <label className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium cursor-pointer flex items-center justify-center gap-2 transition-colors w-full">
-                    <span>📷 Zmień zdjęcie</span>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={handleAvatarUpload}
-                    />
-                  </label>
-                </div>
-              </ContentCard>
+        {/* Placeholder for other sections */}
 
-              {/* Cover Image Section */}
-              {workerProfile && (
-                <ContentCard>
-                  <h3 className="text-lg font-semibold text-gray-800 mb-3">
-                    🖼️ Zdjęcie w tle profilu
-                  </h3>
-                  <CoverImageUploader
-                    currentCoverUrl={workerProfile.cover_image_url}
-                    onUploadSuccess={handleCoverImageUploadSuccess}
-                    profileType="worker"
-                    profileId={workerProfile.id}
-                  />
-                </ContentCard>
-              )}
+        {/* ✅ DOSTĘPNOŚĆ + ZARZĄDZANIE DATAMI - 2 kolumny (jak CleaningDashboard) */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+          {/* LEFT: Dostępność */}
+          <ContentCard>
+            <h2 className="text-xl font-semibold text-gray-800 mb-2">
+              � Twoja dostępność
+            </h2>
+            <p className="text-sm text-gray-600 mb-4">
+              Zaznacz dni kiedy możesz przyjść do pracy
+            </p>
 
-              {/* Worker Info Card */}
-              <ContentCard>
-                <h3 className="text-lg font-semibold text-gray-800 mb-3">
-                  Dane osobowe
-                </h3>
-                <div className="space-y-2 text-sm text-gray-600">
-                  <p>📧 {workerProfile.email || "Brak emaila"}</p>
-                  <p>📱 {workerProfile.phone || "Brak telefonu"}</p>
-                  <p>📍 {workerProfile.location_city || "Brak lokalizacji"}</p>
-                </div>
-                <button
-                  onClick={() => setActiveTab("settings")}
-                  className="mt-4 w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
-                >
-                  ✏️ Edytuj dane
-                </button>
-              </ContentCard>
+            <div className="bg-blue-50 p-6 rounded-lg">
+              <div className="grid grid-cols-7 gap-2 mb-4">
+                {WEEK_DAYS_PL.map((day, index) => {
+                  // Map Polish day names to database keys
+                  const dbDayKey = WEEK_DAYS_DB[index];
+                  const isAvailable =
+                    workerProfile?.availability?.[dbDayKey] ?? index < 5;
 
-              {/* Status Card */}
-              <ContentCard>
-                <h3 className="text-lg font-semibold text-gray-800 mb-3">
-                  Status dostępności
-                </h3>
-                <p className="text-sm text-gray-600 mb-4">
-                  Twój profil jest widoczny dla pracodawców
-                </p>
-                <button
-                  onClick={() =>
-                    alert(
-                      "Funkcja dostępności - wkrótce! (wymaga migracji bazy danych)"
-                    )
-                  }
-                  className="w-full bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
-                >
-                  ✓ Dostępny do pracy
-                </button>
-              </ContentCard>
-            </div>
-
-            {/* Placeholder for other sections */}
-
-            {/* ✅ DOSTĘPNOŚĆ + ZARZĄDZANIE DATAMI - 2 kolumny (jak CleaningDashboard) */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-              {/* LEFT: Dostępność */}
-              <ContentCard>
-                <h2 className="text-xl font-semibold text-gray-800 mb-2">
-                  � Twoja dostępność
-                </h2>
-                <p className="text-sm text-gray-600 mb-4">
-                  Zaznacz dni kiedy możesz przyjść do pracy
-                </p>
-
-                <div className="bg-blue-50 p-6 rounded-lg">
-                  <div className="grid grid-cols-7 gap-2 mb-4">
-                    {WEEK_DAYS_PL.map((day, index) => {
-                      // Map Polish day names to database keys
-                      const dbDayKey = WEEK_DAYS_DB[index];
-                      const isAvailable =
-                        workerProfile?.availability?.[dbDayKey] ?? index < 5;
-
-                      return (
-                        <div key={day} className="text-center">
-                          <p className="text-xs text-gray-600 mb-1">{day}</p>
-                          <button
-                            onClick={() => handleAvailabilityChange(day)}
-                            className={`w-full py-2 rounded-lg text-xs font-medium transition-colors ${
-                              isAvailable
-                                ? "bg-blue-600 text-white"
-                                : "bg-gray-200 text-gray-500"
-                            }`}
-                          >
-                            {isAvailable ? "✓" : "✗"}
-                          </button>
-                        </div>
-                      );
-                    })}
-                  </div>
-                  <p className="text-xs text-gray-500 text-center">
-                    Kliknij na dzień aby zmienić dostępność
-                  </p>
-                </div>
-
-                <div className="mt-4 grid grid-cols-2 gap-4">
-                  <div className="bg-white border border-gray-200 rounded-lg p-4">
-                    <p className="text-sm text-gray-600">Dostępne dni</p>
-                    <p className="text-2xl font-bold text-blue-600">
-                      {workerProfile?.availability
-                        ? Object.values(workerProfile.availability).filter(
-                            Boolean
-                          ).length
-                        : 5}
-                    </p>
-                  </div>
-                  <div className="bg-white border border-gray-200 rounded-lg p-4">
-                    <p className="text-sm text-gray-600">Preferowane</p>
-                    <p className="text-2xl font-bold text-gray-700">
-                      {workerProfile?.preferred_days_per_week || 5} dni/tydzień
-                    </p>
-                  </div>
-                </div>
-              </ContentCard>
-
-              {/* RIGHT: Zarządzaj datami */}
-              <ContentCard>
-                <h2 className="text-xl font-semibold text-gray-800 mb-2">
-                  🚫 Zarządzaj datami
-                </h2>
-                <p className="text-sm text-gray-600 mb-4">
-                  Zablokuj dni kiedy nie możesz pracować (urlop, święta, zajęty)
-                </p>
-
-                <button
-                  onClick={() => setShowDateBlocker(true)}
-                  className="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-3 rounded-lg font-medium mb-4 transition-colors"
-                >
-                  + Zablokuj datę
-                </button>
-
-                <div className="space-y-2">
-                  <p className="text-sm font-medium text-gray-700">
-                    Brak zablokowanych dat
-                  </p>
-                  <p className="text-xs text-gray-500">
-                    Zablokuj daty, kiedy nie chcesz przyjmować ofert pracy.
-                    Zmiany są synchronizowane automatycznie.
-                  </p>
-                </div>
-              </ContentCard>
-            </div>
-
-            {/* ✅ OSTATNIE WIADOMOŚCI */}
-            <ContentCard className="mb-6">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-2">
-                  <h2 className="text-xl font-semibold text-gray-800">
-                    📬 Ostatnie wiadomości
-                  </h2>
-                  {unreadCount > 0 && (
-                    <span className="bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">
-                      {unreadCount} nowe
-                    </span>
-                  )}
-                </div>
-                <button
-                  onClick={() => setActiveTab("messages")}
-                  className="text-blue-600 hover:text-blue-700 text-sm font-medium"
-                >
-                  Zobacz wszystkie →
-                </button>
-              </div>
-
-              {messages.length === 0 ? (
-                <div className="text-center py-8 text-gray-500">
-                  <div className="text-4xl mb-2">📭</div>
-                  <p>Brak wiadomości</p>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {messages.slice(0, 5).map((msg: any) => (
-                    <button
-                      key={msg.id}
-                      onClick={() => {
-                        setSelectedMessage(msg);
-                        setActiveTab("messages");
-                        if (!msg.is_read) handleMarkAsRead(msg.id);
-                      }}
-                      className="w-full text-left flex items-start gap-3 p-3 hover:bg-gray-50 rounded-lg cursor-pointer transition-colors border border-gray-200"
-                    >
-                      {/* Avatar */}
-                      {msg.sender_profile?.avatar_url ? (
-                        <img
-                          src={msg.sender_profile.avatar_url}
-                          alt={msg.sender_profile.full_name || "Avatar"}
-                          className="w-10 h-10 rounded-full object-cover flex-shrink-0"
-                          onError={(e) => {
-                            (e.target as HTMLImageElement).style.display =
-                              "none";
-                            const fallback = (e.target as HTMLImageElement)
-                              .nextElementSibling;
-                            if (fallback)
-                              (fallback as HTMLElement).style.display = "flex";
-                          }}
-                        />
-                      ) : null}
-                      <div
-                        className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center font-bold text-blue-600 flex-shrink-0"
-                        style={{
-                          display: msg.sender_profile?.avatar_url
-                            ? "none"
-                            : "flex",
-                        }}
+                  return (
+                    <div key={day} className="text-center">
+                      <p className="text-xs text-gray-600 mb-1">{day}</p>
+                      <button
+                        onClick={() => handleAvailabilityChange(day)}
+                        className={`w-full py-2 rounded-lg text-xs font-medium transition-colors ${
+                          isAvailable
+                            ? "bg-blue-600 text-white"
+                            : "bg-gray-200 text-gray-500"
+                        }`}
                       >
-                        {msg.sender_profile?.full_name?.[0]?.toUpperCase() ||
-                          "?"}
-                      </div>
-
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between mb-1">
-                          <p
-                            className={`font-medium text-sm ${
-                              msg.is_read ? "text-gray-700" : "text-blue-700"
-                            }`}
-                          >
-                            {msg.sender_profile?.full_name ||
-                              "Nieznany nadawca"}
-                          </p>
-                          <span className="text-xs text-gray-400">
-                            {new Date(msg.created_at).toLocaleDateString(
-                              "pl-PL"
-                            )}
-                          </span>
-                        </div>
-                        <p className="text-sm text-gray-600 mb-1">
-                          {msg.subject || "Brak tematu"}
-                        </p>
-                        <p className="text-xs text-gray-500 truncate">
-                          {msg.content}
-                        </p>
-                      </div>
-                      {!msg.is_read && (
-                        <div className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0 mt-2"></div>
-                      )}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </ContentCard>
-
-            {/* ✅ OPINIE OD KLIENTÓW */}
-            <ContentCard className="mb-6">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-semibold text-gray-800">
-                  ⭐ Opinie od klientów
-                </h2>
-                <button
-                  onClick={() => setActiveTab("reviews")}
-                  className="text-blue-600 hover:text-blue-700 text-sm font-medium"
-                >
-                  Zobacz wszystkie →
-                </button>
-              </div>
-
-              {reviews.length === 0 ? (
-                <div className="text-center py-8 text-gray-500">
-                  <div className="text-4xl mb-2">⭐</div>
-                  <p>Brak opinii</p>
-                  <p className="text-sm mt-1">
-                    Twoje pierwsze opinie pojawią się tutaj po wykonaniu prac
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {reviews.slice(0, 3).map((review: any) => (
-                    <div
-                      key={review.id}
-                      className="border-b border-gray-200 pb-4 last:border-0"
-                    >
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center gap-1">
-                          {[...Array(5)].map((_, i) => (
-                            <span
-                              key={i}
-                              className={
-                                i < review.rating
-                                  ? "text-yellow-400"
-                                  : "text-gray-300"
-                              }
-                            >
-                              ⭐
-                            </span>
-                          ))}
-                          <span className="ml-2 font-semibold">
-                            {review.rating}.0
-                          </span>
-                        </div>
-                        <span className="text-xs text-gray-500">
-                          {new Date(review.created_at).toLocaleDateString(
-                            "pl-PL"
-                          )}
-                        </span>
-                      </div>
-                      <p className="text-sm text-gray-700">{review.comment}</p>
-                      <p className="text-xs text-gray-500 mt-2">
-                        — {review.employer?.full_name || "Anonim"}
-                      </p>
+                        {isAvailable ? "✓" : "✗"}
+                      </button>
                     </div>
-                  ))}
-                </div>
-              )}
-            </ContentCard>
+                  );
+                })}
+              </div>
+              <p className="text-xs text-gray-500 text-center">
+                Kliknij na dzień aby zmienić dostępność
+              </p>
+            </div>
 
-            {/* ✅ PORTFOLIO ZDJĘĆ */}
-            <ContentCard className="mb-6">
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <h2 className="text-xl font-semibold text-gray-800">
-                    📸 Portfolio zdjęć (
-                    {workerProfile?.portfolio_images?.length || 0}/20)
-                  </h2>
-                  <p className="text-sm text-gray-600">
-                    Pokaż swoją pracę - dodaj zdjęcia
+            <div className="mt-4 grid grid-cols-2 gap-4">
+              <div className="bg-white border border-gray-200 rounded-lg p-4">
+                <p className="text-sm text-gray-600">Dostępne dni</p>
+                <p className="text-2xl font-bold text-blue-600">
+                  {workerProfile?.availability
+                    ? Object.values(workerProfile.availability).filter(Boolean)
+                        .length
+                    : 5}
+                </p>
+              </div>
+              <div className="bg-white border border-gray-200 rounded-lg p-4">
+                <p className="text-sm text-gray-600">Preferowane</p>
+                <p className="text-2xl font-bold text-gray-700">
+                  {workerProfile?.preferred_days_per_week || 5} dni/tydzień
+                </p>
+              </div>
+            </div>
+          </ContentCard>
+
+          {/* RIGHT: Zarządzaj datami */}
+          <ContentCard>
+            <h2 className="text-xl font-semibold text-gray-800 mb-2">
+              🚫 Zarządzaj datami
+            </h2>
+            <p className="text-sm text-gray-600 mb-4">
+              Zablokuj dni kiedy nie możesz pracować (urlop, święta, zajęty)
+            </p>
+
+            <button
+              onClick={() => setShowDateBlocker(true)}
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-3 rounded-lg font-medium mb-4 transition-colors"
+            >
+              + Zablokuj datę
+            </button>
+
+            <div className="space-y-2">
+              <p className="text-sm font-medium text-gray-700">
+                Brak zablokowanych dat
+              </p>
+              <p className="text-xs text-gray-500">
+                Zablokuj daty, kiedy nie chcesz przyjmować ofert pracy. Zmiany
+                są synchronizowane automatycznie.
+              </p>
+            </div>
+          </ContentCard>
+        </div>
+
+        {/* ✅ OSTATNIE WIADOMOŚCI */}
+        <ContentCard className="mb-6">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <h2 className="text-xl font-semibold text-gray-800">
+                📬 Ostatnie wiadomości
+              </h2>
+              {unreadCount > 0 && (
+                <span className="bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">
+                  {unreadCount} nowe
+                </span>
+              )}
+            </div>
+            <button
+              onClick={() => setActiveTab("messages")}
+              className="text-blue-600 hover:text-blue-700 text-sm font-medium"
+            >
+              Zobacz wszystkie →
+            </button>
+          </div>
+
+          {messages.length === 0 ? (
+            <div className="text-center py-8 text-gray-500">
+              <div className="text-4xl mb-2">📭</div>
+              <p>Brak wiadomości</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {messages.slice(0, 5).map((msg: any) => (
+                <button
+                  key={msg.id}
+                  onClick={() => {
+                    setSelectedMessage(msg);
+                    setActiveTab("messages");
+                    if (!msg.is_read) handleMarkAsRead(msg.id);
+                  }}
+                  className="w-full text-left flex items-start gap-3 p-3 hover:bg-gray-50 rounded-lg cursor-pointer transition-colors border border-gray-200"
+                >
+                  {/* Avatar */}
+                  {msg.sender_profile?.avatar_url ? (
+                    <img
+                      src={msg.sender_profile.avatar_url}
+                      alt={msg.sender_profile.full_name || "Avatar"}
+                      className="w-10 h-10 rounded-full object-cover flex-shrink-0"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).style.display = "none";
+                        const fallback = (e.target as HTMLImageElement)
+                          .nextElementSibling;
+                        if (fallback)
+                          (fallback as HTMLElement).style.display = "flex";
+                      }}
+                    />
+                  ) : null}
+                  <div
+                    className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center font-bold text-blue-600 flex-shrink-0"
+                    style={{
+                      display: msg.sender_profile?.avatar_url ? "none" : "flex",
+                    }}
+                  >
+                    {msg.sender_profile?.full_name?.[0]?.toUpperCase() || "?"}
+                  </div>
+
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between mb-1">
+                      <p
+                        className={`font-medium text-sm ${
+                          msg.is_read ? "text-gray-700" : "text-blue-700"
+                        }`}
+                      >
+                        {msg.sender_profile?.full_name || "Nieznany nadawca"}
+                      </p>
+                      <span className="text-xs text-gray-400">
+                        {new Date(msg.created_at).toLocaleDateString("pl-PL")}
+                      </span>
+                    </div>
+                    <p className="text-sm text-gray-600 mb-1">
+                      {msg.subject || "Brak tematu"}
+                    </p>
+                    <p className="text-xs text-gray-500 truncate">
+                      {msg.content}
+                    </p>
+                  </div>
+                  {!msg.is_read && (
+                    <div className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0 mt-2"></div>
+                  )}
+                </button>
+              ))}
+            </div>
+          )}
+        </ContentCard>
+
+        {/* ✅ OPINIE OD KLIENTÓW */}
+        <ContentCard className="mb-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-semibold text-gray-800">
+              ⭐ Opinie od klientów
+            </h2>
+            <button
+              onClick={() => setActiveTab("reviews")}
+              className="text-blue-600 hover:text-blue-700 text-sm font-medium"
+            >
+              Zobacz wszystkie →
+            </button>
+          </div>
+
+          {reviews.length === 0 ? (
+            <div className="text-center py-8 text-gray-500">
+              <div className="text-4xl mb-2">⭐</div>
+              <p>Brak opinii</p>
+              <p className="text-sm mt-1">
+                Twoje pierwsze opinie pojawią się tutaj po wykonaniu prac
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {reviews.slice(0, 3).map((review: any) => (
+                <div
+                  key={review.id}
+                  className="border-b border-gray-200 pb-4 last:border-0"
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-1">
+                      {[...Array(5)].map((_, i) => (
+                        <span
+                          key={i}
+                          className={
+                            i < review.rating
+                              ? "text-yellow-400"
+                              : "text-gray-300"
+                          }
+                        >
+                          ⭐
+                        </span>
+                      ))}
+                      <span className="ml-2 font-semibold">
+                        {review.rating}.0
+                      </span>
+                    </div>
+                    <span className="text-xs text-gray-500">
+                      {new Date(review.created_at).toLocaleDateString("pl-PL")}
+                    </span>
+                  </div>
+                  <p className="text-sm text-gray-700">{review.comment}</p>
+                  <p className="text-xs text-gray-500 mt-2">
+                    — {review.employer?.full_name || "Anonim"}
                   </p>
                 </div>
-                <button
-                  onClick={() => openPortfolioModal()}
-                  className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
-                >
-                  + Dodaj zdjęcia
-                </button>
+              ))}
+            </div>
+          )}
+        </ContentCard>
+
+        {/* ✅ PORTFOLIO ZDJĘĆ */}
+        <ContentCard className="mb-6">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h2 className="text-xl font-semibold text-gray-800">
+                📸 Portfolio zdjęć (
+                {workerProfile?.portfolio_images?.length || 0}/20)
+              </h2>
+              <p className="text-sm text-gray-600">
+                Pokaż swoją pracę - dodaj zdjęcia
+              </p>
+            </div>
+            <button
+              onClick={() => openPortfolioModal()}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+            >
+              + Dodaj zdjęcia
+            </button>
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {PORTFOLIO_SKELETON_ITEMS.map((i) => (
+              <div
+                key={i}
+                className="aspect-square bg-gray-100 rounded-lg flex items-center justify-center border-2 border-dashed border-gray-300"
+              >
+                <span className="text-gray-400 text-4xl">📷</span>
               </div>
+            ))}
+          </div>
+        </ContentCard>
 
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                {PORTFOLIO_SKELETON_ITEMS.map((i) => (
-                  <div
-                    key={i}
-                    className="aspect-square bg-gray-100 rounded-lg flex items-center justify-center border-2 border-dashed border-gray-300"
-                  >
-                    <span className="text-gray-400 text-4xl">📷</span>
-                  </div>
-                ))}
-              </div>
-            </ContentCard>
+        {/* Szybkie działania Card */}
+        <ContentCard>
+          <h3 className="text-lg font-semibold text-gray-800 mb-4">
+            ⚡ Szybkie działania
+          </h3>
 
-            {/* Szybkie działania Card */}
-            <ContentCard>
-              <h3 className="text-lg font-semibold text-gray-800 mb-4">
-                ⚡ Szybkie działania
-              </h3>
+          <div className="space-y-2">
+            <Link
+              to="/employers"
+              className="w-full px-4 py-2.5 bg-orange-600 text-white rounded-lg font-medium hover:bg-orange-700 flex items-center justify-center gap-2 transition-colors text-sm"
+            >
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                />
+              </svg>
+              Szukaj pracodawców
+            </Link>
 
-              <div className="space-y-2">
-                <Link
-                  to="/employers"
-                  className="w-full px-4 py-2.5 bg-orange-600 text-white rounded-lg font-medium hover:bg-orange-700 flex items-center justify-center gap-2 transition-colors text-sm"
-                >
-                  <svg
-                    className="w-4 h-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                    />
-                  </svg>
-                  Szukaj pracodawców
-                </Link>
+            <Link
+              to="/cleaning-companies"
+              className="w-full px-4 py-2.5 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 flex items-center justify-center gap-2 transition-colors text-sm"
+            >
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
+                />
+              </svg>
+              Szukaj firm sprzątających
+            </Link>
 
-                <Link
-                  to="/cleaning-companies"
-                  className="w-full px-4 py-2.5 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 flex items-center justify-center gap-2 transition-colors text-sm"
-                >
-                  <svg
-                    className="w-4 h-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
-                    />
-                  </svg>
-                  Szukaj firm sprzątających
-                </Link>
+            <Link
+              to="/accountants"
+              className="w-full px-4 py-2.5 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 flex items-center justify-center gap-2 transition-colors text-sm"
+            >
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"
+                />
+              </svg>
+              Szukaj księgowych
+            </Link>
 
-                <Link
-                  to="/accountants"
-                  className="w-full px-4 py-2.5 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 flex items-center justify-center gap-2 transition-colors text-sm"
-                >
-                  <svg
-                    className="w-4 h-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"
-                    />
-                  </svg>
-                  Szukaj księgowych
-                </Link>
+            <Link
+              to="/faktury"
+              className="w-full px-4 py-2.5 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 flex items-center justify-center gap-2 transition-colors text-sm"
+            >
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                />
+              </svg>
+              Faktury & BTW
+            </Link>
 
-                <Link
-                  to="/faktury"
-                  className="w-full px-4 py-2.5 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 flex items-center justify-center gap-2 transition-colors text-sm"
-                >
-                  <svg
-                    className="w-4 h-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                    />
-                  </svg>
-                  Faktury & BTW
-                </Link>
+            <button
+              onClick={handleViewSubscription}
+              className="w-full px-4 py-2.5 bg-purple-600 text-white rounded-lg font-medium hover:bg-purple-700 flex items-center justify-center gap-2 transition-colors text-sm"
+            >
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"
+                />
+              </svg>
+              Subskrypcja
+            </button>
 
-                <button
-                  onClick={handleViewSubscription}
-                  className="w-full px-4 py-2.5 bg-purple-600 text-white rounded-lg font-medium hover:bg-purple-700 flex items-center justify-center gap-2 transition-colors text-sm"
-                >
-                  <svg
-                    className="w-4 h-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"
-                    />
-                  </svg>
-                  Subskrypcja
-                </button>
-
-                <button
-                  onClick={handleContactSupport}
-                  className="w-full px-4 py-2.5 border-2 border-gray-300 rounded-lg font-medium text-gray-700 hover:bg-gray-50 flex items-center justify-center gap-2 transition-colors text-sm"
-                >
-                  <svg
-                    className="w-4 h-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-5 0a4 4 0 11-8 0 4 4 0 018 0z"
-                    />
-                  </svg>
-                  Wsparcie
-                </button>
-              </div>
-            </ContentCard>
-          </>
-        )}
-
-        {/* 📂 Portfolio Tab - full component */}
-        {innerTab === "portfolio" && renderPortfolio()}
-
-        {/* 💳 Subskrypcja Tab */}
-        {innerTab === "subscription" && renderSubscription()}
-
-        {/* ✓ Certyfikaty/Weryfikacja Tab */}
-        {innerTab === "verification" && renderVerification()}
+            <button
+              onClick={handleContactSupport}
+              className="w-full px-4 py-2.5 border-2 border-gray-300 rounded-lg font-medium text-gray-700 hover:bg-gray-50 flex items-center justify-center gap-2 transition-colors text-sm"
+            >
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-5 0a4 4 0 11-8 0 4 4 0 018 0z"
+                />
+              </svg>
+              Wsparcie
+            </button>
+          </div>
+        </ContentCard>
 
         {/* DateBlocker Modal */}
         {showDateBlocker && (
@@ -1770,7 +1692,7 @@ export default function WorkerDashboard() {
           actionButton={
             <div className="flex gap-4">
               <button
-                onClick={() => setActiveView("profile")}
+                onClick={() => setActiveTab("profile")}
                 className="px-8 py-4 bg-gradient-to-r from-emerald-500 to-green-600 text-white rounded-2xl hover:from-emerald-600 hover:to-green-700 transition-all duration-300 transform hover:scale-105 font-bold text-lg shadow-xl"
               >
                 ⚙️ Edytuj Profil
@@ -1842,7 +1764,7 @@ export default function WorkerDashboard() {
             }
           />
           <div
-            onClick={() => setActiveView("messages")}
+            onClick={() => setActiveTab("messages")}
             className="cursor-pointer"
           >
             <StatCard
@@ -1877,7 +1799,7 @@ export default function WorkerDashboard() {
             noPadding
           >
             <button
-              onClick={() => setActiveView("profile")}
+              onClick={() => setActiveTab("profile")}
               className="w-full p-6 text-left"
             >
               <div className="text-4xl mb-3">👤</div>
@@ -1895,7 +1817,7 @@ export default function WorkerDashboard() {
             noPadding
           >
             <button
-              onClick={() => setActiveView("verification")}
+              onClick={() => setActiveTab("certificates")}
               className="w-full p-6 text-left"
             >
               <div className="text-4xl mb-3">🏆</div>
@@ -1913,7 +1835,7 @@ export default function WorkerDashboard() {
             noPadding
           >
             <button
-              onClick={() => setActiveView("jobs")}
+              onClick={() => setActiveTab("overview")}
               className="w-full p-6 text-left"
             >
               <div className="text-4xl mb-3">💼</div>
@@ -2343,7 +2265,7 @@ export default function WorkerDashboard() {
           </button>
           <button
             type="button"
-            onClick={() => setActiveView("overview")}
+            onClick={() => setActiveTab("overview")}
             className="px-8 py-3 bg-dark-700 text-white font-bold rounded-lg hover:bg-dark-600 transition-all"
           >
             Anuluj
@@ -3361,7 +3283,7 @@ export default function WorkerDashboard() {
               <div className="text-6xl mb-4">📭</div>
               <p className="text-neutral-400 mb-4">Brak aplikacji</p>
               <button
-                onClick={() => setActiveView("jobs")}
+                onClick={() => setActiveTab("overview")}
                 className="px-6 py-3 bg-accent-cyber text-white font-bold rounded-lg hover:shadow-lg transition-all"
               >
                 Przeglądaj oferty pracy
@@ -3732,7 +3654,7 @@ export default function WorkerDashboard() {
 
           <SubscriptionPanel
             workerId={userId}
-            onUpgradeClick={() => setActiveView("certificate-application")}
+            onUpgradeClick={() => setActiveTab("certificates")}
           />
         </div>
       </div>
@@ -3751,9 +3673,13 @@ export default function WorkerDashboard() {
             workerId={userId}
             onSubmit={() => {
               setSuccess("✅ Aplikacja wysłana! Skontaktujemy się wkrótce.");
-              setTimeout(() => setActiveView("subscription"), 2000);
+              setTimeout(() => {
+                setActiveTab("subscription");
+              }, 2000);
             }}
-            onCancel={() => setActiveView("subscription")}
+            onCancel={() => {
+              setActiveTab("subscription");
+            }}
           />
         </div>
       </div>
@@ -3789,54 +3715,62 @@ export default function WorkerDashboard() {
         </div>
       )}
 
-      {/* ✅ NEW: Top Navigation Tabs (jak w CleaningDashboard) */}
+      {/* ✅ Unified Dashboard Tabs */}
       <div className="bg-white border-b border-gray-200 sticky top-0 z-50 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between">
-            <nav className="flex space-x-8 flex-1" aria-label="Tabs">
-              {MAIN_TABS.map((tab) => {
-                // Dynamic label for messages tab (unread count)
-                const label =
-                  tab.id === "messages"
-                    ? `📬 Wiadomości${
-                        unreadCount > 0 ? ` (${unreadCount})` : ""
-                      }`
-                    : tab.label;
-
-                return (
-                  <button
-                    key={tab.id}
-                    onClick={() => setActiveTab(tab.id as any)}
-                    className={`
-                      py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap transition-colors
-                      ${
-                        activeTab === tab.id
-                          ? "border-blue-600 text-blue-600"
-                          : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-                      }
-                  `}
-                  >
-                    {label}
-                  </button>
-                );
-              })}
-            </nav>
-
-            {/* 🔔 Notification Bell */}
-            <div className="ml-4">
-              <NotificationBellCertification />
-            </div>
-          </div>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <UnifiedDashboardTabs
+            activeTab={activeTab}
+            onTabChange={setActiveTab}
+            role="worker"
+            unreadMessages={unreadCount}
+          />
         </div>
       </div>
 
-      {/* ✅ Tab Content */}
+      {/* Tab Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {activeTab === "panel" && renderPanelTab()}
-        {activeTab === "reviews" && renderReviewsTab()}
-        {activeTab === "messages" && renderMessagesTab()}
-        {activeTab === "portfolio" && renderPortfolioTab()}
-        {activeTab === "settings" && renderSettingsTab()}
+        <TabPanel isActive={activeTab === "overview"}>
+          {renderPanelTab()}
+        </TabPanel>
+
+        <TabPanel isActive={activeTab === "profile"}>
+          {renderSettingsTab()}
+        </TabPanel>
+
+        <TabPanel isActive={activeTab === "reviews"}>
+          {renderReviewsTab()}
+        </TabPanel>
+
+        <TabPanel isActive={activeTab === "messages"}>
+          {renderMessagesTab()}
+        </TabPanel>
+
+        <TabPanel isActive={activeTab === "certificates"}>
+          {renderProfileCertificates()}
+
+          {/* Certificate Application Form */}
+          <div className="mt-8">
+            <CertificateApplicationForm
+              workerId={userId}
+              onSubmit={() => {
+                setSuccess("✅ Aplikacja wysłana! Skontaktujemy się wkrótce.");
+                setTimeout(() => {
+                  // Reload certificates after submission
+                  loadAllData();
+                }, 2000);
+              }}
+              onCancel={() => setActiveTab("overview")}
+            />
+          </div>
+        </TabPanel>
+
+        <TabPanel isActive={activeTab === "portfolio"}>
+          {renderPortfolio()}
+        </TabPanel>
+
+        <TabPanel isActive={activeTab === "subscription"}>
+          {renderSubscription()}
+        </TabPanel>
       </div>
     </div>
   );

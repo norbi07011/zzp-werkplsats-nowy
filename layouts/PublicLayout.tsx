@@ -1,8 +1,8 @@
-import React from 'react';
-import { Link, Outlet } from 'react-router-dom';
-import { useTranslation } from 'react-i18next';
-import { LanguageSwitcher } from '../components/LanguageSwitcher';
-import { ThemeToggle } from '../src/components/common/ThemeToggle';
+import React from "react";
+import { Link, Outlet } from "react-router-dom";
+import { useTranslation } from "react-i18next";
+import { LanguageSwitcher } from "../components/LanguageSwitcher";
+import { ThemeToggle } from "../src/components/common/ThemeToggle";
 
 export const PublicLayout: React.FC = () => {
   const { t } = useTranslation();
@@ -19,7 +19,7 @@ export const PublicLayout: React.FC = () => {
                 <span className="text-white font-bold text-xl">ZZP</span>
               </div>
               <span className="text-2xl font-bold text-white font-heading">
-                {t('common.platformName', 'ZZP Werkplaats')}
+                {t("common.platformName", "ZZP Werkplaats")}
               </span>
             </Link>
 
@@ -29,35 +29,35 @@ export const PublicLayout: React.FC = () => {
                 to="/"
                 className="text-neutral-300 hover:text-accent-cyber font-medium transition-colors relative group"
               >
-                {t('nav.home', 'Home')}
+                {t("nav.home", "Home")}
                 <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-accent-cyber group-hover:w-full transition-all"></span>
               </Link>
               <Link
                 to="/about"
                 className="text-neutral-300 hover:text-accent-cyber font-medium transition-colors relative group"
               >
-                {t('nav.about', 'Over ons')}
+                {t("nav.about", "Over ons")}
                 <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-accent-cyber group-hover:w-full transition-all"></span>
               </Link>
               <Link
                 to="/experience-certificate"
                 className="text-neutral-300 hover:text-accent-cyber font-medium transition-colors relative group"
               >
-                {t('nav.certificate', 'Certificaat aanvragen')}
+                {t("nav.certificate", "Certificaat aanvragen")}
                 <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-accent-cyber group-hover:w-full transition-all"></span>
               </Link>
               <Link
                 to="/for-employers"
                 className="text-neutral-300 hover:text-accent-cyber font-medium transition-colors relative group"
               >
-                {t('nav.forEmployers', 'Voor opdrachtgevers')}
+                {t("nav.forEmployers", "Voor opdrachtgevers")}
                 <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-accent-cyber group-hover:w-full transition-all"></span>
               </Link>
               <Link
                 to="/contact"
                 className="text-neutral-300 hover:text-accent-cyber font-medium transition-colors relative group"
               >
-                {t('nav.contact', 'Contact')}
+                {t("nav.contact", "Contact")}
                 <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-accent-cyber group-hover:w-full transition-all"></span>
               </Link>
             </nav>
@@ -70,13 +70,13 @@ export const PublicLayout: React.FC = () => {
                 to="/login"
                 className="text-neutral-300 hover:text-accent-cyber font-medium transition-colors"
               >
-                {t('nav.login', 'Inloggen')}
+                {t("nav.login", "Inloggen")}
               </Link>
               <Link
-                to="/register/employer"
+                to="/register"
                 className="bg-gradient-cyber text-white px-6 py-2.5 rounded-xl hover:shadow-glow-cyber hover:scale-105 transition-all font-medium"
               >
-                {t('nav.registerEmployer', 'Registreren als bedrijf')}
+                {t("nav.register", "Registreren")}
               </Link>
             </div>
           </div>
@@ -95,12 +95,12 @@ export const PublicLayout: React.FC = () => {
             {/* Column 1: About */}
             <div>
               <h3 className="text-white font-bold text-lg mb-4">
-                {t('footer.aboutTitle', 'ZZP Werkplaats')}
+                {t("footer.aboutTitle", "ZZP Werkplaats")}
               </h3>
               <p className="text-sm">
                 {t(
-                  'footer.aboutText',
-                  'Gecertificeerde ZZP professionals voor bouwprojecten in Nederland.'
+                  "footer.aboutText",
+                  "Gecertificeerde ZZP professionals voor bouwprojecten in Nederland."
                 )}
               </p>
             </div>
@@ -108,17 +108,20 @@ export const PublicLayout: React.FC = () => {
             {/* Column 2: For Workers */}
             <div>
               <h3 className="text-white font-bold text-lg mb-4">
-                {t('footer.forWorkersTitle', 'Voor ZZP\'ers')}
+                {t("footer.forWorkersTitle", "Voor ZZP'ers")}
               </h3>
               <ul className="space-y-2 text-sm">
                 <li>
-                  <Link to="/experience-certificate" className="hover:text-white">
-                    {t('footer.getCertificate', 'Certificaat aanvragen')}
+                  <Link
+                    to="/experience-certificate"
+                    className="hover:text-white"
+                  >
+                    {t("footer.getCertificate", "Certificaat aanvragen")}
                   </Link>
                 </li>
                 <li>
                   <Link to="/about" className="hover:text-white">
-                    {t('footer.howItWorks', 'Hoe het werkt')}
+                    {t("footer.howItWorks", "Hoe het werkt")}
                   </Link>
                 </li>
               </ul>
@@ -127,17 +130,17 @@ export const PublicLayout: React.FC = () => {
             {/* Column 3: For Employers */}
             <div>
               <h3 className="text-white font-bold text-lg mb-4">
-                {t('footer.forEmployersTitle', 'Voor opdrachtgevers')}
+                {t("footer.forEmployersTitle", "Voor opdrachtgevers")}
               </h3>
               <ul className="space-y-2 text-sm">
                 <li>
                   <Link to="/for-employers" className="hover:text-white">
-                    {t('footer.pricing', 'Prijzen')}
+                    {t("footer.pricing", "Prijzen")}
                   </Link>
                 </li>
                 <li>
-                  <Link to="/register/employer" className="hover:text-white">
-                    {t('footer.register', 'Registreren')}
+                  <Link to="/register" className="hover:text-white">
+                    {t("footer.register", "Registreren")}
                   </Link>
                 </li>
               </ul>
@@ -146,22 +149,22 @@ export const PublicLayout: React.FC = () => {
             {/* Column 4: Legal */}
             <div>
               <h3 className="text-white font-bold text-lg mb-4">
-                {t('footer.legalTitle', 'Juridisch')}
+                {t("footer.legalTitle", "Juridisch")}
               </h3>
               <ul className="space-y-2 text-sm">
                 <li>
                   <Link to="/legal#privacy" className="hover:text-white">
-                    {t('footer.privacy', 'Privacybeleid')}
+                    {t("footer.privacy", "Privacybeleid")}
                   </Link>
                 </li>
                 <li>
                   <Link to="/legal#terms" className="hover:text-white">
-                    {t('footer.terms', 'Algemene voorwaarden')}
+                    {t("footer.terms", "Algemene voorwaarden")}
                   </Link>
                 </li>
                 <li>
                   <Link to="/contact" className="hover:text-white">
-                    {t('footer.contact', 'Contact')}
+                    {t("footer.contact", "Contact")}
                   </Link>
                 </li>
               </ul>
@@ -171,8 +174,9 @@ export const PublicLayout: React.FC = () => {
           {/* Bottom bar */}
           <div className="border-t border-gray-800 mt-8 pt-8 text-center text-sm">
             <p>
-              © {new Date().getFullYear()} ZZP Werkplaats. {t('footer.rights', 'Alle rechten voorbehouden.')}{' '}
-              | KvK: 12345678 | BTW: NL123456789B01
+              © {new Date().getFullYear()} ZZP Werkplaats.{" "}
+              {t("footer.rights", "Alle rechten voorbehouden.")} | KvK: 12345678
+              | BTW: NL123456789B01
             </p>
           </div>
         </div>

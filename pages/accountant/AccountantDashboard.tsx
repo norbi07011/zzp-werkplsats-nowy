@@ -20,6 +20,12 @@ import FeedPage from "../../pages/FeedPage_PREMIUM";
 import AvailabilityCalendar from "../../src/components/common/AvailabilityCalendar";
 import DateBlocker from "../../src/components/common/DateBlocker";
 import { CoverImageUploader } from "../../src/components/common/CoverImageUploader";
+import {
+  UnifiedDashboardTabs,
+  useUnifiedTabs,
+  TabPanel,
+  type UnifiedTab,
+} from "../../components/UnifiedDashboardTabs";
 import type { WeeklyAvailability, UnavailableDate } from "../../types";
 import {
   FileText,
@@ -36,45 +42,14 @@ import {
   Eye,
 } from "../../components/icons";
 
-type View =
-  | "feed"
-  | "submissions"
-  | "services"
-  | "forms"
-  | "profile"
-  | "settings"
-  | "communication";
-type MainTab =
-  | "panel"
-  | "feed"
-  | "reviews"
-  | "messages"
-  | "services"
-  | "settings";
-type InnerTab = "overview" | "submissions" | "forms" | "team";
-
-const MAIN_TABS = [
-  { id: "panel", label: "📊 Mój Panel" },
-  { id: "feed", label: "📰 Tablica" },
-  { id: "reviews", label: "⭐ Opinie" },
-  { id: "messages", label: "📬 Wiadomości" },
-  { id: "services", label: "💼 Usługi" },
-  { id: "settings", label: "⚙️ Ustawienia" },
-] as const;
-
-const INNER_TABS = [
-  { id: "overview", label: "📊 Przegląd" },
-  { id: "submissions", label: "📋 Zgłoszenia" },
-  { id: "forms", label: "📝 Formularze" },
-  { id: "team", label: "👥 Drużyna" },
-] as const;
-
 export default function AccountantDashboard() {
   const { t } = useTranslation();
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<MainTab>("panel");
-  const [innerTab, setInnerTab] = useState<InnerTab>("overview");
+
+  // Unified tabs state
+  const { activeTab, setActiveTab } = useUnifiedTabs("overview");
+
   const [accountant, setAccountant] = useState<Accountant | null>(null);
   const [loading, setLoading] = useState(true);
   const [isCommunicationOpen, setIsCommunicationOpen] = useState(false);
@@ -603,44 +578,13 @@ export default function AccountantDashboard() {
   const renderTopTabs = () => (
     <div className="border-b border-gray-200 bg-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <nav className="-mb-px flex space-x-8">
-          {MAIN_TABS.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id as MainTab)}
-              className={`py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 ${
-                activeTab === tab.id
-                  ? "border-blue-500 text-blue-600"
-                  : "border-transparent text-gray-500 hover:text-gray-700"
-              }`}
-            >
-              {tab.id === "messages" && unreadCount > 0
-                ? `${tab.label} (${unreadCount})`
-                : tab.label}
-            </button>
-          ))}
-        </nav>
+        <UnifiedDashboardTabs
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          role="accountant"
+          unreadMessages={unreadCount}
+        />
       </div>
-    </div>
-  );
-
-  const renderInnerTabs = () => (
-    <div className="border-b border-gray-200 mb-6">
-      <nav className="-mb-px flex space-x-8">
-        {INNER_TABS.map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => setInnerTab(tab.id as InnerTab)}
-            className={`py-3 px-1 border-b-2 font-medium text-sm ${
-              innerTab === tab.id
-                ? "border-blue-500 text-blue-600"
-                : "border-transparent text-gray-500 hover:text-gray-700"
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </nav>
     </div>
   );
 
@@ -2117,21 +2061,6 @@ export default function AccountantDashboard() {
     </div>
   );
 
-  const renderPanelContent = () => {
-    switch (innerTab) {
-      case "overview":
-        return renderOverview();
-      case "submissions":
-        return renderSubmissions();
-      case "forms":
-        return renderForms();
-      case "team":
-        return renderTeam();
-      default:
-        return renderOverview();
-    }
-  };
-
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
@@ -2146,279 +2075,6 @@ export default function AccountantDashboard() {
   if (!accountant) {
     return null;
   }
-
-  const renderContent = () => {
-    switch (activeTab) {
-      case "panel":
-        return (
-          <div className="p-6">
-            {renderInnerTabs()}
-            <div className="mt-6">{renderPanelContent()}</div>
-          </div>
-        );
-
-      case "feed":
-        return (
-          <div className="p-6">
-            <FeedPage />
-          </div>
-        );
-
-      case "reviews":
-        return (
-          <div className="p-6">
-            <div className="bg-white rounded-lg shadow p-6">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-2xl font-bold">⭐ Wszystkie opinie</h2>
-                {accountant && (
-                  <div className="flex items-center gap-2">
-                    <span className="text-3xl font-bold text-yellow-600">
-                      {accountant.rating?.toFixed(1) || "0.0"}
-                    </span>
-                    <div className="text-left">
-                      <div className="flex">
-                        {[1, 2, 3, 4, 5].map((i) => (
-                          <Star
-                            key={i}
-                            className={`w-5 h-5 ${
-                              i <= Math.round(accountant.rating || 0)
-                                ? "text-yellow-400 fill-current"
-                                : "text-gray-300"
-                            }`}
-                          />
-                        ))}
-                      </div>
-                      <p className="text-sm text-gray-500">
-                        ({accountant.rating_count || 0}{" "}
-                        {accountant.rating_count === 1 ? "opinia" : "opinii"})
-                      </p>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {reviewsLoading ? (
-                <div className="text-center py-12 text-gray-500">
-                  <p>Ładowanie opinii...</p>
-                </div>
-              ) : reviews.length === 0 ? (
-                <div className="text-center text-gray-400 py-12">
-                  <p className="text-lg mb-2">Brak opinii</p>
-                  <p className="text-sm">
-                    Opinie pojawią się tutaj gdy klienci je wystawią
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {reviews.map((review: any) => (
-                    <div
-                      key={review.id}
-                      className="border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow"
-                    >
-                      <div className="flex items-start justify-between mb-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center font-bold text-white text-lg shadow-md">
-                            {(review.reviewer_name || "?")[0].toUpperCase()}
-                          </div>
-                          <div>
-                            <p className="font-semibold text-gray-900">
-                              {review.reviewer_name || "Pracodawca"}
-                            </p>
-                            <div className="flex items-center gap-2 mt-1">
-                              <div className="flex">
-                                {[1, 2, 3, 4, 5].map((i) => (
-                                  <Star
-                                    key={i}
-                                    className={`w-4 h-4 ${
-                                      i <= review.rating
-                                        ? "text-yellow-400 fill-current"
-                                        : "text-gray-300"
-                                    }`}
-                                  />
-                                ))}
-                              </div>
-                              <span className="text-sm font-semibold text-yellow-600">
-                                {review.rating}.0
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                        <span className="text-sm text-gray-400">
-                          {new Date(review.created_at).toLocaleDateString(
-                            "pl-PL",
-                            {
-                              year: "numeric",
-                              month: "long",
-                              day: "numeric",
-                            }
-                          )}
-                        </span>
-                      </div>
-
-                      {/* Detailed ratings */}
-                      {(review.professionalism_rating ||
-                        review.communication_rating ||
-                        review.quality_rating ||
-                        review.timeliness_rating) && (
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4 p-4 bg-gray-50 rounded-lg">
-                          {review.professionalism_rating && (
-                            <div className="text-center">
-                              <p className="text-xs text-gray-500 mb-1">
-                                Profesjonalizm
-                              </p>
-                              <p className="font-semibold text-blue-600">
-                                {review.professionalism_rating}/5
-                              </p>
-                            </div>
-                          )}
-                          {review.communication_rating && (
-                            <div className="text-center">
-                              <p className="text-xs text-gray-500 mb-1">
-                                Komunikacja
-                              </p>
-                              <p className="font-semibold text-green-600">
-                                {review.communication_rating}/5
-                              </p>
-                            </div>
-                          )}
-                          {review.quality_rating && (
-                            <div className="text-center">
-                              <p className="text-xs text-gray-500 mb-1">
-                                Jakość
-                              </p>
-                              <p className="font-semibold text-purple-600">
-                                {review.quality_rating}/5
-                              </p>
-                            </div>
-                          )}
-                          {review.timeliness_rating && (
-                            <div className="text-center">
-                              <p className="text-xs text-gray-500 mb-1">
-                                Terminowość
-                              </p>
-                              <p className="font-semibold text-orange-600">
-                                {review.timeliness_rating}/5
-                              </p>
-                            </div>
-                          )}
-                        </div>
-                      )}
-
-                      {/* Comment */}
-                      {review.comment && (
-                        <div className="mb-4">
-                          <p className="text-gray-700 leading-relaxed">
-                            "{review.comment}"
-                          </p>
-                        </div>
-                      )}
-
-                      {/* Would recommend badge */}
-                      {review.would_recommend && (
-                        <div className="flex items-center gap-2 text-green-600 text-sm">
-                          <span className="font-semibold">
-                            ✓ Poleca tego księgowego
-                          </span>
-                        </div>
-                      )}
-
-                      {/* Accountant response */}
-                      {review.response_text && (
-                        <div className="mt-4 pl-4 border-l-4 border-orange-500 bg-orange-50 p-4 rounded">
-                          <p className="text-sm font-semibold text-orange-900 mb-2">
-                            📝 Odpowiedź księgowego:
-                          </p>
-                          <p className="text-sm text-gray-700">
-                            {review.response_text}
-                          </p>
-                          {review.response_date && (
-                            <p className="text-xs text-gray-500 mt-2">
-                              {new Date(
-                                review.response_date
-                              ).toLocaleDateString("pl-PL")}
-                            </p>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        );
-
-      case "messages":
-        return renderMessages();
-
-      case "services":
-        return (
-          <div className="p-6">
-            <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-2xl font-bold mb-6">💼 Usługi</h2>
-              <div className="text-center text-gray-400 py-12">
-                <p>Brak usług</p>
-              </div>
-            </div>
-          </div>
-        );
-
-      case "settings":
-        return (
-          <div className="max-w-4xl mx-auto">
-            <h2 className="text-2xl font-bold mb-6">⚙️ Ustawienia</h2>
-            <div className="space-y-4">
-              <div className="bg-white rounded-lg shadow-sm p-6">
-                <h3 className="text-lg font-semibold mb-4">Powiadomienia</h3>
-                <div className="space-y-3">
-                  <label className="flex items-center justify-between">
-                    <span>Nowe zgłoszenia klientów</span>
-                    <input type="checkbox" defaultChecked className="rounded" />
-                  </label>
-                  <label className="flex items-center justify-between">
-                    <span>Wiadomości email</span>
-                    <input type="checkbox" defaultChecked className="rounded" />
-                  </label>
-                  <label className="flex items-center justify-between">
-                    <span>Powiadomienia SMS</span>
-                    <input type="checkbox" className="rounded" />
-                  </label>
-                </div>
-              </div>
-
-              <div className="bg-white rounded-lg shadow-sm p-6">
-                <h3 className="text-lg font-semibold mb-4">Prywatność</h3>
-                <div className="space-y-3">
-                  <label className="flex items-center justify-between">
-                    <span>Widoczny profil publiczny</span>
-                    <input type="checkbox" defaultChecked className="rounded" />
-                  </label>
-                  <label className="flex items-center justify-between">
-                    <span>Pokaż oceny</span>
-                    <input type="checkbox" defaultChecked className="rounded" />
-                  </label>
-                </div>
-              </div>
-
-              <div className="bg-white rounded-lg shadow-sm p-6">
-                <h3 className="text-lg font-semibold mb-4">Konto</h3>
-                <button className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700">
-                  Wyloguj się
-                </button>
-              </div>
-            </div>
-          </div>
-        );
-
-      default:
-        return (
-          <div className="p-6">
-            {renderInnerTabs()}
-            <div className="mt-6">{renderPanelContent()}</div>
-          </div>
-        );
-    }
-  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
@@ -2865,7 +2521,125 @@ export default function AccountantDashboard() {
 
       {renderTopTabs()}
 
-      <main className="max-w-7xl mx-auto">{renderContent()}</main>
+      <main className="max-w-7xl mx-auto p-6">
+        <TabPanel isActive={activeTab === "overview"}>
+          {renderOverview()}
+        </TabPanel>
+
+        <TabPanel isActive={activeTab === "profile"}>
+          {/* Profile editing - currently shows modal, can be moved here */}
+          <div className="text-center py-12">
+            <button
+              onClick={() => setIsEditingProfile(true)}
+              className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700"
+            >
+              Edytuj profil
+            </button>
+          </div>
+        </TabPanel>
+
+        <TabPanel isActive={activeTab === "messages"}>
+          {renderMessages()}
+        </TabPanel>
+
+        <TabPanel isActive={activeTab === "reviews"}>
+          <div className="bg-white rounded-lg shadow p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold">⭐ Wszystkie opinie</h2>
+              {accountant && (
+                <div className="flex items-center gap-2">
+                  <span className="text-3xl font-bold text-yellow-600">
+                    {accountant.rating?.toFixed(1) || "0.0"}
+                  </span>
+                  <div className="text-left">
+                    <div className="flex">
+                      {[1, 2, 3, 4, 5].map((i) => (
+                        <Star
+                          key={i}
+                          className={`w-5 h-5 ${
+                            i <= Math.round(accountant.rating || 0)
+                              ? "text-yellow-400 fill-current"
+                              : "text-gray-300"
+                          }`}
+                        />
+                      ))}
+                    </div>
+                    <p className="text-sm text-gray-500">
+                      ({accountant.rating_count || 0}{" "}
+                      {accountant.rating_count === 1 ? "opinia" : "opinii"})
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {reviewsLoading ? (
+              <div className="text-center py-12 text-gray-500">
+                <p>Ładowanie opinii...</p>
+              </div>
+            ) : reviews.length === 0 ? (
+              <div className="text-center text-gray-400 py-12">
+                <p>Brak opinii</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {reviews.map((review) => (
+                  <div
+                    key={review.id}
+                    className="border-b border-gray-200 pb-4 last:border-0"
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <div className="flex">
+                          {[1, 2, 3, 4, 5].map((i) => (
+                            <Star
+                              key={i}
+                              className={`w-4 h-4 ${
+                                i <= review.rating
+                                  ? "text-yellow-400 fill-current"
+                                  : "text-gray-300"
+                              }`}
+                            />
+                          ))}
+                        </div>
+                        <span className="font-semibold">{review.rating}.0</span>
+                      </div>
+                      <span className="text-xs text-gray-500">
+                        {new Date(review.created_at).toLocaleDateString(
+                          "pl-PL"
+                        )}
+                      </span>
+                    </div>
+                    <p className="text-sm text-gray-700 mb-2">
+                      {review.comment}
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      — {review.worker?.full_name || "Anonim"}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </TabPanel>
+
+        <TabPanel isActive={activeTab === "services"}>
+          <div className="bg-white rounded-lg shadow p-6">
+            <h2 className="text-2xl font-bold mb-6">💼 Usługi</h2>
+            <div className="text-center text-gray-400 py-12">
+              <p>Brak usług</p>
+            </div>
+          </div>
+        </TabPanel>
+
+        <TabPanel isActive={activeTab === "submissions"}>
+          {renderSubmissions()}
+        </TabPanel>
+
+        <TabPanel isActive={activeTab === "forms"}>{renderForms()}</TabPanel>
+
+        <TabPanel isActive={activeTab === "team"}>{renderTeam()}</TabPanel>
+      </main>
     </div>
   );
 }
