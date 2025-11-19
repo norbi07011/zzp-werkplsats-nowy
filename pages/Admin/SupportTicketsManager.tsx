@@ -296,12 +296,34 @@ export const SupportTicketsManager: React.FC = () => {
               <div className="space-y-1.5">
                 {[
                   { value: "new", label: "Nowe", icon: "⭐", color: "green" },
-                  { value: "in_progress", label: "W trakcie", icon: "⚡", color: "blue" },
-                  { value: "waiting_user", label: "Oczekuje", icon: "⏳", color: "yellow" },
-                  { value: "resolved", label: "Rozwiązane", icon: "✅", color: "purple" },
-                  { value: "closed", label: "Zamknięte", icon: "🔒", color: "gray" },
+                  {
+                    value: "in_progress",
+                    label: "W trakcie",
+                    icon: "⚡",
+                    color: "blue",
+                  },
+                  {
+                    value: "waiting_user",
+                    label: "Oczekuje",
+                    icon: "⏳",
+                    color: "yellow",
+                  },
+                  {
+                    value: "resolved",
+                    label: "Rozwiązane",
+                    icon: "✅",
+                    color: "purple",
+                  },
+                  {
+                    value: "closed",
+                    label: "Zamknięte",
+                    icon: "🔒",
+                    color: "gray",
+                  },
                 ].map((option) => {
-                  const isChecked = (filters.status || []).includes(option.value as TicketStatus);
+                  const isChecked = (filters.status || []).includes(
+                    option.value as TicketStatus
+                  );
                   return (
                     <label
                       key={option.value}
@@ -324,9 +346,13 @@ export const SupportTicketsManager: React.FC = () => {
                         className="w-5 h-5 text-blue-600 border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 cursor-pointer"
                       />
                       <span className="text-lg">{option.icon}</span>
-                      <span className={`text-sm font-medium ${
-                        isChecked ? `text-${option.color}-800` : "text-gray-700"
-                      }`}>
+                      <span
+                        className={`text-sm font-medium ${
+                          isChecked
+                            ? `text-${option.color}-800`
+                            : "text-gray-700"
+                        }`}
+                      >
                         {option.label}
                       </span>
                     </label>
@@ -343,11 +369,28 @@ export const SupportTicketsManager: React.FC = () => {
               <div className="space-y-1.5">
                 {[
                   { value: "low", label: "Niski", icon: "⬇️", color: "gray" },
-                  { value: "medium", label: "Średni", icon: "🔶", color: "yellow" },
-                  { value: "high", label: "Wysoki", icon: "⚠️", color: "orange" },
-                  { value: "critical", label: "Krytyczny", icon: "🔥", color: "red" },
+                  {
+                    value: "medium",
+                    label: "Średni",
+                    icon: "🔶",
+                    color: "yellow",
+                  },
+                  {
+                    value: "high",
+                    label: "Wysoki",
+                    icon: "⚠️",
+                    color: "orange",
+                  },
+                  {
+                    value: "critical",
+                    label: "Krytyczny",
+                    icon: "🔥",
+                    color: "red",
+                  },
                 ].map((option) => {
-                  const isChecked = (filters.priority || []).includes(option.value as TicketPriority);
+                  const isChecked = (filters.priority || []).includes(
+                    option.value as TicketPriority
+                  );
                   return (
                     <label
                       key={option.value}
@@ -363,16 +406,23 @@ export const SupportTicketsManager: React.FC = () => {
                         onChange={(e) => {
                           const currentPriority = filters.priority || [];
                           const newPriority = e.target.checked
-                            ? [...currentPriority, option.value as TicketPriority]
+                            ? [
+                                ...currentPriority,
+                                option.value as TicketPriority,
+                              ]
                             : currentPriority.filter((p) => p !== option.value);
                           setFilters({ ...filters, priority: newPriority });
                         }}
                         className="w-5 h-5 text-blue-600 border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 cursor-pointer"
                       />
                       <span className="text-lg">{option.icon}</span>
-                      <span className={`text-sm font-medium ${
-                        isChecked ? `text-${option.color}-800` : "text-gray-700"
-                      }`}>
+                      <span
+                        className={`text-sm font-medium ${
+                          isChecked
+                            ? `text-${option.color}-800`
+                            : "text-gray-700"
+                        }`}
+                      >
                         {option.label}
                       </span>
                     </label>
@@ -394,7 +444,9 @@ export const SupportTicketsManager: React.FC = () => {
                   { value: "bug", label: "Błąd", icon: "🐛" },
                   { value: "other", label: "Inne", icon: "📝" },
                 ].map((option) => {
-                  const isChecked = (filters.category || []).includes(option.value as TicketCategory);
+                  const isChecked = (filters.category || []).includes(
+                    option.value as TicketCategory
+                  );
                   return (
                     <label
                       key={option.value}
@@ -410,16 +462,21 @@ export const SupportTicketsManager: React.FC = () => {
                         onChange={(e) => {
                           const currentCategory = filters.category || [];
                           const newCategory = e.target.checked
-                            ? [...currentCategory, option.value as TicketCategory]
+                            ? [
+                                ...currentCategory,
+                                option.value as TicketCategory,
+                              ]
                             : currentCategory.filter((c) => c !== option.value);
                           setFilters({ ...filters, category: newCategory });
                         }}
                         className="w-5 h-5 text-blue-600 border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 cursor-pointer"
                       />
                       <span className="text-lg">{option.icon}</span>
-                      <span className={`text-sm font-medium ${
-                        isChecked ? "text-indigo-800" : "text-gray-700"
-                      }`}>
+                      <span
+                        className={`text-sm font-medium ${
+                          isChecked ? "text-indigo-800" : "text-gray-700"
+                        }`}
+                      >
                         {option.label}
                       </span>
                     </label>
