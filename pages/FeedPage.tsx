@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "../contexts/AuthContext";
-import { supabase } from "../src/lib/supabase-fixed";
+import { supabase } from "../src/lib/supabase";
 import {
   getPosts,
   createPost,
@@ -655,7 +655,7 @@ function PostCard({
       setIsSubmittingComment(true);
 
       // Get the actual user_id from the role-specific table
-      let actualUserId: string | null = null;
+      let actualUserId: string = "";
 
       if (currentUserRole === "worker") {
         const { data } = await supabase
@@ -663,21 +663,21 @@ function PostCard({
           .select("id")
           .eq("profile_id", currentUserId)
           .single();
-        actualUserId = data?.id;
+        actualUserId = data?.id || "";
       } else if (currentUserRole === "employer") {
         const { data } = await supabase
           .from("employers")
           .select("id")
           .eq("profile_id", currentUserId)
           .single();
-        actualUserId = data?.id;
+        actualUserId = data?.id || "";
       } else if (currentUserRole === "accountant") {
         const { data } = await supabase
           .from("accountants")
           .select("id")
           .eq("profile_id", currentUserId)
           .single();
-        actualUserId = data?.id;
+        actualUserId = data?.id || "";
       }
 
       if (!actualUserId) {
@@ -688,7 +688,7 @@ function PostCard({
 
       await createComment(
         post.id,
-        actualUserId,
+        actualUserId, // Now always string
         currentUserRole as any,
         commentText.trim()
       );

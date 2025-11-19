@@ -195,7 +195,16 @@ export async function getAccountant(
     return null;
   }
 
-  return data as Accountant;
+  // Fetch profile view count
+  const { count } = await supabase
+    .from("profile_views")
+    .select("*", { count: "exact", head: true })
+    .eq("accountant_id", accountantId);
+
+  return {
+    ...data,
+    profile_views: count || 0,
+  } as Accountant;
 }
 
 /**
@@ -217,6 +226,33 @@ export async function getAccountantByProfileId(
     }
     console.error("Error fetching accountant by profile:", error);
     return null;
+  }
+
+  // Fetch profile view count
+  if (data?.id) {
+    const { count, error: countError } = await supabase
+      .from("profile_views")
+      .select("*", { count: "exact", head: true })
+      .eq("accountant_id", data.id);
+
+    console.log(
+      "🔍 [ACCOUNTANT] Fetching profile_views for accountant:",
+      data.id,
+      "count:",
+      count
+    );
+
+    if (countError) {
+      console.error(
+        "❌ [ACCOUNTANT] Error fetching profile_views:",
+        countError
+      );
+    }
+
+    return {
+      ...data,
+      profile_views: count || 0,
+    } as Accountant;
   }
 
   return data as any;

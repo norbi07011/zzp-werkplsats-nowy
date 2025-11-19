@@ -1,10 +1,6 @@
-import { useState, useEffect } from 'react';
-import { createClient } from '@supabase/supabase-js';
-import { useAuth } from '../contexts/AuthContext';
-
-const supabaseUrl = 'https://dtnotuyagygexmkyqtgb.supabase.co';
-const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR0bm90dXlhZ3lnZXhta3lxdGdiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk3ODUzMzAsImV4cCI6MjA3NTM2MTMzMH0.8gsHqR3mlGVhry2hIlxQkfFDfh5vgBrxGW_eXPXuRqw';
-const supabase = createClient(supabaseUrl, supabaseKey);
+import { useState, useEffect } from "react";
+import { supabase } from "../src/lib/supabase";
+import { useAuth } from "../contexts/AuthContext";
 
 // Enhanced interfaces for RAPP.NL-style features
 export interface TaskPhoto {
@@ -39,8 +35,14 @@ export interface ProjectTask {
   created_by: string; // ✅ DODANE - required NOT NULL column
   title: string;
   description?: string;
-  status: 'not_started' | 'in_progress' | 'review' | 'completed' | 'blocked' | 'cancelled';
-  priority: 'low' | 'medium' | 'high' | 'urgent';
+  status:
+    | "not_started"
+    | "in_progress"
+    | "review"
+    | "completed"
+    | "blocked"
+    | "cancelled";
+  priority: "low" | "medium" | "high" | "urgent";
   assigned_to?: string;
   due_date?: string;
   building_address?: string;
@@ -59,8 +61,8 @@ export interface ProjectTask {
   voice_note_url?: string;
   client_signature_url?: string;
   sla_hours?: number;
-  risk_level: 'low' | 'medium' | 'high';
-  
+  risk_level: "low" | "medium" | "high";
+
   // RAPP.NL-style enhanced fields
   photos?: TaskPhoto[];
   materials?: TaskMaterial[];
@@ -74,7 +76,7 @@ export interface ProjectTask {
   before_photos?: TaskPhoto[];
   after_photos?: TaskPhoto[];
   client_signed_at?: string;
-  
+
   created_at: string;
   updated_at: string;
 }
@@ -106,17 +108,17 @@ export function useProjectTasks(projectId?: string) {
     try {
       setLoading(true);
       const { data, error: fetchError } = await supabase
-        .from('project_tasks')
-        .select('*')
-        .eq('project_id', projectId)
-        .order('created_at', { ascending: false });
+        .from("project_tasks")
+        .select("*")
+        .eq("project_id", projectId)
+        .order("created_at", { ascending: false });
 
       if (fetchError) throw fetchError;
       setTasks(data || []);
       setError(null);
     } catch (err: any) {
       setError(err.message);
-      console.error('Error fetching tasks:', err);
+      console.error("Error fetching tasks:", err);
     } finally {
       setLoading(false);
     }
@@ -125,39 +127,46 @@ export function useProjectTasks(projectId?: string) {
   // Create task
   const createTask = async (taskData: Partial<ProjectTask>) => {
     if (!user?.id) {
-      throw new Error('User must be authenticated to create tasks');
+      throw new Error("User must be authenticated to create tasks");
     }
 
     // ✅ SANITIZE: Remove empty strings from timestamp fields
     const cleanData = { ...taskData };
-    const timestampFields = ['due_date', 'client_signed_at', 'completed_at', 'deleted_at'];
-    timestampFields.forEach(field => {
-      if (cleanData[field as keyof ProjectTask] === '') {
+    const timestampFields = [
+      "due_date",
+      "client_signed_at",
+      "completed_at",
+      "deleted_at",
+    ];
+    timestampFields.forEach((field) => {
+      if (cleanData[field as keyof ProjectTask] === "") {
         delete cleanData[field as keyof ProjectTask];
       }
     });
 
     try {
       const { data, error: createError } = await supabase
-        .from('project_tasks')
-        .insert([{
-          ...cleanData,
-          project_id: projectId,
-          created_by: user.id, // ✅ DODANE - required NOT NULL column
-          status: cleanData.status || 'not_started',
-          priority: cleanData.priority || 'medium',
-          is_subtask: cleanData.is_subtask || false,
-          progress_percentage: cleanData.progress_percentage || 0,
-          is_recurring: cleanData.is_recurring || false,
-          requires_photo_proof: cleanData.requires_photo_proof || false,
-          risk_level: cleanData.risk_level || 'low'
-        }])
+        .from("project_tasks")
+        .insert([
+          {
+            ...cleanData,
+            project_id: projectId,
+            created_by: user.id, // ✅ DODANE - required NOT NULL column
+            status: cleanData.status || "not_started",
+            priority: cleanData.priority || "medium",
+            is_subtask: cleanData.is_subtask || false,
+            progress_percentage: cleanData.progress_percentage || 0,
+            is_recurring: cleanData.is_recurring || false,
+            requires_photo_proof: cleanData.requires_photo_proof || false,
+            risk_level: cleanData.risk_level || "low",
+          },
+        ])
         .select()
         .single();
 
       if (createError) throw createError;
-      
-      setTasks(prev => [data, ...prev]);
+
+      setTasks((prev) => [data, ...prev]);
       return data;
     } catch (err: any) {
       setError(err.message);
@@ -169,27 +178,32 @@ export function useProjectTasks(projectId?: string) {
   const updateTask = async (taskId: string, updates: Partial<ProjectTask>) => {
     // ✅ SANITIZE: Remove empty strings from timestamp fields
     const cleanUpdates = { ...updates };
-    const timestampFields = ['due_date', 'client_signed_at', 'completed_at', 'deleted_at'];
-    timestampFields.forEach(field => {
-      if (cleanUpdates[field as keyof ProjectTask] === '') {
+    const timestampFields = [
+      "due_date",
+      "client_signed_at",
+      "completed_at",
+      "deleted_at",
+    ];
+    timestampFields.forEach((field) => {
+      if (cleanUpdates[field as keyof ProjectTask] === "") {
         delete cleanUpdates[field as keyof ProjectTask];
       }
     });
 
     try {
       const { data, error: updateError } = await supabase
-        .from('project_tasks')
+        .from("project_tasks")
         .update({
           ...cleanUpdates,
-          updated_at: new Date().toISOString()
+          updated_at: new Date().toISOString(),
         })
-        .eq('id', taskId)
+        .eq("id", taskId)
         .select()
         .single();
 
       if (updateError) throw updateError;
 
-      setTasks(prev => prev.map(t => t.id === taskId ? data : t));
+      setTasks((prev) => prev.map((t) => (t.id === taskId ? data : t)));
       return data;
     } catch (err: any) {
       setError(err.message);
@@ -201,13 +215,13 @@ export function useProjectTasks(projectId?: string) {
   const deleteTask = async (taskId: string) => {
     try {
       const { error: deleteError } = await supabase
-        .from('project_tasks')
+        .from("project_tasks")
         .delete()
-        .eq('id', taskId);
+        .eq("id", taskId);
 
       if (deleteError) throw deleteError;
 
-      setTasks(prev => prev.filter(t => t.id !== taskId));
+      setTasks((prev) => prev.filter((t) => t.id !== taskId));
     } catch (err: any) {
       setError(err.message);
       throw err;
@@ -218,38 +232,44 @@ export function useProjectTasks(projectId?: string) {
   const fetchChecklist = async (taskId: string) => {
     try {
       const { data, error: fetchError } = await supabase
-        .from('task_checklists')
-        .select('*')
-        .eq('task_id', taskId)
-        .order('sort_order', { ascending: true });
+        .from("task_checklists")
+        .select("*")
+        .eq("task_id", taskId)
+        .order("sort_order", { ascending: true });
 
       if (fetchError) throw fetchError;
       return data || [];
     } catch (err: any) {
-      console.error('Error fetching checklist:', err);
+      console.error("Error fetching checklist:", err);
       return [];
     }
   };
 
   // Add checklist item
-  const addChecklistItem = async (taskId: string, itemText: string, requiresProof: boolean = false) => {
+  const addChecklistItem = async (
+    taskId: string,
+    itemText: string,
+    requiresProof: boolean = false
+  ) => {
     try {
       const { data, error: createError } = await supabase
-        .from('task_checklists')
-        .insert([{
-          task_id: taskId,
-          item_text: itemText,
-          requires_proof: requiresProof,
-          is_completed: false,
-          sort_order: 0
-        }])
+        .from("task_checklists")
+        .insert([
+          {
+            task_id: taskId,
+            item_text: itemText,
+            requires_proof: requiresProof,
+            is_completed: false,
+            sort_order: 0,
+          },
+        ])
         .select()
         .single();
 
       if (createError) throw createError;
       return data;
     } catch (err: any) {
-      console.error('Error adding checklist item:', err);
+      console.error("Error adding checklist item:", err);
       throw err;
     }
   };
@@ -258,20 +278,20 @@ export function useProjectTasks(projectId?: string) {
   const toggleChecklistItem = async (itemId: string, isCompleted: boolean) => {
     try {
       const { data, error: updateError } = await supabase
-        .from('task_checklists')
+        .from("task_checklists")
         .update({
           is_completed: isCompleted,
           completed_at: isCompleted ? new Date().toISOString() : null,
-          completed_by: isCompleted ? user?.id : null
+          completed_by: isCompleted ? user?.id : null,
         })
-        .eq('id', itemId)
+        .eq("id", itemId)
         .select()
         .single();
 
       if (updateError) throw updateError;
       return data;
     } catch (err: any) {
-      console.error('Error toggling checklist item:', err);
+      console.error("Error toggling checklist item:", err);
       throw err;
     }
   };
@@ -280,35 +300,41 @@ export function useProjectTasks(projectId?: string) {
   const fetchDependencies = async (taskId: string) => {
     try {
       const { data, error: fetchError } = await supabase
-        .from('task_dependencies')
-        .select('*')
-        .eq('task_id', taskId);
+        .from("task_dependencies")
+        .select("*")
+        .eq("task_id", taskId);
 
       if (fetchError) throw fetchError;
       return data || [];
     } catch (err: any) {
-      console.error('Error fetching dependencies:', err);
+      console.error("Error fetching dependencies:", err);
       return [];
     }
   };
 
   // Add dependency
-  const addDependency = async (taskId: string, dependsOnTaskId: string, dependencyType: string = 'finish_to_start') => {
+  const addDependency = async (
+    taskId: string,
+    dependsOnTaskId: string,
+    dependencyType: string = "finish_to_start"
+  ) => {
     try {
       const { data, error: createError } = await supabase
-        .from('task_dependencies')
-        .insert([{
-          task_id: taskId,
-          depends_on_task_id: dependsOnTaskId,
-          dependency_type: dependencyType
-        }])
+        .from("task_dependencies")
+        .insert([
+          {
+            task_id: taskId,
+            depends_on_task_id: dependsOnTaskId,
+            dependency_type: dependencyType,
+          },
+        ])
         .select()
         .single();
 
       if (createError) throw createError;
       return data;
     } catch (err: any) {
-      console.error('Error adding dependency:', err);
+      console.error("Error adding dependency:", err);
       throw err;
     }
   };
@@ -318,44 +344,49 @@ export function useProjectTasks(projectId?: string) {
   // ==============================================
 
   // Upload photo to Supabase Storage
-  const uploadPhoto = async (taskId: string, file: File, caption?: string, category: 'all' | 'before' | 'after' = 'all') => {
+  const uploadPhoto = async (
+    taskId: string,
+    file: File,
+    caption?: string,
+    category: "all" | "before" | "after" = "all"
+  ) => {
     try {
-      const fileExt = file.name.split('.').pop();
+      const fileExt = file.name.split(".").pop();
       const fileName = `${taskId}/${Date.now()}.${fileExt}`;
       const filePath = `task-photos/${fileName}`;
 
       const { data: uploadData, error: uploadError } = await supabase.storage
-        .from('project-files')
+        .from("project-files")
         .upload(filePath, file);
 
       if (uploadError) throw uploadError;
 
-      const { data: { publicUrl } } = supabase.storage
-        .from('project-files')
-        .getPublicUrl(filePath);
+      const {
+        data: { publicUrl },
+      } = supabase.storage.from("project-files").getPublicUrl(filePath);
 
       const newPhoto: TaskPhoto = {
         url: publicUrl,
         caption,
         timestamp: new Date().toISOString(),
-        uploaded_by: user?.id
+        uploaded_by: user?.id,
       };
 
       // Fetch current task
       const { data: currentTask } = await supabase
-        .from('project_tasks')
-        .select('photos, before_photos, after_photos')
-        .eq('id', taskId)
+        .from("project_tasks")
+        .select("photos, before_photos, after_photos")
+        .eq("id", taskId)
         .single();
 
-      if (!currentTask) throw new Error('Task not found');
+      if (!currentTask) throw new Error("Task not found");
 
       // Update appropriate photo array
       let updateData: any = {};
-      if (category === 'before') {
+      if (category === "before") {
         const beforePhotos = currentTask.before_photos || [];
         updateData.before_photos = [...beforePhotos, newPhoto];
-      } else if (category === 'after') {
+      } else if (category === "after") {
         const afterPhotos = currentTask.after_photos || [];
         updateData.after_photos = [...afterPhotos, newPhoto];
       } else {
@@ -364,47 +395,51 @@ export function useProjectTasks(projectId?: string) {
       }
 
       const { data, error: updateError } = await supabase
-        .from('project_tasks')
+        .from("project_tasks")
         .update(updateData)
-        .eq('id', taskId)
+        .eq("id", taskId)
         .select()
         .single();
 
       if (updateError) throw updateError;
 
-      setTasks(prev => prev.map(t => t.id === taskId ? data : t));
+      setTasks((prev) => prev.map((t) => (t.id === taskId ? data : t)));
       return newPhoto;
     } catch (err: any) {
-      console.error('Error uploading photo:', err);
+      console.error("Error uploading photo:", err);
       throw err;
     }
   };
 
   // Update photos array (for delete/edit)
-  const updatePhotos = async (taskId: string, photos: TaskPhoto[], category: 'all' | 'before' | 'after' = 'all') => {
+  const updatePhotos = async (
+    taskId: string,
+    photos: TaskPhoto[],
+    category: "all" | "before" | "after" = "all"
+  ) => {
     try {
       let updateData: any = {};
-      if (category === 'before') {
+      if (category === "before") {
         updateData.before_photos = photos;
-      } else if (category === 'after') {
+      } else if (category === "after") {
         updateData.after_photos = photos;
       } else {
         updateData.photos = photos;
       }
 
       const { data, error: updateError } = await supabase
-        .from('project_tasks')
+        .from("project_tasks")
         .update(updateData)
-        .eq('id', taskId)
+        .eq("id", taskId)
         .select()
         .single();
 
       if (updateError) throw updateError;
 
-      setTasks(prev => prev.map(t => t.id === taskId ? data : t));
+      setTasks((prev) => prev.map((t) => (t.id === taskId ? data : t)));
       return data;
     } catch (err: any) {
-      console.error('Error updating photos:', err);
+      console.error("Error updating photos:", err);
       throw err;
     }
   };
@@ -413,71 +448,80 @@ export function useProjectTasks(projectId?: string) {
   const updateMaterials = async (taskId: string, materials: TaskMaterial[]) => {
     try {
       const { data, error: updateError } = await supabase
-        .from('project_tasks')
+        .from("project_tasks")
         .update({ materials })
-        .eq('id', taskId)
+        .eq("id", taskId)
         .select()
         .single();
 
       if (updateError) throw updateError;
 
-      setTasks(prev => prev.map(t => t.id === taskId ? data : t));
+      setTasks((prev) => prev.map((t) => (t.id === taskId ? data : t)));
       return data;
     } catch (err: any) {
-      console.error('Error updating materials:', err);
+      console.error("Error updating materials:", err);
       throw err;
     }
   };
 
   // Update checklist array
-  const updateChecklist = async (taskId: string, checklist: ChecklistItem[]) => {
+  const updateChecklist = async (
+    taskId: string,
+    checklist: ChecklistItem[]
+  ) => {
     try {
       // Calculate progress percentage based on checklist
-      const completedCount = checklist.filter(item => item.completed).length;
-      const progressPercentage = checklist.length > 0 
-        ? Math.round((completedCount / checklist.length) * 100) 
-        : 0;
+      const completedCount = checklist.filter((item) => item.completed).length;
+      const progressPercentage =
+        checklist.length > 0
+          ? Math.round((completedCount / checklist.length) * 100)
+          : 0;
 
       const { data, error: updateError } = await supabase
-        .from('project_tasks')
-        .update({ 
+        .from("project_tasks")
+        .update({
           checklist,
-          progress_percentage: progressPercentage
+          progress_percentage: progressPercentage,
         })
-        .eq('id', taskId)
+        .eq("id", taskId)
         .select()
         .single();
 
       if (updateError) throw updateError;
 
-      setTasks(prev => prev.map(t => t.id === taskId ? data : t));
+      setTasks((prev) => prev.map((t) => (t.id === taskId ? data : t)));
       return data;
     } catch (err: any) {
-      console.error('Error updating checklist:', err);
+      console.error("Error updating checklist:", err);
       throw err;
     }
   };
 
   // Update hourly rate and estimated hours
-  const updateCostParams = async (taskId: string, hourlyRate?: number, estimatedHours?: number) => {
+  const updateCostParams = async (
+    taskId: string,
+    hourlyRate?: number,
+    estimatedHours?: number
+  ) => {
     try {
       const updateData: any = {};
       if (hourlyRate !== undefined) updateData.hourly_rate = hourlyRate;
-      if (estimatedHours !== undefined) updateData.estimated_hours = estimatedHours;
+      if (estimatedHours !== undefined)
+        updateData.estimated_hours = estimatedHours;
 
       const { data, error: updateError } = await supabase
-        .from('project_tasks')
+        .from("project_tasks")
         .update(updateData)
-        .eq('id', taskId)
+        .eq("id", taskId)
         .select()
         .single();
 
       if (updateError) throw updateError;
 
-      setTasks(prev => prev.map(t => t.id === taskId ? data : t));
+      setTasks((prev) => prev.map((t) => (t.id === taskId ? data : t)));
       return data;
     } catch (err: any) {
-      console.error('Error updating cost params:', err);
+      console.error("Error updating cost params:", err);
       throw err;
     }
   };
@@ -486,14 +530,14 @@ export function useProjectTasks(projectId?: string) {
   const fetchTemplates = async () => {
     try {
       const { data, error: fetchError } = await supabase
-        .from('task_templates')
-        .select('*')
-        .order('template_category', { ascending: true });
+        .from("task_templates")
+        .select("*")
+        .order("template_category", { ascending: true });
 
       if (fetchError) throw fetchError;
       return data || [];
     } catch (err: any) {
-      console.error('Error fetching templates:', err);
+      console.error("Error fetching templates:", err);
       return [];
     }
   };
@@ -506,29 +550,36 @@ export function useProjectTasks(projectId?: string) {
         checklist: template.checklist,
         hourly_rate: template.hourly_rate,
         estimated_hours: template.estimated_hours,
-        description: template.description
+        description: template.description,
       };
 
       const { data, error: updateError } = await supabase
-        .from('project_tasks')
+        .from("project_tasks")
         .update(updateData)
-        .eq('id', taskId)
+        .eq("id", taskId)
         .select()
         .single();
 
       if (updateError) throw updateError;
 
-      setTasks(prev => prev.map(t => t.id === taskId ? data : t));
+      setTasks((prev) => prev.map((t) => (t.id === taskId ? data : t)));
       return data;
     } catch (err: any) {
-      console.error('Error applying template:', err);
+      console.error("Error applying template:", err);
       throw err;
     }
   };
 
   // Calculate total cost (client-side helper)
-  const calculateTotalCost = (materials: TaskMaterial[], hourlyRate: number, estimatedHours: number) => {
-    const materialsCost = materials.reduce((sum, m) => sum + (m.quantity * m.price), 0);
+  const calculateTotalCost = (
+    materials: TaskMaterial[],
+    hourlyRate: number,
+    estimatedHours: number
+  ) => {
+    const materialsCost = materials.reduce(
+      (sum, m) => sum + m.quantity * m.price,
+      0
+    );
     const laborCost = hourlyRate * estimatedHours;
     return materialsCost + laborCost;
   };
@@ -542,27 +593,29 @@ export function useProjectTasks(projectId?: string) {
     const subscription = supabase
       .channel(`project_tasks:${projectId}`)
       .on(
-        'postgres_changes',
+        "postgres_changes",
         {
-          event: '*', // Listen to INSERT, UPDATE, DELETE
-          schema: 'public',
-          table: 'project_tasks',
-          filter: `project_id=eq.${projectId}`
+          event: "*", // Listen to INSERT, UPDATE, DELETE
+          schema: "public",
+          table: "project_tasks",
+          filter: `project_id=eq.${projectId}`,
         },
         (payload) => {
-          console.log('Realtime update:', payload);
+          console.log("Realtime update:", payload);
 
-          if (payload.eventType === 'INSERT') {
+          if (payload.eventType === "INSERT") {
             // Add new task
-            setTasks(prev => [payload.new as ProjectTask, ...prev]);
-          } else if (payload.eventType === 'UPDATE') {
+            setTasks((prev) => [payload.new as ProjectTask, ...prev]);
+          } else if (payload.eventType === "UPDATE") {
             // Update existing task
-            setTasks(prev => prev.map(t => 
-              t.id === payload.new.id ? payload.new as ProjectTask : t
-            ));
-          } else if (payload.eventType === 'DELETE') {
+            setTasks((prev) =>
+              prev.map((t) =>
+                t.id === payload.new.id ? (payload.new as ProjectTask) : t
+              )
+            );
+          } else if (payload.eventType === "DELETE") {
             // Remove deleted task
-            setTasks(prev => prev.filter(t => t.id !== payload.old.id));
+            setTasks((prev) => prev.filter((t) => t.id !== payload.old.id));
           }
         }
       )
@@ -595,6 +648,6 @@ export function useProjectTasks(projectId?: string) {
     updateCostParams,
     fetchTemplates,
     applyTemplate,
-    calculateTotalCost
+    calculateTotalCost,
   };
 }

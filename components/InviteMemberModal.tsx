@@ -1,18 +1,13 @@
 import React, { useState, useEffect } from "react";
 import { useInvites } from "../hooks/useInvites";
 import { useAuth } from "../contexts/AuthContext";
-import { createClient } from "@supabase/supabase-js";
+import { supabase } from "../src/lib/supabase";
 import X from "lucide-react/dist/esm/icons/x";
 import Mail from "lucide-react/dist/esm/icons/mail";
 import Shield from "lucide-react/dist/esm/icons/shield";
 import Send from "lucide-react/dist/esm/icons/send";
 import Building2 from "lucide-react/dist/esm/icons/building-2";
 import Users from "lucide-react/dist/esm/icons/users";
-
-const supabaseUrl = "https://dtnotuyagygexmkyqtgb.supabase.co";
-const supabaseKey =
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR0bm90dXlhZ3lnZXhta3lxdGdiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk3ODUzMzAsImV4cCI6MjA3NTM2MTMzMH0.8gsHqR3mlGVhry2hIlxQkfFDfh5vgBrxGW_eXPXuRqw";
-const supabase = createClient(supabaseUrl, supabaseKey);
 
 interface CleaningCompany {
   id: string;

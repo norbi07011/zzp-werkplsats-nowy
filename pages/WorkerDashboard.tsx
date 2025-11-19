@@ -334,7 +334,37 @@ export default function WorkerDashboard() {
 
   useEffect(() => {
     loadAllData();
+
+    // Auto-refresh analytics (profile_views) co 30 sekund
+    const refreshInterval = setInterval(() => {
+      refreshAnalytics();
+    }, 30000); // 30 sekund
+
+    return () => clearInterval(refreshInterval);
   }, []);
+
+  // Refresh analytics without reloading entire dashboard
+  const refreshAnalytics = async () => {
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const profile = await workerProfileService.getWorkerProfile(user.id);
+      if (profile?.id) {
+        const analyticsData = await workerProfileService.getAnalytics(
+          profile.id
+        );
+        setAnalytics((prev) => ({
+          ...prev,
+          profile_views: analyticsData.profile_views,
+        }));
+      }
+    } catch (error) {
+      console.error("Error refreshing analytics:", error);
+    }
+  };
 
   const loadAllData = async () => {
     try {
@@ -415,30 +445,43 @@ export default function WorkerDashboard() {
       const reviewsData = await workerProfileService.getReviews(user.id);
       setReviews(reviewsData);
 
-      // Load analytics - now enabled
-      try {
-        const analyticsData = await workerProfileService.getAnalytics(user.id);
-        setAnalytics(analyticsData);
-      } catch (err) {
-        console.warn("[WORKER-DASH] Could not load analytics:", err);
-        // Calculate average rating BEFORE setAnalytics to prevent infinite loop
-        const avgRating =
-          reviewsData.length > 0
-            ? reviewsData.reduce((sum: number, r: any) => sum + r.rating, 0) /
-              reviewsData.length
-            : 0;
+      // Load analytics - FIXED: Now uses profile.id (worker_id) not user.id (profile_id)
+      if (profile?.id) {
+        try {
+          console.log(
+            "🔍 [WORKER-DASH] Loading analytics for worker ID:",
+            profile.id
+          );
+          const analyticsData = await workerProfileService.getAnalytics(
+            profile.id
+          );
+          console.log("✅ [WORKER-DASH] Analytics loaded:", analyticsData);
+          setAnalytics(analyticsData);
+        } catch (err) {
+          console.warn("[WORKER-DASH] Could not load analytics:", err);
+          // Calculate average rating BEFORE setAnalytics to prevent infinite loop
+          const avgRating =
+            reviewsData.length > 0
+              ? reviewsData.reduce((sum: number, r: any) => sum + r.rating, 0) /
+                reviewsData.length
+              : 0;
 
-        // Set default analytics data
-        setAnalytics({
-          profile_views: 0,
-          job_views: 0,
-          applications_sent: 0,
-          applications_accepted: 0,
-          total_earnings: 0,
-          average_rating: avgRating,
-          completed_jobs: 0,
-          response_rate: 0,
-        });
+          // Set default analytics data
+          setAnalytics({
+            profile_views: 0,
+            job_views: 0,
+            applications_sent: 0,
+            applications_accepted: 0,
+            total_earnings: 0,
+            average_rating: avgRating,
+            completed_jobs: 0,
+            response_rate: 0,
+          });
+        }
+      } else {
+        console.error(
+          "❌ [WORKER-DASH] No profile loaded - cannot fetch analytics"
+        );
       }
 
       // Load jobs (mock for now)

@@ -307,7 +307,7 @@ export const CleaningCompanySearch: React.FC<CleaningCompanySearchProps> = ({
                     {/* CONTENT */}
                     <div className="p-5 flex flex-col flex-1">
                       {/* Company name */}
-                      <Link to={`/public/cleaning-company/${company.id}`}>
+                      <Link to={`/cleaning-company/profile/${company.id}`}>
                         <h3 className="text-xl font-bold text-gray-900 hover:text-blue-600 transition-colors mb-2">
                           {company.company_name}
                         </h3>
@@ -353,7 +353,7 @@ export const CleaningCompanySearch: React.FC<CleaningCompanySearchProps> = ({
                       {/* ACTION BUTTONS */}
                       <div className="flex flex-col gap-2 mt-auto">
                         <Link
-                          to={`/public/cleaning-company/${company.id}`}
+                          to={`/cleaning-company/profile/${company.id}`}
                           className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg font-semibold hover:bg-blue-700 transition-colors text-center shadow-sm"
                         >
                           Zobacz profil

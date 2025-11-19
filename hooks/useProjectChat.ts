@@ -1,17 +1,14 @@
-import { useState, useEffect, useRef } from 'react';
-import { createClient, RealtimeChannel } from '@supabase/supabase-js';
-import { useAuth } from '../contexts/AuthContext';
-
-const supabaseUrl = 'https://dtnotuyagygexmkyqtgb.supabase.co';
-const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR0bm90dXlhZ3lnZXhta3lxdGdiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk3ODUzMzAsImV4cCI6MjA3NTM2MTMzMH0.8gsHqR3mlGVhry2hIlxQkfFDfh5vgBrxGW_eXPXuRqw';
-const supabase = createClient(supabaseUrl, supabaseKey);
+import { useState, useEffect, useRef } from "react";
+import { RealtimeChannel } from "@supabase/supabase-js";
+import { supabase } from "../src/lib/supabase";
+import { useAuth } from "../contexts/AuthContext";
 
 export interface ChatChannel {
   id: string;
   project_id: string;
   name: string;
   description?: string;
-  channel_type: 'general' | 'task' | 'team' | 'private';
+  channel_type: "general" | "task" | "team" | "private";
   is_private: boolean;
   created_by: string;
   created_at: string;
@@ -22,7 +19,7 @@ export interface ChatMessage {
   channel_id: string;
   sender_id: string;
   message_text?: string;
-  message_type: 'text' | 'image' | 'file' | 'system';
+  message_type: "text" | "image" | "file" | "system";
   file_url?: string;
   file_name?: string;
   file_size?: number;
@@ -58,45 +55,47 @@ export function useProjectChat(projectId?: string, channelId?: string) {
 
     try {
       const { data, error: fetchError } = await supabase
-        .from('project_chat_groups')
-        .select('*')
-        .eq('project_id', projectId)
-        .order('created_at', { ascending: false });
+        .from("project_chat_groups")
+        .select("*")
+        .eq("project_id", projectId)
+        .order("created_at", { ascending: false });
 
       if (fetchError) throw fetchError;
       setChannels(data || []);
     } catch (err: any) {
-      console.error('Error fetching channels:', err);
+      console.error("Error fetching channels:", err);
     }
   };
 
   // Create channel
   const createChannel = async (
-    name: string, 
-    channelType: 'general' | 'task' | 'team' | 'private' = 'general',
+    name: string,
+    channelType: "general" | "task" | "team" | "private" = "general",
     description?: string,
     isPrivate: boolean = false
   ) => {
     try {
       const { data, error: createError } = await supabase
-        .from('project_chat_groups')
-        .insert([{
-          project_id: projectId,
-          name: name,
-          description: description,
-          channel_type: channelType,
-          is_private: isPrivate,
-          created_by: user?.id
-        }])
+        .from("project_chat_groups")
+        .insert([
+          {
+            project_id: projectId,
+            name: name,
+            description: description,
+            channel_type: channelType,
+            is_private: isPrivate,
+            created_by: user?.id,
+          },
+        ])
         .select()
         .single();
 
       if (createError) throw createError;
-      
-      setChannels(prev => [data, ...prev]);
+
+      setChannels((prev) => [data, ...prev]);
       return data;
     } catch (err: any) {
-      console.error('Error creating channel:', err);
+      console.error("Error creating channel:", err);
       throw err;
     }
   };
@@ -112,11 +111,11 @@ export function useProjectChat(projectId?: string, channelId?: string) {
     try {
       setLoading(true);
       const { data, error: fetchError } = await supabase
-        .from('project_chat_messages')
-        .select('*')
-        .eq('channel_id', channelId)
-        .eq('is_deleted', false)
-        .order('created_at', { ascending: true })
+        .from("project_chat_messages")
+        .select("*")
+        .eq("channel_id", channelId)
+        .eq("is_deleted", false)
+        .order("created_at", { ascending: true })
         .limit(limit);
 
       if (fetchError) throw fetchError;
@@ -124,7 +123,7 @@ export function useProjectChat(projectId?: string, channelId?: string) {
       setError(null);
     } catch (err: any) {
       setError(err.message);
-      console.error('Error fetching messages:', err);
+      console.error("Error fetching messages:", err);
     } finally {
       setLoading(false);
     }
@@ -133,7 +132,7 @@ export function useProjectChat(projectId?: string, channelId?: string) {
   // Send message
   const sendMessage = async (
     messageText: string,
-    messageType: 'text' | 'image' | 'file' = 'text',
+    messageType: "text" | "image" | "file" = "text",
     fileUrl?: string,
     fileName?: string,
     fileSize?: number,
@@ -141,28 +140,30 @@ export function useProjectChat(projectId?: string, channelId?: string) {
   ) => {
     try {
       const { data, error: createError } = await supabase
-        .from('project_chat_messages')
-        .insert([{
-          channel_id: channelId,
-          sender_id: user?.id,
-          message_text: messageText,
-          message_type: messageType,
-          file_url: fileUrl,
-          file_name: fileName,
-          file_size: fileSize,
-          parent_message_id: parentMessageId,
-          is_edited: false,
-          is_deleted: false
-        }])
+        .from("project_chat_messages")
+        .insert([
+          {
+            channel_id: channelId,
+            sender_id: user?.id,
+            message_text: messageText,
+            message_type: messageType,
+            file_url: fileUrl,
+            file_name: fileName,
+            file_size: fileSize,
+            parent_message_id: parentMessageId,
+            is_edited: false,
+            is_deleted: false,
+          },
+        ])
         .select()
         .single();
 
       if (createError) throw createError;
-      
+
       // Message will be added via realtime subscription
       return data;
     } catch (err: any) {
-      console.error('Error sending message:', err);
+      console.error("Error sending message:", err);
       throw err;
     }
   };
@@ -171,23 +172,23 @@ export function useProjectChat(projectId?: string, channelId?: string) {
   const editMessage = async (messageId: string, newText: string) => {
     try {
       const { data, error: updateError } = await supabase
-        .from('project_chat_messages')
+        .from("project_chat_messages")
         .update({
           message_text: newText,
           is_edited: true,
-          updated_at: new Date().toISOString()
+          updated_at: new Date().toISOString(),
         })
-        .eq('id', messageId)
-        .eq('sender_id', user?.id)
+        .eq("id", messageId)
+        .eq("sender_id", user?.id)
         .select()
         .single();
 
       if (updateError) throw updateError;
 
-      setMessages(prev => prev.map(m => m.id === messageId ? data : m));
+      setMessages((prev) => prev.map((m) => (m.id === messageId ? data : m)));
       return data;
     } catch (err: any) {
-      console.error('Error editing message:', err);
+      console.error("Error editing message:", err);
       throw err;
     }
   };
@@ -196,19 +197,19 @@ export function useProjectChat(projectId?: string, channelId?: string) {
   const deleteMessage = async (messageId: string) => {
     try {
       const { error: updateError } = await supabase
-        .from('project_chat_messages')
+        .from("project_chat_messages")
         .update({
           is_deleted: true,
-          updated_at: new Date().toISOString()
+          updated_at: new Date().toISOString(),
         })
-        .eq('id', messageId)
-        .eq('sender_id', user?.id);
+        .eq("id", messageId)
+        .eq("sender_id", user?.id);
 
       if (updateError) throw updateError;
 
-      setMessages(prev => prev.filter(m => m.id !== messageId));
+      setMessages((prev) => prev.filter((m) => m.id !== messageId));
     } catch (err: any) {
-      console.error('Error deleting message:', err);
+      console.error("Error deleting message:", err);
       throw err;
     }
   };
@@ -217,16 +218,16 @@ export function useProjectChat(projectId?: string, channelId?: string) {
   const fetchThreadMessages = async (parentMessageId: string) => {
     try {
       const { data, error: fetchError } = await supabase
-        .from('project_chat_messages')
-        .select('*')
-        .eq('parent_message_id', parentMessageId)
-        .eq('is_deleted', false)
-        .order('created_at', { ascending: true });
+        .from("project_chat_messages")
+        .select("*")
+        .eq("parent_message_id", parentMessageId)
+        .eq("is_deleted", false)
+        .order("created_at", { ascending: true });
 
       if (fetchError) throw fetchError;
       return data || [];
     } catch (err: any) {
-      console.error('Error fetching thread messages:', err);
+      console.error("Error fetching thread messages:", err);
       return [];
     }
   };
@@ -238,29 +239,31 @@ export function useProjectChat(projectId?: string, channelId?: string) {
     channelSubscription.current = supabase
       .channel(`chat:${channelId}`)
       .on(
-        'postgres_changes',
+        "postgres_changes",
         {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'chat_messages',
-          filter: `channel_id=eq.${channelId}`
+          event: "INSERT",
+          schema: "public",
+          table: "chat_messages",
+          filter: `channel_id=eq.${channelId}`,
         },
         (payload) => {
           const newMessage = payload.new as ChatMessage;
-          setMessages(prev => [...prev, newMessage]);
+          setMessages((prev) => [...prev, newMessage]);
         }
       )
       .on(
-        'postgres_changes',
+        "postgres_changes",
         {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'chat_messages',
-          filter: `channel_id=eq.${channelId}`
+          event: "UPDATE",
+          schema: "public",
+          table: "chat_messages",
+          filter: `channel_id=eq.${channelId}`,
         },
         (payload) => {
           const updatedMessage = payload.new as ChatMessage;
-          setMessages(prev => prev.map(m => m.id === updatedMessage.id ? updatedMessage : m));
+          setMessages((prev) =>
+            prev.map((m) => (m.id === updatedMessage.id ? updatedMessage : m))
+          );
         }
       )
       .subscribe();
@@ -300,6 +303,6 @@ export function useProjectChat(projectId?: string, channelId?: string) {
     sendMessage,
     editMessage,
     deleteMessage,
-    fetchThreadMessages
+    fetchThreadMessages,
   };
 }

@@ -84,29 +84,32 @@ export default function AccountantProfilePage() {
     loadEmployerId();
   }, [authUser]);
 
-  // Track profile view after employerId is loaded
+  // Track profile view when page loads
   useEffect(() => {
-    if (employerId && id) {
+    if (id) {
       trackProfileView();
     }
-  }, [employerId, id]);
+  }, [id, employerId]);
 
   const trackProfileView = async () => {
-    if (!authUser || !id || !employerId) return;
+    if (!id) return;
 
     try {
+      // Track view with employer_id if available, otherwise null
       await supabase.from("profile_views").insert({
         accountant_id: id,
-        employer_id: employerId,
+        employer_id: employerId || null, // Can be null for anonymous/non-employer visitors
         viewed_at: new Date().toISOString(),
       });
 
-      console.log("✅ Profile view tracked for accountant:", id);
-    } catch (error) {
-      console.error(
-        "⚠️ Error tracking profile view (accountant_id column might not exist yet):",
-        error
+      console.log(
+        "✅ Profile view tracked for accountant:",
+        id,
+        "by employer:",
+        employerId || "anonymous"
       );
+    } catch (error) {
+      console.error("⚠️ Error tracking profile view:", error);
     }
   };
 

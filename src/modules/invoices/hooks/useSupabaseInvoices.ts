@@ -5,9 +5,14 @@
 // Replaces useElectronDB for invoices
 // =====================================================
 
-import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '../../../lib/supabase-fixed';
-import type { Invoice, InvoiceLine, CreateInvoiceData, InvoiceStats } from '../types/index.js';
+import { useState, useEffect, useCallback } from "react";
+import { supabase } from "../../../lib/supabase";
+import type {
+  Invoice,
+  InvoiceLine,
+  CreateInvoiceData,
+  InvoiceStats,
+} from "../types/index.js";
 
 interface UseInvoicesReturn {
   invoices: Invoice[];
@@ -17,7 +22,11 @@ interface UseInvoicesReturn {
   createInvoice: (data: CreateInvoiceData) => Promise<Invoice>;
   updateInvoice: (id: string, data: Partial<Invoice>) => Promise<void>;
   deleteInvoice: (id: string) => Promise<void>;
-  markAsPaid: (id: string, paidAmount: number, paymentDate: string) => Promise<void>;
+  markAsPaid: (
+    id: string,
+    paidAmount: number,
+    paymentDate: string
+  ) => Promise<void>;
   refetch: () => Promise<void>;
 }
 
@@ -32,7 +41,7 @@ export function useSupabaseInvoices(userId: string): UseInvoicesReturn {
   // =====================================================
   const fetchInvoices = useCallback(async () => {
     if (!userId) {
-      setError('User ID is required');
+      setError("User ID is required");
       setLoading(false);
       return;
     }
@@ -43,39 +52,41 @@ export function useSupabaseInvoices(userId: string): UseInvoicesReturn {
 
       // Fetch invoices with lines
       const { data: invoicesData, error: invoicesError } = await supabase
-        .from('invoice_invoices')
-        .select('*')
-        .eq('user_id', userId)
-        .order('invoice_date', { ascending: false });
+        .from("invoice_invoices")
+        .select("*")
+        .eq("user_id", userId)
+        .order("invoice_date", { ascending: false });
 
       if (invoicesError) throw invoicesError;
 
       // Fetch all invoice lines for these invoices
-      const invoiceIds = invoicesData?.map(inv => inv.id) || [];
-      
+      const invoiceIds = invoicesData?.map((inv) => inv.id) || [];
+
       let linesData: InvoiceLine[] = [];
       if (invoiceIds.length > 0) {
         const { data: lines, error: linesError } = await supabase
-          .from('invoice_invoice_lines')
-          .select('*')
-          .in('invoice_id', invoiceIds)
-          .order('line_number', { ascending: true });
+          .from("invoice_invoice_lines")
+          .select("*")
+          .in("invoice_id", invoiceIds)
+          .order("line_number", { ascending: true });
 
         if (linesError) throw linesError;
-        linesData = lines || [];
+        // Type assertion for invoice lines
+        linesData = (lines || []) as unknown as InvoiceLine[];
       }
 
       // Combine invoices with their lines
-      const invoicesWithLines: Invoice[] = (invoicesData || []).map(invoice => ({
+      // Type assertion: database types (null) -> app types (undefined)
+      const invoicesWithLines = (invoicesData || []).map((invoice) => ({
         ...invoice,
-        lines: linesData.filter(line => line.invoice_id === invoice.id)
-      }));
+        lines: linesData.filter((line) => line.invoice_id === invoice.id),
+      })) as unknown as Invoice[];
 
       setInvoices(invoicesWithLines);
       calculateStats(invoicesWithLines);
     } catch (err) {
-      console.error('Error fetching invoices:', err);
-      setError(err instanceof Error ? err.message : 'Failed to fetch invoices');
+      console.error("Error fetching invoices:", err);
+      setError(err instanceof Error ? err.message : "Failed to fetch invoices");
     } finally {
       setLoading(false);
     }
@@ -89,15 +100,17 @@ export function useSupabaseInvoices(userId: string): UseInvoicesReturn {
     const currentMonth = now.getMonth();
     const currentYear = now.getFullYear();
 
-    const unpaid = invoiceList.filter(inv => inv.status === 'unpaid');
-    const paid = invoiceList.filter(inv => inv.status === 'paid');
-    
-    const thisMonth = invoiceList.filter(inv => {
+    const unpaid = invoiceList.filter((inv) => inv.status === "unpaid");
+    const paid = invoiceList.filter((inv) => inv.status === "paid");
+
+    const thisMonth = invoiceList.filter((inv) => {
       const date = new Date(inv.invoice_date);
-      return date.getMonth() === currentMonth && date.getFullYear() === currentYear;
+      return (
+        date.getMonth() === currentMonth && date.getFullYear() === currentYear
+      );
     });
 
-    const thisYear = invoiceList.filter(inv => {
+    const thisYear = invoiceList.filter((inv) => {
       const date = new Date(inv.invoice_date);
       return date.getFullYear() === currentYear;
     });
@@ -108,7 +121,10 @@ export function useSupabaseInvoices(userId: string): UseInvoicesReturn {
       unpaid_amount: unpaid.reduce((sum, inv) => sum + inv.total_gross, 0),
       paid_count: paid.length,
       paid_amount: paid.reduce((sum, inv) => sum + inv.total_gross, 0),
-      this_month_amount: thisMonth.reduce((sum, inv) => sum + inv.total_gross, 0),
+      this_month_amount: thisMonth.reduce(
+        (sum, inv) => sum + inv.total_gross,
+        0
+      ),
       this_year_amount: thisYear.reduce((sum, inv) => sum + inv.total_gross, 0),
     });
   };
@@ -123,44 +139,49 @@ export function useSupabaseInvoices(userId: string): UseInvoicesReturn {
       // Generate invoice number (FV-YYYY-MM-XXX)
       const invoiceDate = new Date(data.invoice_date);
       const year = invoiceDate.getFullYear();
-      const month = String(invoiceDate.getMonth() + 1).padStart(2, '0');
-      
+      const month = String(invoiceDate.getMonth() + 1).padStart(2, "0");
+
       // Get count of invoices in this month
       const { count } = await supabase
-        .from('invoice_invoices')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', userId)
-        .gte('invoice_date', `${year}-${month}-01`)
-        .lt('invoice_date', `${year}-${month}-31`);
+        .from("invoice_invoices")
+        .select("*", { count: "exact", head: true })
+        .eq("user_id", userId)
+        .gte("invoice_date", `${year}-${month}-01`)
+        .lt("invoice_date", `${year}-${month}-31`);
 
-      const invoiceNumber = `FV-${year}-${month}-${String((count || 0) + 1).padStart(3, '0')}`;
+      const invoiceNumber = `FV-${year}-${month}-${String(
+        (count || 0) + 1
+      ).padStart(3, "0")}`;
 
       // Get client snapshot
       let clientSnapshot = null;
       if (data.client_id) {
         const { data: client } = await supabase
-          .from('invoice_clients')
-          .select('*')
-          .eq('id', data.client_id)
+          .from("invoice_clients")
+          .select("*")
+          .eq("id", data.client_id)
           .single();
-        
+
         clientSnapshot = client;
       }
 
       // Calculate totals from lines
-      const totals = data.lines.reduce((acc, line) => {
-        const lineNet = line.quantity * line.unit_price;
-        const lineVat = lineNet * (line.vat_rate / 100);
-        return {
-          net: acc.net + lineNet,
-          vat: acc.vat + lineVat,
-          gross: acc.gross + lineNet + lineVat
-        };
-      }, { net: 0, vat: 0, gross: 0 });
+      const totals = data.lines.reduce(
+        (acc, line) => {
+          const lineNet = line.quantity * line.unit_price;
+          const lineVat = lineNet * (line.vat_rate / 100);
+          return {
+            net: acc.net + lineNet,
+            vat: acc.vat + lineVat,
+            gross: acc.gross + lineNet + lineVat,
+          };
+        },
+        { net: 0, vat: 0, gross: 0 }
+      );
 
       // Create invoice
       const { data: invoice, error: invoiceError } = await supabase
-        .from('invoice_invoices')
+        .from("invoice_invoices")
         .insert({
           user_id: userId,
           invoice_number: invoiceNumber,
@@ -169,7 +190,7 @@ export function useSupabaseInvoices(userId: string): UseInvoicesReturn {
           client_id: data.client_id,
           client_snapshot: clientSnapshot,
           language: data.language,
-          status: 'unpaid',
+          status: "unpaid",
           total_net: totals.net,
           total_vat: totals.vat,
           total_gross: totals.gross,
@@ -205,7 +226,7 @@ export function useSupabaseInvoices(userId: string): UseInvoicesReturn {
       });
 
       const { error: linesError } = await supabase
-        .from('invoice_invoice_lines')
+        .from("invoice_invoice_lines")
         .insert(linesWithCalculations);
 
       if (linesError) throw linesError;
@@ -213,10 +234,12 @@ export function useSupabaseInvoices(userId: string): UseInvoicesReturn {
       // Refetch to get complete invoice with lines
       await fetchInvoices();
 
-      return { ...invoice, lines: linesWithCalculations } as Invoice;
+      // Type assertion: database types (null) -> app types (undefined)
+      return { ...invoice, lines: linesWithCalculations } as unknown as Invoice;
     } catch (err) {
-      console.error('Error creating invoice:', err);
-      const errorMsg = err instanceof Error ? err.message : 'Failed to create invoice';
+      console.error("Error creating invoice:", err);
+      const errorMsg =
+        err instanceof Error ? err.message : "Failed to create invoice";
       setError(errorMsg);
       throw new Error(errorMsg);
     }
@@ -225,22 +248,27 @@ export function useSupabaseInvoices(userId: string): UseInvoicesReturn {
   // =====================================================
   // UPDATE INVOICE
   // =====================================================
-  const updateInvoice = async (id: string, updates: Partial<Invoice>): Promise<void> => {
+  const updateInvoice = async (
+    id: string,
+    updates: Partial<Invoice>
+  ): Promise<void> => {
     try {
       setError(null);
 
+      // Type assertion: app types (undefined) -> database types (null)
       const { error: updateError } = await supabase
-        .from('invoice_invoices')
-        .update(updates)
-        .eq('id', id)
-        .eq('user_id', userId);
+        .from("invoice_invoices")
+        .update(updates as any)
+        .eq("id", id)
+        .eq("user_id", userId);
 
       if (updateError) throw updateError;
 
       await fetchInvoices();
     } catch (err) {
-      console.error('Error updating invoice:', err);
-      const errorMsg = err instanceof Error ? err.message : 'Failed to update invoice';
+      console.error("Error updating invoice:", err);
+      const errorMsg =
+        err instanceof Error ? err.message : "Failed to update invoice";
       setError(errorMsg);
       throw new Error(errorMsg);
     }
@@ -255,17 +283,18 @@ export function useSupabaseInvoices(userId: string): UseInvoicesReturn {
 
       // Lines will be deleted automatically by CASCADE
       const { error: deleteError } = await supabase
-        .from('invoice_invoices')
+        .from("invoice_invoices")
         .delete()
-        .eq('id', id)
-        .eq('user_id', userId);
+        .eq("id", id)
+        .eq("user_id", userId);
 
       if (deleteError) throw deleteError;
 
       await fetchInvoices();
     } catch (err) {
-      console.error('Error deleting invoice:', err);
-      const errorMsg = err instanceof Error ? err.message : 'Failed to delete invoice';
+      console.error("Error deleting invoice:", err);
+      const errorMsg =
+        err instanceof Error ? err.message : "Failed to delete invoice";
       setError(errorMsg);
       throw new Error(errorMsg);
     }
@@ -274,36 +303,41 @@ export function useSupabaseInvoices(userId: string): UseInvoicesReturn {
   // =====================================================
   // MARK AS PAID
   // =====================================================
-  const markAsPaid = async (id: string, paidAmount: number, paymentDate: string): Promise<void> => {
+  const markAsPaid = async (
+    id: string,
+    paidAmount: number,
+    paymentDate: string
+  ): Promise<void> => {
     try {
       setError(null);
 
-      const invoice = invoices.find(inv => inv.id === id);
-      if (!invoice) throw new Error('Invoice not found');
+      const invoice = invoices.find((inv) => inv.id === id);
+      if (!invoice) throw new Error("Invoice not found");
 
-      let status: 'paid' | 'partial' | 'unpaid' = 'unpaid';
+      let status: "paid" | "partial" | "unpaid" = "unpaid";
       if (paidAmount >= invoice.total_gross) {
-        status = 'paid';
+        status = "paid";
       } else if (paidAmount > 0) {
-        status = 'partial';
+        status = "partial";
       }
 
       const { error: updateError } = await supabase
-        .from('invoice_invoices')
+        .from("invoice_invoices")
         .update({
           paid_amount: paidAmount,
           payment_date: paymentDate,
           status: status,
         })
-        .eq('id', id)
-        .eq('user_id', userId);
+        .eq("id", id)
+        .eq("user_id", userId);
 
       if (updateError) throw updateError;
 
       await fetchInvoices();
     } catch (err) {
-      console.error('Error marking invoice as paid:', err);
-      const errorMsg = err instanceof Error ? err.message : 'Failed to mark invoice as paid';
+      console.error("Error marking invoice as paid:", err);
+      const errorMsg =
+        err instanceof Error ? err.message : "Failed to mark invoice as paid";
       setError(errorMsg);
       throw new Error(errorMsg);
     }

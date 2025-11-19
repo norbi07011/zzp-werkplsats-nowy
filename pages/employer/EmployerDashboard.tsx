@@ -76,8 +76,42 @@ export const EmployerDashboard = () => {
     });
     if (user?.id) {
       loadDashboardData();
+
+      // Auto-refresh profile_views co 30 sekund
+      const refreshInterval = setInterval(() => {
+        refreshProfileViews();
+      }, 30000); // 30 seconds
+
+      return () => clearInterval(refreshInterval);
     }
   }, [user?.id]);
+
+  // Refresh profile_views counter without reloading entire dashboard
+  const refreshProfileViews = async () => {
+    if (!employerId) return;
+
+    try {
+      console.log(
+        "🔄 [EMPLOYER-DASH] Refreshing profile_views for employer:",
+        employerId
+      );
+      const statsData = await employerService.getEmployerStats(employerId);
+      if (statsData?.profile_views !== undefined) {
+        setStats((prev) =>
+          prev ? { ...prev, profile_views: statsData.profile_views } : prev
+        );
+        console.log(
+          "✅ [EMPLOYER-DASH] Profile views updated:",
+          statsData.profile_views
+        );
+      }
+    } catch (error) {
+      console.error(
+        "❌ [EMPLOYER-DASH] Error refreshing profile views:",
+        error
+      );
+    }
+  };
 
   const loadDashboardData = async () => {
     console.log("[EMPLOYER-DASH] loadDashboardData called, user.id:", user?.id);
@@ -245,6 +279,12 @@ export const EmployerDashboard = () => {
 
     return [
       {
+        label: "Wyświetlenia profilu",
+        value: stats.profile_views,
+        icon: "eye",
+        color: "bg-teal-500",
+      },
+      {
         label: "Wyszukiwania w tym miesiącu",
         value: stats.searches_this_month,
         icon: "search",
@@ -262,12 +302,6 @@ export const EmployerDashboard = () => {
         icon: "message",
         color: "bg-green-500",
       },
-      {
-        label: "Dni do końca subskrypcji",
-        value: stats.days_until_expiry > 0 ? stats.days_until_expiry : 0,
-        icon: "calendar",
-        color: "bg-purple-500",
-      },
     ];
   };
 
@@ -279,6 +313,7 @@ export const EmployerDashboard = () => {
       string,
       "red" | "blue" | "green" | "purple" | "orange" | "teal"
     > = {
+      eye: "teal",
       search: "blue",
       bookmark: "orange",
       message: "green",
@@ -385,6 +420,28 @@ export const EmployerDashboard = () => {
 
   const getIconSvg = (icon: string) => {
     switch (icon) {
+      case "eye":
+        return (
+          <svg
+            className="w-8 h-8"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+            />
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+            />
+          </svg>
+        );
       case "search":
         return (
           <svg

@@ -35,6 +35,7 @@ import AccountantSearchPage from "./pages/public/AccountantSearchPage";
 import EmployerSearchPage from "./pages/public/EmployerSearchPage";
 import EmployerPublicProfilePage from "./pages/public/EmployerPublicProfilePage";
 import WorkerPublicProfilePage from "./pages/public/WorkerPublicProfilePage";
+import CleaningCompanyPublicProfilePage from "./pages/public/CleaningCompanyPublicProfilePage";
 import FeedPage from "./pages/FeedPage_PREMIUM"; // 🚀 ULTRA-PREMIUM FEED 2025
 import TeamDashboard from "./components/TeamDashboard";
 
@@ -159,9 +160,11 @@ const WorkerSearch = lazy(() =>
     default: m.WorkerSearch,
   }))
 );
-// ❌ REMOVED: CleaningCompanySearch - moved to archiwum/smieci
-// ❌ REMOVED: CleaningCompanyPublicProfile - moved to archiwum/smieci
-// ❌ REMOVED: AccountantPublicProfile - moved to archiwum/smieci
+const CleaningCompanySearch = lazy(() =>
+  import("./pages/employer/CleaningCompanySearch").then((m) => ({
+    default: m.default,
+  }))
+);
 const SubscriptionManager = lazy(() =>
   import("./pages/employer/SubscriptionManager").then((m) => ({
     default: m.SubscriptionManager,
@@ -186,7 +189,8 @@ const WorkerSubscriptionSelectionPage = lazy(
 // ❌ REMOVED: CleaningDashboard, CleaningReviewsPage, CleaningPortfolioPage - moved to archiwum
 // CleaningCompanyProfile removed - use Dashboard Settings tab instead
 
-// ❌ REMOVED: Invoice Module - moved to archiwum
+// ✅ Invoice Module (LAZY LOADED) - faktury, BTW, koszty, kilometry
+const InvoiceApp = lazy(() => import("./src/modules/invoices/InvoiceApp"));
 
 function App() {
   return (
@@ -257,6 +261,10 @@ function App() {
                           path="/accountant/profile/:id"
                           element={<AccountantProfilePage />}
                         />
+                        <Route
+                          path="/cleaning-company/profile/:id"
+                          element={<CleaningCompanyPublicProfilePage />}
+                        />
                         {/* Legacy routes - redirect to new structure */}
                         <Route
                           path="/register-employer"
@@ -317,6 +325,14 @@ function App() {
                           element={
                             <ProtectedRoute>
                               <WorkerSearch />
+                            </ProtectedRoute>
+                          }
+                        />
+                        <Route
+                          path="/cleaning-companies"
+                          element={
+                            <ProtectedRoute>
+                              <CleaningCompanySearch />
                             </ProtectedRoute>
                           }
                         />
@@ -506,7 +522,15 @@ function App() {
                         <Route index element={<CleaningCompanyDashboard />} />
                       </Route>
 
-                      {/* ❌ REMOVED: Invoice Module - moved to archiwum */}
+                      {/* ✅ Invoice Module - faktury, BTW, koszty, kilometry */}
+                      <Route
+                        path="/faktury"
+                        element={
+                          <ProtectedRoute requiredRole="cleaning_company">
+                            <InvoiceApp />
+                          </ProtectedRoute>
+                        }
+                      />
 
                       {/* 404 */}
                       <Route path="*" element={<Navigate to="/" replace />} />

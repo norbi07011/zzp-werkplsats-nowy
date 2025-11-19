@@ -1,148 +1,156 @@
-import { useState, useEffect } from 'react'
-import { useAuth } from '../contexts/AuthContext'
-import { supabase } from '../src/lib/supabase'
-import { createClient } from '@supabase/supabase-js'
-import { Card, CardContent, CardHeader, CardTitle } from '../src/modules/invoices/components/ui/card'
-import { Button } from '../src/modules/invoices/components/ui/button'
-import { Input } from '../src/modules/invoices/components/ui/input'
-import { Textarea } from '../src/modules/invoices/components/ui/textarea'
-import { Badge } from '../src/modules/invoices/components/ui/badge'
-import { BuildingCommunication } from './BuildingCommunication'
-import type { ProjectRole } from '../types'
+import { useState, useEffect } from "react";
+import { useAuth } from "../contexts/AuthContext";
+import { supabase } from "../src/lib/supabase";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "../src/modules/invoices/components/ui/card";
+import { Button } from "../src/modules/invoices/components/ui/button";
+import { Input } from "../src/modules/invoices/components/ui/input";
+import { Textarea } from "../src/modules/invoices/components/ui/textarea";
+import { Badge } from "../src/modules/invoices/components/ui/badge";
+import { BuildingCommunication } from "./BuildingCommunication";
+import type { ProjectRole } from "../types";
 
-// Raw Supabase client for communication_projects table
-const supabaseUrl = 'https://dtnotuyagygexmkyqtgb.supabase.co';
-const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR0bm90dXlhZ3lnZXhta3lxdGdiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk3ODUzMzAsImV4cCI6MjA3NTM2MTMzMH0.8gsHqR3mlGVhry2hIlxQkfFDfh5vgBrxGW_eXPXuRqw';
-const supabaseRaw = createClient(supabaseUrl, supabaseKey);
+// Use main Supabase client (alias as supabaseRaw for backwards compatibility)
+const supabaseRaw = supabase;
 
 interface ProjectData {
-  id: string
-  name: string
-  description: string
-  employer_id: string
-  employer_name: string
-  status: 'active' | 'completed' | 'paused'
-  created_at: string
-  members_count: number
+  id: string;
+  name: string;
+  description: string;
+  employer_id: string;
+  employer_name: string;
+  status: "active" | "completed" | "paused";
+  created_at: string;
+  members_count: number;
 }
 
 interface CreateProjectData {
-  name: string
-  description: string
-  employer_id?: string
+  name: string;
+  description: string;
+  employer_id?: string;
 }
 
 interface ProjectCommunicationManagerProps {
-  userRole: ProjectRole
-  allowCreateProjects?: boolean
+  userRole: ProjectRole;
+  allowCreateProjects?: boolean;
 }
 
-export function ProjectCommunicationManager({ 
-  userRole, 
-  allowCreateProjects = false 
+export function ProjectCommunicationManager({
+  userRole,
+  allowCreateProjects = false,
 }: ProjectCommunicationManagerProps) {
-  const { user } = useAuth()
-  const [projects, setProjects] = useState<ProjectData[]>([])
-  const [selectedProject, setSelectedProject] = useState<ProjectData | null>(null)
-  const [showCreateForm, setShowCreateForm] = useState(false)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const { user } = useAuth();
+  const [projects, setProjects] = useState<ProjectData[]>([]);
+  const [selectedProject, setSelectedProject] = useState<ProjectData | null>(
+    null
+  );
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   // Create project form state
   const [createForm, setCreateForm] = useState<CreateProjectData>({
-    name: '',
-    description: '',
-    employer_id: ''
-  })
+    name: "",
+    description: "",
+    employer_id: "",
+  });
 
   useEffect(() => {
-    loadProjects()
-  }, [user])
+    loadProjects();
+  }, [user]);
 
   const loadProjects = async () => {
-    if (!user?.id) return
+    if (!user?.id) return;
 
     try {
-      setLoading(true)
-      
+      setLoading(true);
+
       // ✅ Load real projects from Supabase using raw client
       const { data: projectsData, error: fetchError } = await supabaseRaw
-        .from('communication_projects')
-        .select('*')
-        .eq('created_by', user.id)
-        .order('created_at', { ascending: false })
+        .from("communication_projects")
+        .select("*")
+        .eq("created_by", user.id)
+        .order("created_at", { ascending: false });
 
-      if (fetchError) throw fetchError
+      if (fetchError) throw fetchError;
 
       // Transform to ProjectData format
-      const transformedProjects: ProjectData[] = (projectsData || []).map((p: any) => ({
-        id: p.id,
-        name: p.name,
-        description: p.description || '',
-        employer_id: p.employer_id || p.created_by,
-        employer_name: p.employer_name || 'Twoja Firma',
-        status: p.status,
-        created_at: p.created_at,
-        members_count: 1 // TODO: count from project_members
-      }))
+      const transformedProjects: ProjectData[] = (projectsData || []).map(
+        (p: any) => ({
+          id: p.id,
+          name: p.name,
+          description: p.description || "",
+          employer_id: p.employer_id || p.created_by,
+          employer_name: p.employer_name || "Twoja Firma",
+          status: p.status,
+          created_at: p.created_at,
+          members_count: 1, // TODO: count from project_members
+        })
+      );
 
-      setProjects(transformedProjects)
+      setProjects(transformedProjects);
     } catch (err) {
-      console.error('Error loading projects:', err)
-      setError('Błąd podczas ładowania projektów')
+      console.error("Error loading projects:", err);
+      setError("Błąd podczas ładowania projektów");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const createProject = async () => {
-    if (!user?.id || !createForm.name.trim()) return
+    if (!user?.id || !createForm.name.trim()) return;
 
     try {
       // ✅ Create real project in Supabase
       const { data: newProject, error: createError } = await supabaseRaw
-        .from('communication_projects')
+        .from("communication_projects")
         .insert({
           name: createForm.name,
           description: createForm.description,
           created_by: user.id,
-          status: 'active'
+          status: "active",
         })
         .select()
-        .single()
+        .single();
 
       if (createError) {
-        console.error('Supabase error:', createError)
-        throw createError
+        console.error("Supabase error:", createError);
+        throw createError;
       }
 
-      console.log('✅ Project created:', newProject)
+      console.log("✅ Project created:", newProject);
 
       // Refresh projects list
-      await loadProjects()
-      
-      setShowCreateForm(false)
-      setCreateForm({ name: '', description: '', employer_id: '' })
+      await loadProjects();
+
+      setShowCreateForm(false);
+      setCreateForm({ name: "", description: "", employer_id: "" });
     } catch (err: any) {
-      console.error('Error creating project:', err)
-      console.error('Error details:', err.message, err.code, err.details)
-      setError(`Błąd podczas tworzenia projektu: ${err.message || 'Unknown error'}`)
+      console.error("Error creating project:", err);
+      console.error("Error details:", err.message, err.code, err.details);
+      setError(
+        `Błąd podczas tworzenia projektu: ${err.message || "Unknown error"}`
+      );
     }
-  }
+  };
 
   const joinProject = async (projectId: string) => {
-    if (!user?.id) return
+    if (!user?.id) return;
 
     try {
       // For demo purposes, just show a message
-      console.log(`User ${user.id} joining project ${projectId}`)
-      setError(null)
+      console.log(`User ${user.id} joining project ${projectId}`);
+      setError(null);
       // In real implementation, this would add user to project
     } catch (err) {
-      console.error('Error joining project:', err)
-      setError('Błąd podczas dołączania do projektu')
+      console.error("Error joining project:", err);
+      setError("Błąd podczas dołączania do projektu");
     }
-  }
+  };
 
   if (loading) {
     return (
@@ -155,7 +163,7 @@ export function ProjectCommunicationManager({
           </div>
         </div>
       </div>
-    )
+    );
   }
 
   if (selectedProject) {
@@ -164,7 +172,7 @@ export function ProjectCommunicationManager({
         {/* Header with back button */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <Button 
+            <Button
               onClick={() => setSelectedProject(null)}
               variant="outline"
               size="sm"
@@ -176,18 +184,22 @@ export function ProjectCommunicationManager({
               <p className="text-gray-600">{selectedProject.description}</p>
             </div>
           </div>
-          <Badge variant={selectedProject.status === 'active' ? 'success' : 'secondary'}>
-            {selectedProject.status === 'active' ? 'Aktywny' : 'Zakończony'}
+          <Badge
+            variant={
+              selectedProject.status === "active" ? "success" : "secondary"
+            }
+          >
+            {selectedProject.status === "active" ? "Aktywny" : "Zakończony"}
           </Badge>
         </div>
 
         {/* Communication interface */}
         <BuildingCommunication
           projectId={selectedProject.id}
-          userId={user?.id || ''}
+          userId={user?.id || ""}
         />
       </div>
-    )
+    );
   }
 
   return (
@@ -228,31 +240,45 @@ export function ProjectCommunicationManager({
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <label className="block text-sm font-medium mb-2">Nazwa projektu</label>
+              <label className="block text-sm font-medium mb-2">
+                Nazwa projektu
+              </label>
               <Input
                 value={createForm.name}
-                onChange={(e) => setCreateForm(prev => ({ ...prev, name: e.target.value }))}
+                onChange={(e) =>
+                  setCreateForm((prev) => ({ ...prev, name: e.target.value }))
+                }
                 placeholder="np. Budowa domu jednorodzinnego"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-2">Opis projektu</label>
+              <label className="block text-sm font-medium mb-2">
+                Opis projektu
+              </label>
               <Textarea
                 value={createForm.description}
-                onChange={(e) => setCreateForm(prev => ({ ...prev, description: e.target.value }))}
+                onChange={(e) =>
+                  setCreateForm((prev) => ({
+                    ...prev,
+                    description: e.target.value,
+                  }))
+                }
                 placeholder="Krótki opis projektu..."
                 rows={3}
               />
             </div>
             <div className="flex gap-2">
-              <Button onClick={createProject} disabled={!createForm.name.trim()}>
+              <Button
+                onClick={createProject}
+                disabled={!createForm.name.trim()}
+              >
                 Utwórz Projekt
               </Button>
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 onClick={() => {
-                  setShowCreateForm(false)
-                  setCreateForm({ name: '', description: '', employer_id: '' })
+                  setShowCreateForm(false);
+                  setCreateForm({ name: "", description: "", employer_id: "" });
                 }}
               >
                 Anuluj
@@ -270,10 +296,9 @@ export function ProjectCommunicationManager({
               <div className="text-4xl mb-4">🏗️</div>
               <h3 className="font-medium mb-2">Brak projektów</h3>
               <p className="text-gray-600 mb-4">
-                {allowCreateProjects 
-                  ? 'Utwórz pierwszy projekt aby rozpocząć komunikację' 
-                  : 'Poczekaj aż zostaniesz dodany do projektu'
-                }
+                {allowCreateProjects
+                  ? "Utwórz pierwszy projekt aby rozpocząć komunikację"
+                  : "Poczekaj aż zostaniesz dodany do projektu"}
               </p>
               {allowCreateProjects && (
                 <Button onClick={() => setShowCreateForm(true)}>
@@ -284,34 +309,44 @@ export function ProjectCommunicationManager({
           </Card>
         ) : (
           projects.map((project) => (
-            <Card key={project.id} className="hover:shadow-md transition-shadow">
+            <Card
+              key={project.id}
+              className="hover:shadow-md transition-shadow"
+            >
               <CardContent className="p-4">
                 <div className="flex items-start justify-between mb-3">
                   <h3 className="font-semibold text-lg">{project.name}</h3>
-                  <Badge variant={project.status === 'active' ? 'success' : 'secondary'}>
-                    {project.status === 'active' ? 'Aktywny' : 'Zakończony'}
+                  <Badge
+                    variant={
+                      project.status === "active" ? "success" : "secondary"
+                    }
+                  >
+                    {project.status === "active" ? "Aktywny" : "Zakończony"}
                   </Badge>
                 </div>
-                
+
                 <p className="text-gray-600 text-sm mb-3 line-clamp-2">
                   {project.description}
                 </p>
-                
+
                 <div className="flex items-center justify-between text-sm text-gray-500 mb-4">
                   <span>👥 {project.members_count || 0} członków</span>
-                  <span>📅 {new Date(project.created_at).toLocaleDateString('pl-PL')}</span>
+                  <span>
+                    📅{" "}
+                    {new Date(project.created_at).toLocaleDateString("pl-PL")}
+                  </span>
                 </div>
-                
+
                 <div className="flex gap-2">
-                  <Button 
+                  <Button
                     onClick={() => setSelectedProject(project)}
                     className="flex-1"
                     size="sm"
                   >
                     💬 Otwórz Czat
                   </Button>
-                  {userRole !== 'employer' && (
-                    <Button 
+                  {userRole !== "employer" && (
+                    <Button
                       onClick={() => joinProject(project.id)}
                       variant="outline"
                       size="sm"
@@ -326,5 +361,5 @@ export function ProjectCommunicationManager({
         )}
       </div>
     </div>
-  )
+  );
 }

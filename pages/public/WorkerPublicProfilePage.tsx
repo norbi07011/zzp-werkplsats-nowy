@@ -320,6 +320,19 @@ export default function WorkerPublicProfilePage() {
     if (!id) return;
 
     try {
+      // Increment profile_views counter (cast to any to bypass TypeScript type check)
+      const { error: incrementError } = await (supabase as any).rpc(
+        "increment_worker_profile_views",
+        { worker_id: id }
+      );
+
+      if (incrementError) {
+        console.warn("⚠️ Could not increment profile views:", incrementError);
+        // Continue loading profile even if increment fails
+      } else {
+        console.log("✅ Profile views incremented for worker:", id);
+      }
+
       // Load worker profile WITH profile data (full_name, email, phone)
       const { data: workerData, error: workerError } = await supabase
         .from("workers")

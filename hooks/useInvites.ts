@@ -1,11 +1,6 @@
 import { useState, useEffect } from "react";
-import { createClient } from "@supabase/supabase-js";
+import { supabase } from "../src/lib/supabase";
 import { useAuth } from "../contexts/AuthContext";
-
-const supabaseUrl = "https://dtnotuyagygexmkyqtgb.supabase.co";
-const supabaseKey =
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR0bm90dXlhZ3lnZXhta3lxdGdiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk3ODUzMzAsImV4cCI6MjA3NTM2MTMzMH0.8gsHqR3mlGVhry2hIlxQkfFDfh5vgBrxGW_eXPXuRqw";
-const supabase = createClient(supabaseUrl, supabaseKey);
 
 export type InviteStatus = "pending" | "accepted" | "rejected" | "expired";
 

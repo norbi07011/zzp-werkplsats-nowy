@@ -4,6 +4,7 @@ import { Database } from "../types/supabase";
 // Get Supabase credentials from environment variables
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
+const supabaseServiceKey = import.meta.env.VITE_SUPABASE_SERVICE_KEY as string;
 
 if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error(
@@ -45,5 +46,32 @@ export const signOut = async () => {
   if (error) {
     console.error("Error signing out:", error);
     throw error;
+  }
+};
+
+// Service role client (admin access, bypasses RLS)
+// WARNING: Only use server-side or in trusted contexts
+export const supabaseService = supabaseServiceKey
+  ? createClient<Database>(supabaseUrl, supabaseServiceKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      },
+    })
+  : supabase; // Fallback to regular client if service key not available
+
+// Helper function to check if user can create posts
+export const canUserCreatePosts = async (userId: string): Promise<boolean> => {
+  try {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", userId)
+      .single();
+
+    return profile?.role !== "worker"; // All roles except worker can create posts
+  } catch (error) {
+    console.error("Error checking user permissions:", error);
+    return false;
   }
 };

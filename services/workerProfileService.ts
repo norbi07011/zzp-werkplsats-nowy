@@ -1606,8 +1606,19 @@ export async function getAnalytics(workerId: string): Promise<WorkerAnalytics> {
     const earnings = await getEarnings(workerId);
     const reviews = await getReviews(workerId);
 
+    // Fetch profile_views from workers table
+    const { data: workerData, error: workerError } = await supabase
+      .from("workers")
+      .select("profile_views")
+      .eq("id", workerId)
+      .maybeSingle();
+
+    if (workerError) {
+      console.error("Error fetching worker profile_views:", workerError);
+    }
+
     const analytics: WorkerAnalytics = {
-      profile_views: 0, // TODO: implement view tracking
+      profile_views: workerData?.profile_views || 0,
       job_views: 0,
       applications_sent: applications.length,
       applications_accepted: applications.filter((a) => a.status === "accepted")

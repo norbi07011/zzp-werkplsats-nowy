@@ -3,7 +3,7 @@ import {
   supabaseService,
   getCurrentUser,
   canUserCreatePosts,
-} from "../lib/supabase-fixed";
+} from "../lib/supabase";
 
 // Type assertion for new tables (until database.types.ts is regenerated)
 const supabaseAny = supabase as any;

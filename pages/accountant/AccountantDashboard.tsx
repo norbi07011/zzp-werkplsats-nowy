@@ -13,7 +13,7 @@ import {
   removeUnavailableDate,
   type Accountant,
 } from "../../src/services/accountantService";
-import { supabase } from "../../src/lib/supabase-fixed";
+import { supabase } from "../../src/lib/supabase";
 import { DashboardHeader } from "../../components/DashboardComponents";
 import { ProjectCommunicationManager } from "../../components/ProjectCommunicationManager";
 import FeedPage from "../../pages/FeedPage_PREMIUM";
@@ -121,11 +121,45 @@ export default function AccountantDashboard() {
   });
 
   useEffect(() => {
-    loadAccountant();
     if (user?.id) {
+      loadAccountant();
       loadMessages(user.id);
+
+      // Auto-refresh profile_views co 30 sekund
+      const refreshInterval = setInterval(() => {
+        refreshProfileViews();
+      }, 30000); // 30 sekund
+
+      return () => clearInterval(refreshInterval);
     }
-  }, [user]);
+  }, [user?.id]);
+
+  // Refresh profile_views counter without reloading entire profile
+  const refreshProfileViews = async () => {
+    if (!user) return;
+
+    try {
+      console.log(
+        "🔄 [ACCOUNTANT-DASH] Refreshing profile_views for user:",
+        user.id
+      );
+      const data = await getAccountantByProfileId(user.id);
+      if (data?.profile_views !== undefined) {
+        setAccountant((prev) =>
+          prev ? { ...prev, profile_views: data.profile_views } : prev
+        );
+        console.log(
+          "✅ [ACCOUNTANT-DASH] Profile views updated:",
+          data.profile_views
+        );
+      }
+    } catch (error) {
+      console.error(
+        "❌ [ACCOUNTANT-DASH] Error refreshing profile views:",
+        error
+      );
+    }
+  };
 
   // Load reviews for this accountant
   const loadReviews = async (accountantId: string) => {
@@ -315,6 +349,13 @@ export default function AccountantDashboard() {
         navigate("/");
         return;
       }
+
+      console.log("✅ [DASHBOARD] Accountant loaded:", {
+        id: data.id,
+        profile_id: data.profile_id,
+        profile_views: data.profile_views,
+        full_name: data.full_name,
+      });
 
       setAccountant(data);
 
@@ -642,7 +683,7 @@ export default function AccountantDashboard() {
         <div className="bg-white rounded-lg shadow p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600">Odwiedziny</p>
+              <p className="text-sm text-gray-600">Wyświetlenia profilu</p>
               <p className="text-2xl font-bold text-green-600">
                 {accountant?.profile_views || 0}
               </p>

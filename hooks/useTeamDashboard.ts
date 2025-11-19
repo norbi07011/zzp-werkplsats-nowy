@@ -1,21 +1,16 @@
-import { useState, useEffect } from 'react';
-import { createClient } from '@supabase/supabase-js';
-import { useAuth } from '../contexts/AuthContext';
-
-// Untyped Supabase client for new tables
-const supabaseUrl = 'https://dtnotuyagygexmkyqtgb.supabase.co';
-const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR0bm90dXlhZ3lnZXhta3lxdGdiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk3ODUzMzAsImV4cCI6MjA3NTM2MTMzMH0.8gsHqR3mlGVhry2hIlxQkfFDfh5vgBrxGW_eXPXuRqw';
-const supabaseRaw = createClient(supabaseUrl, supabaseKey);
+import { useState, useEffect } from "react";
+import { supabase as supabaseRaw } from "../src/lib/supabase";
+import { useAuth } from "../contexts/AuthContext";
 
 // Types matching communication_projects table structure
 export interface Project {
   id: string;
-  name: string;  // communication_projects uses 'name' not 'title'
+  name: string; // communication_projects uses 'name' not 'title'
   description?: string;
   employer_id?: string;
   employer_name?: string;
   status: string;
-  created_by: string;  // communication_projects uses 'created_by' not 'owner_id'
+  created_by: string; // communication_projects uses 'created_by' not 'owner_id'
   created_at: string;
   updated_at: string;
   project_members?: any;
@@ -63,7 +58,7 @@ export interface ProjectNotification {
   title: string;
   message: string;
   action_url?: string;
-  status: 'unread' | 'read' | 'archived' | 'dismissed';
+  status: "unread" | "read" | "archived" | "dismissed";
   priority: number;
   created_at: string;
 }
@@ -80,7 +75,7 @@ export function useTeamDashboard() {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  
+
   // Data states
   const [projects, setProjects] = useState<Project[]>([]);
   const [permissions, setPermissions] = useState<ProjectPermission[]>([]);
@@ -91,43 +86,44 @@ export function useTeamDashboard() {
     activeProjects: 0,
     totalMembers: 0,
     recentActivities: 0,
-    unreadNotifications: 0
+    unreadNotifications: 0,
   });
 
   const fetchProjects = async () => {
     if (!user?.id) return;
 
     try {
-      console.log('🔍 Fetching projects for user:', user.id);
-      
+      console.log("🔍 Fetching projects for user:", user.id);
+
       // ✅ FIX: Use 'communication_projects' - correct table that exists in database
       const { data: projectsData, error: projectsError } = await supabaseRaw
-        .from('communication_projects')
-        .select('*')
-        .eq('created_by', user.id)
-        .order('created_at', { ascending: false });
+        .from("communication_projects")
+        .select("*")
+        .eq("created_by", user.id)
+        .order("created_at", { ascending: false });
 
       if (projectsError) {
-        console.error('Projects query error:', projectsError);
+        console.error("Projects query error:", projectsError);
         throw projectsError;
       }
 
-      console.log('✅ Projects fetched:', projectsData?.length || 0);
-      
+      console.log("✅ Projects fetched:", projectsData?.length || 0);
+
       setProjects(projectsData || []);
 
       // Calculate basic stats
-      const activeCount = (projectsData || []).filter((p: any) => p.status === 'active').length;
-      
-      setStats(prev => ({
+      const activeCount = (projectsData || []).filter(
+        (p: any) => p.status === "active"
+      ).length;
+
+      setStats((prev) => ({
         ...prev,
         totalProjects: (projectsData || []).length,
-        activeProjects: activeCount
+        activeProjects: activeCount,
       }));
-
     } catch (err) {
-      console.error('Error fetching projects:', err);
-      setError('Błąd podczas ładowania projektów');
+      console.error("Error fetching projects:", err);
+      setError("Błąd podczas ładowania projektów");
     }
   };
 
@@ -135,33 +131,38 @@ export function useTeamDashboard() {
     if (!user?.id || projects.length === 0) return;
 
     try {
-      console.log('🔍 Fetching permissions for projects:', projects.map(p => p.id));
-      
-      const projectIds = projects.map(p => p.id);
-      
-      const { data: permissionsData, error: permissionsError } = await supabaseRaw
-        .from('project_permissions')
-        .select('*')
-        .in('project_id', projectIds)
-        .eq('is_active', true);
+      console.log(
+        "🔍 Fetching permissions for projects:",
+        projects.map((p) => p.id)
+      );
+
+      const projectIds = projects.map((p) => p.id);
+
+      const { data: permissionsData, error: permissionsError } =
+        await supabaseRaw
+          .from("project_permissions")
+          .select("*")
+          .in("project_id", projectIds)
+          .eq("is_active", true);
 
       if (permissionsError) {
-        console.error('Permissions query error:', permissionsError);
+        console.error("Permissions query error:", permissionsError);
         throw permissionsError;
       }
 
-      console.log('✅ Permissions fetched:', permissionsData?.length || 0);
+      console.log("✅ Permissions fetched:", permissionsData?.length || 0);
       setPermissions(permissionsData || []);
 
       // Count unique team members
-      const uniqueMembers = new Set((permissionsData || []).map((p: any) => p.user_id));
-      setStats(prev => ({
+      const uniqueMembers = new Set(
+        (permissionsData || []).map((p: any) => p.user_id)
+      );
+      setStats((prev) => ({
         ...prev,
-        totalMembers: uniqueMembers.size
+        totalMembers: uniqueMembers.size,
       }));
-
     } catch (err) {
-      console.error('Error fetching permissions:', err);
+      console.error("Error fetching permissions:", err);
     }
   };
 
@@ -169,33 +170,32 @@ export function useTeamDashboard() {
     if (!user?.id || projects.length === 0) return;
 
     try {
-      console.log('🔍 Fetching activities...');
-      
-      const projectIds = projects.map(p => p.id);
-      
+      console.log("🔍 Fetching activities...");
+
+      const projectIds = projects.map((p) => p.id);
+
       const { data: activitiesData, error: activitiesError } = await supabaseRaw
-        .from('project_activity_log')
-        .select('*')
-        .in('project_id', projectIds)
-        .order('created_at', { ascending: false })
+        .from("project_activity_log")
+        .select("*")
+        .in("project_id", projectIds)
+        .order("created_at", { ascending: false })
         .limit(10);
 
       if (activitiesError) {
-        console.error('Activities query error:', activitiesError);
+        console.error("Activities query error:", activitiesError);
         // Don't throw - this table might not exist yet
         return;
       }
 
-      console.log('✅ Activities fetched:', activitiesData?.length || 0);
+      console.log("✅ Activities fetched:", activitiesData?.length || 0);
       setActivities(activitiesData || []);
 
-      setStats(prev => ({
+      setStats((prev) => ({
         ...prev,
-        recentActivities: activitiesData?.length || 0
+        recentActivities: activitiesData?.length || 0,
       }));
-
     } catch (err) {
-      console.error('Error fetching activities:', err);
+      console.error("Error fetching activities:", err);
     }
   };
 
@@ -203,64 +203,63 @@ export function useTeamDashboard() {
     if (!user?.id) return;
 
     try {
-      console.log('🔍 Fetching notifications...');
-      
-      const { data: notificationsData, error: notificationsError } = await supabaseRaw
-        .from('project_notifications')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
-        .limit(20);
+      console.log("🔍 Fetching notifications...");
+
+      const { data: notificationsData, error: notificationsError } =
+        await supabaseRaw
+          .from("project_notifications")
+          .select("*")
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: false })
+          .limit(20);
 
       if (notificationsError) {
-        console.error('Notifications query error:', notificationsError);
+        console.error("Notifications query error:", notificationsError);
         // Don't throw - this table might not exist yet
         return;
       }
 
-      console.log('✅ Notifications fetched:', notificationsData?.length || 0);
+      console.log("✅ Notifications fetched:", notificationsData?.length || 0);
       setNotifications(notificationsData || []);
 
-      const unreadCount = (notificationsData || []).filter((n: any) => n.status === 'unread').length;
-      setStats(prev => ({
+      const unreadCount = (notificationsData || []).filter(
+        (n: any) => n.status === "unread"
+      ).length;
+      setStats((prev) => ({
         ...prev,
-        unreadNotifications: unreadCount
+        unreadNotifications: unreadCount,
       }));
-
     } catch (err) {
-      console.error('Error fetching notifications:', err);
+      console.error("Error fetching notifications:", err);
     }
   };
 
   const markNotificationAsRead = async (notificationId: string) => {
     try {
       const { error } = await supabaseRaw
-        .from('project_notifications')
-        .update({ 
-          status: 'read',
-          read_at: new Date().toISOString()
+        .from("project_notifications")
+        .update({
+          status: "read",
+          read_at: new Date().toISOString(),
         })
-        .eq('id', notificationId);
+        .eq("id", notificationId);
 
       if (error) throw error;
 
       // Update local state
-      setNotifications(prev => 
-        prev.map(n => 
-          n.id === notificationId 
-            ? { ...n, status: 'read' as const }
-            : n
+      setNotifications((prev) =>
+        prev.map((n) =>
+          n.id === notificationId ? { ...n, status: "read" as const } : n
         )
       );
 
       // Update stats
-      setStats(prev => ({
+      setStats((prev) => ({
         ...prev,
-        unreadNotifications: Math.max(0, prev.unreadNotifications - 1)
+        unreadNotifications: Math.max(0, prev.unreadNotifications - 1),
       }));
-
     } catch (err) {
-      console.error('Error marking notification as read:', err);
+      console.error("Error marking notification as read:", err);
     }
   };
 
@@ -268,15 +267,15 @@ export function useTeamDashboard() {
   useEffect(() => {
     async function loadDashboardData() {
       if (!user?.id) return;
-      
+
       setLoading(true);
       setError(null);
 
       try {
         await fetchProjects();
       } catch (err) {
-        setError('Błąd podczas ładowania danych');
-        console.error('Dashboard load error:', err);
+        setError("Błąd podczas ładowania danych");
+        console.error("Dashboard load error:", err);
       } finally {
         setLoading(false);
       }
@@ -307,16 +306,16 @@ export function useTeamDashboard() {
     activities,
     notifications,
     stats,
-    
+
     // States
     loading,
     error,
-    
+
     // Actions
     markNotificationAsRead,
     refetch: () => {
       fetchProjects();
       fetchNotifications();
-    }
+    },
   };
 }

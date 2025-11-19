@@ -18,7 +18,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useAuth } from "../contexts/AuthContext";
-import { supabase } from "../src/lib/supabase-fixed";
+import { supabase } from "../src/lib/supabase";
 import {
   getPosts,
   createPost,

@@ -5,22 +5,28 @@
 // Replaces useElectronDB for expenses
 // =====================================================
 
-import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '../../../lib/supabase-fixed';
-import type { Expense, ExpenseReport } from '../types/expenses.js';
+import { useState, useEffect, useCallback } from "react";
+import { supabase } from "../../../lib/supabase";
+import type { Expense, ExpenseReport } from "../types/expenses.js";
 
 interface UseExpensesReturn {
   expenses: Expense[];
   loading: boolean;
   error: string | null;
   report: ExpenseReport | null;
-  createExpense: (data: Omit<Expense, 'id' | 'created_at' | 'updated_at'>) => Promise<Expense>;
+  createExpense: (
+    data: Omit<Expense, "id" | "created_at" | "updated_at">
+  ) => Promise<Expense>;
   updateExpense: (id: string, data: Partial<Expense>) => Promise<void>;
   deleteExpense: (id: string) => Promise<void>;
   refetch: () => Promise<void>;
 }
 
-export function useSupabaseExpenses(userId: string, year?: number, month?: number): UseExpensesReturn {
+export function useSupabaseExpenses(
+  userId: string,
+  year?: number,
+  month?: number
+): UseExpensesReturn {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -31,7 +37,7 @@ export function useSupabaseExpenses(userId: string, year?: number, month?: numbe
   // =====================================================
   const fetchExpenses = useCallback(async () => {
     if (!userId) {
-      setError('User ID is required');
+      setError("User ID is required");
       setLoading(false);
       return;
     }
@@ -41,28 +47,32 @@ export function useSupabaseExpenses(userId: string, year?: number, month?: numbe
       setError(null);
 
       let query = supabase
-        .from('invoice_expenses')
-        .select('*')
-        .eq('user_id', userId);
+        .from("invoice_expenses")
+        .select("*")
+        .eq("user_id", userId);
 
       // Filter by year and month if provided
       if (year && month) {
-        const startDate = `${year}-${String(month).padStart(2, '0')}-01`;
-        const endDate = `${year}-${String(month).padStart(2, '0')}-31`;
-        query = query.gte('date', startDate).lte('date', endDate);
+        const startDate = `${year}-${String(month).padStart(2, "0")}-01`;
+        const endDate = `${year}-${String(month).padStart(2, "0")}-31`;
+        query = query.gte("date", startDate).lte("date", endDate);
       } else if (year) {
-        query = query.gte('date', `${year}-01-01`).lte('date', `${year}-12-31`);
+        query = query.gte("date", `${year}-01-01`).lte("date", `${year}-12-31`);
       }
 
-      const { data, error: fetchError } = await query.order('date', { ascending: false });
+      const { data, error: fetchError } = await query.order("date", {
+        ascending: false,
+      });
 
       if (fetchError) throw fetchError;
 
-      setExpenses(data || []);
-      calculateReport(data || []);
+      // Type assertion: database types (null) -> app types (undefined)
+      const typedData = data as unknown as Expense[];
+      setExpenses(typedData || []);
+      calculateReport(typedData || []);
     } catch (err) {
-      console.error('Error fetching expenses:', err);
-      setError(err instanceof Error ? err.message : 'Failed to fetch expenses');
+      console.error("Error fetching expenses:", err);
+      setError(err instanceof Error ? err.message : "Failed to fetch expenses");
     } finally {
       setLoading(false);
     }
@@ -73,14 +83,21 @@ export function useSupabaseExpenses(userId: string, year?: number, month?: numbe
   // =====================================================
   const calculateReport = (expenseList: Expense[]) => {
     const totalExpenses = expenseList.reduce((sum, exp) => sum + exp.amount, 0);
-    const totalVat = expenseList.reduce((sum, exp) => sum + (exp.vat_amount || 0), 0);
+    const totalVat = expenseList.reduce(
+      (sum, exp) => sum + (exp.vat_amount || 0),
+      0
+    );
     const deductibleExpenses = expenseList
-      .filter(exp => exp.is_deductible)
-      .reduce((sum, exp) => sum + (exp.amount * (exp.deductible_percentage || 100) / 100), 0);
+      .filter((exp) => exp.is_deductible)
+      .reduce(
+        (sum, exp) =>
+          sum + (exp.amount * (exp.deductible_percentage || 100)) / 100,
+        0
+      );
 
     // Group by category
     const byCategoryMap: Record<string, { count: number; total: number }> = {};
-    expenseList.forEach(exp => {
+    expenseList.forEach((exp) => {
       if (!byCategoryMap[exp.category]) {
         byCategoryMap[exp.category] = { count: 0, total: 0 };
       }
@@ -89,15 +106,17 @@ export function useSupabaseExpenses(userId: string, year?: number, month?: numbe
     });
 
     // Convert to array
-    const byCategory = Object.entries(byCategoryMap).map(([category, data]) => ({
-      category: category as any, // ExpenseCategory
-      amount: data.total,
-      count: data.count,
-    }));
+    const byCategory = Object.entries(byCategoryMap).map(
+      ([category, data]) => ({
+        category: category as any, // ExpenseCategory
+        amount: data.total,
+        count: data.count,
+      })
+    );
 
     // Group by month
     const byMonthMap: Record<string, { count: number; total: number }> = {};
-    expenseList.forEach(exp => {
+    expenseList.forEach((exp) => {
       const month = exp.date.substring(0, 7); // YYYY-MM
       if (!byMonthMap[month]) {
         byMonthMap[month] = { count: 0, total: 0 };
@@ -125,12 +144,14 @@ export function useSupabaseExpenses(userId: string, year?: number, month?: numbe
   // =====================================================
   // CREATE EXPENSE
   // =====================================================
-  const createExpense = async (data: Omit<Expense, 'id' | 'created_at' | 'updated_at'>): Promise<Expense> => {
+  const createExpense = async (
+    data: Omit<Expense, "id" | "created_at" | "updated_at">
+  ): Promise<Expense> => {
     try {
       setError(null);
 
       const { data: expense, error: createError } = await supabase
-        .from('invoice_expenses')
+        .from("invoice_expenses")
         .insert({
           ...data,
           user_id: userId,
@@ -141,10 +162,12 @@ export function useSupabaseExpenses(userId: string, year?: number, month?: numbe
       if (createError) throw createError;
 
       await fetchExpenses();
-      return expense;
+      // Type assertion for database -> app types
+      return expense as unknown as Expense;
     } catch (err) {
-      console.error('Error creating expense:', err);
-      const errorMsg = err instanceof Error ? err.message : 'Failed to create expense';
+      console.error("Error creating expense:", err);
+      const errorMsg =
+        err instanceof Error ? err.message : "Failed to create expense";
       setError(errorMsg);
       throw new Error(errorMsg);
     }
@@ -153,22 +176,26 @@ export function useSupabaseExpenses(userId: string, year?: number, month?: numbe
   // =====================================================
   // UPDATE EXPENSE
   // =====================================================
-  const updateExpense = async (id: string, updates: Partial<Expense>): Promise<void> => {
+  const updateExpense = async (
+    id: string,
+    updates: Partial<Expense>
+  ): Promise<void> => {
     try {
       setError(null);
 
       const { error: updateError } = await supabase
-        .from('invoice_expenses')
+        .from("invoice_expenses")
         .update(updates)
-        .eq('id', id)
-        .eq('user_id', userId);
+        .eq("id", id)
+        .eq("user_id", userId);
 
       if (updateError) throw updateError;
 
       await fetchExpenses();
     } catch (err) {
-      console.error('Error updating expense:', err);
-      const errorMsg = err instanceof Error ? err.message : 'Failed to update expense';
+      console.error("Error updating expense:", err);
+      const errorMsg =
+        err instanceof Error ? err.message : "Failed to update expense";
       setError(errorMsg);
       throw new Error(errorMsg);
     }
@@ -182,17 +209,18 @@ export function useSupabaseExpenses(userId: string, year?: number, month?: numbe
       setError(null);
 
       const { error: deleteError } = await supabase
-        .from('invoice_expenses')
+        .from("invoice_expenses")
         .delete()
-        .eq('id', id)
-        .eq('user_id', userId);
+        .eq("id", id)
+        .eq("user_id", userId);
 
       if (deleteError) throw deleteError;
 
       await fetchExpenses();
     } catch (err) {
-      console.error('Error deleting expense:', err);
-      const errorMsg = err instanceof Error ? err.message : 'Failed to delete expense';
+      console.error("Error deleting expense:", err);
+      const errorMsg =
+        err instanceof Error ? err.message : "Failed to delete expense";
       setError(errorMsg);
       throw new Error(errorMsg);
     }

@@ -178,7 +178,7 @@ export const RegisterCleaningPage = () => {
       });
 
       alert("✅ Rejestracja udana! Przekierowuję do dashboardu...");
-      navigate("/worker"); // NOTE: Reusing WorkerDashboard
+      navigate("/cleaning-company"); // Redirect to Cleaning Company Dashboard
     } catch (err: any) {
       console.error("Registration error:", err);
       setErrors({

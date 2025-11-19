@@ -30,6 +30,7 @@ export interface EmployerStats {
   contacts_this_month: number;
   subscription_expires_at: string | null;
   days_until_expiry: number;
+  profile_views: number; // Profile views count from profile_views table WHERE employer_id
 }
 
 export interface SearchHistoryItem {
@@ -211,6 +212,29 @@ export async function getEmployerStats(
       .eq("sender_id", (employer as any).user_id || employer.profile_id)
       .gte("created_at", firstDayOfMonth.toISOString());
 
+    // Get profile views count from profile_views table WHERE employer_id
+    console.log(
+      "[EMPLOYER-SERVICE] 🔍 Fetching profile_views for employer_id:",
+      employerId
+    );
+    const { count: profileViewsCount, error: profileViewsError } =
+      await supabase
+        .from("profile_views")
+        .select("*", { count: "exact", head: true })
+        .eq("employer_id", employerId);
+
+    if (profileViewsError) {
+      console.error(
+        "[EMPLOYER-SERVICE] ❌ Error fetching profile_views:",
+        profileViewsError
+      );
+    } else {
+      console.log(
+        "[EMPLOYER-SERVICE] ✅ Profile views count:",
+        profileViewsCount
+      );
+    }
+
     // Get subscription info (cast to any - new table not in types)
     const { data: subscription } = await (supabase.from("subscriptions") as any)
       .select("*")
@@ -237,6 +261,7 @@ export async function getEmployerStats(
       contacts_this_month: contactsThisMonth || 0,
       subscription_expires_at: subscriptionExpiresAt,
       days_until_expiry: Math.max(0, daysUntilExpiry),
+      profile_views: profileViewsCount || 0, // Profile views count from profile_views table
     };
 
     console.log("[EMPLOYER-SERVICE] Stats:", stats);
@@ -256,6 +281,7 @@ function getDefaultStats(): EmployerStats {
     contacts_this_month: 0,
     subscription_expires_at: null,
     days_until_expiry: 0,
+    profile_views: 0, // Default profile views count
   };
 }
 

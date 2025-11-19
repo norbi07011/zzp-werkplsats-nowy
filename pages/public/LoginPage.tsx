@@ -52,7 +52,8 @@ export const LoginPage = () => {
       case "accountant":
         return "/accountant/dashboard";
       case "cleaning_company":
-        return "/cleaning-company";
+        // NOTE: Reusing WorkerDashboard - same functionality
+        return "/worker";
       default:
         return "/";
     }

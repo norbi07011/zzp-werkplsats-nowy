@@ -5,15 +5,17 @@
 // Replaces useElectronDB for clients
 // =====================================================
 
-import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '../../../lib/supabase-fixed';
-import type { Client } from '../types/index.js';
+import { useState, useEffect, useCallback } from "react";
+import { supabase } from "../../../lib/supabase";
+import type { Client } from "../types/index.js";
 
 interface UseClientsReturn {
   clients: Client[];
   loading: boolean;
   error: string | null;
-  createClient: (data: Omit<Client, 'id' | 'created_at' | 'updated_at'>) => Promise<Client>;
+  createClient: (
+    data: Omit<Client, "id" | "created_at" | "updated_at">
+  ) => Promise<Client>;
   updateClient: (id: string, data: Partial<Client>) => Promise<void>;
   deleteClient: (id: string) => Promise<void>;
   refetch: () => Promise<void>;
@@ -29,7 +31,7 @@ export function useSupabaseClients(userId: string): UseClientsReturn {
   // =====================================================
   const fetchClients = useCallback(async () => {
     if (!userId) {
-      setError('User ID is required');
+      setError("User ID is required");
       setLoading(false);
       return;
     }
@@ -39,17 +41,18 @@ export function useSupabaseClients(userId: string): UseClientsReturn {
       setError(null);
 
       const { data, error: fetchError } = await supabase
-        .from('invoice_clients')
-        .select('*')
-        .eq('user_id', userId)
-        .order('name', { ascending: true });
+        .from("invoice_clients")
+        .select("*")
+        .eq("user_id", userId)
+        .order("name", { ascending: true });
 
       if (fetchError) throw fetchError;
 
-      setClients(data || []);
+      // Type assertion: database types (null) -> app types (undefined)
+      setClients((data as unknown as Client[]) || []);
     } catch (err) {
-      console.error('Error fetching clients:', err);
-      setError(err instanceof Error ? err.message : 'Failed to fetch clients');
+      console.error("Error fetching clients:", err);
+      setError(err instanceof Error ? err.message : "Failed to fetch clients");
     } finally {
       setLoading(false);
     }
@@ -58,12 +61,14 @@ export function useSupabaseClients(userId: string): UseClientsReturn {
   // =====================================================
   // CREATE CLIENT
   // =====================================================
-  const createClient = async (data: Omit<Client, 'id' | 'created_at' | 'updated_at'>): Promise<Client> => {
+  const createClient = async (
+    data: Omit<Client, "id" | "created_at" | "updated_at">
+  ): Promise<Client> => {
     try {
       setError(null);
 
       const { data: client, error: createError } = await supabase
-        .from('invoice_clients')
+        .from("invoice_clients")
         .insert({
           ...data,
           user_id: userId,
@@ -74,10 +79,12 @@ export function useSupabaseClients(userId: string): UseClientsReturn {
       if (createError) throw createError;
 
       await fetchClients();
-      return client;
+      // Type assertion for database -> app types
+      return client as unknown as Client;
     } catch (err) {
-      console.error('Error creating client:', err);
-      const errorMsg = err instanceof Error ? err.message : 'Failed to create client';
+      console.error("Error creating client:", err);
+      const errorMsg =
+        err instanceof Error ? err.message : "Failed to create client";
       setError(errorMsg);
       throw new Error(errorMsg);
     }
@@ -86,22 +93,26 @@ export function useSupabaseClients(userId: string): UseClientsReturn {
   // =====================================================
   // UPDATE CLIENT
   // =====================================================
-  const updateClient = async (id: string, updates: Partial<Client>): Promise<void> => {
+  const updateClient = async (
+    id: string,
+    updates: Partial<Client>
+  ): Promise<void> => {
     try {
       setError(null);
 
       const { error: updateError } = await supabase
-        .from('invoice_clients')
+        .from("invoice_clients")
         .update(updates)
-        .eq('id', id)
-        .eq('user_id', userId);
+        .eq("id", id)
+        .eq("user_id", userId);
 
       if (updateError) throw updateError;
 
       await fetchClients();
     } catch (err) {
-      console.error('Error updating client:', err);
-      const errorMsg = err instanceof Error ? err.message : 'Failed to update client';
+      console.error("Error updating client:", err);
+      const errorMsg =
+        err instanceof Error ? err.message : "Failed to update client";
       setError(errorMsg);
       throw new Error(errorMsg);
     }
@@ -115,17 +126,18 @@ export function useSupabaseClients(userId: string): UseClientsReturn {
       setError(null);
 
       const { error: deleteError } = await supabase
-        .from('invoice_clients')
+        .from("invoice_clients")
         .delete()
-        .eq('id', id)
-        .eq('user_id', userId);
+        .eq("id", id)
+        .eq("user_id", userId);
 
       if (deleteError) throw deleteError;
 
       await fetchClients();
     } catch (err) {
-      console.error('Error deleting client:', err);
-      const errorMsg = err instanceof Error ? err.message : 'Failed to delete client';
+      console.error("Error deleting client:", err);
+      const errorMsg =
+        err instanceof Error ? err.message : "Failed to delete client";
       setError(errorMsg);
       throw new Error(errorMsg);
     }
