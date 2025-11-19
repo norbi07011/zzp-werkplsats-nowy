@@ -11,6 +11,7 @@
  */
 
 import React, { useState, useEffect } from "react";
+import { toast, Toaster } from "sonner";
 import { useAuth } from "../../contexts/AuthContext";
 import {
   createTicket,
@@ -105,7 +106,7 @@ export const SupportTicketModal: React.FC<SupportTicketModalProps> = ({
       };
 
       const newTicket = await createTicket(ticketData);
-      alert("✅ Zgłoszenie utworzone! Odpowiemy wkrótce.");
+      toast.success("✅ Zgłoszenie utworzone! Odpowiemy wkrótce.");
 
       // Reset form i przełącz na listę ticketów
       setSubject("");
@@ -116,7 +117,7 @@ export const SupportTicketModal: React.FC<SupportTicketModalProps> = ({
       setSelectedTicket(newTicket.id);
       loadTickets();
     } catch (error: any) {
-      alert("❌ " + (error.message || "Błąd podczas tworzenia zgłoszenia"));
+      toast.error("❌ " + (error.message || "Błąd podczas tworzenia zgłoszenia"));
       console.error(error);
     } finally {
       setLoading(false);
@@ -131,9 +132,9 @@ export const SupportTicketModal: React.FC<SupportTicketModalProps> = ({
       await sendMessage(selectedTicket, newMessage.trim());
       setNewMessage("");
       loadMessages(selectedTicket);
-      alert("✅ Wiadomość wysłana");
+      toast.success("✅ Wiadomość wysłana");
     } catch (error: any) {
-      alert("❌ " + (error.message || "Błąd podczas wysyłania wiadomości"));
+      toast.error("❌ " + (error.message || "Błąd podczas wysyłania wiadomości"));
       console.error(error);
     } finally {
       setSending(false);
@@ -143,11 +144,11 @@ export const SupportTicketModal: React.FC<SupportTicketModalProps> = ({
   const handleCloseTicket = async (ticketId: string) => {
     try {
       await closeTicket(ticketId);
-      alert("✅ Zgłoszenie zamknięte");
+      toast.success("✅ Zgłoszenie zamknięte");
       loadTickets();
       setSelectedTicket(null);
     } catch (error: any) {
-      alert("❌ " + (error.message || "Błąd podczas zamykania zgłoszenia"));
+      toast.error("❌ " + (error.message || "Błąd podczas zamykania zgłoszenia"));
       console.error(error);
     }
   };
@@ -157,7 +158,9 @@ export const SupportTicketModal: React.FC<SupportTicketModalProps> = ({
   const selectedTicketData = tickets.find((t) => t.id === selectedTicket);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+    <>
+      <Toaster position="top-right" richColors />
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-gradient-to-r from-blue-600 to-indigo-600">
@@ -459,5 +462,6 @@ export const SupportTicketModal: React.FC<SupportTicketModalProps> = ({
         </div>
       </div>
     </div>
+    </>
   );
 };

@@ -12,6 +12,7 @@
  */
 
 import React, { useState, useEffect } from "react";
+import { toast, Toaster } from "sonner";
 import { useAuth } from "../../contexts/AuthContext";
 import {
   getAllTickets,
@@ -82,7 +83,7 @@ export const SupportTicketsManager: React.FC = () => {
       setTickets(data);
     } catch (error) {
       console.error("Error loading tickets:", error);
-      alert("❌ Błąd ładowania zgłoszeń");
+      toast.error("❌ Błąd ładowania zgłoszeń");
     } finally {
       setLoading(false);
     }
@@ -110,13 +111,13 @@ export const SupportTicketsManager: React.FC = () => {
     if (!user) return;
     try {
       await assignTicket(ticketId, user.id);
-      alert("✅ Ticket przypisany do Ciebie");
+      toast.success("✅ Ticket przypisany do Ciebie");
       loadTickets();
       if (selectedTicket?.id === ticketId) {
         setSelectedTicket({ ...selectedTicket, assigned_to: user.id });
       }
     } catch (error: any) {
-      alert("❌ " + (error.message || "Błąd przypisywania ticketu"));
+      toast.error("❌ " + (error.message || "Błąd przypisywania ticketu"));
     }
   };
 
@@ -126,13 +127,13 @@ export const SupportTicketsManager: React.FC = () => {
   ) => {
     try {
       await updateTicketStatus(ticketId, newStatus);
-      alert("✅ Status zmieniony");
+      toast.success("✅ Status zmieniony");
       loadTickets();
       if (selectedTicket?.id === ticketId) {
         setSelectedTicket({ ...selectedTicket, status: newStatus });
       }
     } catch (error: any) {
-      alert("❌ " + (error.message || "Błąd zmiany statusu"));
+      toast.error("❌ " + (error.message || "Błąd zmiany statusu"));
     }
   };
 
@@ -145,9 +146,9 @@ export const SupportTicketsManager: React.FC = () => {
       setNewMessage("");
       setIsInternal(false);
       loadMessages(selectedTicket.id);
-      alert("✅ Wiadomość wysłana");
+      toast.success("✅ Wiadomość wysłana");
     } catch (error: any) {
-      alert("❌ " + (error.message || "Błąd wysyłania wiadomości"));
+      toast.error("❌ " + (error.message || "Błąd wysyłania wiadomości"));
     } finally {
       setSending(false);
     }
@@ -186,7 +187,9 @@ export const SupportTicketsManager: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
+    <>
+      <Toaster position="top-right" richColors />
+      <div className="min-h-screen bg-gray-50 p-6">
       {/* Header with Stats */}
       <div className="mb-6">
         <h1 className="text-3xl font-bold text-gray-900 mb-2">
@@ -343,7 +346,9 @@ export const SupportTicketsManager: React.FC = () => {
           </h2>
           <div className="space-y-3 max-h-[700px] overflow-y-auto">
             {loading ? (
-              <div className="text-center py-8 text-gray-500">Ładowanie...</div>
+              <div className="flex items-center justify-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+              </div>
             ) : tickets.length === 0 ? (
               <div className="text-center py-8 text-gray-500">
                 Brak zgłoszeń
@@ -531,6 +536,7 @@ export const SupportTicketsManager: React.FC = () => {
         </div>
       </div>
     </div>
+    </>
   );
 };
 

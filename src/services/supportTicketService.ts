@@ -532,7 +532,7 @@ export const sendAdminMessage = async (
   const messageData = {
     ticket_id: ticketId,
     sender_id: user.id,
-    sender_role: "admin" as UserRole,
+    sender_role: profile?.role || "admin" as UserRole, // ✅ FIXED: używam profile.role
     sender_name: profile?.full_name || profile?.email || "Admin",
     message,
     attachments: attachments || [],
