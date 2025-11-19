@@ -189,54 +189,113 @@ export const SupportTicketsManager: React.FC = () => {
   return (
     <>
       <Toaster position="top-right" richColors />
-      <div className="min-h-screen bg-gray-50 p-6">
-        {/* Header with Stats */}
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            Support Tickets
-          </h1>
-          <p className="text-gray-600">Zarządzanie zgłoszeniami użytkowników</p>
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-50 p-6">
+        {/* Modern Header */}
+        <div className="bg-white rounded-2xl shadow-lg p-6 mb-6 border border-gray-100">
+          <div className="flex items-center gap-4">
+            <div className="p-3 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl shadow-lg">
+              <svg
+                className="w-8 h-8 text-white"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-5 0a4 4 0 11-8 0 4 4 0 018 0z"
+                />
+              </svg>
+            </div>
+            <div className="flex-1">
+              <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent mb-1">
+                Centrum Wsparcia
+              </h1>
+              <p className="text-gray-600">
+                Zarządzanie zgłoszeniami i pomoc użytkownikom
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <button className="px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg hover:shadow-lg transition-all">
+                📊 Raporty
+              </button>
+              <button className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-all">
+                ⚙️ Ustawienia
+              </button>
+            </div>
+          </div>
         </div>
 
-        {/* Stats Cards */}
+        {/* Modern Stats Cards */}
         {stats && (
           <div className="grid grid-cols-5 gap-4 mb-6">
-            <div className="bg-white rounded-lg shadow p-4">
-              <div className="text-sm text-gray-600 mb-1">Nowe</div>
-              <div className="text-2xl font-bold text-green-600">
-                {stats.new}
+            <div className="bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl shadow-lg p-5 text-white transform hover:scale-105 transition-all cursor-pointer">
+              <div className="flex items-center justify-between mb-2">
+                <div className="text-sm font-medium opacity-90">Nowe</div>
+                <span className="text-2xl">🆕</span>
+              </div>
+              <div className="text-3xl font-bold">{stats.new}</div>
+              <div className="text-xs opacity-75 mt-1">wymagają uwagi</div>
+            </div>
+            <div className="bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl shadow-lg p-5 text-white transform hover:scale-105 transition-all cursor-pointer">
+              <div className="flex items-center justify-between mb-2">
+                <div className="text-sm font-medium opacity-90">W trakcie</div>
+                <span className="text-2xl">⚡</span>
+              </div>
+              <div className="text-3xl font-bold">{stats.in_progress}</div>
+              <div className="text-xs opacity-75 mt-1">w realizacji</div>
+            </div>
+            <div className="bg-gradient-to-br from-yellow-400 to-orange-500 rounded-xl shadow-lg p-5 text-white transform hover:scale-105 transition-all cursor-pointer">
+              <div className="flex items-center justify-between mb-2">
+                <div className="text-sm font-medium opacity-90">Oczekuje</div>
+                <span className="text-2xl">⏳</span>
+              </div>
+              <div className="text-3xl font-bold">{stats.waiting_user}</div>
+              <div className="text-xs opacity-75 mt-1">
+                czeka na użytkownika
               </div>
             </div>
-            <div className="bg-white rounded-lg shadow p-4">
-              <div className="text-sm text-gray-600 mb-1">W trakcie</div>
-              <div className="text-2xl font-bold text-blue-600">
-                {stats.in_progress}
+            <div className="bg-gradient-to-br from-purple-500 to-pink-600 rounded-xl shadow-lg p-5 text-white transform hover:scale-105 transition-all cursor-pointer">
+              <div className="flex items-center justify-between mb-2">
+                <div className="text-sm font-medium opacity-90">Rozwiązane</div>
+                <span className="text-2xl">✅</span>
               </div>
+              <div className="text-3xl font-bold">{stats.resolved}</div>
+              <div className="text-xs opacity-75 mt-1">zakończone sukcesem</div>
             </div>
-            <div className="bg-white rounded-lg shadow p-4">
-              <div className="text-sm text-gray-600 mb-1">Oczekuje</div>
-              <div className="text-2xl font-bold text-yellow-600">
-                {stats.waiting_user}
+            <div className="bg-gradient-to-br from-gray-500 to-gray-700 rounded-xl shadow-lg p-5 text-white transform hover:scale-105 transition-all cursor-pointer">
+              <div className="flex items-center justify-between mb-2">
+                <div className="text-sm font-medium opacity-90">Zamknięte</div>
+                <span className="text-2xl">🔒</span>
               </div>
-            </div>
-            <div className="bg-white rounded-lg shadow p-4">
-              <div className="text-sm text-gray-600 mb-1">Rozwiązane</div>
-              <div className="text-2xl font-bold text-purple-600">
-                {stats.resolved}
-              </div>
-            </div>
-            <div className="bg-white rounded-lg shadow p-4">
-              <div className="text-sm text-gray-600 mb-1">Zamknięte</div>
-              <div className="text-2xl font-bold text-gray-600">
-                {stats.closed}
-              </div>
+              <div className="text-3xl font-bold">{stats.closed}</div>
+              <div className="text-xs opacity-75 mt-1">zarchiwizowane</div>
             </div>
           </div>
         )}
 
-        {/* Filters */}
-        <div className="bg-white rounded-lg shadow p-4 mb-6">
-          <div className="grid grid-cols-4 gap-4">
+        {/* Modern Filters */}
+        <div className="bg-white rounded-xl shadow-lg p-6 mb-6 border border-gray-100">
+          <div className="flex items-center gap-2 mb-4">
+            <svg
+              className="w-5 h-5 text-blue-600"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"
+              />
+            </svg>
+            <h2 className="text-lg font-semibold text-gray-800">
+              Filtry wyszukiwania
+            </h2>
+          </div>
+          <div className="grid grid-cols-4 gap-6">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Status
@@ -249,10 +308,15 @@ export const SupportTicketsManager: React.FC = () => {
                   { value: "resolved", label: "Rozwiązane" },
                   { value: "closed", label: "Zamknięte" },
                 ].map((option) => (
-                  <label key={option.value} className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-1 rounded">
+                  <label
+                    key={option.value}
+                    className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-1 rounded"
+                  >
                     <input
                       type="checkbox"
-                      checked={(filters.status || []).includes(option.value as TicketStatus)}
+                      checked={(filters.status || []).includes(
+                        option.value as TicketStatus
+                      )}
                       onChange={(e) => {
                         const currentStatus = filters.status || [];
                         const newStatus = e.target.checked
@@ -262,7 +326,9 @@ export const SupportTicketsManager: React.FC = () => {
                       }}
                       className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                     />
-                    <span className="text-sm text-gray-700">{option.label}</span>
+                    <span className="text-sm text-gray-700">
+                      {option.label}
+                    </span>
                   </label>
                 ))}
               </div>
@@ -279,10 +345,15 @@ export const SupportTicketsManager: React.FC = () => {
                   { value: "high", label: "Wysoki" },
                   { value: "critical", label: "Krytyczny" },
                 ].map((option) => (
-                  <label key={option.value} className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-1 rounded">
+                  <label
+                    key={option.value}
+                    className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-1 rounded"
+                  >
                     <input
                       type="checkbox"
-                      checked={(filters.priority || []).includes(option.value as TicketPriority)}
+                      checked={(filters.priority || []).includes(
+                        option.value as TicketPriority
+                      )}
                       onChange={(e) => {
                         const currentPriority = filters.priority || [];
                         const newPriority = e.target.checked
@@ -292,7 +363,9 @@ export const SupportTicketsManager: React.FC = () => {
                       }}
                       className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                     />
-                    <span className="text-sm text-gray-700">{option.label}</span>
+                    <span className="text-sm text-gray-700">
+                      {option.label}
+                    </span>
                   </label>
                 ))}
               </div>
@@ -310,10 +383,15 @@ export const SupportTicketsManager: React.FC = () => {
                   { value: "bug", label: "Błąd" },
                   { value: "other", label: "Inne" },
                 ].map((option) => (
-                  <label key={option.value} className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-1 rounded">
+                  <label
+                    key={option.value}
+                    className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-1 rounded"
+                  >
                     <input
                       type="checkbox"
-                      checked={(filters.category || []).includes(option.value as TicketCategory)}
+                      checked={(filters.category || []).includes(
+                        option.value as TicketCategory
+                      )}
                       onChange={(e) => {
                         const currentCategory = filters.category || [];
                         const newCategory = e.target.checked
@@ -323,7 +401,9 @@ export const SupportTicketsManager: React.FC = () => {
                       }}
                       className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                     />
-                    <span className="text-sm text-gray-700">{option.label}</span>
+                    <span className="text-sm text-gray-700">
+                      {option.label}
+                    </span>
                   </label>
                 ))}
               </div>
@@ -331,92 +411,200 @@ export const SupportTicketsManager: React.FC = () => {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Szukaj
+                🔍 Szukaj
               </label>
-              <input
-                type="text"
-                placeholder="Szukaj po subject, email..."
-                value={filters.search || ""}
-                onChange={(e) =>
-                  setFilters({ ...filters, search: e.target.value })
-                }
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-              />
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="Szukaj po temacie, emailu..."
+                  value={filters.search || ""}
+                  onChange={(e) =>
+                    setFilters({ ...filters, search: e.target.value })
+                  }
+                  className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                />
+                <svg
+                  className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                  />
+                </svg>
+              </div>
             </div>
           </div>
-          <button
-            onClick={() =>
-              setFilters({
-                status: [],
-                priority: [],
-                category: [],
-                user_role: [],
-                search: "",
-              })
-            }
-            className="mt-4 text-sm text-blue-600 hover:text-blue-700"
-          >
-            🔄 Wyczyść filtry
-          </button>
+          <div className="flex items-center justify-between mt-6 pt-4 border-t border-gray-200">
+            <div className="text-sm text-gray-600">
+              Znaleziono:{" "}
+              <span className="font-semibold text-gray-900">
+                {tickets.length}
+              </span>{" "}
+              zgłoszeń
+            </div>
+            <button
+              onClick={() =>
+                setFilters({
+                  status: [],
+                  priority: [],
+                  category: [],
+                  user_role: [],
+                  search: "",
+                })
+              }
+              className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-all"
+            >
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                />
+              </svg>
+              Wyczyść filtry
+            </button>
+          </div>
         </div>
 
-        {/* Main Content - Tickets List + Chat */}
+        {/* Main Content - Modern Layout */}
         <div className="grid grid-cols-3 gap-6">
           {/* Tickets List */}
-          <div className="col-span-1 bg-white rounded-lg shadow p-4">
-            <h2 className="text-lg font-semibold mb-4">
-              Zgłoszenia ({tickets.length})
-            </h2>
-            <div className="space-y-3 max-h-[700px] overflow-y-auto">
+          <div className="col-span-1 bg-white rounded-xl shadow-lg border border-gray-100">
+            <div className="p-4 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-white">
+              <div className="flex items-center justify-between">
+                <h2 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+                  📎 Zgłoszenia
+                  <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs font-bold rounded-full">
+                    {tickets.length}
+                  </span>
+                </h2>
+                <button className="p-1.5 hover:bg-gray-100 rounded-lg transition-all">
+                  <svg
+                    className="w-4 h-4 text-gray-500"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M4 6h16M4 12h16m-7 6h7"
+                    />
+                  </svg>
+                </button>
+              </div>
+            </div>
+            <div className="p-4 space-y-3 max-h-[calc(100vh-400px)] overflow-y-auto">
               {loading ? (
-                <div className="flex items-center justify-center py-8">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                <div className="flex items-center justify-center py-12">
+                  <div className="text-center">
+                    <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mx-auto mb-3"></div>
+                    <p className="text-sm text-gray-500">
+                      Ładowanie zgłoszeń...
+                    </p>
+                  </div>
                 </div>
               ) : tickets.length === 0 ? (
-                <div className="text-center py-8 text-gray-500">
-                  Brak zgłoszeń
+                <div className="text-center py-12">
+                  <div className="text-6xl mb-4">📦</div>
+                  <p className="text-gray-500 font-medium">Brak zgłoszeń</p>
+                  <p className="text-sm text-gray-400 mt-1">
+                    Spróbuj zmienić filtry
+                  </p>
                 </div>
               ) : (
                 tickets.map((ticket) => (
                   <button
                     key={ticket.id}
                     onClick={() => setSelectedTicket(ticket)}
-                    className={`w-full text-left p-4 rounded-lg border transition-all ${
+                    className={`w-full text-left p-4 rounded-xl border-2 transition-all ${
                       selectedTicket?.id === ticket.id
-                        ? "border-blue-500 bg-blue-50 shadow-md"
-                        : "border-gray-200 hover:border-blue-300 hover:bg-gray-50"
+                        ? "border-blue-500 bg-gradient-to-br from-blue-50 to-indigo-50 shadow-lg scale-[1.02]"
+                        : "border-gray-200 hover:border-blue-300 hover:bg-gray-50 hover:shadow-md"
                     }`}
                   >
-                    <div className="flex items-start justify-between mb-2">
-                      <div className="flex-1">
-                        <div className="font-medium text-sm line-clamp-1 mb-1">
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex-1 min-w-0">
+                        <div className="font-semibold text-gray-900 text-sm line-clamp-2 mb-1.5">
                           {ticket.subject}
                         </div>
-                        <div className="text-xs text-gray-600">
-                          {ticket.user_name} ({ticket.user_role})
+                        <div className="flex items-center gap-2 text-xs text-gray-600 mb-1">
+                          <span className="flex items-center gap-1">
+                            👤 {ticket.user_name}
+                          </span>
+                          <span className="text-gray-400">•</span>
+                          <span className="px-1.5 py-0.5 bg-gray-100 rounded text-gray-700 font-medium">
+                            {ticket.user_role}
+                          </span>
                         </div>
-                        <div className="text-xs text-gray-500">
-                          {new Date(ticket.created_at!).toLocaleString("pl-PL")}
+                        <div className="text-xs text-gray-500 flex items-center gap-1">
+                          📅{" "}
+                          {new Date(ticket.created_at!).toLocaleDateString(
+                            "pl-PL",
+                            {
+                              day: "2-digit",
+                              month: "short",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            }
+                          )}
                         </div>
                       </div>
                     </div>
                     <div className="flex items-center gap-2 flex-wrap">
                       <span
-                        className={`text-xs px-2 py-0.5 rounded-full ${getStatusBadgeColor(
-                          ticket.status
-                        )}`}
+                        className={`text-xs px-2.5 py-1 rounded-full font-medium ${
+                          ticket.status === "new"
+                            ? "bg-green-100 text-green-700"
+                            : ticket.status === "in_progress"
+                            ? "bg-blue-100 text-blue-700"
+                            : ticket.status === "waiting_user"
+                            ? "bg-yellow-100 text-yellow-700"
+                            : ticket.status === "resolved"
+                            ? "bg-purple-100 text-purple-700"
+                            : "bg-gray-100 text-gray-700"
+                        }`}
                       >
-                        {ticket.status}
+                        {ticket.status === "new"
+                          ? "⭐ Nowy"
+                          : ticket.status === "in_progress"
+                          ? "⚡ W trakcie"
+                          : ticket.status === "waiting_user"
+                          ? "⏳ Oczekuje"
+                          : ticket.status === "resolved"
+                          ? "✅ Rozwiązany"
+                          : "🔒 Zamknięty"}
                       </span>
                       <span
-                        className={`text-xs px-2 py-0.5 rounded-full ${getPriorityBadgeColor(
-                          ticket.priority
-                        )}`}
+                        className={`text-xs px-2.5 py-1 rounded-full font-medium ${
+                          ticket.priority === "critical"
+                            ? "bg-red-100 text-red-700"
+                            : ticket.priority === "high"
+                            ? "bg-orange-100 text-orange-700"
+                            : ticket.priority === "medium"
+                            ? "bg-yellow-100 text-yellow-700"
+                            : "bg-gray-100 text-gray-700"
+                        }`}
                       >
-                        {ticket.priority}
-                      </span>
-                      <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">
-                        {ticket.category}
+                        {ticket.priority === "critical"
+                          ? "🔥 Krytyczny"
+                          : ticket.priority === "high"
+                          ? "⚠️ Wysoki"
+                          : ticket.priority === "medium"
+                          ? "🔶 Średni"
+                          : "⬇️ Niski"}
                       </span>
                     </div>
                   </button>

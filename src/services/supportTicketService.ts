@@ -418,13 +418,15 @@ export const getAllTickets = async (
 
   let query = supabase
     .from("support_tickets")
-    .select(`
+    .select(
+      `
       *,
       admin:profiles!assigned_to(
         full_name,
         email
       )
-    `)
+    `
+    )
     .order("created_at", { ascending: false });
 
   // Apply filters
