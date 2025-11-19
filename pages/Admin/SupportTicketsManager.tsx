@@ -216,14 +216,6 @@ export const SupportTicketsManager: React.FC = () => {
                 Zarządzanie zgłoszeniami i pomoc użytkownikom
               </p>
             </div>
-            <div className="flex gap-2">
-              <button className="px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg hover:shadow-lg transition-all">
-                📊 Raporty
-              </button>
-              <button className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-all">
-                ⚙️ Ustawienia
-              </button>
-            </div>
           </div>
         </div>
 
