@@ -289,115 +289,142 @@ export const SupportTicketsManager: React.FC = () => {
           </div>
           <div className="grid grid-cols-4 gap-6">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="text-sm font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                <span className="w-2 h-2 bg-green-500 rounded-full"></span>
                 Status
               </label>
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 {[
-                  { value: "new", label: "Nowe" },
-                  { value: "in_progress", label: "W trakcie" },
-                  { value: "waiting_user", label: "Oczekuje" },
-                  { value: "resolved", label: "Rozwiązane" },
-                  { value: "closed", label: "Zamknięte" },
-                ].map((option) => (
-                  <label
-                    key={option.value}
-                    className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-1 rounded"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={(filters.status || []).includes(
-                        option.value as TicketStatus
-                      )}
-                      onChange={(e) => {
-                        const currentStatus = filters.status || [];
-                        const newStatus = e.target.checked
-                          ? [...currentStatus, option.value as TicketStatus]
-                          : currentStatus.filter((s) => s !== option.value);
-                        setFilters({ ...filters, status: newStatus });
-                      }}
-                      className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                    />
-                    <span className="text-sm text-gray-700">
-                      {option.label}
-                    </span>
-                  </label>
-                ))}
+                  { value: "new", label: "Nowe", icon: "⭐", color: "green" },
+                  { value: "in_progress", label: "W trakcie", icon: "⚡", color: "blue" },
+                  { value: "waiting_user", label: "Oczekuje", icon: "⏳", color: "yellow" },
+                  { value: "resolved", label: "Rozwiązane", icon: "✅", color: "purple" },
+                  { value: "closed", label: "Zamknięte", icon: "🔒", color: "gray" },
+                ].map((option) => {
+                  const isChecked = (filters.status || []).includes(option.value as TicketStatus);
+                  return (
+                    <label
+                      key={option.value}
+                      className={`flex items-center gap-2.5 cursor-pointer p-2.5 rounded-lg transition-all ${
+                        isChecked
+                          ? `bg-${option.color}-50 border-2 border-${option.color}-300 shadow-sm`
+                          : "bg-white border-2 border-transparent hover:bg-gray-50 hover:border-gray-200"
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isChecked}
+                        onChange={(e) => {
+                          const currentStatus = filters.status || [];
+                          const newStatus = e.target.checked
+                            ? [...currentStatus, option.value as TicketStatus]
+                            : currentStatus.filter((s) => s !== option.value);
+                          setFilters({ ...filters, status: newStatus });
+                        }}
+                        className="w-5 h-5 text-blue-600 border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                      />
+                      <span className="text-lg">{option.icon}</span>
+                      <span className={`text-sm font-medium ${
+                        isChecked ? `text-${option.color}-800` : "text-gray-700"
+                      }`}>
+                        {option.label}
+                      </span>
+                    </label>
+                  );
+                })}
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="text-sm font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                <span className="w-2 h-2 bg-orange-500 rounded-full"></span>
                 Priorytet
               </label>
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 {[
-                  { value: "low", label: "Niski" },
-                  { value: "medium", label: "Średni" },
-                  { value: "high", label: "Wysoki" },
-                  { value: "critical", label: "Krytyczny" },
-                ].map((option) => (
-                  <label
-                    key={option.value}
-                    className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-1 rounded"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={(filters.priority || []).includes(
-                        option.value as TicketPriority
-                      )}
-                      onChange={(e) => {
-                        const currentPriority = filters.priority || [];
-                        const newPriority = e.target.checked
-                          ? [...currentPriority, option.value as TicketPriority]
-                          : currentPriority.filter((p) => p !== option.value);
-                        setFilters({ ...filters, priority: newPriority });
-                      }}
-                      className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                    />
-                    <span className="text-sm text-gray-700">
-                      {option.label}
-                    </span>
-                  </label>
-                ))}
+                  { value: "low", label: "Niski", icon: "⬇️", color: "gray" },
+                  { value: "medium", label: "Średni", icon: "🔶", color: "yellow" },
+                  { value: "high", label: "Wysoki", icon: "⚠️", color: "orange" },
+                  { value: "critical", label: "Krytyczny", icon: "🔥", color: "red" },
+                ].map((option) => {
+                  const isChecked = (filters.priority || []).includes(option.value as TicketPriority);
+                  return (
+                    <label
+                      key={option.value}
+                      className={`flex items-center gap-2.5 cursor-pointer p-2.5 rounded-lg transition-all ${
+                        isChecked
+                          ? `bg-${option.color}-50 border-2 border-${option.color}-300 shadow-sm`
+                          : "bg-white border-2 border-transparent hover:bg-gray-50 hover:border-gray-200"
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isChecked}
+                        onChange={(e) => {
+                          const currentPriority = filters.priority || [];
+                          const newPriority = e.target.checked
+                            ? [...currentPriority, option.value as TicketPriority]
+                            : currentPriority.filter((p) => p !== option.value);
+                          setFilters({ ...filters, priority: newPriority });
+                        }}
+                        className="w-5 h-5 text-blue-600 border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                      />
+                      <span className="text-lg">{option.icon}</span>
+                      <span className={`text-sm font-medium ${
+                        isChecked ? `text-${option.color}-800` : "text-gray-700"
+                      }`}>
+                        {option.label}
+                      </span>
+                    </label>
+                  );
+                })}
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="text-sm font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                <span className="w-2 h-2 bg-indigo-500 rounded-full"></span>
                 Kategoria
               </label>
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 {[
-                  { value: "technical", label: "Techniczny" },
-                  { value: "billing", label: "Płatności" },
-                  { value: "account", label: "Konto" },
-                  { value: "bug", label: "Błąd" },
-                  { value: "other", label: "Inne" },
-                ].map((option) => (
-                  <label
-                    key={option.value}
-                    className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-1 rounded"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={(filters.category || []).includes(
-                        option.value as TicketCategory
-                      )}
-                      onChange={(e) => {
-                        const currentCategory = filters.category || [];
-                        const newCategory = e.target.checked
-                          ? [...currentCategory, option.value as TicketCategory]
-                          : currentCategory.filter((c) => c !== option.value);
-                        setFilters({ ...filters, category: newCategory });
-                      }}
-                      className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                    />
-                    <span className="text-sm text-gray-700">
-                      {option.label}
-                    </span>
-                  </label>
-                ))}
+                  { value: "technical", label: "Techniczny", icon: "⚙️" },
+                  { value: "billing", label: "Płatności", icon: "💰" },
+                  { value: "account", label: "Konto", icon: "👤" },
+                  { value: "bug", label: "Błąd", icon: "🐛" },
+                  { value: "other", label: "Inne", icon: "📝" },
+                ].map((option) => {
+                  const isChecked = (filters.category || []).includes(option.value as TicketCategory);
+                  return (
+                    <label
+                      key={option.value}
+                      className={`flex items-center gap-2.5 cursor-pointer p-2.5 rounded-lg transition-all ${
+                        isChecked
+                          ? "bg-indigo-50 border-2 border-indigo-300 shadow-sm"
+                          : "bg-white border-2 border-transparent hover:bg-gray-50 hover:border-gray-200"
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isChecked}
+                        onChange={(e) => {
+                          const currentCategory = filters.category || [];
+                          const newCategory = e.target.checked
+                            ? [...currentCategory, option.value as TicketCategory]
+                            : currentCategory.filter((c) => c !== option.value);
+                          setFilters({ ...filters, category: newCategory });
+                        }}
+                        className="w-5 h-5 text-blue-600 border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                      />
+                      <span className="text-lg">{option.icon}</span>
+                      <span className={`text-sm font-medium ${
+                        isChecked ? "text-indigo-800" : "text-gray-700"
+                      }`}>
+                        {option.label}
+                      </span>
+                    </label>
+                  );
+                })}
               </div>
             </div>
 
