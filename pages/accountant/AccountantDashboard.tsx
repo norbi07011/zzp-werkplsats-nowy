@@ -3,6 +3,7 @@ import { useNavigate, Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../../contexts/AuthContext";
 import { SupportTicketModal } from "../../src/components/SupportTicketModal";
+import { geocodeAddress } from "../../services/geocoding";
 import {
   getAccountantByProfileId,
   getMyReviews,
@@ -42,6 +43,8 @@ import {
   ClockIcon,
   Eye,
 } from "../../components/icons";
+import MyPosts from "./MyPosts";
+import SavedActivity from "./SavedActivity";
 
 export default function AccountantDashboard() {
   const { t } = useTranslation();
@@ -94,6 +97,8 @@ export default function AccountantDashboard() {
     languages: ["Nederlands"] as string[],
     website: "",
     years_experience: 0,
+    latitude: null as number | null,
+    longitude: null as number | null,
   });
 
   useEffect(() => {
@@ -529,25 +534,52 @@ export default function AccountantDashboard() {
     if (!accountant) return;
 
     try {
+      // Auto-geocode address if provided but no coordinates
+      let updateData = { ...editForm };
+
+      if (
+        editForm.address &&
+        editForm.city &&
+        (!editForm.latitude || !editForm.longitude)
+      ) {
+        console.log("🗺️ Geocoding address...");
+        const geocoded = await geocodeAddress(
+          editForm.address,
+          editForm.city,
+          editForm.postal_code,
+          editForm.country
+        );
+
+        if (geocoded) {
+          updateData.latitude = geocoded.latitude;
+          updateData.longitude = geocoded.longitude;
+          console.log("✅ Geocoding successful:", geocoded);
+        } else {
+          console.warn("⚠️ Geocoding failed - saving without coordinates");
+        }
+      }
+
       const { error } = await supabase
         .from("accountants")
         .update({
-          full_name: editForm.full_name,
-          company_name: editForm.company_name,
-          email: editForm.email,
-          phone: editForm.phone,
-          kvk_number: editForm.kvk_number,
-          btw_number: editForm.btw_number,
-          license_number: editForm.license_number,
-          city: editForm.city,
-          address: editForm.address,
-          postal_code: editForm.postal_code,
-          country: editForm.country,
-          bio: editForm.bio,
-          specializations: editForm.specializations,
-          languages: editForm.languages,
-          website: editForm.website,
-          years_experience: editForm.years_experience,
+          full_name: updateData.full_name,
+          company_name: updateData.company_name,
+          email: updateData.email,
+          phone: updateData.phone,
+          kvk_number: updateData.kvk_number,
+          btw_number: updateData.btw_number,
+          license_number: updateData.license_number,
+          city: updateData.city,
+          address: updateData.address,
+          postal_code: updateData.postal_code,
+          country: updateData.country,
+          bio: updateData.bio,
+          specializations: updateData.specializations,
+          languages: updateData.languages,
+          website: updateData.website,
+          years_experience: updateData.years_experience,
+          latitude: updateData.latitude,
+          longitude: updateData.longitude,
         })
         .eq("id", accountant.id);
 
@@ -555,7 +587,7 @@ export default function AccountantDashboard() {
 
       setAccountant({
         ...accountant,
-        ...editForm,
+        ...updateData,
       });
 
       setIsEditingProfile(false);
@@ -2625,6 +2657,11 @@ export default function AccountantDashboard() {
           </div>
         </TabPanel>
 
+        {/* Tablica Tab */}
+        <TabPanel isActive={activeTab === "tablica"}>
+          <FeedPage />
+        </TabPanel>
+
         <TabPanel isActive={activeTab === "services"}>
           <div className="bg-white rounded-lg shadow p-6">
             <h2 className="text-2xl font-bold mb-6">💼 Usługi</h2>
@@ -2641,6 +2678,16 @@ export default function AccountantDashboard() {
         <TabPanel isActive={activeTab === "forms"}>{renderForms()}</TabPanel>
 
         <TabPanel isActive={activeTab === "team"}>{renderTeam()}</TabPanel>
+
+        {/* My Posts Tab */}
+        <TabPanel isActive={activeTab === "my_posts"}>
+          <MyPosts />
+        </TabPanel>
+
+        {/* Saved Activity Tab */}
+        <TabPanel isActive={activeTab === "saved_activity"}>
+          <SavedActivity />
+        </TabPanel>
       </main>
 
       {/* Support Ticket Modal */}

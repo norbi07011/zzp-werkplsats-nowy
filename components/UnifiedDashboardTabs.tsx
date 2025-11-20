@@ -24,13 +24,16 @@ export type UnifiedTab =
   | "profile" // 💼 Profil - edycja, portfolio, availability
   | "messages" // 📬 Wiadomości - chat, notifications
   | "reviews" // ⭐ Opinie - ratings, reviews
+  | "tablica" // 📋 Tablica - feed, posts board - ALL roles
   | "certificates" // 🏆 Certyfikaty - ONLY for worker & cleaning_company
   | "portfolio" // 🎨 Portfolio - ONLY for worker & cleaning_company
   | "subscription" // 💳 Subskrypcja - ONLY for worker & cleaning_company
   | "services" // 💼 Usługi - ONLY for accountant (main services page)
   | "submissions" // 📋 Zgłoszenia - ONLY for accountant
   | "forms" // 📝 Formularze - ONLY for accountant
-  | "team"; // 👥 Drużyna - ONLY for accountant
+  | "team" // 👥 Drużyna - ONLY for accountant
+  | "my_posts" // 📋 Moje Posty - ONLY for employer, accountant, admin
+  | "saved_activity"; // 📁 Historia Aktywności - ALL roles
 
 interface TabConfig {
   id: UnifiedTab;
@@ -68,6 +71,13 @@ const ALL_TABS: TabConfig[] = [
     icon: "⭐",
     description: "Oceny, recenzje, referencje",
     roles: ["admin", "employer", "worker", "accountant", "cleaning_company"],
+  },
+  {
+    id: "tablica",
+    label: "Tablica",
+    icon: "📋",
+    description: "Tablica ogłoszeń - oferty pracy, reklamy, ogłoszenia",
+    roles: ["admin", "employer", "worker", "accountant", "cleaning_company"], // ✅ ALL roles!
   },
   {
     id: "certificates",
@@ -117,6 +127,20 @@ const ALL_TABS: TabConfig[] = [
     icon: "👥",
     description: "Zarządzanie zespołem, pracownicy",
     roles: ["accountant"], // ✅ ONLY accountant!
+  },
+  {
+    id: "my_posts",
+    label: "Moje Posty",
+    icon: "📋",
+    description: "Zarządzanie postami - edycja, toggle active, statystyki",
+    roles: ["employer", "accountant", "admin"], // ✅ Post creators only!
+  },
+  {
+    id: "saved_activity",
+    label: "Historia Aktywności",
+    icon: "📁",
+    description: "Zapisane posty, polubiane, komentowane",
+    roles: ["admin", "employer", "worker", "accountant", "cleaning_company"], // ✅ ALL roles!
   },
 ];
 

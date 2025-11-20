@@ -14,7 +14,9 @@ import React from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
 import workerProfileService from "../services/workerProfileService";
+import { getJobs } from "../src/services/job";
 import { SupportTicketModal } from "../src/components/SupportTicketModal";
+import { geocodeAddress } from "../services/geocoding";
 import type { WorkerProfileData } from "../services/workerProfileService";
 import { MOCK_JOBS, MOCK_PROFILES } from "../constants";
 import { JobCard } from "../components/JobCard";
@@ -37,7 +39,7 @@ import {
 } from "../components/UnifiedDashboardTabs";
 import { SubscriptionPanel } from "../src/components/subscription/SubscriptionPanel";
 import { CertificateApplicationForm } from "../src/components/subscription/CertificateApplicationForm";
-import FeedPage from "../pages/FeedPage";
+import FeedPage from "../pages/FeedPage_PREMIUM";
 import {
   PageContainer,
   PageHeader,
@@ -47,6 +49,7 @@ import {
 } from "../components/common/PageContainer";
 import DateBlocker from "../src/components/common/DateBlocker";
 import { CoverImageUploader } from "../src/components/common/CoverImageUploader";
+import SavedActivity from "./worker/SavedActivity";
 
 // ===================================================================
 // CONSTANT TAB CONFIGURATIONS (prevent infinite re-render)
@@ -145,6 +148,12 @@ export default function WorkerDashboard() {
     hourly_rate: 0,
     years_experience: 0,
     language: "nl" as const,
+    // Address fields
+    address: "",
+    postal_code: "",
+    location_country: "NL",
+    latitude: null as number | null,
+    longitude: null as number | null,
   });
 
   // Skills State
@@ -397,6 +406,16 @@ export default function WorkerDashboard() {
       // const apps = await workerProfileService.getApplications(user.id);
       setApplications([]); // Mock: empty until DB fixed
 
+      // Load available jobs (active/published jobs)
+      try {
+        const jobsData = await getJobs({ status: "active" });
+        setJobs(jobsData || []);
+        console.log("✅ [WORKER-DASH] Loaded jobs:", jobsData?.length || 0);
+      } catch (error) {
+        console.warn("[WORKER-DASH] Could not load jobs:", error);
+        setJobs([]);
+      }
+
       // Load earnings
       // const earningsData = await workerProfileService.getEarnings(user.id);
       setEarnings([]); // Mock: empty until DB fixed
@@ -533,9 +552,34 @@ export default function WorkerDashboard() {
     setSuccess(null);
 
     try {
+      // Auto-geocode address if provided but no coordinates
+      let updateData = { ...profileForm };
+
+      if (
+        profileForm.address &&
+        profileForm.location_city &&
+        (!profileForm.latitude || !profileForm.longitude)
+      ) {
+        console.log("🗺️ Geocoding address...");
+        const geocoded = await geocodeAddress(
+          profileForm.address,
+          profileForm.location_city,
+          profileForm.postal_code,
+          profileForm.location_country || "Netherlands"
+        );
+
+        if (geocoded) {
+          updateData.latitude = geocoded.latitude;
+          updateData.longitude = geocoded.longitude;
+          console.log("✅ Geocoding successful:", geocoded);
+        } else {
+          console.warn("⚠️ Geocoding failed - saving without coordinates");
+        }
+      }
+
       const updated = await workerProfileService.updateWorkerProfile(
         userId,
-        profileForm
+        updateData
       );
 
       if (updated) {
@@ -2178,6 +2222,88 @@ export default function WorkerDashboard() {
           </div>
         </div>
 
+        {/* Adres (Location) */}
+        <div>
+          <h3 className="text-lg font-bold text-white mb-4">📍 Lokalizacja</h3>
+          <p className="text-sm text-neutral-400 mb-4">
+            Twój adres będzie wyświetlany na mapie w profilu publicznym.
+          </p>
+          <div className="grid grid-cols-2 gap-6">
+            <div className="col-span-2">
+              <label className="block text-sm text-neutral-400 mb-2">
+                Adres (ulica i numer)
+              </label>
+              <input
+                type="text"
+                value={profileForm.address || ""}
+                onChange={(e) =>
+                  setProfileForm({
+                    ...profileForm,
+                    address: e.target.value,
+                  })
+                }
+                className="w-full px-4 py-3 bg-dark-700 border border-neutral-600 rounded-lg text-white focus:border-accent-cyber focus:outline-none"
+                placeholder="Damstraat 123"
+              />
+            </div>
+            <div>
+              <label className="block text-sm text-neutral-400 mb-2">
+                Kod pocztowy
+              </label>
+              <input
+                type="text"
+                value={profileForm.postal_code || ""}
+                onChange={(e) =>
+                  setProfileForm({
+                    ...profileForm,
+                    postal_code: e.target.value,
+                  })
+                }
+                className="w-full px-4 py-3 bg-dark-700 border border-neutral-600 rounded-lg text-white focus:border-accent-cyber focus:outline-none"
+                placeholder="1012 JS"
+              />
+            </div>
+            <div>
+              <label className="block text-sm text-neutral-400 mb-2">
+                Kraj
+              </label>
+              <select
+                value={profileForm.location_country || "NL"}
+                onChange={(e) =>
+                  setProfileForm({
+                    ...profileForm,
+                    location_country: e.target.value,
+                  })
+                }
+                className="w-full px-4 py-3 bg-dark-700 border border-neutral-600 rounded-lg text-white focus:border-accent-cyber focus:outline-none"
+              >
+                <option value="NL">Niderland</option>
+                <option value="BE">Belgia</option>
+                <option value="DE">Niemcy</option>
+                <option value="PL">Polska</option>
+              </select>
+            </div>
+          </div>
+          <div className="mt-3 flex items-center gap-2 text-xs text-neutral-500">
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
+            </svg>
+            <span>
+              Współrzędne GPS zostaną automatycznie wygenerowane po zapisaniu
+            </span>
+          </div>
+        </div>
+
         {/* Dane zawodowe */}
         <div>
           <h3 className="text-lg font-bold text-white mb-4">Dane zawodowe</h3>
@@ -3772,6 +3898,10 @@ export default function WorkerDashboard() {
 
         <TabPanel isActive={activeTab === "subscription"}>
           {renderSubscription()}
+        </TabPanel>
+
+        <TabPanel isActive={activeTab === "saved_activity"}>
+          <SavedActivity />
         </TabPanel>
       </div>
 

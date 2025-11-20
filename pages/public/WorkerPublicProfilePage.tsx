@@ -4,6 +4,7 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "../../contexts/AuthContext";
 import { Modal } from "../../components/Modal";
 import { ReviewWorkerModal } from "../../src/components/employer/ReviewWorkerModal";
+import { LocationCard } from "../../components/LocationCard";
 import {
   Star,
   MapPin,
@@ -319,6 +320,8 @@ export default function WorkerPublicProfilePage() {
   const loadWorkerData = async () => {
     if (!id) return;
 
+    console.log("🔍 WORKER PROFILE - Loading worker ID:", id);
+
     try {
       // Increment profile_views counter (cast to any to bypass TypeScript type check)
       const { error: incrementError } = await (supabase as any).rpc(
@@ -348,6 +351,8 @@ export default function WorkerPublicProfilePage() {
         )
         .eq("id", id)
         .single();
+
+      console.log("🔍 WORKER QUERY RESULT:", { workerData, workerError });
 
       if (workerError) throw workerError;
 
@@ -425,7 +430,7 @@ export default function WorkerPublicProfilePage() {
         );
       }
     } catch (error) {
-      console.error("Error loading worker:", error);
+      console.error("❌ WORKER PROFILE ERROR:", error);
     } finally {
       setLoading(false);
     }
@@ -1430,6 +1435,18 @@ function AboutTab({ worker }: { worker: Worker }) {
           </div>
         </div>
       )}
+
+      {/* Location Card */}
+      <LocationCard
+        address={(worker as any).address}
+        city={worker.city}
+        postalCode={worker.postal_code}
+        country={worker.country}
+        latitude={(worker as any).latitude}
+        longitude={(worker as any).longitude}
+        googleMapsUrl={null}
+        profileType="worker"
+      />
     </div>
   );
 }

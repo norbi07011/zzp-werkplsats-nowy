@@ -1,9 +1,16 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { MOCK_PROFILES, MOCK_JOBS } from "../constants";
 import { WorkerCard } from "../components/WorkerCard";
 import { Level, Profile, UserRole, Job } from "../types";
 import { JobForm } from "../components/Forms/JobForm";
 import { useAuth } from "../contexts/AuthContext";
+import {
+  getJobsByCompany,
+  deleteJob,
+  updateJobStatus,
+} from "../src/services/job";
+import type { Job as JobType } from "../src/services/job";
+import { toast } from "sonner";
 import {
   WrenchScrewdriverIcon,
   BoltIcon,
@@ -565,6 +572,62 @@ export const ClientDashboard: React.FC = () => {
   const { user } = useAuth();
   const [activeView, setActiveView] = useState<View>("overview");
   const [reviewingWorker, setReviewingWorker] = useState<Profile | null>(null);
+  const [employerJobs, setEmployerJobs] = useState<JobType[]>([]);
+  const [loadingJobs, setLoadingJobs] = useState(false);
+  const [editingJob, setEditingJob] = useState<JobType | null>(null);
+
+  // Load employer jobs
+  useEffect(() => {
+    if (user?.id && activeView === "job-board") {
+      loadEmployerJobs();
+    }
+  }, [user?.id, activeView]);
+
+  const loadEmployerJobs = async () => {
+    if (!user?.id) return;
+
+    setLoadingJobs(true);
+    try {
+      const jobs = await getJobsByCompany(user.id);
+      setEmployerJobs(jobs);
+    } catch (error) {
+      console.error("❌ Error loading jobs:", error);
+      toast.error("Nie udało się załadować ofert");
+    } finally {
+      setLoadingJobs(false);
+    }
+  };
+
+  const handleDeleteJob = async (jobId: string) => {
+    if (!confirm("Czy na pewno chcesz usunąć tę ofertę?")) return;
+
+    try {
+      await deleteJob(jobId);
+      toast.success("Oferta została usunięta");
+      loadEmployerJobs();
+    } catch (error) {
+      console.error("❌ Error deleting job:", error);
+      toast.error("Nie udało się usunąć oferty");
+    }
+  };
+
+  const handleToggleJobStatus = async (
+    jobId: string,
+    currentStatus: string
+  ) => {
+    const newStatus = currentStatus === "active" ? "paused" : "active";
+
+    try {
+      await updateJobStatus(jobId, newStatus);
+      toast.success(
+        newStatus === "active" ? "Oferta opublikowana" : "Oferta wstrzymana"
+      );
+      loadEmployerJobs();
+    } catch (error) {
+      console.error("❌ Error updating job status:", error);
+      toast.error("Nie udało się zmienić statusu oferty");
+    }
+  };
 
   const handleStartReview = (profile: Profile) => {
     setReviewingWorker(profile);
@@ -577,7 +640,10 @@ export const ClientDashboard: React.FC = () => {
   };
 
   const handleJobAdded = () => {
+    toast.success("Oferta została dodana pomyślnie");
+    setEditingJob(null);
     setActiveView("job-board");
+    loadEmployerJobs();
   };
 
   const renderContent = () => {
@@ -600,7 +666,232 @@ export const ClientDashboard: React.FC = () => {
         return null;
       case "job-board":
         return (
-          <div className="p-8 text-center">Tablica ogłoszeń - w budowie</div>
+          <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-50 p-8">
+            <div className="max-w-7xl mx-auto">
+              {/* Header */}
+              <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h1 className="text-3xl font-bold text-gray-800 mb-2">
+                      📋 Moje Ogłoszenia
+                    </h1>
+                    <p className="text-gray-600">
+                      Zarządzaj ofertami pracy i przeglądaj aplikacje
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setActiveView("add-job")}
+                    className="px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl font-semibold hover:shadow-lg transition-all transform hover:scale-105"
+                  >
+                    ➕ Dodaj ofertę
+                  </button>
+                </div>
+              </div>
+
+              {/* Stats Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                <div className="bg-white rounded-xl shadow-md p-5 border-l-4 border-green-500">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-gray-600 text-sm">Aktywne</p>
+                      <p className="text-3xl font-bold text-green-600">
+                        {
+                          employerJobs.filter((j) => j.status === "active")
+                            .length
+                        }
+                      </p>
+                    </div>
+                    <span className="text-4xl">✅</span>
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-xl shadow-md p-5 border-l-4 border-yellow-500">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-gray-600 text-sm">Wstrzymane</p>
+                      <p className="text-3xl font-bold text-yellow-600">
+                        {
+                          employerJobs.filter((j) => j.status === "paused")
+                            .length
+                        }
+                      </p>
+                    </div>
+                    <span className="text-4xl">⏸️</span>
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-xl shadow-md p-5 border-l-4 border-purple-500">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-gray-600 text-sm">Obsadzone</p>
+                      <p className="text-3xl font-bold text-purple-600">
+                        {
+                          employerJobs.filter((j) => j.status === "filled")
+                            .length
+                        }
+                      </p>
+                    </div>
+                    <span className="text-4xl">🎯</span>
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-xl shadow-md p-5 border-l-4 border-blue-500">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-gray-600 text-sm">Wszystkie</p>
+                      <p className="text-3xl font-bold text-blue-600">
+                        {employerJobs.length}
+                      </p>
+                    </div>
+                    <span className="text-4xl">📊</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Jobs List */}
+              {loadingJobs ? (
+                <div className="bg-white rounded-2xl shadow-lg p-12 text-center">
+                  <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                  <p className="text-gray-600">Ładowanie ofert...</p>
+                </div>
+              ) : employerJobs.length === 0 ? (
+                <div className="bg-white rounded-2xl shadow-lg p-12 text-center">
+                  <span className="text-6xl mb-4 block">📭</span>
+                  <h3 className="text-2xl font-bold text-gray-800 mb-2">
+                    Brak ofert pracy
+                  </h3>
+                  <p className="text-gray-600 mb-6">
+                    Dodaj swoją pierwszą ofertę, aby zacząć rekrutację!
+                  </p>
+                  <button
+                    onClick={() => setActiveView("add-job")}
+                    className="px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl font-semibold hover:shadow-lg transition-all"
+                  >
+                    ➕ Dodaj pierwszą ofertę
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {employerJobs.map((job) => (
+                    <div
+                      key={job.id}
+                      className="bg-white rounded-xl shadow-md p-6 hover:shadow-lg transition-shadow"
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-3 mb-2">
+                            <h3 className="text-xl font-bold text-gray-800">
+                              {job.title}
+                            </h3>
+                            <span
+                              className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                                job.status === "active"
+                                  ? "bg-green-100 text-green-700"
+                                  : job.status === "paused"
+                                  ? "bg-yellow-100 text-yellow-700"
+                                  : job.status === "filled"
+                                  ? "bg-purple-100 text-purple-700"
+                                  : "bg-gray-100 text-gray-700"
+                              }`}
+                            >
+                              {job.status === "active"
+                                ? "✅ Aktywna"
+                                : job.status === "paused"
+                                ? "⏸️ Wstrzymana"
+                                : job.status === "filled"
+                                ? "🎯 Obsadzona"
+                                : job.status}
+                            </span>
+                            {job.featured && (
+                              <span className="px-3 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-700">
+                                ⭐ Wyróżniona
+                              </span>
+                            )}
+                          </div>
+
+                          <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600 mb-3">
+                            <span>📍 {job.city || "Brak lokalizacji"}</span>
+                            <span>💼 {job.job_type}</span>
+                            <span>📈 {job.experience_level}</span>
+                            <span>
+                              💰 {job.hourly_rate_min || "?"} -{" "}
+                              {job.hourly_rate_max || "?"} zł/h
+                            </span>
+                            <span>🏢 {job.work_location}</span>
+                          </div>
+
+                          <p className="text-gray-700 mb-4 line-clamp-2">
+                            {job.description}
+                          </p>
+
+                          <div className="flex items-center gap-4 text-sm">
+                            <span className="flex items-center gap-1 text-blue-600 font-medium">
+                              📨 {job.applications_count || 0} aplikacji
+                            </span>
+                            <span className="flex items-center gap-1 text-gray-500">
+                              👁️ {job.views_count || 0} wyświetleń
+                            </span>
+                            <span className="text-gray-400">
+                              📅 Utworzono:{" "}
+                              {new Date(job.created_at).toLocaleDateString(
+                                "pl-PL"
+                              )}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Action Buttons */}
+                        <div className="flex flex-col gap-2 ml-6">
+                          <button
+                            onClick={() =>
+                              handleToggleJobStatus(job.id, job.status)
+                            }
+                            className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
+                              job.status === "active"
+                                ? "bg-yellow-100 text-yellow-700 hover:bg-yellow-200"
+                                : "bg-green-100 text-green-700 hover:bg-green-200"
+                            }`}
+                          >
+                            {job.status === "active"
+                              ? "⏸️ Wstrzymaj"
+                              : "▶️ Aktywuj"}
+                          </button>
+
+                          <button
+                            onClick={() => {
+                              setEditingJob(job);
+                              setActiveView("add-job");
+                            }}
+                            className="px-4 py-2 bg-blue-100 text-blue-700 rounded-lg text-sm font-semibold hover:bg-blue-200 transition-all"
+                          >
+                            ✏️ Edytuj
+                          </button>
+
+                          <button
+                            onClick={() =>
+                              alert(
+                                `Aplikacje do oferty: ${job.title} (w budowie)`
+                              )
+                            }
+                            className="px-4 py-2 bg-indigo-100 text-indigo-700 rounded-lg text-sm font-semibold hover:bg-indigo-200 transition-all"
+                          >
+                            📋 Aplikacje
+                          </button>
+
+                          <button
+                            onClick={() => handleDeleteJob(job.id)}
+                            className="px-4 py-2 bg-red-100 text-red-700 rounded-lg text-sm font-semibold hover:bg-red-200 transition-all"
+                          >
+                            🗑️ Usuń
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
         );
       case "add-job":
         return (

@@ -12,7 +12,10 @@ import {
   type AccountantReview,
 } from "../../src/services/accountantService";
 import type { UnavailableDate } from "../../types";
+import { getPosts, likePost, sharePost } from "../../src/services/feedService";
+import type { Post } from "../../types";
 import { Modal } from "../../components/Modal";
+import { LocationCard } from "../../components/LocationCard";
 import {
   Star,
   MapPin,
@@ -31,6 +34,7 @@ import {
 import { AddToTeamButton } from "../../components/AddToTeamButton";
 import { useAuth } from "../../contexts/AuthContext";
 import { ReviewAccountantModal } from "../../src/components/employer/ReviewAccountantModal";
+import { PostCardPremium } from "../FeedPage_PREMIUM";
 
 export default function AccountantProfilePage() {
   const { id } = useParams<{ id: string }>();
@@ -39,13 +43,14 @@ export default function AccountantProfilePage() {
   const [accountant, setAccountant] = useState<Accountant | null>(null);
   const [services, setServices] = useState<AccountantService[]>([]);
   const [reviews, setReviews] = useState<AccountantReview[]>([]);
+  const [posts, setPosts] = useState<Post[]>([]);
   const [unavailableDates, setUnavailableDates] = useState<UnavailableDate[]>(
     []
   );
   const [availability, setAvailability] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<
-    "about" | "services" | "reviews" | "contact"
+    "about" | "services" | "jobs" | "posts" | "reviews" | "contact"
   >("about");
 
   // Contact & Review modals
@@ -123,12 +128,14 @@ export default function AccountantProfilePage() {
         reviewsData,
         unavailableData,
         availabilityData,
+        postsData,
       ] = await Promise.all([
         getAccountant(id),
         getAccountantServices(id),
         getAccountantReviews(id),
         getUnavailableDates(id), // Load unavailable dates for this accountant
         getAvailability(id), // Load weekly availability
+        getPosts({ author_id: id, author_type: "accountant" }), // Load posts by this accountant
       ]);
 
       setAccountant(accountantData);
@@ -136,6 +143,7 @@ export default function AccountantProfilePage() {
       setReviews(reviewsData);
       setUnavailableDates(unavailableData);
       setAvailability(availabilityData);
+      setPosts(postsData || []);
     } catch (error) {
       console.error("Error loading accountant:", error);
     } finally {
@@ -393,6 +401,20 @@ export default function AccountantProfilePage() {
               { id: "about", label: "O mnie", icon: "📋" },
               { id: "services", label: "Usługi", icon: "💼" },
               {
+                id: "jobs",
+                label: `Oferty pracy (${
+                  posts.filter((p) => p.type === "job_offer").length
+                })`,
+                icon: "💼",
+              },
+              {
+                id: "posts",
+                label: `Posty (${
+                  posts.filter((p) => p.type !== "job_offer").length
+                })`,
+                icon: "📝",
+              },
+              {
                 id: "reviews",
                 label: `Opinie (${reviews.length})`,
                 icon: "⭐",
@@ -432,6 +454,22 @@ export default function AccountantProfilePage() {
               />
             )}
             {activeTab === "services" && <ServicesTab services={services} />}
+            {activeTab === "jobs" && (
+              <JobsTab
+                posts={posts.filter((p) => p.type === "job_offer")}
+                currentUserId={authUser?.id}
+                currentUserRole={employerId ? "employer" : undefined}
+                onPostUpdate={loadAccountantData}
+              />
+            )}
+            {activeTab === "posts" && (
+              <PostsTab
+                posts={posts.filter((p) => p.type !== "job_offer")}
+                currentUserId={authUser?.id}
+                currentUserRole={employerId ? "employer" : undefined}
+                onPostUpdate={loadAccountantData}
+              />
+            )}
             {activeTab === "reviews" && (
               <ReviewsTab reviews={reviews} accountant={accountant} />
             )}
@@ -627,6 +665,134 @@ function ServicesTab({ services }: { services: AccountantService[] }) {
             </div>
           </div>
         </div>
+      ))}
+    </div>
+  );
+}
+
+// JobsTab Component - shows only job_offer posts
+function JobsTab({
+  posts,
+  currentUserId,
+  currentUserRole,
+  onPostUpdate,
+}: {
+  posts: Post[];
+  currentUserId?: string;
+  currentUserRole?: string;
+  onPostUpdate: () => void;
+}) {
+  if (posts.length === 0) {
+    return (
+      <div className="bg-white rounded-lg shadow-sm p-6 text-center">
+        <Briefcase className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+        <h3 className="text-lg font-semibold text-gray-900 mb-2">
+          Brak ofert pracy
+        </h3>
+        <p className="text-gray-600">
+          Ten księgowy nie opublikował jeszcze żadnych ofert pracy.
+        </p>
+      </div>
+    );
+  }
+
+  const handleLike = async (postId: string) => {
+    if (!currentUserId || !currentUserRole) return;
+    try {
+      await likePost(postId, currentUserId, currentUserRole as any);
+      onPostUpdate();
+    } catch (error) {
+      console.error("Error liking post:", error);
+    }
+  };
+
+  const handleShare = async (postId: string) => {
+    if (!currentUserId || !currentUserRole) return;
+    try {
+      await sharePost(postId, currentUserId, currentUserRole as any);
+      onPostUpdate();
+    } catch (error) {
+      console.error("Error sharing post:", error);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      {posts.map((post) => (
+        <PostCardPremium
+          key={post.id}
+          post={post}
+          onLike={() => handleLike(post.id)}
+          onComment={() => {}}
+          onShare={() => handleShare(post.id)}
+          onReactionChange={() => {}}
+          currentUserId={currentUserId}
+          currentUserRole={currentUserRole}
+        />
+      ))}
+    </div>
+  );
+}
+
+// PostsTab Component - shows non-job posts (ads, announcements, general)
+function PostsTab({
+  posts,
+  currentUserId,
+  currentUserRole,
+  onPostUpdate,
+}: {
+  posts: Post[];
+  currentUserId?: string;
+  currentUserRole?: string;
+  onPostUpdate: () => void;
+}) {
+  if (posts.length === 0) {
+    return (
+      <div className="bg-white rounded-lg shadow-sm p-6 text-center">
+        <MessageSquare className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+        <h3 className="text-lg font-semibold text-gray-900 mb-2">
+          Brak postów
+        </h3>
+        <p className="text-gray-600">
+          Ten księgowy nie opublikował jeszcze żadnych postów.
+        </p>
+      </div>
+    );
+  }
+
+  const handleLike = async (postId: string) => {
+    if (!currentUserId || !currentUserRole) return;
+    try {
+      await likePost(postId, currentUserId, currentUserRole as any);
+      onPostUpdate();
+    } catch (error) {
+      console.error("Error liking post:", error);
+    }
+  };
+
+  const handleShare = async (postId: string) => {
+    if (!currentUserId || !currentUserRole) return;
+    try {
+      await sharePost(postId, currentUserId, currentUserRole as any);
+      onPostUpdate();
+    } catch (error) {
+      console.error("Error sharing post:", error);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      {posts.map((post) => (
+        <PostCardPremium
+          key={post.id}
+          post={post}
+          onLike={() => handleLike(post.id)}
+          onComment={() => {}}
+          onShare={() => handleShare(post.id)}
+          onReactionChange={() => {}}
+          currentUserId={currentUserId}
+          currentUserRole={currentUserRole}
+        />
       ))}
     </div>
   );
@@ -1183,6 +1349,18 @@ function AboutTab({
           </div>
         )}
       </div>
+
+      {/* Location Card */}
+      <LocationCard
+        address={accountant.address}
+        city={accountant.city}
+        postalCode={accountant.postal_code}
+        country={accountant.country}
+        latitude={null}
+        longitude={null}
+        googleMapsUrl={null}
+        profileType="accountant"
+      />
     </div>
   );
 }

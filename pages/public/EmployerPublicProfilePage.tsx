@@ -4,11 +4,14 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "../../contexts/AuthContext";
 import { Modal } from "../../components/Modal";
 import { ReviewEmployerModal } from "../../src/components/employer/ReviewEmployerModal";
+import { LocationCard } from "../../components/LocationCard";
 import {
   getEmployerReviews,
   getEmployerReviewStats,
 } from "../../src/services/employerReviewService";
 import type { EmployerReviewStats } from "../../src/services/employerReviewService";
+import { getPosts, likePost, sharePost } from "../../src/services/feedService";
+import type { Post } from "../../types";
 import {
   BuildingOfficeIcon,
   MapPin,
@@ -23,7 +26,17 @@ import {
   ExternalLink,
   MessageSquare,
   ArrowLeft,
+  Heart,
+  Share2,
+  Bookmark,
+  Calendar,
+  Eye,
+  MoreHorizontal,
+  Award,
+  ImageIcon,
+  Video,
 } from "../../components/icons";
+import { PostCardPremium } from "../FeedPage_PREMIUM";
 
 interface Employer {
   id: string;
@@ -85,9 +98,10 @@ export default function EmployerPublicProfilePage() {
 
   const [employer, setEmployer] = useState<Employer | null>(null);
   const [jobs, setJobs] = useState<Job[]>([]);
+  const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<
-    "about" | "jobs" | "contact" | "reviews"
+    "about" | "jobs" | "posts" | "contact" | "reviews"
   >("about");
 
   // Reviews state
@@ -138,6 +152,12 @@ export default function EmployerPublicProfilePage() {
         .eq("status", "active")
         .order("created_at", { ascending: false });
 
+      console.log("🔍 EMPLOYER JOBS from 'jobs' table:", {
+        jobsData,
+        jobsError,
+        count: jobsData?.length,
+      });
+
       if (!jobsError && jobsData) {
         setJobs(jobsData as any);
       }
@@ -153,6 +173,19 @@ export default function EmployerPublicProfilePage() {
       if (statsResult.success && statsResult.stats) {
         setReviewStats(statsResult.stats);
       }
+
+      // Load posts created by this employer
+      const postsData = await getPosts({
+        author_id: id,
+        author_type: "employer",
+      });
+      console.log("🔍 EMPLOYER POSTS from 'posts' table:", {
+        postsData,
+        count: postsData?.length,
+        job_offers: postsData?.filter((p) => p.type === "job_offer").length,
+        other: postsData?.filter((p) => p.type !== "job_offer").length,
+      });
+      setPosts(postsData || []);
 
       // Load logged-in user's worker/accountant/cleaning_company ID
       if (user?.id) {
@@ -397,8 +430,17 @@ export default function EmployerPublicProfilePage() {
               { id: "about", label: "O firmie", icon: "📋" },
               {
                 id: "jobs",
-                label: `Oferty pracy (${jobs.length})`,
+                label: `Oferty pracy (${
+                  posts.filter((p) => p.type === "job_offer").length
+                })`,
                 icon: "💼",
+              },
+              {
+                id: "posts",
+                label: `Posty (${
+                  posts.filter((p) => p.type !== "job_offer").length
+                })`,
+                icon: "📝",
               },
               { id: "contact", label: "Kontakt", icon: "📞" },
               {
@@ -426,40 +468,57 @@ export default function EmployerPublicProfilePage() {
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Main Content Area */}
-          <div className="lg:col-span-2">
-            {activeTab === "about" && <AboutTab employer={employer} />}
-            {activeTab === "jobs" && (
-              <JobsTab jobs={jobs} employer={employer} />
-            )}
-            {activeTab === "contact" && (
-              <ContactTab
-                employer={employer}
-                user={user}
-                workerId={workerId}
-                accountantId={accountantId}
-                cleaningCompanyId={cleaningCompanyId}
-                hasReviewed={hasReviewed}
-              />
-            )}
-            {activeTab === "reviews" && (
-              <ReviewsTab
-                reviews={reviews}
-                employer={employer}
-                stats={reviewStats}
-              />
-            )}
-          </div>
-
-          {/* Sidebar */}
-          <div className="space-y-6">
-            <ContactCard employer={employer} />
-            <GoogleReviewsCard employer={employer} />
-            <LocationCard employer={employer} />
-            <CompanyDetailsCard employer={employer} />
-          </div>
-        </div>
+        {activeTab === "about" && <AboutTab employer={employer} />}
+        {activeTab === "jobs" && (
+          <JobsTab
+            jobs={posts.filter((p) => p.type === "job_offer") as any}
+            employer={employer}
+            currentUserId={user?.id}
+            currentUserRole={
+              workerId
+                ? "worker"
+                : accountantId
+                ? "accountant"
+                : cleaningCompanyId
+                ? "cleaning_company"
+                : undefined
+            }
+            onPostUpdate={loadEmployerData}
+          />
+        )}
+        {activeTab === "posts" && (
+          <PostsTab
+            posts={posts.filter((p) => p.type !== "job_offer")}
+            currentUserId={user?.id}
+            currentUserRole={
+              workerId
+                ? "worker"
+                : accountantId
+                ? "accountant"
+                : cleaningCompanyId
+                ? "cleaning_company"
+                : undefined
+            }
+            onPostUpdate={loadEmployerData}
+          />
+        )}
+        {activeTab === "contact" && (
+          <ContactTab
+            employer={employer}
+            user={user}
+            workerId={workerId}
+            accountantId={accountantId}
+            cleaningCompanyId={cleaningCompanyId}
+            hasReviewed={hasReviewed}
+          />
+        )}
+        {activeTab === "reviews" && (
+          <ReviewsTab
+            reviews={reviews}
+            employer={employer}
+            stats={reviewStats}
+          />
+        )}
       </div>
 
       {/* MODALS */}
@@ -550,50 +609,86 @@ export default function EmployerPublicProfilePage() {
 
 function AboutTab({ employer }: { employer: Employer }) {
   return (
-    <div className="bg-white rounded-lg shadow-sm p-6">
-      <h2 className="text-2xl font-bold text-gray-900 mb-4">O firmie</h2>
+    <div className="space-y-6">
+      {/* Opis firmy */}
+      <div className="bg-white rounded-lg shadow-sm p-6">
+        <h2 className="text-2xl font-bold text-gray-900 mb-4">O firmie</h2>
 
-      {employer.description ? (
-        <div className="prose max-w-none">
-          <p className="text-gray-700 whitespace-pre-line leading-relaxed">
-            {employer.description}
-          </p>
-        </div>
-      ) : (
-        <p className="text-gray-500 italic">Brak opisu firmy</p>
-      )}
+        {employer.description ? (
+          <div className="prose max-w-none">
+            <p className="text-gray-700 whitespace-pre-line leading-relaxed">
+              {employer.description}
+            </p>
+          </div>
+        ) : (
+          <p className="text-gray-500 italic">Brak opisu firmy</p>
+        )}
 
-      {employer.website && (
-        <div className="mt-6 pt-6 border-t">
-          <a
-            href={employer.website}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 text-green-600 hover:text-green-700 font-medium"
-          >
-            <Globe className="w-4 h-4" />
-            Odwiedź stronę internetową
-            <svg
-              className="w-4 h-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
+        {employer.website && (
+          <div className="mt-6 pt-6 border-t">
+            <a
+              href={employer.website}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 text-green-600 hover:text-green-700 font-medium"
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
-              />
-            </svg>
-          </a>
-        </div>
-      )}
+              <Globe className="w-4 h-4" />
+              Odwiedź stronę internetową
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+                />
+              </svg>
+            </a>
+          </div>
+        )}
+      </div>
+
+      {/* Kontakt */}
+      <ContactCard employer={employer} />
+
+      {/* Opinie Google */}
+      <GoogleReviewsCard employer={employer} />
+
+      {/* Lokalizacja */}
+      <LocationCard
+        address={employer.address}
+        city={employer.city}
+        postalCode={employer.postal_code}
+        country={employer.country}
+        latitude={employer.latitude}
+        longitude={employer.longitude}
+        googleMapsUrl={employer.google_maps_url}
+        profileType="employer"
+      />
+
+      {/* Szczegóły firmy */}
+      <CompanyDetailsCard employer={employer} />
     </div>
   );
 }
 
-function JobsTab({ jobs, employer }: { jobs: Job[]; employer: Employer }) {
+function JobsTab({
+  jobs,
+  employer,
+  currentUserId,
+  currentUserRole,
+  onPostUpdate,
+}: {
+  jobs: any[];
+  employer: Employer;
+  currentUserId?: string;
+  currentUserRole?: string;
+  onPostUpdate: () => void;
+}) {
   if (jobs.length === 0) {
     return (
       <div className="bg-white rounded-lg shadow-sm p-6 text-center">
@@ -608,73 +703,102 @@ function JobsTab({ jobs, employer }: { jobs: Job[]; employer: Employer }) {
     );
   }
 
+  const handleLike = async (postId: string) => {
+    if (!currentUserId || !currentUserRole) return;
+    try {
+      await likePost(postId, currentUserId, currentUserRole as any);
+      onPostUpdate();
+    } catch (error) {
+      console.error("Error liking post:", error);
+    }
+  };
+
+  const handleShare = async (postId: string) => {
+    if (!currentUserId || !currentUserRole) return;
+    try {
+      await sharePost(postId, currentUserId, currentUserRole as any);
+      onPostUpdate();
+    } catch (error) {
+      console.error("Error sharing post:", error);
+    }
+  };
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       {jobs.map((job) => (
-        <div
+        <PostCardPremium
           key={job.id}
-          className="bg-white rounded-lg shadow-sm p-6 hover:shadow-md transition-shadow cursor-pointer"
-          onClick={() => (window.location.href = `/job/${job.id}`)}
-        >
-          <div className="flex items-start justify-between mb-3">
-            <div>
-              <h3 className="text-xl font-bold text-gray-900 mb-2">
-                {job.title}
-              </h3>
-              <div className="flex flex-wrap items-center gap-3 text-sm text-gray-600">
-                {job.location_city && (
-                  <span className="flex items-center gap-1">
-                    <MapPin className="w-4 h-4" />
-                    {job.location_city}
-                  </span>
-                )}
-                {job.specialization && (
-                  <span className="flex items-center gap-1">
-                    <Briefcase className="w-4 h-4" />
-                    {job.specialization}
-                  </span>
-                )}
-                {job.job_type && (
-                  <span className="flex items-center gap-1">
-                    <ClockIcon className="w-4 h-4" />
-                    {job.job_type}
-                  </span>
-                )}
-              </div>
-            </div>
+          post={job}
+          onLike={() => handleLike(job.id)}
+          onComment={() => {}}
+          onShare={() => handleShare(job.id)}
+          onReactionChange={() => {}}
+          currentUserId={currentUserId}
+          currentUserRole={currentUserRole}
+        />
+      ))}
+    </div>
+  );
+}
 
-            {(job.salary_min || job.salary_max) && (
-              <div className="text-right">
-                <div className="text-lg font-bold text-green-600">
-                  {job.salary_min && job.salary_max
-                    ? `€${job.salary_min} - €${job.salary_max}`
-                    : job.salary_min
-                    ? `od €${job.salary_min}`
-                    : `do €${job.salary_max}`}
-                </div>
-                {job.salary_period && (
-                  <div className="text-sm text-gray-600">
-                    /{job.salary_period}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
+function PostsTab({
+  posts,
+  currentUserId,
+  currentUserRole,
+  onPostUpdate,
+}: {
+  posts: Post[];
+  currentUserId?: string;
+  currentUserRole?: string;
+  onPostUpdate: () => void;
+}) {
+  if (posts.length === 0) {
+    return (
+      <div className="bg-white rounded-lg shadow-sm p-6 text-center">
+        <MessageSquare className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+        <h3 className="text-lg font-semibold text-gray-900 mb-2">
+          Brak postów
+        </h3>
+        <p className="text-gray-600">
+          Ten pracodawca nie opublikował jeszcze żadnych postów.
+        </p>
+      </div>
+    );
+  }
 
-          {job.description && (
-            <p className="text-gray-700 line-clamp-2 mb-4">{job.description}</p>
-          )}
+  const handleLike = async (postId: string) => {
+    if (!currentUserId || !currentUserRole) return;
+    try {
+      await likePost(postId, currentUserId, currentUserRole as any);
+      onPostUpdate();
+    } catch (error) {
+      console.error("Error liking post:", error);
+    }
+  };
 
-          <div className="flex items-center justify-between pt-4 border-t">
-            <span className="text-sm text-gray-500">
-              Opublikowano{" "}
-              {new Date(job.created_at).toLocaleDateString("pl-PL")}
-            </span>
-            <button className="text-green-600 hover:text-green-700 font-medium text-sm">
-              Zobacz szczegóły →
-            </button>
-          </div>
-        </div>
+  const handleShare = async (postId: string) => {
+    if (!currentUserId || !currentUserRole) return;
+    try {
+      await sharePost(postId, currentUserId, currentUserRole as any);
+      onPostUpdate();
+    } catch (error) {
+      console.error("Error sharing post:", error);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      {posts.map((post) => (
+        <PostCardPremium
+          key={post.id}
+          post={post}
+          onLike={() => handleLike(post.id)}
+          onComment={() => {}}
+          onShare={() => handleShare(post.id)}
+          onReactionChange={() => {}}
+          currentUserId={currentUserId}
+          currentUserRole={currentUserRole}
+        />
       ))}
     </div>
   );
@@ -955,78 +1079,6 @@ function ContactCard({ employer }: { employer: Employer }) {
           </a>
         )}
       </div>
-    </div>
-  );
-}
-
-function LocationCard({ employer }: { employer: Employer }) {
-  if (
-    !employer.address &&
-    !employer.city &&
-    !employer.country &&
-    !employer.latitude
-  ) {
-    return null;
-  }
-
-  return (
-    <div className="bg-white rounded-lg shadow-sm p-6">
-      <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-        <MapPin className="w-5 h-5 text-gray-400" />
-        Lokalizacja
-      </h3>
-
-      <div className="text-gray-700 space-y-1 text-sm mb-4">
-        {employer.address && <p>{employer.address}</p>}
-        {employer.postal_code && employer.city && (
-          <p>
-            {employer.postal_code} {employer.city}
-          </p>
-        )}
-        {!employer.postal_code && employer.city && <p>{employer.city}</p>}
-        {employer.country && <p>{employer.country}</p>}
-      </div>
-
-      {/* Google Maps embed */}
-      {employer.latitude && employer.longitude && (
-        <div className="mt-4">
-          <div className="relative w-full h-48 bg-gray-100 rounded-lg overflow-hidden">
-            <iframe
-              src={`https://www.google.com/maps/embed/v1/place?q=${employer.latitude},${employer.longitude}&zoom=15&key=YOUR_GOOGLE_MAPS_API_KEY`}
-              width="100%"
-              height="100%"
-              style={{ border: 0 }}
-              allowFullScreen
-              loading="lazy"
-              referrerPolicy="no-referrer-when-downgrade"
-            />
-          </div>
-          {employer.google_maps_url && (
-            <a
-              href={employer.google_maps_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="mt-3 inline-flex items-center gap-2 text-sm text-green-600 hover:text-green-700 font-medium"
-            >
-              <MapPin className="w-4 h-4" />
-              Zobacz na mapie Google
-              <svg
-                className="w-3 h-3"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
-                />
-              </svg>
-            </a>
-          )}
-        </div>
-      )}
     </div>
   );
 }

@@ -4,6 +4,7 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "../../contexts/AuthContext";
 import { Modal } from "../../components/Modal";
 import { ReviewCleaningCompanyModal } from "../../src/components/employer/ReviewCleaningCompanyModal";
+import { LocationCard } from "../../components/LocationCard";
 import {
   Star,
   MapPin,
@@ -504,6 +505,18 @@ export default function CleaningCompanyPublicProfilePage() {
                     )}
                   </div>
                 )}
+
+                {/* Location Card */}
+                <LocationCard
+                  address={(company as any).address}
+                  city={company.location_city}
+                  postalCode={(company as any).postal_code}
+                  country="Niderland"
+                  latitude={(company as any).latitude}
+                  longitude={(company as any).longitude}
+                  googleMapsUrl={null}
+                  profileType="cleaning_company"
+                />
               </div>
             )}
 

@@ -7,6 +7,15 @@ import { LoadingOverlay } from "../components/Loading";
 import { supabase } from "../src/lib/supabase";
 import { SupportTicketModal } from "../src/components/SupportTicketModal";
 import { getTicketStats } from "../src/services/supportTicketService";
+import {
+  UnifiedDashboardTabs,
+  useUnifiedTabs,
+  TabPanel,
+  type UnifiedTab,
+} from "../components/UnifiedDashboardTabs";
+import FeedPage from "./FeedPage_PREMIUM";
+import MyPosts from "./Admin/MyPosts";
+import SavedActivity from "./Admin/SavedActivity";
 
 // Lazy load modals (only when opened)
 const AddWorkerModal = lazy(() =>
@@ -234,6 +243,9 @@ export const AdminDashboard: React.FC = () => {
   const [recentActivities, setRecentActivities] = useState<any[]>([]);
   const [systemStatus, setSystemStatus] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Tab state management
+  const { activeTab, setActiveTab } = useUnifiedTabs("overview");
 
   // Load real data from database
   useEffect(() => {
@@ -808,6 +820,20 @@ export const AdminDashboard: React.FC = () => {
     },
   ];
 
+  // Tab navigation renderer
+  const renderTopTabs = () => (
+    <div className="border-b border-gray-200 bg-white">
+      <div className="max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8">
+        <UnifiedDashboardTabs
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          role="admin"
+          unreadMessages={0}
+        />
+      </div>
+    </div>
+  );
+
   if (loading) {
     return (
       <LoadingOverlay
@@ -823,482 +849,662 @@ export const AdminDashboard: React.FC = () => {
       <div className="fixed top-20 right-20 w-96 h-96 bg-primary-100/40 rounded-full blur-[150px] animate-pulse"></div>
       <div className="fixed bottom-20 left-20 w-96 h-96 bg-primary-50/30 rounded-full blur-[150px] animate-pulse"></div>
 
-      {/* Header */}
-      <div className="bg-white shadow-lg border-b border-gray-100 sticky top-0 z-50">
-        <div className="max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-6">
-              <div className="w-16 h-16 bg-gradient-to-br from-primary-500 to-primary-600 rounded-full flex items-center justify-center text-3xl shadow-md">
-                🚀
-              </div>
-              <div>
-                <h1 className="text-4xl font-bold text-gray-800 mb-2">
-                  Panel Administratora
-                </h1>
-                <p className="text-lg text-gray-600">
-                  Witaj w panelu zarządzania platformą ZZP Werkplaats - wszystko
-                  w jednym miejscu
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center gap-4">
-              {/* Time Range Selector */}
-              <div className="bg-white border border-gray-200 rounded-2xl p-2 flex gap-2 shadow-sm">
-                {(["today", "week", "month", "year"] as const).map((range) => (
-                  <button
-                    key={range}
-                    onClick={() => {
-                      setTimeRange(range);
-                      addToast(
-                        `Zakres czasu zmieniony na: ${
-                          range === "today"
-                            ? "Dziś"
-                            : range === "week"
-                            ? "Tydzień"
-                            : range === "month"
-                            ? "Miesiąc"
-                            : "Rok"
-                        }`,
-                        "info"
-                      );
-                    }}
-                    className={`px-4 py-2 rounded-full font-semibold transition-all ${
-                      timeRange === range
-                        ? "bg-primary-500 text-white shadow-md"
-                        : "text-gray-600 hover:text-gray-800 hover:bg-gray-50"
-                    }`}
-                  >
-                    {range === "today"
-                      ? "Dziś"
-                      : range === "week"
-                      ? "Tydzień"
-                      : range === "month"
-                      ? "Miesiąc"
-                      : "Rok"}
-                  </button>
-                ))}
-              </div>
-              <button
-                onClick={handleSettingsClick}
-                className="bg-primary-500 hover:bg-primary-600 text-white px-6 py-3 rounded-full font-semibold hover:shadow-lg transition-all duration-200 active:scale-95"
-              >
-                ⚙️ Ustawienia
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
+      {/* Tab Navigation */}
+      {renderTopTabs()}
 
-      {/* Main Content */}
-      <div className="max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8 py-12 relative z-10">
-        {/* Quick Actions */}
-        <div className="mb-12">
-          <div className="flex items-center gap-3 mb-6">
-            <div className="w-12 h-12 bg-primary-500 rounded-full flex items-center justify-center shadow-md">
-              <span className="text-2xl">⚡</span>
-            </div>
-            <h2 className="text-3xl font-bold text-gray-800">Szybkie Akcje</h2>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {quickActions.map((action, idx) => (
-              <QuickAction key={idx} {...action} />
-            ))}
-
-            <Link
-              to="/employers"
-              onClick={() => {
-                console.log(
-                  "👔 SEARCH EMPLOYERS BUTTON CLICKED - Dashboard: ADMIN"
-                );
-              }}
-              className="bg-orange-600 text-white rounded-lg p-6 hover:bg-orange-700 transition-all shadow-lg hover:shadow-xl flex flex-col items-center justify-center gap-3"
-            >
-              <svg
-                className="w-12 h-12"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                />
-              </svg>
-              <div className="text-center">
-                <h3 className="text-lg font-bold">Szukaj pracodawców</h3>
-                <p className="text-sm text-orange-100 mt-1">Baza pracodawców</p>
-              </div>
-            </Link>
-
-            <Link
-              to="/faktury"
-              onClick={() => {
-                console.log("🧾 FAKTURY BUTTON CLICKED - Dashboard: ADMIN");
-              }}
-              className="bg-green-600 text-white rounded-lg p-6 hover:bg-green-700 transition-all shadow-lg hover:shadow-xl flex flex-col items-center justify-center gap-3"
-            >
-              <svg
-                className="w-12 h-12"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                />
-              </svg>
-              <div className="text-center">
-                <h3 className="text-lg font-bold">Faktury & BTW</h3>
-                <p className="text-sm text-green-100 mt-1">Program do faktur</p>
-              </div>
-            </Link>
-
-            <Link
-              to="/workers"
-              onClick={() => {
-                console.log(
-                  "🔍 SEARCH WORKERS BUTTON CLICKED - Dashboard: ADMIN"
-                );
-              }}
-              className="bg-cyan-600 text-white rounded-lg p-6 hover:bg-cyan-700 transition-all shadow-lg hover:shadow-xl flex flex-col items-center justify-center gap-3"
-            >
-              <svg
-                className="w-12 h-12"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                />
-              </svg>
-              <div className="text-center">
-                <h3 className="text-lg font-bold">Szukaj pracowników</h3>
-                <p className="text-sm text-cyan-100 mt-1">Baza pracowników</p>
-              </div>
-            </Link>
-
-            <Link
-              to="/cleaning-companies"
-              onClick={() => {
-                console.log(
-                  "🏢 CLEANING COMPANIES BUTTON CLICKED - Dashboard: ADMIN"
-                );
-              }}
-              className="bg-blue-600 text-white rounded-lg p-6 hover:bg-blue-700 transition-all shadow-lg hover:shadow-xl flex flex-col items-center justify-center gap-3"
-            >
-              <svg
-                className="w-12 h-12"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
-                />
-              </svg>
-              <div className="text-center">
-                <h3 className="text-lg font-bold">Szukaj firm sprzątających</h3>
-                <p className="text-sm text-blue-100 mt-1">Baza firm</p>
-              </div>
-            </Link>
-
-            <Link
-              to="/accountants"
-              onClick={() => {
-                console.log("📊 ACCOUNTANTS BUTTON CLICKED - Dashboard: ADMIN");
-              }}
-              className="bg-indigo-600 text-white rounded-lg p-6 hover:bg-indigo-700 transition-all shadow-lg hover:shadow-xl flex flex-col items-center justify-center gap-3"
-            >
-              <svg
-                className="w-12 h-12"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                />
-              </svg>
-              <div className="text-center">
-                <h3 className="text-lg font-bold">Szukaj księgowych</h3>
-                <p className="text-sm text-indigo-100 mt-1">Baza księgowych</p>
-              </div>
-            </Link>
-
-            <button
-              onClick={handleContactSupport}
-              className="bg-white border-2 border-gray-300 text-gray-700 rounded-lg p-6 hover:bg-gray-50 transition-all shadow-lg hover:shadow-xl flex flex-col items-center justify-center gap-3"
-            >
-              <svg
-                className="w-12 h-12"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-5 0a4 4 0 11-8 0 4 4 0 018 0z"
-                />
-              </svg>
-              <div className="text-center">
-                <h3 className="text-lg font-bold">Wsparcie</h3>
-                <p className="text-sm text-gray-600 mt-1">Kontakt techniczny</p>
-              </div>
-            </button>
-          </div>
-        </div>
-
-        {/* Summary Stats */}
-        <div className="mb-12">
-          <div className="flex items-center gap-3 mb-6">
-            <div className="w-12 h-12 bg-primary-500 rounded-full flex items-center justify-center shadow-md">
-              <span className="text-2xl">📈</span>
-            </div>
-            <h2 className="text-3xl font-bold text-gray-800">
-              Statystyki Kluczowe
-            </h2>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <StatCard
-              title="Oczekujące terminy"
-              value={stats.pendingSchedules}
-              change={
-                stats.pendingSchedules > 0
-                  ? "Wymagają zaplanowania"
-                  : "Brak oczekujących"
-              }
-              changeType={stats.pendingSchedules > 0 ? "neutral" : "positive"}
-              icon="📅"
-              color="cyber"
-            />
-            <StatCard
-              title="Aktywni pracownicy"
-              value={stats.activeWorkers}
-              change="Real-time z bazy"
-              changeType="positive"
-              icon="👷"
-              color="success"
-            />
-            <StatCard
-              title="Aktywne firmy"
-              value={stats.activeFirms}
-              change="Real-time z bazy"
-              changeType="positive"
-              icon="🏢"
-              color="premium"
-            />
-            <StatCard
-              title="Testy w tym tygodniu"
-              value={stats.weeklyTests}
-              change="Ostatnie 7 dni"
-              changeType={stats.weeklyTests > 0 ? "positive" : "neutral"}
-              icon="✅"
-              color="success"
-            />
-            <StatCard
-              title="Miesięczny przychód (MRR)"
-              value={
-                stats.monthlyRevenue > 0
-                  ? `€${stats.monthlyRevenue.toFixed(2)}`
-                  : "€0.00"
-              }
-              change={
-                stats.monthlyRevenue > 0
-                  ? "Aktywne subskrypcje"
-                  : "Brak subskrypcji"
-              }
-              changeType={stats.monthlyRevenue > 0 ? "positive" : "neutral"}
-              icon="💰"
-              color="success"
-            />
-            <StatCard
-              title="Daily Active Users"
-              value={stats.dailyActiveUsers}
-              change="Wszyscy użytkownicy"
-              changeType="positive"
-              icon="👥"
-              color="cyber"
-            />
-            <StatCard
-              title="Conversion Rate"
-              value={
-                stats.conversionRate > 0
-                  ? `${stats.conversionRate}%`
-                  : "Brak danych"
-              }
-              change="Wymaga analytics"
-              changeType="neutral"
-              icon="📊"
-              color="premium"
-            />
-            <StatCard
-              title="System Health"
-              value={`${stats.systemHealth}%`}
-              change="Wszystkie systemy działają"
-              changeType="positive"
-              icon="🛡️"
-              color="success"
-            />
-          </div>
-        </div>
-
-        {/* Modules Grid */}
-        <div className="mb-12">
-          <h2 className="text-4xl font-bold text-white mb-6 font-heading">
-            🎛️ Moduły zarządzania
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {adminModules.map((module) => (
-              <ModuleCard key={module.path} {...module} />
-            ))}
-          </div>
-        </div>
-
-        {/* Recent Activity */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Activity Log */}
-          <div className="bg-gradient-glass backdrop-blur-md rounded-2xl shadow-3d border border-accent-cyber/20 p-8">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-bold text-white font-heading">
-                🕐 Ostatnia aktywność
-              </h2>
-              <button
-                onClick={() => {
-                  addToast("Pełny log aktywności w przygotowaniu...", "info");
-                }}
-                className="text-accent-cyber hover:text-accent-techGreen transition-colors text-sm font-medium"
-              >
-                Zobacz wszystko →
-              </button>
-            </div>
-            <div className="space-y-4">
-              {recentActivities.length === 0 ? (
-                <div className="text-center py-12 text-gray-400">
-                  <p className="text-lg">Brak ostatnich aktywności</p>
-                  <p className="text-sm mt-2">
-                    Aktywności pojawią się tutaj po pierwszych akcjach
-                    użytkowników
+      {/* Overview Tab - Main Admin Dashboard */}
+      <TabPanel isActive={activeTab === "overview"}>
+        {/* Header */}
+        <div className="bg-white shadow-lg border-b border-gray-100 sticky top-0 z-50">
+          <div className="max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-6">
+                <div className="w-16 h-16 bg-gradient-to-br from-primary-500 to-primary-600 rounded-full flex items-center justify-center text-3xl shadow-md">
+                  🚀
+                </div>
+                <div>
+                  <h1 className="text-4xl font-bold text-gray-800 mb-2">
+                    Panel Administratora
+                  </h1>
+                  <p className="text-lg text-gray-600">
+                    Witaj w panelu zarządzania platformą ZZP Werkplaats -
+                    wszystko w jednym miejscu
                   </p>
                 </div>
-              ) : (
-                recentActivities.map((activity, idx) => (
-                  <div
-                    key={idx}
-                    className="flex items-start gap-4 pb-4 border-b border-white/10 last:border-0 group hover:bg-white/5 p-3 rounded-xl transition-all"
-                  >
-                    {/* User Avatar - role-specific */}
-                    <div className="flex-shrink-0 w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center text-white font-bold shadow-lg group-hover:scale-110 transition-transform overflow-hidden">
-                      {activity.userAvatar ? (
-                        <img
-                          src={activity.userAvatar}
-                          alt={activity.userName || "User"}
-                          className="w-full h-full object-cover"
-                          onError={(e) => {
-                            e.currentTarget.style.display = "none";
-                            e.currentTarget.parentElement!.innerHTML = "👤";
-                          }}
-                        />
-                      ) : (
-                        <span className="text-2xl">
-                          {activity.userRole === "employer"
-                            ? "🏢"
-                            : activity.userRole === "worker"
-                            ? "👷"
-                            : activity.userRole === "accountant"
-                            ? "�"
-                            : activity.userRole === "cleaning_company"
-                            ? "🧹"
-                            : "👤"}
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-sm font-semibold text-white mb-1">
-                        {activity.title || "Aktywność"}
-                      </p>
-                      <p className="text-sm text-neutral-400 mb-1">
-                        {activity.message || "Brak opisu"}
-                      </p>
-                      <div className="flex items-center gap-2 mt-1">
-                        {activity.userName && (
-                          <span className="text-xs text-accent-cyber font-medium">
-                            👤 {activity.userName}
-                          </span>
-                        )}
-                        <span className="text-xs text-neutral-500">•</span>
-                        <span className="text-xs text-neutral-500">
-                          {new Date(activity.created_at).toLocaleString(
-                            "pl-PL"
-                          )}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                ))
-              )}
+              </div>
+              <div className="flex items-center gap-4">
+                {/* Time Range Selector */}
+                <div className="bg-white border border-gray-200 rounded-2xl p-2 flex gap-2 shadow-sm">
+                  {(["today", "week", "month", "year"] as const).map(
+                    (range) => (
+                      <button
+                        key={range}
+                        onClick={() => {
+                          setTimeRange(range);
+                          addToast(
+                            `Zakres czasu zmieniony na: ${
+                              range === "today"
+                                ? "Dziś"
+                                : range === "week"
+                                ? "Tydzień"
+                                : range === "month"
+                                ? "Miesiąc"
+                                : "Rok"
+                            }`,
+                            "info"
+                          );
+                        }}
+                        className={`px-4 py-2 rounded-full font-semibold transition-all ${
+                          timeRange === range
+                            ? "bg-primary-500 text-white shadow-md"
+                            : "text-gray-600 hover:text-gray-800 hover:bg-gray-50"
+                        }`}
+                      >
+                        {range === "today"
+                          ? "Dziś"
+                          : range === "week"
+                          ? "Tydzień"
+                          : range === "month"
+                          ? "Miesiąc"
+                          : "Rok"}
+                      </button>
+                    )
+                  )}
+                </div>
+                <button
+                  onClick={handleSettingsClick}
+                  className="bg-primary-500 hover:bg-primary-600 text-white px-6 py-3 rounded-full font-semibold hover:shadow-lg transition-all duration-200 active:scale-95"
+                >
+                  ⚙️ Ustawienia
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Main Content */}
+        <div className="max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8 py-12 relative z-10">
+          {/* Quick Actions */}
+          <div className="mb-12">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-12 h-12 bg-primary-500 rounded-full flex items-center justify-center shadow-md">
+                <span className="text-2xl">⚡</span>
+              </div>
+              <h2 className="text-3xl font-bold text-gray-800">
+                Szybkie Akcje
+              </h2>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              {quickActions.map((action, idx) => (
+                <QuickAction key={idx} {...action} />
+              ))}
+
+              <Link
+                to="/employers"
+                onClick={() => {
+                  console.log(
+                    "👔 SEARCH EMPLOYERS BUTTON CLICKED - Dashboard: ADMIN"
+                  );
+                }}
+                className="bg-orange-600 text-white rounded-lg p-6 hover:bg-orange-700 transition-all shadow-lg hover:shadow-xl flex flex-col items-center justify-center gap-3"
+              >
+                <svg
+                  className="w-12 h-12"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                  />
+                </svg>
+                <div className="text-center">
+                  <h3 className="text-lg font-bold">Szukaj pracodawców</h3>
+                  <p className="text-sm text-orange-100 mt-1">
+                    Baza pracodawców
+                  </p>
+                </div>
+              </Link>
+
+              <Link
+                to="/faktury"
+                onClick={() => {
+                  console.log("🧾 FAKTURY BUTTON CLICKED - Dashboard: ADMIN");
+                }}
+                className="bg-green-600 text-white rounded-lg p-6 hover:bg-green-700 transition-all shadow-lg hover:shadow-xl flex flex-col items-center justify-center gap-3"
+              >
+                <svg
+                  className="w-12 h-12"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                  />
+                </svg>
+                <div className="text-center">
+                  <h3 className="text-lg font-bold">Faktury & BTW</h3>
+                  <p className="text-sm text-green-100 mt-1">
+                    Program do faktur
+                  </p>
+                </div>
+              </Link>
+
+              <Link
+                to="/workers"
+                onClick={() => {
+                  console.log(
+                    "🔍 SEARCH WORKERS BUTTON CLICKED - Dashboard: ADMIN"
+                  );
+                }}
+                className="bg-cyan-600 text-white rounded-lg p-6 hover:bg-cyan-700 transition-all shadow-lg hover:shadow-xl flex flex-col items-center justify-center gap-3"
+              >
+                <svg
+                  className="w-12 h-12"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                  />
+                </svg>
+                <div className="text-center">
+                  <h3 className="text-lg font-bold">Szukaj pracowników</h3>
+                  <p className="text-sm text-cyan-100 mt-1">Baza pracowników</p>
+                </div>
+              </Link>
+
+              <Link
+                to="/cleaning-companies"
+                onClick={() => {
+                  console.log(
+                    "🏢 CLEANING COMPANIES BUTTON CLICKED - Dashboard: ADMIN"
+                  );
+                }}
+                className="bg-blue-600 text-white rounded-lg p-6 hover:bg-blue-700 transition-all shadow-lg hover:shadow-xl flex flex-col items-center justify-center gap-3"
+              >
+                <svg
+                  className="w-12 h-12"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
+                  />
+                </svg>
+                <div className="text-center">
+                  <h3 className="text-lg font-bold">
+                    Szukaj firm sprzątających
+                  </h3>
+                  <p className="text-sm text-blue-100 mt-1">Baza firm</p>
+                </div>
+              </Link>
+
+              <Link
+                to="/admin/moje-posty"
+                onClick={() => {
+                  console.log(
+                    "📝 MOJE POSTY BUTTON CLICKED - Dashboard: ADMIN"
+                  );
+                }}
+                className="bg-purple-600 text-white rounded-lg p-6 hover:bg-purple-700 transition-all shadow-lg hover:shadow-xl flex flex-col items-center justify-center gap-3"
+              >
+                <svg
+                  className="w-12 h-12"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                  />
+                </svg>
+                <div className="text-center">
+                  <h3 className="text-lg font-bold">Moje Posty</h3>
+                  <p className="text-sm text-purple-100 mt-1">
+                    Zarządzaj postami
+                  </p>
+                </div>
+              </Link>
+
+              <Link
+                to="/admin/historia-aktywnosci"
+                onClick={() => {
+                  console.log(
+                    "📁 HISTORIA AKTYWNOŚCI BUTTON CLICKED - Dashboard: ADMIN"
+                  );
+                }}
+                className="bg-rose-600 text-white rounded-lg p-6 hover:bg-rose-700 transition-all shadow-lg hover:shadow-xl flex flex-col items-center justify-center gap-3"
+              >
+                <svg
+                  className="w-12 h-12"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"
+                  />
+                </svg>
+                <div className="text-center">
+                  <h3 className="text-lg font-bold">Historia Aktywności</h3>
+                  <p className="text-sm text-rose-100 mt-1">Zapisane posty</p>
+                </div>
+              </Link>
+
+              <Link
+                to="/accountants"
+                onClick={() => {
+                  console.log(
+                    "📊 ACCOUNTANTS BUTTON CLICKED - Dashboard: ADMIN"
+                  );
+                }}
+                className="bg-indigo-600 text-white rounded-lg p-6 hover:bg-indigo-700 transition-all shadow-lg hover:shadow-xl flex flex-col items-center justify-center gap-3"
+              >
+                <svg
+                  className="w-12 h-12"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                  />
+                </svg>
+                <div className="text-center">
+                  <h3 className="text-lg font-bold">Szukaj księgowych</h3>
+                  <p className="text-sm text-indigo-100 mt-1">
+                    Baza księgowych
+                  </p>
+                </div>
+              </Link>
+
+              <button
+                onClick={handleContactSupport}
+                className="bg-white border-2 border-gray-300 text-gray-700 rounded-lg p-6 hover:bg-gray-50 transition-all shadow-lg hover:shadow-xl flex flex-col items-center justify-center gap-3"
+              >
+                <svg
+                  className="w-12 h-12"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-5 0a4 4 0 11-8 0 4 4 0 018 0z"
+                  />
+                </svg>
+                <div className="text-center">
+                  <h3 className="text-lg font-bold">Wsparcie</h3>
+                  <p className="text-sm text-gray-600 mt-1">
+                    Kontakt techniczny
+                  </p>
+                </div>
+              </button>
             </div>
           </div>
 
-          {/* System Status */}
-          <div className="bg-gradient-glass backdrop-blur-md rounded-2xl shadow-3d border border-accent-techGreen/20 p-8">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-bold text-white font-heading">
-                🛡️ Status Systemu
-              </h2>
-              <div className="flex items-center gap-2 bg-green-500/20 px-4 py-2 rounded-full">
-                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                <span className="text-green-400 text-sm font-medium">
-                  All Systems Operational
-                </span>
+          {/* Summary Stats */}
+          <div className="mb-12">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-12 h-12 bg-primary-500 rounded-full flex items-center justify-center shadow-md">
+                <span className="text-2xl">📈</span>
               </div>
+              <h2 className="text-3xl font-bold text-gray-800">
+                Statystyki Kluczowe
+              </h2>
             </div>
-            <div className="space-y-4">
-              {systemStatus.map((item, idx) => (
-                <div
-                  key={idx}
-                  className="flex items-center justify-between p-4 bg-white/5 rounded-xl hover:bg-white/10 transition-all group"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
-                    <span className="text-white font-medium">
-                      {item.service}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-4 text-sm">
-                    <span className="text-neutral-400">
-                      Uptime:{" "}
-                      <span className="text-accent-techGreen">
-                        {item.uptime}
-                      </span>
-                    </span>
-                    <span className="text-neutral-400">
-                      Response:{" "}
-                      <span className="text-accent-cyber">{item.response}</span>
-                    </span>
-                  </div>
-                </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              <StatCard
+                title="Oczekujące terminy"
+                value={stats.pendingSchedules}
+                change={
+                  stats.pendingSchedules > 0
+                    ? "Wymagają zaplanowania"
+                    : "Brak oczekujących"
+                }
+                changeType={stats.pendingSchedules > 0 ? "neutral" : "positive"}
+                icon="📅"
+                color="cyber"
+              />
+              <StatCard
+                title="Aktywni pracownicy"
+                value={stats.activeWorkers}
+                change="Real-time z bazy"
+                changeType="positive"
+                icon="👷"
+                color="success"
+              />
+              <StatCard
+                title="Aktywne firmy"
+                value={stats.activeFirms}
+                change="Real-time z bazy"
+                changeType="positive"
+                icon="🏢"
+                color="premium"
+              />
+              <StatCard
+                title="Testy w tym tygodniu"
+                value={stats.weeklyTests}
+                change="Ostatnie 7 dni"
+                changeType={stats.weeklyTests > 0 ? "positive" : "neutral"}
+                icon="✅"
+                color="success"
+              />
+              <StatCard
+                title="Miesięczny przychód (MRR)"
+                value={
+                  stats.monthlyRevenue > 0
+                    ? `€${stats.monthlyRevenue.toFixed(2)}`
+                    : "€0.00"
+                }
+                change={
+                  stats.monthlyRevenue > 0
+                    ? "Aktywne subskrypcje"
+                    : "Brak subskrypcji"
+                }
+                changeType={stats.monthlyRevenue > 0 ? "positive" : "neutral"}
+                icon="💰"
+                color="success"
+              />
+              <StatCard
+                title="Daily Active Users"
+                value={stats.dailyActiveUsers}
+                change="Wszyscy użytkownicy"
+                changeType="positive"
+                icon="👥"
+                color="cyber"
+              />
+              <StatCard
+                title="Conversion Rate"
+                value={
+                  stats.conversionRate > 0
+                    ? `${stats.conversionRate}%`
+                    : "Brak danych"
+                }
+                change="Wymaga analytics"
+                changeType="neutral"
+                icon="📊"
+                color="premium"
+              />
+              <StatCard
+                title="System Health"
+                value={`${stats.systemHealth}%`}
+                change="Wszystkie systemy działają"
+                changeType="positive"
+                icon="🛡️"
+                color="success"
+              />
+            </div>
+          </div>
+
+          {/* Modules Grid */}
+          <div className="mb-12">
+            <h2 className="text-4xl font-bold text-white mb-6 font-heading">
+              🎛️ Moduły zarządzania
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              {adminModules.map((module) => (
+                <ModuleCard key={module.path} {...module} />
               ))}
             </div>
           </div>
+
+          {/* Recent Activity */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Activity Log */}
+            <div className="bg-gradient-glass backdrop-blur-md rounded-2xl shadow-3d border border-accent-cyber/20 p-8">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-bold text-white font-heading">
+                  🕐 Ostatnia aktywność
+                </h2>
+                <button
+                  onClick={() => {
+                    addToast("Pełny log aktywności w przygotowaniu...", "info");
+                  }}
+                  className="text-accent-cyber hover:text-accent-techGreen transition-colors text-sm font-medium"
+                >
+                  Zobacz wszystko →
+                </button>
+              </div>
+              <div className="space-y-4">
+                {recentActivities.length === 0 ? (
+                  <div className="text-center py-12 text-gray-400">
+                    <p className="text-lg">Brak ostatnich aktywności</p>
+                    <p className="text-sm mt-2">
+                      Aktywności pojawią się tutaj po pierwszych akcjach
+                      użytkowników
+                    </p>
+                  </div>
+                ) : (
+                  recentActivities.map((activity, idx) => (
+                    <div
+                      key={idx}
+                      className="flex items-start gap-4 pb-4 border-b border-white/10 last:border-0 group hover:bg-white/5 p-3 rounded-xl transition-all"
+                    >
+                      {/* User Avatar - role-specific */}
+                      <div className="flex-shrink-0 w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center text-white font-bold shadow-lg group-hover:scale-110 transition-transform overflow-hidden">
+                        {activity.userAvatar ? (
+                          <img
+                            src={activity.userAvatar}
+                            alt={activity.userName || "User"}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              e.currentTarget.style.display = "none";
+                              e.currentTarget.parentElement!.innerHTML = "👤";
+                            }}
+                          />
+                        ) : (
+                          <span className="text-2xl">
+                            {activity.userRole === "employer"
+                              ? "🏢"
+                              : activity.userRole === "worker"
+                              ? "👷"
+                              : activity.userRole === "accountant"
+                              ? "�"
+                              : activity.userRole === "cleaning_company"
+                              ? "🧹"
+                              : "👤"}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-sm font-semibold text-white mb-1">
+                          {activity.title || "Aktywność"}
+                        </p>
+                        <p className="text-sm text-neutral-400 mb-1">
+                          {activity.message || "Brak opisu"}
+                        </p>
+                        <div className="flex items-center gap-2 mt-1">
+                          {activity.userName && (
+                            <span className="text-xs text-accent-cyber font-medium">
+                              👤 {activity.userName}
+                            </span>
+                          )}
+                          <span className="text-xs text-neutral-500">•</span>
+                          <span className="text-xs text-neutral-500">
+                            {new Date(activity.created_at).toLocaleString(
+                              "pl-PL"
+                            )}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
+            {/* System Status */}
+            <div className="bg-gradient-glass backdrop-blur-md rounded-2xl shadow-3d border border-accent-techGreen/20 p-8">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-bold text-white font-heading">
+                  🛡️ Status Systemu
+                </h2>
+                <div className="flex items-center gap-2 bg-green-500/20 px-4 py-2 rounded-full">
+                  <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                  <span className="text-green-400 text-sm font-medium">
+                    All Systems Operational
+                  </span>
+                </div>
+              </div>
+              <div className="space-y-4">
+                {systemStatus.map((item, idx) => (
+                  <div
+                    key={idx}
+                    className="flex items-center justify-between p-4 bg-white/5 rounded-xl hover:bg-white/10 transition-all group"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
+                      <span className="text-white font-medium">
+                        {item.service}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-4 text-sm">
+                      <span className="text-neutral-400">
+                        Uptime:{" "}
+                        <span className="text-accent-techGreen">
+                          {item.uptime}
+                        </span>
+                      </span>
+                      <span className="text-neutral-400">
+                        Response:{" "}
+                        <span className="text-accent-cyber">
+                          {item.response}
+                        </span>
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
         </div>
-      </div>
+      </TabPanel>
+
+      {/* Tablica Tab - Feed Page */}
+      <TabPanel isActive={activeTab === "tablica"}>
+        <FeedPage />
+      </TabPanel>
+
+      {/* Messages Tab */}
+      <TabPanel isActive={activeTab === "messages"}>
+        <div className="max-w-6xl mx-auto px-4 py-8">
+          <div className="bg-white/90 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/40 p-8">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+                📬 Wiadomości Administratora
+              </h2>
+            </div>
+            <p className="text-gray-600 text-center py-12">
+              System wiadomości dla administratora będzie dostępny wkrótce.
+              <br />
+              Administrator może korzystać z panelu Support Tickets do
+              komunikacji.
+            </p>
+          </div>
+        </div>
+      </TabPanel>
+
+      {/* Profile Tab */}
+      <TabPanel isActive={activeTab === "profile"}>
+        <div className="max-w-6xl mx-auto px-4 py-8">
+          <div className="bg-white/90 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/40 p-8">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                💼 Profil Administratora
+              </h2>
+            </div>
+            <div className="space-y-6">
+              <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-2xl p-6">
+                <h3 className="text-xl font-bold text-gray-900 mb-4">
+                  Dane konta
+                </h3>
+                <div className="space-y-3">
+                  <p className="text-gray-700">
+                    <strong>Rola:</strong> Administrator
+                  </p>
+                  <p className="text-gray-700">
+                    <strong>Email:</strong> {t("admin.account.email")}
+                  </p>
+                  <p className="text-gray-700">
+                    <strong>Uprawnienia:</strong> Pełny dostęp do systemu
+                  </p>
+                </div>
+              </div>
+              <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl p-6">
+                <h3 className="text-xl font-bold text-gray-900 mb-4">
+                  Funkcje administratora
+                </h3>
+                <ul className="space-y-2 text-gray-700">
+                  <li>
+                    ✅ Tworzenie postów na Tablicy (ogłoszenia, reklamy, oferty
+                    pracy)
+                  </li>
+                  <li>✅ Komentowanie i reagowanie emoji na posty</li>
+                  <li>✅ Zarządzanie użytkownikami i moderacja treści</li>
+                  <li>✅ Dostęp do panelu analityki i raportów</li>
+                  <li>✅ Zarządzanie ticketami wsparcia</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      </TabPanel>
+
+      {/* Reviews Tab */}
+      <TabPanel isActive={activeTab === "reviews"}>
+        <div className="max-w-6xl mx-auto px-4 py-8">
+          <div className="bg-white/90 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/40 p-8">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-3xl font-bold bg-gradient-to-r from-amber-600 to-orange-600 bg-clip-text text-transparent">
+                ⭐ Opinie i Oceny Platformy
+              </h2>
+            </div>
+            <p className="text-gray-600 text-center py-12">
+              Panel opinii dla administratora będzie dostępny wkrótce.
+              <br />
+              Tutaj będą widoczne opinie użytkowników o platformie.
+            </p>
+          </div>
+        </div>
+      </TabPanel>
+
+      {/* Moje Posty Tab - Admin Posts Management */}
+      <TabPanel isActive={activeTab === "my_posts"}>
+        <MyPosts />
+      </TabPanel>
+
+      {/* Historia Aktywności Tab - Saved Activity */}
+      <TabPanel isActive={activeTab === "saved_activity"}>
+        <SavedActivity />
+      </TabPanel>
 
       {/* Modals - Lazy loaded */}
       <Suspense fallback={null}>

@@ -34,6 +34,9 @@ import employerService, {
   type EmployerReview,
 } from "../../services/employerService";
 import type { Database } from "../../src/lib/database.types";
+import MyPosts from "./MyPosts";
+import SavedActivity from "./SavedActivity";
+import FeedPage from "../FeedPage_PREMIUM";
 
 type Employer = Database["public"]["Tables"]["employers"]["Row"];
 
@@ -335,7 +338,8 @@ export const EmployerDashboard = () => {
   // =====================================================
 
   const handleQuickSearch = () => {
-    window.location.href = "/employer/search";
+    console.log("🔗 QUICK SEARCH CLICKED - navigating to /workers");
+    navigate("/workers");
   };
 
   const handleViewSubscription = () => {
@@ -1833,6 +1837,21 @@ export const EmployerDashboard = () => {
         isOpen={showSupportModal}
         onClose={() => setShowSupportModal(false)}
       />
+
+      {/* Tablica Tab */}
+      <TabPanel isActive={activeTab === "tablica"}>
+        <FeedPage />
+      </TabPanel>
+
+      {/* My Posts Tab */}
+      <TabPanel isActive={activeTab === "my_posts"}>
+        <MyPosts />
+      </TabPanel>
+
+      {/* Saved Activity Tab */}
+      <TabPanel isActive={activeTab === "saved_activity"}>
+        <SavedActivity />
+      </TabPanel>
     </PageContainer>
   );
 };

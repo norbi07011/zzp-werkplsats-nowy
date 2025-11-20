@@ -19,6 +19,8 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import { supabase } from "../src/lib/supabase";
+// @ts-ignore
+const supabaseAny = supabase as any;
 import {
   getPosts,
   createPost,
@@ -27,15 +29,22 @@ import {
   createComment,
   getPostComments,
   sharePost,
+  reactToPost,
+  unreactToPost,
   type Post,
   type PostComment,
   type PostType,
   type CreatePostData,
+  type ReactionType,
 } from "../src/services/feedService";
 import {
   uploadMultipleFeedMedia,
   type MediaUploadResult,
 } from "../src/services/storage";
+import { AdForm } from "../components/CreatePost/AdForm";
+import { AnnouncementForm } from "../components/CreatePost/AnnouncementForm";
+import { JobOfferForm } from "../components/CreatePost/JobOfferForm";
+import SaveButton, { type SaveFolder } from "../components/SaveButton";
 import {
   Star,
   MessageSquare,
@@ -62,9 +71,15 @@ import {
   Fire,
   Award,
   Users,
+  Mail,
+  Phone,
 } from "../components/icons";
 import { LoadingOverlay } from "../components/Loading";
 import { ShareModal } from "../components/ShareModal";
+import {
+  ReactionButton,
+  ReactionCountsDisplay,
+} from "../src/components/ReactionPicker";
 
 // =====================================================
 // TYPES
@@ -93,9 +108,6 @@ export default function FeedPagePremium() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreatePost, setShowCreatePost] = useState(false);
-  const [activeFilter, setActiveFilter] = useState<
-    "all" | "trending" | "following"
-  >("all");
   const [searchQuery, setSearchQuery] = useState("");
 
   // Infinite scroll
@@ -111,17 +123,21 @@ export default function FeedPagePremium() {
   const [trending, setTrending] = useState<TrendingPost[]>([]);
 
   const canCreatePost =
-    user?.role === "employer" || user?.role === "accountant";
+    user?.role === "employer" ||
+    user?.role === "accountant" ||
+    user?.role === "admin";
 
   // =====================================================
   // LOAD FEED WITH INFINITE SCROLL
   // =====================================================
 
   useEffect(() => {
-    loadFeed();
-    loadStories();
-    loadTrending();
-  }, []);
+    if (user?.id) {
+      loadFeed();
+      loadStories();
+      loadTrending();
+    }
+  }, [user?.id]);
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -220,21 +236,24 @@ export default function FeedPagePremium() {
           .select("id")
           .eq("profile_id", user.id)
           .single();
-        actualUserId = data?.id;
+        actualUserId = data?.id || null;
       } else if (user.role === "employer") {
         const { data } = await supabase
           .from("employers")
           .select("id")
           .eq("profile_id", user.id)
           .single();
-        actualUserId = data?.id;
+        actualUserId = data?.id || null;
       } else if (user.role === "accountant") {
         const { data } = await supabase
           .from("accountants")
           .select("id")
           .eq("profile_id", user.id)
           .single();
-        actualUserId = data?.id;
+        actualUserId = data?.id || null;
+      } else if (user.role === "admin") {
+        // Admin uses profile_id directly
+        actualUserId = user.id;
       }
 
       if (!actualUserId) return;
@@ -247,6 +266,64 @@ export default function FeedPagePremium() {
       await loadFeed();
     } catch (error) {
       console.error("Error toggling like:", error);
+    }
+  };
+
+  // NEW: Handle emoji reaction change
+  const handleReactionChange = async (
+    postId: string,
+    reactionType: ReactionType | null
+  ) => {
+    if (!user?.id) return;
+
+    try {
+      // Get user role-specific ID
+      const currentUserRole = user.role;
+
+      let actualUserId = user.id;
+      if (currentUserRole === "worker") {
+        const { data: workerData } = await supabase
+          .from("workers")
+          .select("id")
+          .eq("profile_id", user.id)
+          .single();
+        if (workerData) actualUserId = workerData.id;
+      } else if (currentUserRole === "employer") {
+        const { data: employerData } = await supabase
+          .from("employers")
+          .select("id")
+          .eq("profile_id", user.id)
+          .single();
+        if (employerData) actualUserId = employerData.id;
+      } else if (currentUserRole === "accountant") {
+        const { data: accountantData } = await supabase
+          .from("accountants")
+          .select("id")
+          .eq("profile_id", user.id)
+          .single();
+        if (accountantData) actualUserId = accountantData.id;
+      } else if (currentUserRole === "admin") {
+        // Admin uses profile_id directly
+        actualUserId = user.id;
+      }
+
+      if (reactionType === null) {
+        // Remove reaction
+        await unreactToPost(postId, user.id);
+      } else {
+        // Add or change reaction
+        await reactToPost(
+          postId,
+          actualUserId,
+          currentUserRole as any,
+          user.id,
+          reactionType
+        );
+      }
+      // Reload feed to show updated counts
+      await loadFeed();
+    } catch (error) {
+      console.error("Error changing reaction:", error);
     }
   };
 
@@ -264,28 +341,6 @@ export default function FeedPagePremium() {
               <h1 className="text-3xl font-black bg-gradient-to-r from-amber-600 via-orange-500 to-red-500 bg-clip-text text-transparent">
                 Feed
               </h1>
-
-              {/* Filter Pills */}
-              <div className="flex gap-2">
-                {(["all", "trending", "following"] as const).map((filter) => (
-                  <button
-                    key={filter}
-                    onClick={() => setActiveFilter(filter)}
-                    className={`
-                      px-6 py-2 rounded-full font-semibold text-sm transition-all duration-300 transform
-                      ${
-                        activeFilter === filter
-                          ? "bg-gradient-to-r from-amber-500 to-orange-600 text-white shadow-lg scale-105"
-                          : "bg-white/60 text-gray-700 hover:bg-white hover:scale-105"
-                      }
-                    `}
-                  >
-                    {filter === "all" && "🌍 Alles"}
-                    {filter === "trending" && "🔥 Trending"}
-                    {filter === "following" && "👥 Volgend"}
-                  </button>
-                ))}
-              </div>
             </div>
 
             {/* Search */}
@@ -394,20 +449,6 @@ export default function FeedPagePremium() {
                   ))}
                 </div>
               </div>
-
-              {/* Quick Actions */}
-              <div className="bg-gradient-to-br from-purple-500 to-pink-600 rounded-3xl p-6 text-white shadow-xl">
-                <div className="flex items-center gap-2 mb-4">
-                  <Sparkles className="w-5 h-5" />
-                  <h3 className="font-bold text-lg">Premium</h3>
-                </div>
-                <p className="text-sm opacity-90 mb-4">
-                  Ontgrendel exclusieve functies en bereik meer mensen
-                </p>
-                <button className="w-full bg-white text-purple-600 font-bold py-3 rounded-full hover:shadow-lg transform hover:scale-105 transition-all">
-                  Upgrade Nu
-                </button>
-              </div>
             </div>
           </aside>
 
@@ -442,6 +483,9 @@ export default function FeedPagePremium() {
                     }
                     onComment={loadFeed}
                     onShare={loadFeed}
+                    onReactionChange={(reactionType) =>
+                      handleReactionChange(post.id, reactionType)
+                    }
                     currentUserId={user?.id}
                     currentUserRole={user?.role}
                   />
@@ -461,33 +505,6 @@ export default function FeedPagePremium() {
           {/* ===== RIGHT SIDEBAR - Suggestions ===== */}
           <aside className="hidden lg:block lg:col-span-3">
             <div className="sticky top-24 space-y-6">
-              {/* Suggested Users */}
-              <div className="bg-white/80 backdrop-blur-xl rounded-3xl p-6 shadow-xl border border-white/40">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="font-bold text-lg">Aangeraden voor jou</h3>
-                  <ChevronRight className="w-5 h-5 text-gray-400" />
-                </div>
-
-                <div className="space-y-4">
-                  {[1, 2, 3, 4].map((_, index) => (
-                    <div key={index} className="flex items-center gap-3">
-                      <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-400 to-purple-600 flex items-center justify-center text-white font-bold">
-                        U
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold text-gray-900 truncate">
-                          Gebruiker {index + 1}
-                        </p>
-                        <p className="text-xs text-gray-500">Employer</p>
-                      </div>
-                      <button className="px-4 py-1.5 bg-amber-600 text-white text-xs font-bold rounded-full hover:bg-amber-700 transition-colors">
-                        Volgen
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
               {/* Footer Links */}
               <div className="text-xs text-gray-500 space-y-2 px-4">
                 <div className="flex flex-wrap gap-2">
@@ -526,15 +543,17 @@ interface PostCardPremiumProps {
   onLike: () => void;
   onComment: () => void;
   onShare: () => void;
+  onReactionChange: (reactionType: ReactionType | null) => void;
   currentUserId?: string;
   currentUserRole?: string;
 }
 
-function PostCardPremium({
+export function PostCardPremium({
   post,
   onLike,
   onComment,
   onShare,
+  onReactionChange,
   currentUserId,
   currentUserRole,
 }: PostCardPremiumProps) {
@@ -544,7 +563,28 @@ function PostCardPremium({
   const [commentText, setCommentText] = useState("");
   const [isSubmittingComment, setIsSubmittingComment] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
-  const [isBookmarked, setIsBookmarked] = useState(false);
+  const [currentFolders, setCurrentFolders] = useState<SaveFolder[]>([]);
+
+  // Load saved folders for this post
+  useEffect(() => {
+    const loadSavedFolders = async () => {
+      if (!currentUserId) return;
+      try {
+        const { data } = await supabaseAny
+          .from("post_saves")
+          .select("folder")
+          .eq("post_id", post.id)
+          .eq("profile_id", currentUserId);
+
+        if (data) {
+          setCurrentFolders(data.map((save: any) => save.folder));
+        }
+      } catch (error) {
+        console.error("Error loading saved folders:", error);
+      }
+    };
+    loadSavedFolders();
+  }, [post.id, currentUserId]);
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -596,21 +636,24 @@ function PostCardPremium({
           .select("id")
           .eq("profile_id", authUserId)
           .single();
-        actualUserId = data?.id;
+        actualUserId = data?.id || null;
       } else if (currentUserRole === "employer") {
         const { data } = await supabase
           .from("employers")
           .select("id")
           .eq("profile_id", authUserId)
           .single();
-        actualUserId = data?.id;
+        actualUserId = data?.id || null;
       } else if (currentUserRole === "accountant") {
         const { data } = await supabase
           .from("accountants")
           .select("id")
           .eq("profile_id", authUserId)
           .single();
-        actualUserId = data?.id;
+        actualUserId = data?.id || null;
+      } else if (currentUserRole === "admin") {
+        // Admin uses profile_id directly
+        actualUserId = authUserId;
       }
 
       if (!actualUserId) {
@@ -618,6 +661,7 @@ function PostCardPremium({
         return;
       }
 
+      // Don't map admin role - use it directly
       await createComment(
         post.id,
         actualUserId,
@@ -687,8 +731,6 @@ function PostCardPremium({
                 ? "bg-gradient-to-r from-blue-500 to-blue-600 text-white"
                 : post.type === "ad"
                 ? "bg-gradient-to-r from-purple-500 to-pink-600 text-white"
-                : post.type === "service"
-                ? "bg-gradient-to-r from-green-500 to-emerald-600 text-white"
                 : "bg-gradient-to-r from-amber-500 to-orange-600 text-white"
             }`}
           >
@@ -699,8 +741,6 @@ function PostCardPremium({
             )}
             {post.type === "ad" && <>📣 Advertentie</>}
             {post.type === "announcement" && <>📢 Aankondiging</>}
-            {post.type === "story" && <>📝 Verhaal</>}
-            {post.type === "service" && <>🛠️ Dienst</>}
           </span>
         </div>
 
@@ -795,7 +835,7 @@ function PostCardPremium({
 
         {/* Job Offer Card */}
         {post.type === "job_offer" && (
-          <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl p-5 space-y-3 mb-4 border border-blue-200">
+          <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl p-5 space-y-4 mb-4 border border-blue-200">
             <div className="flex items-center gap-2 text-blue-900 font-bold">
               <Briefcase className="w-5 h-5" />
               <span>Vacature Details</span>
@@ -808,15 +848,61 @@ function PostCardPremium({
                   <span>{post.job_category}</span>
                 </div>
               )}
-              {post.job_location && (
-                <div className="flex items-center gap-2 text-sm text-gray-700 bg-white/60 rounded-lg px-3 py-2">
-                  <MapPin className="w-4 h-4" />
+
+              <div className="flex items-center gap-2 text-sm text-gray-700 bg-white/60 rounded-lg px-3 py-2">
+                <span className="font-semibold">💼 Type:</span>
+                {post.job_type ? (
+                  <span>
+                    {post.job_type === "full_time" && "Voltijd"}
+                    {post.job_type === "part_time" && "Deeltijd"}
+                    {post.job_type === "contract" && "Contract"}
+                    {post.job_type === "temporary" && "Tijdelijk"}
+                  </span>
+                ) : (
+                  <span className="text-gray-400 italic">
+                    Type pracy nie podany
+                  </span>
+                )}
+              </div>
+
+              <div className="flex items-center gap-2 text-sm text-gray-700 bg-white/60 rounded-lg px-3 py-2">
+                <MapPin className="w-4 h-4" />
+                {post.job_location ? (
                   <span>{post.job_location}</span>
-                </div>
-              )}
+                ) : (
+                  <span className="text-gray-400 italic">
+                    Lokalizacja nie podana
+                  </span>
+                )}
+              </div>
+
+              <div className="flex items-center gap-2 text-sm text-gray-700 bg-white/60 rounded-lg px-3 py-2">
+                <span className="font-semibold">⏰ Uren/week:</span>
+                {post.job_hours_per_week ? (
+                  <span>{post.job_hours_per_week}</span>
+                ) : (
+                  <span className="text-gray-400 italic">
+                    Godziny nie podane
+                  </span>
+                )}
+              </div>
+
+              <div className="flex items-center gap-2 text-sm text-gray-700 bg-white/60 rounded-lg px-3 py-2">
+                <span className="font-semibold">📅 Start:</span>
+                {post.job_start_date ? (
+                  <span>
+                    {new Date(post.job_start_date).toLocaleDateString("nl-NL")}
+                  </span>
+                ) : (
+                  <span className="text-gray-400 italic">
+                    Data rozpoczęcia nie podana
+                  </span>
+                )}
+              </div>
+
               {(post.job_salary_min || post.job_salary_max) && (
                 <div className="flex items-center gap-2 text-sm text-gray-700 bg-white/60 rounded-lg px-3 py-2 col-span-full">
-                  <span className="font-semibold">Salaris:</span>
+                  <span className="font-semibold">💰 Salaris:</span>
                   <span className="text-green-700 font-bold">
                     €{post.job_salary_min || "?"} - €
                     {post.job_salary_max || "?"} /uur
@@ -825,36 +911,410 @@ function PostCardPremium({
               )}
             </div>
 
-            <button className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold py-3 rounded-full hover:shadow-lg transform hover:scale-105 transition-all">
+            {/* Benefits */}
+            <div className="space-y-2">
+              <span className="text-sm font-semibold text-gray-700">
+                🎁 Voordelen:
+              </span>
+              {post.job_benefits && post.job_benefits.length > 0 ? (
+                <div className="flex flex-wrap gap-2">
+                  {post.job_benefits.map((benefit, idx) => (
+                    <span
+                      key={idx}
+                      className="px-3 py-1 bg-gradient-to-r from-green-100 to-emerald-100 text-green-800 text-xs font-bold rounded-full"
+                    >
+                      {benefit}
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <span className="text-gray-400 italic text-sm">
+                  Benefity nie podane
+                </span>
+              )}
+            </div>
+
+            {/* Contact Info */}
+            <div className="space-y-2 pt-2 border-t border-blue-200">
+              <span className="text-sm font-semibold text-gray-700">
+                📞 Contact:
+              </span>
+              <div className="flex flex-wrap gap-3">
+                {post.job_contact_email ? (
+                  <a
+                    href={`mailto:${post.job_contact_email}`}
+                    className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-800 bg-white/60 rounded-lg px-3 py-2"
+                  >
+                    <Mail className="w-4 h-4" />
+                    {post.job_contact_email}
+                  </a>
+                ) : (
+                  <span className="flex items-center gap-2 text-sm text-gray-400 italic bg-white/60 rounded-lg px-3 py-2">
+                    <Mail className="w-4 h-4" />
+                    Email nie podany
+                  </span>
+                )}
+                {post.job_contact_phone ? (
+                  <a
+                    href={`tel:${post.job_contact_phone}`}
+                    className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-800 bg-white/60 rounded-lg px-3 py-2"
+                  >
+                    <Phone className="w-4 h-4" />
+                    {post.job_contact_phone}
+                  </a>
+                ) : (
+                  <span className="flex items-center gap-2 text-sm text-gray-400 italic bg-white/60 rounded-lg px-3 py-2">
+                    <Phone className="w-4 h-4" />
+                    Telefon nie podany
+                  </span>
+                )}
+              </div>
+            </div>
+
+            <button
+              onClick={async () => {
+                if (!currentUserId) {
+                  alert("Musisz być zalogowany, aby aplikować na ofertę pracy");
+                  return;
+                }
+
+                // Only workers can apply for jobs
+                if (currentUserRole !== "worker") {
+                  alert("Tylko pracownicy mogą aplikować na oferty pracy");
+                  return;
+                }
+
+                try {
+                  // Get worker ID from profile
+                  const { data: workerData, error: workerError } =
+                    await supabase
+                      .from("workers")
+                      .select("id")
+                      .eq("profile_id", currentUserId)
+                      .single();
+
+                  if (workerError || !workerData) {
+                    alert("Nie znaleziono profilu pracownika");
+                    return;
+                  }
+
+                  // Import application service
+                  const { applyForJob } = await import(
+                    "../src/services/application"
+                  );
+
+                  // Apply for the job
+                  await applyForJob(post.id, workerData.id);
+
+                  alert(
+                    `✅ Aplikacja wysłana!\n\nTwoja aplikacja na: "${
+                      post.title || "tę ofertę"
+                    }" została pomyślnie wysłana.\n\nPracodawca otrzyma powiadomienie.`
+                  );
+
+                  // Reload feed - need to call parent component's loadFeed
+                  window.location.reload();
+                } catch (error: any) {
+                  console.error("Error applying for job:", error);
+                  if (error.message?.includes("already applied")) {
+                    alert("⚠️ Już aplikowałeś na tę ofertę pracy");
+                  } else {
+                    alert(
+                      "❌ Błąd podczas wysyłania aplikacji. Spróbuj ponownie."
+                    );
+                  }
+                }
+              }}
+              className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold py-3 rounded-full hover:shadow-lg transform hover:scale-105 transition-all"
+            >
               Solliciteren
             </button>
           </div>
         )}
+
+        {/* Ad Card */}
+        {post.type === "ad" && (
+          <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-2xl p-5 space-y-4 mb-4 border border-purple-200">
+            <div className="flex items-center gap-2 text-purple-900 font-bold">
+              <span className="text-xl">📣</span>
+              <span>Advertentie Details</span>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="flex items-center gap-2 text-sm text-gray-700 bg-white/60 rounded-lg px-3 py-2">
+                <span className="font-semibold">📦 Type:</span>
+                {post.ad_type ? (
+                  <span>
+                    {post.ad_type === "product" && "🛍️ Produkt"}
+                    {post.ad_type === "service" && "🛠️ Usługa"}
+                    {post.ad_type === "event" && "🎉 Wydarzenie"}
+                    {post.ad_type === "promotion" && "🎁 Promocja"}
+                  </span>
+                ) : (
+                  <span className="text-gray-400 italic">
+                    Type reklamy nie podany
+                  </span>
+                )}
+              </div>
+
+              <div className="flex items-center gap-2 text-sm text-gray-700 bg-white/60 rounded-lg px-3 py-2">
+                <span className="font-semibold">💰 Budget:</span>
+                {post.ad_budget ? (
+                  <span className="text-green-700 font-bold">
+                    €{post.ad_budget}
+                  </span>
+                ) : (
+                  <span className="text-gray-400 italic">
+                    Budżet nie podany
+                  </span>
+                )}
+              </div>
+
+              <div className="flex items-center gap-2 text-sm text-gray-700 bg-white/60 rounded-lg px-3 py-2">
+                <span className="font-semibold">⏱️ Duur:</span>
+                {post.ad_duration_days ? (
+                  <span>{post.ad_duration_days} dagen</span>
+                ) : (
+                  <span className="text-gray-400 italic">
+                    Czas trwania nie podany
+                  </span>
+                )}
+              </div>
+
+              <div className="flex items-center gap-2 text-sm text-gray-700 bg-white/60 rounded-lg px-3 py-2">
+                <span className="font-semibold">🌐 Website:</span>
+                {post.ad_website ? (
+                  <a
+                    href={post.ad_website}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-600 hover:underline truncate"
+                  >
+                    {post.ad_website}
+                  </a>
+                ) : (
+                  <span className="text-gray-400 italic">
+                    Strona www nie podana
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* Target Audience */}
+            <div className="space-y-2">
+              <span className="text-sm font-semibold text-gray-700">
+                👥 Doelgroep:
+              </span>
+              {post.ad_target_audience && post.ad_target_audience.length > 0 ? (
+                <div className="flex flex-wrap gap-2">
+                  {post.ad_target_audience.map((audience, idx) => (
+                    <span
+                      key={idx}
+                      className="px-3 py-1 bg-gradient-to-r from-purple-100 to-pink-100 text-purple-800 text-xs font-bold rounded-full"
+                    >
+                      {audience}
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <span className="text-gray-400 italic text-sm">
+                  Grupa docelowa nie podana
+                </span>
+              )}
+            </div>
+
+            {/* CTA Button */}
+            {post.ad_cta_url && post.ad_cta_text && (
+              <a
+                href={post.ad_cta_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold py-3 rounded-full hover:shadow-lg transform hover:scale-105 transition-all text-center"
+              >
+                {post.ad_cta_text}
+              </a>
+            )}
+
+            {/* Contact Info */}
+            <div className="space-y-2 pt-2 border-t border-purple-200">
+              <span className="text-sm font-semibold text-gray-700">
+                📞 Contact:
+              </span>
+              <div className="flex flex-wrap gap-3">
+                {post.ad_contact_email ? (
+                  <a
+                    href={`mailto:${post.ad_contact_email}`}
+                    className="flex items-center gap-2 text-sm text-purple-600 hover:text-purple-800 bg-white/60 rounded-lg px-3 py-2"
+                  >
+                    <Mail className="w-4 h-4" />
+                    {post.ad_contact_email}
+                  </a>
+                ) : (
+                  <span className="flex items-center gap-2 text-sm text-gray-400 italic bg-white/60 rounded-lg px-3 py-2">
+                    <Mail className="w-4 h-4" />
+                    Email nie podany
+                  </span>
+                )}
+                {post.ad_contact_phone ? (
+                  <a
+                    href={`tel:${post.ad_contact_phone}`}
+                    className="flex items-center gap-2 text-sm text-purple-600 hover:text-purple-800 bg-white/60 rounded-lg px-3 py-2"
+                  >
+                    <Phone className="w-4 h-4" />
+                    {post.ad_contact_phone}
+                  </a>
+                ) : (
+                  <span className="flex items-center gap-2 text-sm text-gray-400 italic bg-white/60 rounded-lg px-3 py-2">
+                    <Phone className="w-4 h-4" />
+                    Telefon nie podany
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Announcement Card */}
+        {post.type === "announcement" && (
+          <div
+            className={`rounded-2xl p-5 space-y-4 mb-4 border-2 ${
+              post.announcement_category === "urgent"
+                ? "bg-gradient-to-br from-red-50 to-orange-50 border-red-300"
+                : post.announcement_category === "warning"
+                ? "bg-gradient-to-br from-yellow-50 to-amber-50 border-yellow-300"
+                : post.announcement_category === "success"
+                ? "bg-gradient-to-br from-green-50 to-emerald-50 border-green-300"
+                : "bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-200"
+            }`}
+          >
+            <div className="flex items-center gap-2 font-bold">
+              <span className="text-xl">
+                {post.announcement_category === "urgent" && "🚨"}
+                {post.announcement_category === "warning" && "⚠️"}
+                {post.announcement_category === "success" && "✅"}
+                {(!post.announcement_category ||
+                  post.announcement_category === "info") &&
+                  "ℹ️"}
+              </span>
+              <span
+                className={
+                  post.announcement_category === "urgent"
+                    ? "text-red-900"
+                    : post.announcement_category === "warning"
+                    ? "text-yellow-900"
+                    : post.announcement_category === "success"
+                    ? "text-green-900"
+                    : "text-blue-900"
+                }
+              >
+                Aankondiging
+                {post.announcement_priority && (
+                  <span className="ml-2 text-xs">
+                    (
+                    {post.announcement_priority === "high" && "Hoge prioriteit"}
+                    {post.announcement_priority === "medium" &&
+                      "Gemiddelde prioriteit"}
+                    {post.announcement_priority === "low" && "Lage prioriteit"})
+                  </span>
+                )}
+              </span>
+            </div>
+
+            {/* Tags */}
+            <div className="space-y-2">
+              <span className="text-sm font-semibold text-gray-700">
+                🏷️ Tagi:
+              </span>
+              {post.announcement_tags && post.announcement_tags.length > 0 ? (
+                <div className="flex flex-wrap gap-2">
+                  {post.announcement_tags.map((tag, idx) => (
+                    <span
+                      key={idx}
+                      className="px-3 py-1 bg-white/80 text-gray-700 text-xs font-bold rounded-full border border-gray-200"
+                    >
+                      #{tag}
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <span className="text-gray-400 italic text-sm">
+                  Tagi nie podane
+                </span>
+              )}
+            </div>
+
+            {/* Expiration Date */}
+            <div className="flex items-center gap-2 text-sm text-gray-700 bg-white/60 rounded-lg px-3 py-2 w-fit">
+              <Calendar className="w-4 h-4" />
+              <span className="font-semibold">Geldig tot:</span>
+              {post.announcement_expires_at ? (
+                <span>
+                  {new Date(post.announcement_expires_at).toLocaleDateString(
+                    "nl-NL"
+                  )}
+                </span>
+              ) : (
+                <span className="text-gray-400 italic">
+                  Brak daty wygaśnięcia
+                </span>
+              )}
+            </div>
+
+            {/* Target Roles */}
+            <div className="space-y-2">
+              <span className="text-sm font-semibold text-gray-700">
+                👥 Voor:
+              </span>
+              {post.announcement_target_roles &&
+              post.announcement_target_roles.length > 0 ? (
+                <div className="flex flex-wrap gap-2">
+                  {post.announcement_target_roles.map((role, idx) => (
+                    <span
+                      key={idx}
+                      className="px-3 py-1 bg-gradient-to-r from-amber-100 to-orange-100 text-amber-800 text-xs font-bold rounded-full"
+                    >
+                      {role === "worker" && "👷 Pracownicy ZZP"}
+                      {role === "cleaning_company" && "🧹 Firmy sprzątające"}
+                      {role === "employer" && "💼 Pracodawcy"}
+                      {role === "accountant" && "📊 Księgowi"}
+                      {role === "admin" && "⚙️ Administratorzy"}
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <span className="text-gray-400 italic text-sm">
+                  Dla wszystkich użytkowników
+                </span>
+              )}
+            </div>
+
+            {post.announcement_pinned && (
+              <div className="flex items-center gap-2 text-sm font-bold text-amber-700 bg-amber-100/80 rounded-lg px-3 py-2 w-fit">
+                📌 Przypięte ogłoszenie
+              </div>
+            )}
+          </div>
+        )}
       </div>
+
+      {/* Reaction Counts Display (NEW) */}
+      {post.reactions && post.reactions.total > 0 && (
+        <div className="px-6 py-2 border-t border-gray-100">
+          <ReactionCountsDisplay reactions={post.reactions} />
+        </div>
+      )}
 
       {/* Post Actions Bar */}
       <div className="px-6 py-4 border-t border-gray-100 bg-gradient-to-r from-gray-50 to-white">
         <div className="flex items-center justify-between">
           {/* Left Actions */}
           <div className="flex items-center gap-6">
-            {/* Like Button with Animation */}
-            <button
-              onClick={onLike}
-              className={`group/like flex items-center gap-2 transition-all transform hover:scale-110 ${
-                post.user_has_liked
-                  ? "text-red-600"
-                  : "text-gray-600 hover:text-red-600"
-              }`}
-            >
-              <Heart
-                className={`w-6 h-6 transition-all ${
-                  post.user_has_liked
-                    ? "fill-red-600 scale-110"
-                    : "group-hover/like:fill-red-600"
-                }`}
-              />
-              <span className="font-bold">{post.likes_count}</span>
-            </button>
+            {/* Reaction Button (NEW - emoji picker) */}
+            <ReactionButton
+              likesCount={post.likes_count}
+              userReaction={post.user_reaction}
+              onReactionChange={onReactionChange}
+            />
 
             {/* Comment Button */}
             <button
@@ -876,18 +1336,63 @@ function PostCardPremium({
           </div>
 
           {/* Right Actions */}
-          <button
-            onClick={() => setIsBookmarked(!isBookmarked)}
-            className={`transition-all transform hover:scale-110 ${
-              isBookmarked
-                ? "text-amber-600"
-                : "text-gray-600 hover:text-amber-600"
-            }`}
-          >
-            <Bookmark
-              className={`w-6 h-6 ${isBookmarked ? "fill-amber-600" : ""}`}
-            />
-          </button>
+          <SaveButton
+            postId={post.id}
+            currentFolders={currentFolders}
+            onSave={async (folder) => {
+              if (!currentUserId || !currentUserRole) {
+                console.error("User ID or role not available");
+                return;
+              }
+
+              const { savePost } = await import("../src/services/feedService");
+              // Get user role-specific ID for savePost
+              const effectiveRole =
+                currentUserRole === "admin" ? "worker" : currentUserRole;
+
+              let actualUserId = currentUserId;
+              if (currentUserRole === "worker") {
+                const { data: workerData } = await supabase
+                  .from("workers")
+                  .select("id")
+                  .eq("profile_id", currentUserId)
+                  .single();
+                if (workerData) actualUserId = workerData.id;
+              } else if (currentUserRole === "employer") {
+                const { data: employerData } = await supabase
+                  .from("employers")
+                  .select("id")
+                  .eq("profile_id", currentUserId)
+                  .single();
+                if (employerData) actualUserId = employerData.id;
+              } else if (currentUserRole === "accountant") {
+                const { data: accountantData } = await supabase
+                  .from("accountants")
+                  .select("id")
+                  .eq("profile_id", currentUserId)
+                  .single();
+                if (accountantData) actualUserId = accountantData.id;
+              }
+
+              await savePost(
+                post.id,
+                actualUserId,
+                effectiveRole as any,
+                currentUserId,
+                folder
+              );
+              setCurrentFolders([...currentFolders, folder]);
+            }}
+            onUnsave={async (folder) => {
+              const { unsavePost } = await import(
+                "../src/services/feedService"
+              );
+              await unsavePost(post.id, folder);
+              setCurrentFolders(currentFolders.filter((f) => f !== folder));
+            }}
+            userRole={currentUserRole}
+            compact
+          />
         </div>
       </div>
 
@@ -1018,6 +1523,18 @@ function CreatePostCardPremium({
   const [jobSalaryMin, setJobSalaryMin] = useState("");
   const [jobSalaryMax, setJobSalaryMax] = useState("");
 
+  // Enhanced form data for all post types
+  const [enhancedFormData, setEnhancedFormData] = useState<Record<string, any>>(
+    {}
+  );
+
+  const handleFormChange = (field: string, value: any) => {
+    setEnhancedFormData((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+  };
+
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     if (files.length === 0) return;
@@ -1115,8 +1632,10 @@ function CreatePostCardPremium({
         content: content.trim(),
         media_urls: mediaUrls.length > 0 ? mediaUrls : undefined,
         media_types: mediaTypes.length > 0 ? mediaTypes : undefined,
+        ...enhancedFormData, // Add all enhanced fields
       };
 
+      // Legacy job_offer fields (keep for backward compatibility)
       if (postType === "job_offer") {
         postData.job_category = jobCategory || undefined;
         postData.job_location = jobLocation || undefined;
@@ -1138,6 +1657,7 @@ function CreatePostCardPremium({
       setJobSalaryMax("");
       setSelectedFiles([]);
       setMediaPreview([]);
+      setEnhancedFormData({}); // Reset enhanced fields
 
       onPostCreated();
     } catch (error) {
@@ -1170,15 +1690,7 @@ function CreatePostCardPremium({
             Type Post
           </label>
           <div className="flex flex-wrap gap-3">
-            {(
-              [
-                "announcement",
-                "job_offer",
-                "ad",
-                "story",
-                "service",
-              ] as PostType[]
-            ).map((type) => (
+            {(["announcement", "job_offer", "ad"] as PostType[]).map((type) => (
               <button
                 key={type}
                 type="button"
@@ -1192,8 +1704,6 @@ function CreatePostCardPremium({
                 {type === "announcement" && "📢 Aankondiging"}
                 {type === "job_offer" && "💼 Vacature"}
                 {type === "ad" && "📣 Advertentie"}
-                {type === "story" && "📝 Verhaal"}
-                {type === "service" && "🛠️ Dienst"}
               </button>
             ))}
           </div>
@@ -1228,47 +1738,143 @@ function CreatePostCardPremium({
           />
         </div>
 
-        {/* Job Offer Fields */}
+        {/* Progress Bar */}
+        {postType &&
+          (() => {
+            const getFieldCompletion = () => {
+              if (postType === "job_offer") {
+                const required = ["job_type", "job_location"];
+                const recommended = [
+                  "job_hours_per_week",
+                  "job_contact_email",
+                  "job_benefits",
+                ];
+                const total = required.length + recommended.length;
+                const filled = [...required, ...recommended].filter(
+                  (field) =>
+                    enhancedFormData[field] &&
+                    (Array.isArray(enhancedFormData[field])
+                      ? enhancedFormData[field].length > 0
+                      : true)
+                ).length;
+                return {
+                  filled,
+                  total,
+                  percentage: Math.round((filled / total) * 100),
+                };
+              }
+              if (postType === "ad") {
+                const required = ["ad_type"];
+                const recommended = ["ad_budget", "ad_cta_text", "ad_website"];
+                const total = required.length + recommended.length;
+                const filled = [...required, ...recommended].filter(
+                  (field) => enhancedFormData[field]
+                ).length;
+                return {
+                  filled,
+                  total,
+                  percentage: Math.round((filled / total) * 100),
+                };
+              }
+              if (postType === "announcement") {
+                const required = [
+                  "announcement_category",
+                  "announcement_priority",
+                ];
+                const recommended = [
+                  "announcement_tags",
+                  "announcement_expires_at",
+                ];
+                const total = required.length + recommended.length;
+                const filled = [...required, ...recommended].filter(
+                  (field) =>
+                    enhancedFormData[field] &&
+                    (Array.isArray(enhancedFormData[field])
+                      ? enhancedFormData[field].length > 0
+                      : true)
+                ).length;
+                return {
+                  filled,
+                  total,
+                  percentage: Math.round((filled / total) * 100),
+                };
+              }
+              return { filled: 0, total: 0, percentage: 0 };
+            };
+
+            const { filled, total, percentage } = getFieldCompletion();
+
+            return (
+              <div className="bg-gradient-to-r from-blue-50 via-indigo-50 to-purple-50 rounded-2xl p-6 border-2 border-blue-200">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-2xl">📊</span>
+                    <span className="text-sm font-bold text-gray-700">
+                      Postęp wypełnienia formularza
+                    </span>
+                  </div>
+                  <span className="text-lg font-black text-gray-900">
+                    {filled}/{total} pól
+                  </span>
+                </div>
+                <div className="relative w-full h-4 bg-gray-200 rounded-full overflow-hidden">
+                  <div
+                    className={`h-full transition-all duration-500 ease-out ${
+                      percentage < 40
+                        ? "bg-gradient-to-r from-red-400 to-red-600"
+                        : percentage < 70
+                        ? "bg-gradient-to-r from-yellow-400 to-orange-500"
+                        : "bg-gradient-to-r from-green-400 to-emerald-600"
+                    }`}
+                    style={{ width: `${percentage}%` }}
+                  >
+                    <div className="w-full h-full bg-white/20 animate-pulse" />
+                  </div>
+                </div>
+                <div className="mt-2 flex items-center justify-between text-xs">
+                  <span
+                    className={`font-bold ${
+                      percentage < 40
+                        ? "text-red-600"
+                        : percentage < 70
+                        ? "text-orange-600"
+                        : "text-green-600"
+                    }`}
+                  >
+                    {percentage}% ukończone
+                  </span>
+                  <span className="text-gray-600">
+                    {percentage < 40 && "⚠️ Wypełnij wymagane pola"}
+                    {percentage >= 40 &&
+                      percentage < 70 &&
+                      "📈 Dobra robota! Dodaj więcej szczegółów"}
+                    {percentage >= 70 &&
+                      percentage < 100 &&
+                      "🎯 Prawie gotowe!"}
+                    {percentage === 100 && "✅ Wszystkie pola wypełnione!"}
+                  </span>
+                </div>
+              </div>
+            );
+          })()}
+
+        {/* Enhanced Forms Based on Post Type */}
+        {postType === "ad" && (
+          <AdForm formData={enhancedFormData} onChange={handleFormChange} />
+        )}
+
+        {postType === "announcement" && (
+          <AnnouncementForm
+            formData={enhancedFormData}
+            onChange={handleFormChange}
+          />
+        )}
+
         {postType === "job_offer" && (
-          <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl p-6 space-y-4 border border-blue-200">
-            <h4 className="font-bold text-lg text-blue-900 flex items-center gap-2">
-              <Briefcase className="w-5 h-5" />
-              Vacature Details
-            </h4>
-
-            <input
-              type="text"
-              value={jobCategory}
-              onChange={(e) => setJobCategory(e.target.value)}
-              placeholder="Categorie (bijv. Bouw, IT, Zorg)"
-              className="w-full px-5 py-3 border border-blue-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
-            />
-
-            <input
-              type="text"
-              value={jobLocation}
-              onChange={(e) => setJobLocation(e.target.value)}
-              placeholder="Locatie (bijv. Amsterdam, Rotterdam)"
-              className="w-full px-5 py-3 border border-blue-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
-            />
-
-            <div className="grid grid-cols-2 gap-4">
-              <input
-                type="number"
-                value={jobSalaryMin}
-                onChange={(e) => setJobSalaryMin(e.target.value)}
-                placeholder="Min. salaris (€/uur)"
-                className="w-full px-5 py-3 border border-blue-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
-              />
-              <input
-                type="number"
-                value={jobSalaryMax}
-                onChange={(e) => setJobSalaryMax(e.target.value)}
-                placeholder="Max. salaris (€/uur)"
-                className="w-full px-5 py-3 border border-blue-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
-              />
-            </div>
-          </div>
+          <JobOfferForm
+            formData={enhancedFormData}
+            onChange={handleFormChange}
+          />
         )}
 
         {/* Media Upload */}

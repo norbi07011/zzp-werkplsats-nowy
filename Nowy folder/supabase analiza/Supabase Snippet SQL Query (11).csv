@@ -1,0 +1,34 @@
+schema,table_name,index_name,indexdef
+public,post_comments,idx_post_comments_created,CREATE INDEX idx_post_comments_created ON public.post_comments USING btree (created_at DESC)
+public,post_comments,idx_post_comments_parent,CREATE INDEX idx_post_comments_parent ON public.post_comments USING btree (parent_comment_id)
+public,post_comments,idx_post_comments_post,CREATE INDEX idx_post_comments_post ON public.post_comments USING btree (post_id)
+public,post_comments,idx_post_comments_user,"CREATE INDEX idx_post_comments_user ON public.post_comments USING btree (user_id, user_type)"
+public,post_comments,post_comments_pkey,CREATE UNIQUE INDEX post_comments_pkey ON public.post_comments USING btree (id)
+public,post_likes,idx_post_likes_post,CREATE INDEX idx_post_likes_post ON public.post_likes USING btree (post_id)
+public,post_likes,idx_post_likes_post_profile,"CREATE INDEX idx_post_likes_post_profile ON public.post_likes USING btree (post_id, profile_id)"
+public,post_likes,idx_post_likes_post_reaction,"CREATE INDEX idx_post_likes_post_reaction ON public.post_likes USING btree (post_id, reaction_type)"
+public,post_likes,idx_post_likes_profile,CREATE INDEX idx_post_likes_profile ON public.post_likes USING btree (profile_id)
+public,post_likes,idx_post_likes_profile_id,CREATE INDEX idx_post_likes_profile_id ON public.post_likes USING btree (profile_id)
+public,post_likes,idx_post_likes_user,"CREATE INDEX idx_post_likes_user ON public.post_likes USING btree (user_id, user_type)"
+public,post_likes,post_likes_pkey,CREATE UNIQUE INDEX post_likes_pkey ON public.post_likes USING btree (id)
+public,post_likes,post_likes_post_profile_unique,"CREATE UNIQUE INDEX post_likes_post_profile_unique ON public.post_likes USING btree (post_id, profile_id)"
+public,post_likes,post_likes_unique,"CREATE UNIQUE INDEX post_likes_unique ON public.post_likes USING btree (post_id, user_id)"
+public,post_shares,idx_post_shares_post,CREATE INDEX idx_post_shares_post ON public.post_shares USING btree (post_id)
+public,post_shares,idx_post_shares_user,CREATE INDEX idx_post_shares_user ON public.post_shares USING btree (user_id)
+public,post_shares,post_shares_pkey,CREATE UNIQUE INDEX post_shares_pkey ON public.post_shares USING btree (id)
+public,post_shares,post_shares_unique,"CREATE UNIQUE INDEX post_shares_unique ON public.post_shares USING btree (post_id, user_id)"
+public,post_views,idx_post_views_created,CREATE INDEX idx_post_views_created ON public.post_views USING btree (created_at DESC)
+public,post_views,idx_post_views_post,CREATE INDEX idx_post_views_post ON public.post_views USING btree (post_id)
+public,post_views,idx_post_views_user,CREATE INDEX idx_post_views_user ON public.post_views USING btree (user_id) WHERE (user_id IS NOT NULL)
+public,post_views,post_views_pkey,CREATE UNIQUE INDEX post_views_pkey ON public.post_views USING btree (id)
+public,posts,idx_posts_active,CREATE INDEX idx_posts_active ON public.posts USING btree (is_active) WHERE (is_active = true)
+public,posts,idx_posts_ad_type,CREATE INDEX idx_posts_ad_type ON public.posts USING btree (ad_type) WHERE (ad_type IS NOT NULL)
+public,posts,idx_posts_announcement_expires,CREATE INDEX idx_posts_announcement_expires ON public.posts USING btree (announcement_expires_at) WHERE (announcement_expires_at IS NOT NULL)
+public,posts,idx_posts_announcement_pinned,CREATE INDEX idx_posts_announcement_pinned ON public.posts USING btree (announcement_pinned) WHERE (announcement_pinned = true)
+public,posts,idx_posts_author,"CREATE INDEX idx_posts_author ON public.posts USING btree (author_id, author_type)"
+public,posts,idx_posts_job_type,CREATE INDEX idx_posts_job_type ON public.posts USING btree (job_type) WHERE (job_type IS NOT NULL)
+public,posts,idx_posts_pinned,CREATE INDEX idx_posts_pinned ON public.posts USING btree (is_pinned) WHERE (is_pinned = true)
+public,posts,idx_posts_profile_id,CREATE INDEX idx_posts_profile_id ON public.posts USING btree (profile_id)
+public,posts,idx_posts_published,CREATE INDEX idx_posts_published ON public.posts USING btree (published_at DESC)
+public,posts,idx_posts_type,CREATE INDEX idx_posts_type ON public.posts USING btree (type)
+public,posts,posts_pkey,CREATE UNIQUE INDEX posts_pkey ON public.posts USING btree (id)

@@ -88,6 +88,25 @@ const AccountantsManager = lazy(
 const CleaningCompaniesManager = lazy(
   () => import("./pages/Admin/CleaningCompaniesManager")
 );
+
+// MyPosts components for creators
+const EmployerMyPosts = lazy(() => import("./pages/employer/MyPosts"));
+const AccountantMyPosts = lazy(() => import("./pages/accountant/MyPosts"));
+const AdminMyPosts = lazy(() => import("./pages/Admin/MyPosts"));
+
+// SavedActivity components for all roles
+const EmployerSavedActivity = lazy(
+  () => import("./pages/employer/SavedActivity")
+);
+const AccountantSavedActivity = lazy(
+  () => import("./pages/accountant/SavedActivity")
+);
+const AdminSavedActivity = lazy(() => import("./pages/Admin/SavedActivity"));
+const WorkerSavedActivity = lazy(() => import("./pages/worker/SavedActivity"));
+const CleaningCompanySavedActivity = lazy(
+  () => import("./pages/CleaningCompany/SavedActivity")
+);
+
 const CleaningCompanyDashboard = lazy(() =>
   import("./pages/CleaningCompany/CleaningCompanyDashboard").then((m) => ({
     default: m.default,
@@ -358,6 +377,22 @@ function App() {
                             </ProtectedRoute>
                           }
                         />
+                        <Route
+                          path="/accountant/moje-posty"
+                          element={
+                            <ProtectedRoute requiredRole="accountant">
+                              <AccountantMyPosts />
+                            </ProtectedRoute>
+                          }
+                        />
+                        <Route
+                          path="/accountant/historia-aktywnosci"
+                          element={
+                            <ProtectedRoute requiredRole="accountant">
+                              <AccountantSavedActivity />
+                            </ProtectedRoute>
+                          }
+                        />
                       </Route>
 
                       {/* Admin routes (LAZY LOADED) */}
@@ -370,6 +405,11 @@ function App() {
                         }
                       >
                         <Route index element={<AdminDashboard />} />
+                        <Route path="moje-posty" element={<AdminMyPosts />} />
+                        <Route
+                          path="historia-aktywnosci"
+                          element={<AdminSavedActivity />}
+                        />
                         <Route
                           path="certificate-approval"
                           element={<CertificateApprovalPage />}
@@ -482,6 +522,14 @@ function App() {
                         }
                       >
                         <Route index element={<EmployerDashboard />} />
+                        <Route
+                          path="moje-posty"
+                          element={<EmployerMyPosts />}
+                        />
+                        <Route
+                          path="historia-aktywnosci"
+                          element={<EmployerSavedActivity />}
+                        />
                         <Route path="profile" element={<EmployerProfile />} />
                         <Route
                           path="profile/edit"
@@ -512,6 +560,10 @@ function App() {
                         }
                       >
                         <Route index element={<WorkerDashboard />} />
+                        <Route
+                          path="historia-aktywnosci"
+                          element={<WorkerSavedActivity />}
+                        />
                         {/* ❌ REMOVED: ZZPExamApplicationPage - file doesn't exist */}
                         {/* <Route path="zzp-exam-application" element={<ZZPExamApplicationPage />} /> */}
                         <Route
@@ -534,6 +586,10 @@ function App() {
                         }
                       >
                         <Route index element={<CleaningCompanyDashboard />} />
+                        <Route
+                          path="historia-aktywnosci"
+                          element={<CleaningCompanySavedActivity />}
+                        />
                       </Route>
 
                       {/* ✅ Invoice Module - faktury, BTW, koszty, kilometry */}

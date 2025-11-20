@@ -464,6 +464,12 @@ export const WorkerSearch = () => {
   };
 
   const handleOpenProfile = async (worker: Worker) => {
+    console.log("🔗 WORKER CARD CLICKED:", {
+      workerId: worker.id,
+      workerName: worker.fullName,
+      navigateTo: `/worker/profile/${worker.id}`,
+    });
+
     // Navigate to full profile page instead of modal
     navigate(`/worker/profile/${worker.id}`);
 

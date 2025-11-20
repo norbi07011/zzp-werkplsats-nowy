@@ -1,0 +1,42 @@
+policyname,tablename,permissive,roles,cmd,qual,with_check
+pl_delete,post_comments,PERMISSIVE,{authenticated},DELETE,"((((user_type)::text = 'worker'::text) AND (user_id IN ( SELECT workers.id
+   FROM workers
+  WHERE (workers.profile_id = ( SELECT auth.uid() AS uid))))) OR (((user_type)::text = 'employer'::text) AND (user_id IN ( SELECT employers.id
+   FROM employers
+  WHERE (employers.profile_id = ( SELECT auth.uid() AS uid))))) OR (((user_type)::text = 'accountant'::text) AND (user_id IN ( SELECT accountants.id
+   FROM accountants
+  WHERE (accountants.profile_id = ( SELECT auth.uid() AS uid))))))",null
+pl_insert,post_comments,PERMISSIVE,{authenticated},INSERT,null,"((((user_type)::text = 'worker'::text) AND (user_id IN ( SELECT workers.id
+   FROM workers
+  WHERE (workers.profile_id = ( SELECT auth.uid() AS uid))))) OR (((user_type)::text = 'employer'::text) AND (user_id IN ( SELECT employers.id
+   FROM employers
+  WHERE (employers.profile_id = ( SELECT auth.uid() AS uid))))) OR (((user_type)::text = 'accountant'::text) AND (user_id IN ( SELECT accountants.id
+   FROM accountants
+  WHERE (accountants.profile_id = ( SELECT auth.uid() AS uid))))))"
+pl_read,post_comments,PERMISSIVE,{authenticated},SELECT,true,null
+pl_update,post_comments,PERMISSIVE,{authenticated},UPDATE,"((((user_type)::text = 'worker'::text) AND (user_id IN ( SELECT workers.id
+   FROM workers
+  WHERE (workers.profile_id = ( SELECT auth.uid() AS uid))))) OR (((user_type)::text = 'employer'::text) AND (user_id IN ( SELECT employers.id
+   FROM employers
+  WHERE (employers.profile_id = ( SELECT auth.uid() AS uid))))) OR (((user_type)::text = 'accountant'::text) AND (user_id IN ( SELECT accountants.id
+   FROM accountants
+  WHERE (accountants.profile_id = ( SELECT auth.uid() AS uid))))))","((((user_type)::text = 'worker'::text) AND (user_id IN ( SELECT workers.id
+   FROM workers
+  WHERE (workers.profile_id = ( SELECT auth.uid() AS uid))))) OR (((user_type)::text = 'employer'::text) AND (user_id IN ( SELECT employers.id
+   FROM employers
+  WHERE (employers.profile_id = ( SELECT auth.uid() AS uid))))) OR (((user_type)::text = 'accountant'::text) AND (user_id IN ( SELECT accountants.id
+   FROM accountants
+  WHERE (accountants.profile_id = ( SELECT auth.uid() AS uid))))))"
+pl_delete,post_likes,PERMISSIVE,{authenticated},DELETE,(profile_id = auth.uid()),null
+pl_insert,post_likes,PERMISSIVE,{authenticated},INSERT,null,(profile_id = auth.uid())
+pl_read,post_likes,PERMISSIVE,{authenticated},SELECT,true,null
+pl_update,post_likes,PERMISSIVE,{authenticated},UPDATE,(profile_id = auth.uid()),(profile_id = auth.uid())
+post_shares_delete,post_shares,PERMISSIVE,{authenticated},DELETE,(user_id = ( SELECT auth.uid() AS uid)),null
+post_shares_insert,post_shares,PERMISSIVE,{authenticated},INSERT,null,(user_id = ( SELECT auth.uid() AS uid))
+post_shares_select,post_shares,PERMISSIVE,{authenticated},SELECT,true,null
+post_views_insert,post_views,PERMISSIVE,{authenticated},INSERT,null,true
+post_views_select,post_views,PERMISSIVE,{authenticated},SELECT,true,null
+posts_delete_own,posts,PERMISSIVE,{authenticated},DELETE,(profile_id = ( SELECT auth.uid() AS uid)),null
+posts_insert_own,posts,PERMISSIVE,{authenticated},INSERT,null,(profile_id = ( SELECT auth.uid() AS uid))
+posts_select_all,posts,PERMISSIVE,{authenticated},SELECT,(is_active = true),null
+posts_update_own,posts,PERMISSIVE,{authenticated},UPDATE,(profile_id = ( SELECT auth.uid() AS uid)),(profile_id = ( SELECT auth.uid() AS uid))

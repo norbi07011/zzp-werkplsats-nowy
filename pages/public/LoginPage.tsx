@@ -400,28 +400,66 @@ export const LoginPage = () => {
           </form>
         </div>
 
-        {/* Register Link */}
-        <div className="mt-6">
-          <div className="bg-gradient-glass backdrop-blur-md border border-accent-cyber/20 rounded-xl shadow-3d p-4 text-center">
-            <p className="text-neutral-300 mb-3">Heeft u nog geen account?</p>
+        {/* Register Links */}
+        <div className="mt-6 space-y-3">
+          <div className="bg-gradient-glass backdrop-blur-md border border-accent-cyber/20 rounded-xl shadow-3d p-4">
+            <p className="text-sm text-neutral-300 mb-2">
+              <span className="font-semibold text-accent-cyber">
+                Opdrachtgever?
+              </span>{" "}
+              Registreer uw bedrijf
+            </p>
             <Link
-              to="/register"
-              className="inline-flex items-center gap-2 bg-gradient-cyber text-white px-6 py-3 rounded-xl hover:shadow-glow-cyber hover:scale-105 transition-all font-medium"
+              to="/register/employer"
+              className="block w-full text-center bg-accent-cyber/10 hover:bg-accent-cyber/20 text-accent-cyber font-medium py-2.5 px-4 rounded-xl transition border border-accent-cyber/30 hover:border-accent-cyber"
             >
-              <svg
-                className="w-5 h-5"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"
-                />
-              </svg>
-              Account aanmaken
+              Registreer als Opdrachtgever
+            </Link>
+          </div>
+
+          <div className="bg-gradient-glass backdrop-blur-md border border-accent-techGreen/20 rounded-xl shadow-3d p-4">
+            <p className="text-sm text-neutral-300 mb-2">
+              <span className="font-semibold text-accent-techGreen">
+                ZZP'er?
+              </span>{" "}
+              Solliciteer via ons formulier
+            </p>
+            <Link
+              to="/register/worker"
+              className="block w-full text-center bg-accent-techGreen/10 hover:bg-accent-techGreen/20 text-accent-techGreen font-medium py-2.5 px-4 rounded-xl transition border border-accent-techGreen/30 hover:border-accent-techGreen"
+            >
+              Solliciteren als ZZP'er
+            </Link>
+            <p className="text-xs text-gray-500 mt-2">
+              ℹ️ Inloggegevens ontvangt u na het slagen van de praktijktest
+            </p>
+          </div>
+
+          <div className="bg-gradient-glass backdrop-blur-md border border-amber-500/20 rounded-xl shadow-3d p-4">
+            <p className="text-sm text-neutral-300 mb-2">
+              <span className="font-semibold text-amber-400">Księgowy?</span>{" "}
+              Załóż profil księgowego
+            </p>
+            <Link
+              to="/register/accountant"
+              className="block w-full text-center bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 font-medium py-2.5 px-4 rounded-xl transition border border-amber-500/30 hover:border-amber-500"
+            >
+              Registreer als Księgowy / Boekhouder
+            </Link>
+          </div>
+
+          <div className="bg-gradient-glass backdrop-blur-md border border-green-500/20 rounded-xl shadow-3d p-4">
+            <p className="text-sm text-neutral-300 mb-2">
+              <span className="font-semibold text-green-400">
+                🧹 Firma sprzątająca?
+              </span>{" "}
+              Zarejestruj swoją firmę
+            </p>
+            <Link
+              to="/register/cleaning"
+              className="block w-full text-center bg-green-500/10 hover:bg-green-500/20 text-green-400 font-medium py-2.5 px-4 rounded-xl transition border border-green-500/30 hover:border-green-500"
+            >
+              Registreer als Schoonmaakbedrijf
             </Link>
           </div>
         </div>

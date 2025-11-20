@@ -16,6 +16,8 @@ import {
   type UnifiedTab,
 } from "../../components/UnifiedDashboardTabs";
 import type { CleaningCompany, UnavailableDate } from "../../types";
+import SavedActivity from "./SavedActivity";
+import FeedPage from "../FeedPage_PREMIUM";
 
 interface Review {
   id: string;
@@ -1095,6 +1097,15 @@ const CleaningCompanyDashboard = () => {
               </div>
             </div>
           </div>
+        </TabPanel>
+
+        {/* Tablica Tab */}
+        <TabPanel isActive={activeTab === "tablica"}>
+          <FeedPage />
+        </TabPanel>
+
+        <TabPanel isActive={activeTab === "saved_activity"}>
+          <SavedActivity />
         </TabPanel>
 
         {/* Subscription Cards - visible in all tabs */}

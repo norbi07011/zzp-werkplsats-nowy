@@ -1,0 +1,101 @@
+table_schema,table_name,column_name,data_type
+public,accountants,postal_code,character varying
+public,employer_stats,total_jobs_posted,integer
+public,employers,postal_code,text
+public,employers,total_jobs_posted,integer
+public,invoice_clients,postal_code,text
+public,invoice_companies,postal_code,text
+public,jobs,postal_code,character varying
+public,post_comments,content,text
+public,post_comments,created_at,timestamp with time zone
+public,post_comments,id,uuid
+public,post_comments,likes_count,integer
+public,post_comments,parent_comment_id,uuid
+public,post_comments,post_id,uuid
+public,post_comments,updated_at,timestamp with time zone
+public,post_comments,user_id,uuid
+public,post_comments,user_type,character varying
+public,post_likes,created_at,timestamp with time zone
+public,post_likes,id,uuid
+public,post_likes,post_id,uuid
+public,post_likes,profile_id,uuid
+public,post_likes,reaction_type,text
+public,post_likes,user_id,uuid
+public,post_likes,user_type,character varying
+public,post_saves,created_at,timestamp with time zone
+public,post_saves,folder,text
+public,post_saves,id,uuid
+public,post_saves,notes,text
+public,post_saves,post_id,uuid
+public,post_saves,profile_id,uuid
+public,post_saves,updated_at,timestamp with time zone
+public,post_saves,user_id,uuid
+public,post_shares,created_at,timestamp with time zone
+public,post_shares,id,uuid
+public,post_shares,post_id,uuid
+public,post_shares,share_type,character varying
+public,post_shares,user_id,uuid
+public,post_shares,user_type,character varying
+public,post_views,created_at,timestamp with time zone
+public,post_views,id,uuid
+public,post_views,ip_address,character varying
+public,post_views,post_id,uuid
+public,post_views,user_agent,text
+public,post_views,user_id,uuid
+public,post_views,user_type,character varying
+public,posts,ad_budget,numeric
+public,posts,ad_contact_email,character varying
+public,posts,ad_contact_phone,character varying
+public,posts,ad_cta_text,character varying
+public,posts,ad_cta_url,text
+public,posts,ad_duration_days,integer
+public,posts,ad_target_audience,ARRAY
+public,posts,ad_type,character varying
+public,posts,ad_website,character varying
+public,posts,angry_count,integer
+public,posts,announcement_category,character varying
+public,posts,announcement_expires_at,timestamp with time zone
+public,posts,announcement_notify_users,boolean
+public,posts,announcement_pinned,boolean
+public,posts,announcement_priority,character varying
+public,posts,announcement_tags,ARRAY
+public,posts,announcement_target_roles,ARRAY
+public,posts,author_id,uuid
+public,posts,author_type,character varying
+public,posts,comments_count,integer
+public,posts,content,text
+public,posts,created_at,timestamp with time zone
+public,posts,deleted_at,timestamp with time zone
+public,posts,id,uuid
+public,posts,is_active,boolean
+public,posts,is_pinned,boolean
+public,posts,job_benefits,ARRAY
+public,posts,job_category,character varying
+public,posts,job_contact_email,character varying
+public,posts,job_contact_phone,character varying
+public,posts,job_deadline,timestamp with time zone
+public,posts,job_hours_per_week,integer
+public,posts,job_location,character varying
+public,posts,job_requirements,ARRAY
+public,posts,job_salary_max,numeric
+public,posts,job_salary_min,numeric
+public,posts,job_start_date,timestamp with time zone
+public,posts,job_type,character varying
+public,posts,like_count,integer
+public,posts,likes_count,integer
+public,posts,love_count,integer
+public,posts,media_types,ARRAY
+public,posts,media_urls,ARRAY
+public,posts,profile_id,uuid
+public,posts,published_at,timestamp with time zone
+public,posts,sad_count,integer
+public,posts,saves_count,integer
+public,posts,shares_count,integer
+public,posts,title,character varying
+public,posts,type,character varying
+public,posts,updated_at,timestamp with time zone
+public,posts,views_count,integer
+public,posts,wow_count,integer
+public,search_history,postal_code,text
+public,v_workers,location_postal_code,text
+public,v_workers,postal_code,character varying

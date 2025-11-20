@@ -1,0 +1,8 @@
+column_name,data_type,is_nullable,column_default
+id,uuid,NO,gen_random_uuid()
+post_id,uuid,NO,null
+user_id,uuid,YES,null
+user_type,character varying,YES,null
+ip_address,character varying,YES,null
+user_agent,text,YES,null
+created_at,timestamp with time zone,YES,now()
