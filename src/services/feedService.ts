@@ -96,6 +96,7 @@ export interface Post {
   author_name?: string;
   author_company?: string;
   author_avatar?: string;
+  author_profile_id?: string; // Profile ID for public profile links
 }
 
 export interface PostComment {
@@ -761,12 +762,13 @@ async function getAuthorData(
   author_name: string;
   author_company?: string;
   author_avatar?: string;
+  author_profile_id?: string;
 }> {
   try {
     if (authorType === "employer") {
       const { data, error } = await supabaseAny
         .from("employers")
-        .select("company_name, profile_id")
+        .select("company_name, profile_id, logo_url")
         .eq("id", authorId)
         .single();
 
@@ -775,22 +777,23 @@ async function getAuthorData(
         return { author_name: "Pracodawca" };
       }
 
-      // Fetch profile data for name and avatar
+      // Fetch profile data for name
       const { data: profile } = await supabaseAny
         .from("profiles")
-        .select("full_name, avatar_url")
+        .select("full_name")
         .eq("id", data?.profile_id)
         .single();
 
       return {
         author_name: profile?.full_name || "Pracodawca",
         author_company: data?.company_name,
-        author_avatar: profile?.avatar_url,
+        author_avatar: data?.logo_url, // Use company logo as avatar
+        author_profile_id: data?.profile_id,
       };
     } else if (authorType === "accountant") {
       const { data, error } = await supabaseAny
         .from("accountants")
-        .select("company_name, full_name, avatar_url")
+        .select("company_name, full_name, avatar_url, profile_id")
         .eq("id", authorId)
         .single();
 
@@ -803,6 +806,7 @@ async function getAuthorData(
         author_name: data?.full_name || "Księgowy",
         author_company: data?.company_name,
         author_avatar: data?.avatar_url,
+        author_profile_id: data?.profile_id,
       };
     } else if (authorType === "admin") {
       // Admin pobiera dane z profiles używając authorId jako profile_id
@@ -820,6 +824,48 @@ async function getAuthorData(
       return {
         author_name: profile?.full_name || "Administrator",
         author_avatar: profile?.avatar_url,
+        author_profile_id: authorId, // For admin, authorId is profile_id
+      };
+    } else if (authorType === "cleaning_company") {
+      const { data, error } = await supabaseAny
+        .from("cleaning_companies")
+        .select("company_name, avatar_url, profile_id")
+        .eq("id", authorId)
+        .single();
+
+      if (error) {
+        console.error("[getAuthorData] Cleaning company error:", error);
+        return { author_name: "Firma sprzątająca" };
+      }
+
+      return {
+        author_name: data?.company_name || "Firma sprzątająca",
+        author_avatar: data?.avatar_url,
+        author_profile_id: data?.profile_id,
+      };
+    } else if (authorType === "worker") {
+      const { data, error } = await supabaseAny
+        .from("workers")
+        .select("profile_id, avatar_url")
+        .eq("id", authorId)
+        .single();
+
+      if (error) {
+        console.error("[getAuthorData] Worker error:", error);
+        return { author_name: "Pracownik" };
+      }
+
+      // Fetch profile data for name
+      const { data: profile } = await supabaseAny
+        .from("profiles")
+        .select("full_name")
+        .eq("id", data?.profile_id)
+        .single();
+
+      return {
+        author_name: profile?.full_name || "Pracownik",
+        author_avatar: data?.avatar_url,
+        author_profile_id: data?.profile_id,
       };
     } else {
       return { author_name: "Nieznany" };

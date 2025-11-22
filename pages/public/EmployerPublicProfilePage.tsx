@@ -5,13 +5,15 @@ import { useAuth } from "../../contexts/AuthContext";
 import { Modal } from "../../components/Modal";
 import { ReviewEmployerModal } from "../../src/components/employer/ReviewEmployerModal";
 import { LocationCard } from "../../components/LocationCard";
+import { Animated3DProfileBackground } from "../../components/Animated3DProfileBackground";
+import { SpinningNumbers } from "../../components/SpinningNumbers";
 import {
   getEmployerReviews,
   getEmployerReviewStats,
 } from "../../src/services/employerReviewService";
 import type { EmployerReviewStats } from "../../src/services/employerReviewService";
 import { getPosts, likePost, sharePost } from "../../src/services/feedService";
-import type { Post } from "../../types";
+import type { Post } from "../../src/services/feedService";
 import {
   BuildingOfficeIcon,
   MapPin,
@@ -33,7 +35,6 @@ import {
   Eye,
   MoreHorizontal,
   Award,
-  ImageIcon,
   Video,
 } from "../../components/icons";
 import { PostCardPremium } from "../FeedPage_PREMIUM";
@@ -123,72 +124,94 @@ export default function EmployerPublicProfilePage() {
   const [contactMessage, setContactMessage] = useState("");
 
   useEffect(() => {
+    const abortController = new AbortController();
+    let isMounted = true;
+
     if (id) {
-      loadEmployerData();
+      loadEmployerData(abortController.signal, isMounted);
     }
+
+    return () => {
+      isMounted = false;
+      abortController.abort();
+    };
   }, [id]);
 
-  async function loadEmployerData() {
+  async function loadEmployerData(
+    signal?: AbortSignal,
+    isMounted: boolean = true
+  ) {
     if (!id) return;
 
     try {
+      if (!isMounted) return;
       setLoading(true);
 
-      // Load employer profile
-      const { data: employerData, error: employerError } = await supabase
+      // Load employer profile - try by employer.id first, then by profile_id
+      let { data: employerData, error: employerError } = await supabase
         .from("employers")
         .select("*")
         .eq("id", id)
         .single();
 
+      // If not found by id, try by profile_id
+      if (employerError?.code === "PGRST116") {
+        const result = await supabase
+          .from("employers")
+          .select("*")
+          .eq("profile_id", id)
+          .single();
+
+        employerData = result.data;
+        employerError = result.error;
+      }
+
       if (employerError) throw employerError;
+      if (!employerData) {
+        throw new Error("Employer not found");
+      }
+
+      if (!isMounted) return;
       setEmployer(employerData as any);
+
+      // Use the actual employer.id for related queries
+      const actualEmployerId = employerData.id;
 
       // Load active jobs
       const { data: jobsData, error: jobsError } = await supabase
         .from("jobs")
         .select("*")
-        .eq("employer_id", id)
+        .eq("employer_id", actualEmployerId)
         .eq("status", "active")
         .order("created_at", { ascending: false });
 
-      console.log("🔍 EMPLOYER JOBS from 'jobs' table:", {
-        jobsData,
-        jobsError,
-        count: jobsData?.length,
-      });
-
-      if (!jobsError && jobsData) {
+      if (!jobsError && jobsData && isMounted) {
         setJobs(jobsData as any);
       }
 
       // Load employer reviews
-      const reviewsResult = await getEmployerReviews(id);
-      if (reviewsResult.success && reviewsResult.reviews) {
+      const reviewsResult = await getEmployerReviews(actualEmployerId);
+      if (reviewsResult.success && reviewsResult.reviews && isMounted) {
         setReviews(reviewsResult.reviews);
       }
 
       // Load review stats
-      const statsResult = await getEmployerReviewStats(id);
-      if (statsResult.success && statsResult.stats) {
+      const statsResult = await getEmployerReviewStats(actualEmployerId);
+      if (statsResult.success && statsResult.stats && isMounted) {
         setReviewStats(statsResult.stats);
       }
 
       // Load posts created by this employer
       const postsData = await getPosts({
-        author_id: id,
+        author_id: actualEmployerId,
         author_type: "employer",
       });
-      console.log("🔍 EMPLOYER POSTS from 'posts' table:", {
-        postsData,
-        count: postsData?.length,
-        job_offers: postsData?.filter((p) => p.type === "job_offer").length,
-        other: postsData?.filter((p) => p.type !== "job_offer").length,
-      });
-      setPosts(postsData || []);
+      if (isMounted) {
+        setPosts(postsData || []);
+      }
 
       // Load logged-in user's worker/accountant/cleaning_company ID
-      if (user?.id) {
+      if (user?.id && isMounted) {
         // Check if user is a worker
         const { data: workerData } = await supabase
           .from("workers")
@@ -196,9 +219,9 @@ export default function EmployerPublicProfilePage() {
           .eq("profile_id", user.id)
           .maybeSingle();
 
-        if (workerData) {
+        if (workerData && isMounted) {
           setWorkerId(workerData.id);
-        } else {
+        } else if (isMounted) {
           // Check if user is an accountant
           const { data: accountantData } = await supabase
             .from("accountants")
@@ -206,9 +229,9 @@ export default function EmployerPublicProfilePage() {
             .eq("profile_id", user.id)
             .maybeSingle();
 
-          if (accountantData) {
+          if (accountantData && isMounted) {
             setAccountantId(accountantData.id);
-          } else {
+          } else if (isMounted) {
             // Check if user is a cleaning company
             const { data: cleaningCompanyData } = await supabase
               .from("cleaning_companies")
@@ -216,7 +239,7 @@ export default function EmployerPublicProfilePage() {
               .eq("profile_id", user.id)
               .maybeSingle();
 
-            if (cleaningCompanyData) {
+            if (cleaningCompanyData && isMounted) {
               setCleaningCompanyId(cleaningCompanyData.id);
             }
           }
@@ -224,20 +247,27 @@ export default function EmployerPublicProfilePage() {
       }
 
       // Sprawdź czy użytkownik już wystawił opinię
-      if (user?.id) {
+      if (user?.id && isMounted) {
         const { data: existingReview } = await supabase
           .from("employer_reviews")
           .select("id")
-          .eq("employer_id", id)
+          .eq("employer_id", actualEmployerId)
           .eq("reviewer_id", user.id)
           .maybeSingle();
 
-        setHasReviewed(!!existingReview);
+        if (isMounted) {
+          setHasReviewed(!!existingReview);
+        }
       }
     } catch (error) {
       console.error("Error loading employer data:", error);
+      if (isMounted) {
+        setLoading(false);
+      }
     } finally {
-      setLoading(false);
+      if (isMounted) {
+        setLoading(false);
+      }
     }
   }
 
@@ -318,289 +348,297 @@ export default function EmployerPublicProfilePage() {
   (window as any).handleOpenReviewModal = () => setIsReviewModalOpen(true);
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Cover Image Header */}
-      <div className="relative h-64 bg-gradient-to-r from-green-600 to-emerald-700">
-        {employer.cover_image_url && (
-          <img
-            src={employer.cover_image_url}
-            alt="Cover"
-            className="w-full h-full object-cover"
-          />
-        )}
-        <div className="absolute inset-0 bg-black bg-opacity-30"></div>
-        <button
-          onClick={() => navigate(-1)}
-          className="absolute top-6 left-6 flex items-center gap-2 px-4 py-2 bg-white rounded-lg shadow-lg hover:bg-gray-50"
-        >
-          <ArrowLeft className="w-5 h-5" />
-          <span>Wstecz</span>
-        </button>
+    <div className="min-h-screen bg-gray-50 relative overflow-hidden">
+      {/* 3D Background Layer */}
+      <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden perspective-container">
+        <Animated3DProfileBackground role="employer" opacity={0.25} />
+        <SpinningNumbers opacity={0.15} />
       </div>
 
-      {/* Profile Info */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-16 relative z-10">
-        <div className="bg-white rounded-lg shadow-lg p-8">
-          <div className="flex flex-col md:flex-row gap-6">
-            {/* Company Logo */}
-            <div className="flex-shrink-0">
-              {employer.logo_url ? (
-                <img
-                  src={employer.logo_url}
-                  alt={employer.company_name || "Company logo"}
-                  className="w-32 h-32 rounded-full border-4 border-white shadow-lg object-cover bg-white"
-                />
-              ) : (
-                <div className="w-32 h-32 rounded-full border-4 border-white shadow-lg bg-green-100 flex items-center justify-center">
-                  <BuildingOfficeIcon className="w-16 h-16 text-green-600" />
-                </div>
-              )}
-            </div>
+      <div className="relative z-10">
+        {/* Cover Image Header */}
+        <div className="relative h-64 bg-gradient-to-r from-green-600 to-emerald-700">
+          {employer.cover_image_url && (
+            <img
+              src={employer.cover_image_url}
+              alt="Cover"
+              className="w-full h-full object-cover"
+            />
+          )}
+          <div className="absolute inset-0 bg-black bg-opacity-30"></div>
+          <button
+            onClick={() => navigate(-1)}
+            className="absolute top-6 left-6 flex items-center gap-2 px-4 py-2 bg-white rounded-lg shadow-lg hover:bg-gray-50"
+          >
+            <ArrowLeft className="w-5 h-5" />
+            <span>Wstecz</span>
+          </button>
+        </div>
 
-            {/* Company Info */}
-            <div className="flex-1">
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <h1 className="text-3xl font-bold text-gray-900 mb-2">
-                    {employer.company_name || "Nazwa firmy"}
-                  </h1>
+        {/* Profile Info */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-16 relative z-10">
+          <div className="bg-white rounded-lg shadow-lg p-8">
+            <div className="flex flex-col md:flex-row gap-6">
+              {/* Company Logo */}
+              <div className="flex-shrink-0">
+                {employer.logo_url ? (
+                  <img
+                    src={employer.logo_url}
+                    alt={employer.company_name || "Company logo"}
+                    className="w-32 h-32 rounded-full border-4 border-white shadow-lg object-cover bg-white"
+                  />
+                ) : (
+                  <div className="w-32 h-32 rounded-full border-4 border-white shadow-lg bg-green-100 flex items-center justify-center">
+                    <BuildingOfficeIcon className="w-16 h-16 text-green-600" />
+                  </div>
+                )}
+              </div>
 
-                  <div className="flex flex-wrap items-center gap-4 mb-4">
-                    {employer.industry && (
-                      <span className="flex items-center gap-2 text-gray-600">
+              {/* Company Info */}
+              <div className="flex-1">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <h1 className="text-3xl font-bold text-gray-900 mb-2">
+                      {employer.company_name || "Nazwa firmy"}
+                    </h1>
+
+                    <div className="flex flex-wrap items-center gap-4 mb-4">
+                      {employer.industry && (
+                        <span className="flex items-center gap-2 text-gray-600">
+                          <Briefcase className="w-4 h-4" />
+                          {employer.industry}
+                        </span>
+                      )}
+                      {employer.city && (
+                        <span className="flex items-center gap-2 text-gray-600">
+                          <MapPin className="w-4 h-4" />
+                          {employer.city}
+                          {employer.country ? `, ${employer.country}` : ""}
+                        </span>
+                      )}
+                      {employer.company_size && (
+                        <span className="flex items-center gap-2 text-gray-600">
+                          <User className="w-4 h-4" />
+                          {employer.company_size}
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-3">
+                      {employer.verified && (
+                        <span className="flex items-center gap-1 bg-green-50 border-2 border-green-400 text-green-700 px-3 py-1 rounded-full text-sm font-medium">
+                          <CheckCircleIcon className="w-4 h-4" />
+                          Zweryfikowany
+                        </span>
+                      )}
+
+                      {rating > 0 && (
+                        <span className="flex items-center gap-1 bg-amber-50 border-2 border-amber-300 text-amber-700 px-3 py-1 rounded-full text-sm font-medium">
+                          <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
+                          {rating.toFixed(1)} ({employer.rating_count || 0}{" "}
+                          opinii)
+                        </span>
+                      )}
+
+                      <span className="flex items-center gap-1 bg-gray-100 px-3 py-1 rounded-full text-sm text-gray-700">
                         <Briefcase className="w-4 h-4" />
-                        {employer.industry}
+                        {jobs.length} aktywnych ofert
                       </span>
-                    )}
-                    {employer.city && (
-                      <span className="flex items-center gap-2 text-gray-600">
-                        <MapPin className="w-4 h-4" />
-                        {employer.city}
-                        {employer.country ? `, ${employer.country}` : ""}
-                      </span>
-                    )}
-                    {employer.company_size && (
-                      <span className="flex items-center gap-2 text-gray-600">
-                        <User className="w-4 h-4" />
-                        {employer.company_size}
-                      </span>
-                    )}
+                    </div>
                   </div>
 
-                  <div className="flex flex-wrap items-center gap-3">
-                    {employer.verified && (
-                      <span className="flex items-center gap-1 bg-green-50 border-2 border-green-400 text-green-700 px-3 py-1 rounded-full text-sm font-medium">
-                        <CheckCircleIcon className="w-4 h-4" />
-                        Zweryfikowany
-                      </span>
-                    )}
-
-                    {rating > 0 && (
-                      <span className="flex items-center gap-1 bg-amber-50 border-2 border-amber-300 text-amber-700 px-3 py-1 rounded-full text-sm font-medium">
-                        <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
-                        {rating.toFixed(1)} ({employer.rating_count || 0}{" "}
-                        opinii)
-                      </span>
-                    )}
-
-                    <span className="flex items-center gap-1 bg-gray-100 px-3 py-1 rounded-full text-sm text-gray-700">
-                      <Briefcase className="w-4 h-4" />
-                      {jobs.length} aktywnych ofert
-                    </span>
-                  </div>
+                  <button
+                    onClick={() => navigate("/employers")}
+                    className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-semibold shadow-lg"
+                  >
+                    Zobacz oferty
+                  </button>
                 </div>
-
-                <button
-                  onClick={() => navigate("/employers")}
-                  className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-semibold shadow-lg"
-                >
-                  Zobacz oferty
-                </button>
               </div>
             </div>
           </div>
         </div>
-      </div>
 
-      {/* Tab Navigation */}
-      <div className="bg-white border-b sticky top-0 z-10 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4">
-          <div className="flex gap-1">
-            {[
-              { id: "about", label: "O firmie", icon: "📋" },
-              {
-                id: "jobs",
-                label: `Oferty pracy (${
-                  posts.filter((p) => p.type === "job_offer").length
-                })`,
-                icon: "💼",
-              },
-              {
-                id: "posts",
-                label: `Posty (${
-                  posts.filter((p) => p.type !== "job_offer").length
-                })`,
-                icon: "📝",
-              },
-              { id: "contact", label: "Kontakt", icon: "📞" },
-              {
-                id: "reviews",
-                label: `Opinie (${reviews.length})`,
-                icon: "⭐",
-              },
-            ].map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id as any)}
-                className={`px-6 py-4 font-medium transition-colors border-b-2 ${
-                  activeTab === tab.id
-                    ? "border-green-600 text-green-600"
-                    : "border-transparent text-gray-600 hover:text-gray-900"
-                }`}
-              >
-                <span className="mr-2">{tab.icon}</span>
-                {tab.label}
-              </button>
-            ))}
+        {/* Tab Navigation */}
+        <div className="bg-white border-b sticky top-0 z-10 shadow-sm">
+          <div className="max-w-7xl mx-auto px-4">
+            <div className="flex gap-1">
+              {[
+                { id: "about", label: "O firmie", icon: "📋" },
+                {
+                  id: "jobs",
+                  label: `Oferty pracy (${
+                    posts.filter((p) => p.type === "job_offer").length
+                  })`,
+                  icon: "💼",
+                },
+                {
+                  id: "posts",
+                  label: `Posty (${
+                    posts.filter((p) => p.type !== "job_offer").length
+                  })`,
+                  icon: "📝",
+                },
+                { id: "contact", label: "Kontakt", icon: "📞" },
+                {
+                  id: "reviews",
+                  label: `Opinie (${reviews.length})`,
+                  icon: "⭐",
+                },
+              ].map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id as any)}
+                  className={`px-6 py-4 font-medium transition-colors border-b-2 ${
+                    activeTab === tab.id
+                      ? "border-green-600 text-green-600"
+                      : "border-transparent text-gray-600 hover:text-gray-900"
+                  }`}
+                >
+                  <span className="mr-2">{tab.icon}</span>
+                  {tab.label}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
+
+        {/* Main Content */}
+        <div className="max-w-7xl mx-auto px-4 py-8">
+          {activeTab === "about" && <AboutTab employer={employer} />}
+          {activeTab === "jobs" && (
+            <JobsTab
+              jobs={posts.filter((p) => p.type === "job_offer") as any}
+              employer={employer}
+              currentUserId={user?.id}
+              currentUserRole={
+                workerId
+                  ? "worker"
+                  : accountantId
+                  ? "accountant"
+                  : cleaningCompanyId
+                  ? "cleaning_company"
+                  : undefined
+              }
+              onPostUpdate={loadEmployerData}
+            />
+          )}
+          {activeTab === "posts" && (
+            <PostsTab
+              posts={posts.filter((p) => p.type !== "job_offer")}
+              currentUserId={user?.id}
+              currentUserRole={
+                workerId
+                  ? "worker"
+                  : accountantId
+                  ? "accountant"
+                  : cleaningCompanyId
+                  ? "cleaning_company"
+                  : undefined
+              }
+              onPostUpdate={loadEmployerData}
+            />
+          )}
+          {activeTab === "contact" && (
+            <ContactTab
+              employer={employer}
+              user={user}
+              workerId={workerId}
+              accountantId={accountantId}
+              cleaningCompanyId={cleaningCompanyId}
+              hasReviewed={hasReviewed}
+            />
+          )}
+          {activeTab === "reviews" && (
+            <ReviewsTab
+              reviews={reviews}
+              employer={employer}
+              stats={reviewStats}
+            />
+          )}
+        </div>
+
+        {/* MODALS */}
+        {/* Contact Modal */}
+        {employer && (
+          <Modal
+            isOpen={isContactModalOpen}
+            onClose={() => setIsContactModalOpen(false)}
+            title={`Kontakt: ${employer.company_name}`}
+            size="lg"
+          >
+            <div className="space-y-4">
+              <div className="bg-green-50 p-4 rounded-lg mb-4">
+                <p className="text-sm text-green-800">
+                  💡 <strong>Wskazówka:</strong> Opisz swoje doświadczenie,
+                  umiejętności i dostępność. Zwiększysz szanse na odpowiedź!
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Temat <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={contactSubject}
+                  onChange={(e) => setContactSubject(e.target.value)}
+                  placeholder="np. Zainteresowanie ofertą pracy - [stanowisko]"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Wiadomość <span className="text-red-500">*</span>
+                </label>
+                <textarea
+                  value={contactMessage}
+                  onChange={(e) => setContactMessage(e.target.value)}
+                  rows={8}
+                  placeholder={`Dzień dobry,\n\nJestem zainteresowany współpracą z Państwa firmą.\n\nMoje doświadczenie: \nUmiejętności: \nDostępność: \n\nW załączeniu CV.\n\nPozdrawiam`}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  {contactMessage.length} znaków
+                </p>
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => setIsContactModalOpen(false)}
+                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+              >
+                Anuluj
+              </button>
+              <button
+                onClick={handleSendContact}
+                className="flex-1 px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium"
+              >
+                📨 Wyślij wiadomość
+              </button>
+            </div>
+          </Modal>
+        )}
+
+        {/* Review Employer Modal */}
+        {employer && (
+          <ReviewEmployerModal
+            isOpen={isReviewModalOpen}
+            onClose={() => setIsReviewModalOpen(false)}
+            employerId={employer.id}
+            employerName={employer.company_name || "Ten pracodawca"}
+            workerId={workerId || undefined}
+            accountantId={accountantId || undefined}
+            cleaningCompanyId={cleaningCompanyId || undefined}
+            onSuccess={() => {
+              setIsReviewModalOpen(false);
+              loadEmployerData(); // Reload reviews
+            }}
+          />
+        )}
       </div>
-
-      {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-4 py-8">
-        {activeTab === "about" && <AboutTab employer={employer} />}
-        {activeTab === "jobs" && (
-          <JobsTab
-            jobs={posts.filter((p) => p.type === "job_offer") as any}
-            employer={employer}
-            currentUserId={user?.id}
-            currentUserRole={
-              workerId
-                ? "worker"
-                : accountantId
-                ? "accountant"
-                : cleaningCompanyId
-                ? "cleaning_company"
-                : undefined
-            }
-            onPostUpdate={loadEmployerData}
-          />
-        )}
-        {activeTab === "posts" && (
-          <PostsTab
-            posts={posts.filter((p) => p.type !== "job_offer")}
-            currentUserId={user?.id}
-            currentUserRole={
-              workerId
-                ? "worker"
-                : accountantId
-                ? "accountant"
-                : cleaningCompanyId
-                ? "cleaning_company"
-                : undefined
-            }
-            onPostUpdate={loadEmployerData}
-          />
-        )}
-        {activeTab === "contact" && (
-          <ContactTab
-            employer={employer}
-            user={user}
-            workerId={workerId}
-            accountantId={accountantId}
-            cleaningCompanyId={cleaningCompanyId}
-            hasReviewed={hasReviewed}
-          />
-        )}
-        {activeTab === "reviews" && (
-          <ReviewsTab
-            reviews={reviews}
-            employer={employer}
-            stats={reviewStats}
-          />
-        )}
-      </div>
-
-      {/* MODALS */}
-      {/* Contact Modal */}
-      {employer && (
-        <Modal
-          isOpen={isContactModalOpen}
-          onClose={() => setIsContactModalOpen(false)}
-          title={`Kontakt: ${employer.company_name}`}
-          size="lg"
-        >
-          <div className="space-y-4">
-            <div className="bg-green-50 p-4 rounded-lg mb-4">
-              <p className="text-sm text-green-800">
-                💡 <strong>Wskazówka:</strong> Opisz swoje doświadczenie,
-                umiejętności i dostępność. Zwiększysz szanse na odpowiedź!
-              </p>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Temat <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                value={contactSubject}
-                onChange={(e) => setContactSubject(e.target.value)}
-                placeholder="np. Zainteresowanie ofertą pracy - [stanowisko]"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Wiadomość <span className="text-red-500">*</span>
-              </label>
-              <textarea
-                value={contactMessage}
-                onChange={(e) => setContactMessage(e.target.value)}
-                rows={8}
-                placeholder={`Dzień dobry,\n\nJestem zainteresowany współpracą z Państwa firmą.\n\nMoje doświadczenie: \nUmiejętności: \nDostępność: \n\nW załączeniu CV.\n\nPozdrawiam`}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-              />
-              <p className="text-xs text-gray-500 mt-1">
-                {contactMessage.length} znaków
-              </p>
-            </div>
-          </div>
-
-          <div className="flex gap-3 mt-6">
-            <button
-              onClick={() => setIsContactModalOpen(false)}
-              className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
-            >
-              Anuluj
-            </button>
-            <button
-              onClick={handleSendContact}
-              className="flex-1 px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium"
-            >
-              📨 Wyślij wiadomość
-            </button>
-          </div>
-        </Modal>
-      )}
-
-      {/* Review Employer Modal */}
-      {employer && (
-        <ReviewEmployerModal
-          isOpen={isReviewModalOpen}
-          onClose={() => setIsReviewModalOpen(false)}
-          employerId={employer.id}
-          employerName={employer.company_name || "Ten pracodawca"}
-          workerId={workerId || undefined}
-          accountantId={accountantId || undefined}
-          cleaningCompanyId={cleaningCompanyId || undefined}
-          onSuccess={() => {
-            setIsReviewModalOpen(false);
-            loadEmployerData(); // Reload reviews
-          }}
-        />
-      )}
     </div>
   );
 }

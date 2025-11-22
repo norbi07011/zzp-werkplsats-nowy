@@ -14,6 +14,7 @@ import React from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
 import workerProfileService from "../services/workerProfileService";
+import { Animated3DProfileBackground } from "../components/Animated3DProfileBackground";
 import { getJobs } from "../src/services/job";
 import { SupportTicketModal } from "../src/components/SupportTicketModal";
 import { geocodeAddress } from "../services/geocoding";
@@ -3830,86 +3831,95 @@ export default function WorkerDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
-      {/* Global Notifications */}
-      {error && (
-        <div className="fixed top-4 right-4 z-50 bg-red-500/90 text-white px-6 py-4 rounded-lg shadow-2xl border border-red-400 animate-slide-in">
-          {error}
-        </div>
-      )}
-      {success && (
-        <div className="fixed top-4 right-4 z-50 bg-green-500/90 text-white px-6 py-4 rounded-lg shadow-2xl border border-green-400 animate-slide-in">
-          {success}
-        </div>
-      )}
-
-      {/* ✅ Unified Dashboard Tabs */}
-      <div className="bg-white border-b border-gray-200 sticky top-0 z-50 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <UnifiedDashboardTabs
-            activeTab={activeTab}
-            onTabChange={setActiveTab}
-            role="worker"
-            unreadMessages={unreadCount}
-          />
-        </div>
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 relative overflow-hidden">
+      {/* 3D Background Layer */}
+      <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden perspective-container">
+        <Animated3DProfileBackground role="worker" opacity={0.25} />
       </div>
 
-      {/* Tab Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <TabPanel isActive={activeTab === "overview"}>
-          {renderPanelTab()}
-        </TabPanel>
+      <div className="relative z-10">
+        {/* Global Notifications */}
+        {error && (
+          <div className="fixed top-4 right-4 z-50 bg-red-500/90 text-white px-6 py-4 rounded-lg shadow-2xl border border-red-400 animate-slide-in">
+            {error}
+          </div>
+        )}
+        {success && (
+          <div className="fixed top-4 right-4 z-50 bg-green-500/90 text-white px-6 py-4 rounded-lg shadow-2xl border border-green-400 animate-slide-in">
+            {success}
+          </div>
+        )}
 
-        <TabPanel isActive={activeTab === "profile"}>
-          {renderSettingsTab()}
-        </TabPanel>
-
-        <TabPanel isActive={activeTab === "reviews"}>
-          {renderReviewsTab()}
-        </TabPanel>
-
-        <TabPanel isActive={activeTab === "messages"}>
-          {renderMessagesTab()}
-        </TabPanel>
-
-        <TabPanel isActive={activeTab === "certificates"}>
-          {renderProfileCertificates()}
-
-          {/* Certificate Application Form */}
-          <div className="mt-8">
-            <CertificateApplicationForm
-              workerId={userId}
-              onSubmit={() => {
-                setSuccess("✅ Aplikacja wysłana! Skontaktujemy się wkrótce.");
-                setTimeout(() => {
-                  // Reload certificates after submission
-                  loadAllData();
-                }, 2000);
-              }}
-              onCancel={() => setActiveTab("overview")}
+        {/* ✅ Unified Dashboard Tabs */}
+        <div className="bg-white border-b border-gray-200 sticky top-0 z-50 shadow-sm">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+            <UnifiedDashboardTabs
+              activeTab={activeTab}
+              onTabChange={setActiveTab}
+              role="worker"
+              unreadMessages={unreadCount}
             />
           </div>
-        </TabPanel>
+        </div>
 
-        <TabPanel isActive={activeTab === "portfolio"}>
-          {renderPortfolio()}
-        </TabPanel>
+        {/* Tab Content */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <TabPanel isActive={activeTab === "overview"}>
+            {renderPanelTab()}
+          </TabPanel>
 
-        <TabPanel isActive={activeTab === "subscription"}>
-          {renderSubscription()}
-        </TabPanel>
+          <TabPanel isActive={activeTab === "profile"}>
+            {renderSettingsTab()}
+          </TabPanel>
 
-        <TabPanel isActive={activeTab === "saved_activity"}>
-          <SavedActivity />
-        </TabPanel>
+          <TabPanel isActive={activeTab === "reviews"}>
+            {renderReviewsTab()}
+          </TabPanel>
+
+          <TabPanel isActive={activeTab === "messages"}>
+            {renderMessagesTab()}
+          </TabPanel>
+
+          <TabPanel isActive={activeTab === "certificates"}>
+            {renderProfileCertificates()}
+
+            {/* Certificate Application Form */}
+            <div className="mt-8">
+              <CertificateApplicationForm
+                workerId={userId}
+                onSubmit={() => {
+                  setSuccess(
+                    "✅ Aplikacja wysłana! Skontaktujemy się wkrótce."
+                  );
+                  setTimeout(() => {
+                    // Reload certificates after submission
+                    loadAllData();
+                  }, 2000);
+                }}
+                onCancel={() => setActiveTab("overview")}
+              />
+            </div>
+          </TabPanel>
+
+          <TabPanel isActive={activeTab === "portfolio"}>
+            {renderPortfolio()}
+          </TabPanel>
+
+          <TabPanel isActive={activeTab === "subscription"}>
+            {renderSubscription()}
+          </TabPanel>
+
+          <TabPanel isActive={activeTab === "saved_activity"}>
+            <SavedActivity />
+          </TabPanel>
+        </div>
+
+        {/* Support Ticket Modal */}
+        <SupportTicketModal
+          isOpen={showSupportModal}
+          onClose={() => setShowSupportModal(false)}
+        />
       </div>
-
-      {/* Support Ticket Modal */}
-      <SupportTicketModal
-        isOpen={showSupportModal}
-        onClose={() => setShowSupportModal(false)}
-      />
     </div>
   );
 }

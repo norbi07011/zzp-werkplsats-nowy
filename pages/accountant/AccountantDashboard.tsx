@@ -22,6 +22,8 @@ import FeedPage from "../../pages/FeedPage_PREMIUM";
 import AvailabilityCalendar from "../../src/components/common/AvailabilityCalendar";
 import DateBlocker from "../../src/components/common/DateBlocker";
 import { CoverImageUploader } from "../../src/components/common/CoverImageUploader";
+import { Animated3DProfileBackground } from "../../components/Animated3DProfileBackground";
+import { TypewriterAnimation } from "../../components/TypewriterAnimation";
 import {
   UnifiedDashboardTabs,
   useUnifiedTabs,
@@ -2111,590 +2113,608 @@ export default function AccountantDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
-      <DashboardHeader
-        title={`Dashboard - ${accountant.company_name || accountant.full_name}`}
-        subtitle="Panel księgowego - zarządzaj klientami i usługami"
-        icon="📊"
-      >
-        <button
-          onClick={() => setIsCommunicationOpen(!isCommunicationOpen)}
-          className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors"
-        >
-          <span>💬</span>
-          Komunikacja
-        </button>
-      </DashboardHeader>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 relative overflow-hidden">
+      {/* 3D Background Layer */}
+      <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden perspective-container">
+        <Animated3DProfileBackground role="accountant" opacity={0.25} />
+        <TypewriterAnimation opacity={0.2} />
+      </div>
 
-      {/* Communication Panel */}
-      {isCommunicationOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50">
-          <div className="absolute right-0 top-0 h-full w-full max-w-4xl bg-white shadow-xl">
-            <div className="flex items-center justify-between p-4 border-b">
-              <h3 className="text-lg font-semibold">Komunikacja Projektowa</h3>
-              <button
-                onClick={() => setIsCommunicationOpen(false)}
-                className="text-gray-500 hover:text-gray-700"
-              >
-                <span className="sr-only">Zamknij</span>✕
-              </button>
-            </div>
-            <div className="h-full overflow-auto">
-              <ProjectCommunicationManager userRole="accountant" />
+      <div className="relative z-10">
+        <DashboardHeader
+          title={`Dashboard - ${
+            accountant.company_name || accountant.full_name
+          }`}
+          subtitle="Panel księgowego - zarządzaj klientami i usługami"
+          icon="📊"
+        >
+          <button
+            onClick={() => setIsCommunicationOpen(!isCommunicationOpen)}
+            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors"
+          >
+            <span>💬</span>
+            Komunikacja
+          </button>
+        </DashboardHeader>
+
+        {/* Communication Panel */}
+        {isCommunicationOpen && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 z-50">
+            <div className="absolute right-0 top-0 h-full w-full max-w-4xl bg-white shadow-xl">
+              <div className="flex items-center justify-between p-4 border-b">
+                <h3 className="text-lg font-semibold">
+                  Komunikacja Projektowa
+                </h3>
+                <button
+                  onClick={() => setIsCommunicationOpen(false)}
+                  className="text-gray-500 hover:text-gray-700"
+                >
+                  <span className="sr-only">Zamknij</span>✕
+                </button>
+              </div>
+              <div className="h-full overflow-auto">
+                <ProjectCommunicationManager userRole="accountant" />
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* MODAL: Edit Profile */}
-      {isEditingProfile && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
-              <h2 className="text-xl font-bold">Edytuj profil księgowy</h2>
-              <button
-                onClick={() => setIsEditingProfile(false)}
-                className="text-gray-500 hover:text-gray-700 text-2xl"
-              >
-                ✕
-              </button>
-            </div>
-
-            <div className="p-6 space-y-6">
-              {/* SEKCJA: Dane osobowe */}
-              <div className="border-b border-gray-200 pb-4">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                  Dane osobowe
-                </h3>
-
-                {/* Full Name */}
-                <div className="mb-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Imię i nazwisko <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={editForm.full_name}
-                    onChange={(e) =>
-                      setEditForm({ ...editForm, full_name: e.target.value })
-                    }
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="Jan Kowalski"
-                  />
-                </div>
-
-                {/* Company Name */}
-                <div className="mb-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Nazwa firmy
-                  </label>
-                  <input
-                    type="text"
-                    value={editForm.company_name}
-                    onChange={(e) =>
-                      setEditForm({ ...editForm, company_name: e.target.value })
-                    }
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="Np. Biuro Rachunkowe ABC"
-                  />
-                </div>
-
-                {/* Years Experience */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Lata doświadczenia
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    max="50"
-                    value={editForm.years_experience}
-                    onChange={(e) =>
-                      setEditForm({
-                        ...editForm,
-                        years_experience: parseInt(e.target.value) || 0,
-                      })
-                    }
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="5"
-                  />
-                </div>
+        {/* MODAL: Edit Profile */}
+        {isEditingProfile && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+              <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+                <h2 className="text-xl font-bold">Edytuj profil księgowy</h2>
+                <button
+                  onClick={() => setIsEditingProfile(false)}
+                  className="text-gray-500 hover:text-gray-700 text-2xl"
+                >
+                  ✕
+                </button>
               </div>
 
-              {/* SEKCJA: Dane kontaktowe */}
-              <div className="border-b border-gray-200 pb-4">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                  Dane kontaktowe
-                </h3>
+              <div className="p-6 space-y-6">
+                {/* SEKCJA: Dane osobowe */}
+                <div className="border-b border-gray-200 pb-4">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                    Dane osobowe
+                  </h3>
 
-                {/* Email */}
-                <div className="mb-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Email kontaktowy <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="email"
-                    value={editForm.email}
-                    onChange={(e) =>
-                      setEditForm({ ...editForm, email: e.target.value })
-                    }
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="kontakt@biuro.pl"
-                  />
-                </div>
-
-                {/* Phone */}
-                <div className="mb-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Telefon
-                  </label>
-                  <input
-                    type="tel"
-                    value={editForm.phone}
-                    onChange={(e) =>
-                      setEditForm({ ...editForm, phone: e.target.value })
-                    }
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="+31 6 12345678"
-                  />
-                </div>
-
-                {/* Website */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Strona internetowa
-                  </label>
-                  <input
-                    type="url"
-                    value={editForm.website}
-                    onChange={(e) =>
-                      setEditForm({ ...editForm, website: e.target.value })
-                    }
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="https://www.twoje-biuro.nl"
-                  />
-                </div>
-              </div>
-
-              {/* SEKCJA: Licencje i certyfikaty */}
-              <div className="border-b border-gray-200 pb-4">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                  Licencje i certyfikaty
-                </h3>
-
-                {/* KVK Number */}
-                <div className="mb-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Numer KVK (Kamer van Koophandel)
-                  </label>
-                  <input
-                    type="text"
-                    value={editForm.kvk_number}
-                    onChange={(e) =>
-                      setEditForm({ ...editForm, kvk_number: e.target.value })
-                    }
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="12345678"
-                  />
-                </div>
-
-                {/* BTW Number */}
-                <div className="mb-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Numer BTW/VAT
-                  </label>
-                  <input
-                    type="text"
-                    value={editForm.btw_number}
-                    onChange={(e) =>
-                      setEditForm({ ...editForm, btw_number: e.target.value })
-                    }
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="NL123456789B01"
-                  />
-                </div>
-
-                {/* License Number */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Numer licencji księgowego
-                  </label>
-                  <input
-                    type="text"
-                    value={editForm.license_number}
-                    onChange={(e) =>
-                      setEditForm({
-                        ...editForm,
-                        license_number: e.target.value,
-                      })
-                    }
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="AA-12345"
-                  />
-                </div>
-              </div>
-
-              {/* SEKCJA: Adres */}
-              <div className="border-b border-gray-200 pb-4">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                  Adres biura
-                </h3>
-
-                {/* Address */}
-                <div className="mb-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Ulica i numer
-                  </label>
-                  <input
-                    type="text"
-                    value={editForm.address}
-                    onChange={(e) =>
-                      setEditForm({ ...editForm, address: e.target.value })
-                    }
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="Coolsingel 42"
-                  />
-                </div>
-
-                {/* City + Postal Code (row) */}
-                <div className="grid grid-cols-2 gap-4 mb-4">
-                  <div>
+                  {/* Full Name */}
+                  <div className="mb-4">
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Kod pocztowy
+                      Imię i nazwisko <span className="text-red-500">*</span>
                     </label>
                     <input
                       type="text"
-                      value={editForm.postal_code}
+                      value={editForm.full_name}
+                      onChange={(e) =>
+                        setEditForm({ ...editForm, full_name: e.target.value })
+                      }
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="Jan Kowalski"
+                    />
+                  </div>
+
+                  {/* Company Name */}
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Nazwa firmy
+                    </label>
+                    <input
+                      type="text"
+                      value={editForm.company_name}
                       onChange={(e) =>
                         setEditForm({
                           ...editForm,
-                          postal_code: e.target.value,
+                          company_name: e.target.value,
                         })
                       }
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder="3011 AD"
+                      placeholder="Np. Biuro Rachunkowe ABC"
                     />
                   </div>
 
+                  {/* Years Experience */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Miasto
+                      Lata doświadczenia
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      max="50"
+                      value={editForm.years_experience}
+                      onChange={(e) =>
+                        setEditForm({
+                          ...editForm,
+                          years_experience: parseInt(e.target.value) || 0,
+                        })
+                      }
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="5"
+                    />
+                  </div>
+                </div>
+
+                {/* SEKCJA: Dane kontaktowe */}
+                <div className="border-b border-gray-200 pb-4">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                    Dane kontaktowe
+                  </h3>
+
+                  {/* Email */}
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Email kontaktowy <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="email"
+                      value={editForm.email}
+                      onChange={(e) =>
+                        setEditForm({ ...editForm, email: e.target.value })
+                      }
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="kontakt@biuro.pl"
+                    />
+                  </div>
+
+                  {/* Phone */}
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Telefon
+                    </label>
+                    <input
+                      type="tel"
+                      value={editForm.phone}
+                      onChange={(e) =>
+                        setEditForm({ ...editForm, phone: e.target.value })
+                      }
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="+31 6 12345678"
+                    />
+                  </div>
+
+                  {/* Website */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Strona internetowa
+                    </label>
+                    <input
+                      type="url"
+                      value={editForm.website}
+                      onChange={(e) =>
+                        setEditForm({ ...editForm, website: e.target.value })
+                      }
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="https://www.twoje-biuro.nl"
+                    />
+                  </div>
+                </div>
+
+                {/* SEKCJA: Licencje i certyfikaty */}
+                <div className="border-b border-gray-200 pb-4">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                    Licencje i certyfikaty
+                  </h3>
+
+                  {/* KVK Number */}
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Numer KVK (Kamer van Koophandel)
                     </label>
                     <input
                       type="text"
-                      value={editForm.city}
+                      value={editForm.kvk_number}
                       onChange={(e) =>
-                        setEditForm({ ...editForm, city: e.target.value })
+                        setEditForm({ ...editForm, kvk_number: e.target.value })
                       }
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder="Rotterdam"
+                      placeholder="12345678"
+                    />
+                  </div>
+
+                  {/* BTW Number */}
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Numer BTW/VAT
+                    </label>
+                    <input
+                      type="text"
+                      value={editForm.btw_number}
+                      onChange={(e) =>
+                        setEditForm({ ...editForm, btw_number: e.target.value })
+                      }
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="NL123456789B01"
+                    />
+                  </div>
+
+                  {/* License Number */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Numer licencji księgowego
+                    </label>
+                    <input
+                      type="text"
+                      value={editForm.license_number}
+                      onChange={(e) =>
+                        setEditForm({
+                          ...editForm,
+                          license_number: e.target.value,
+                        })
+                      }
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="AA-12345"
                     />
                   </div>
                 </div>
 
-                {/* Country */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Kraj
-                  </label>
-                  <select
-                    value={editForm.country}
-                    onChange={(e) =>
-                      setEditForm({ ...editForm, country: e.target.value })
-                    }
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  >
-                    <option value="Nederland">Nederland</option>
-                    <option value="België">België</option>
-                    <option value="Polska">Polska</option>
-                    <option value="Duitsland">Duitsland</option>
-                  </select>
-                </div>
-              </div>
+                {/* SEKCJA: Adres */}
+                <div className="border-b border-gray-200 pb-4">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                    Adres biura
+                  </h3>
 
-              {/* SEKCJA: Specjalizacje */}
-              <div className="border-b border-gray-200 pb-4">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                  Specjalizacje
-                </h3>
-
-                <div className="space-y-2">
-                  {[
-                    "BTW",
-                    "Salarisadministratie",
-                    "Jaarrekening",
-                    "Belastingaangifte",
-                    "ZZP begeleiding",
-                    "Bedrijfsadministratie",
-                  ].map((spec) => (
-                    <label
-                      key={spec}
-                      className="flex items-center gap-2 cursor-pointer"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={editForm.specializations.includes(spec)}
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            setEditForm({
-                              ...editForm,
-                              specializations: [
-                                ...editForm.specializations,
-                                spec,
-                              ],
-                            });
-                          } else {
-                            setEditForm({
-                              ...editForm,
-                              specializations: editForm.specializations.filter(
-                                (s) => s !== spec
-                              ),
-                            });
-                          }
-                        }}
-                        className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
-                      />
-                      <span className="text-sm text-gray-700">{spec}</span>
+                  {/* Address */}
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Ulica i numer
                     </label>
-                  ))}
-                </div>
-              </div>
-
-              {/* SEKCJA: Języki */}
-              <div className="border-b border-gray-200 pb-4">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                  Języki
-                </h3>
-
-                <div className="space-y-2">
-                  {[
-                    "Nederlands",
-                    "English",
-                    "Polski",
-                    "Deutsch",
-                    "Français",
-                  ].map((lang) => (
-                    <label
-                      key={lang}
-                      className="flex items-center gap-2 cursor-pointer"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={editForm.languages.includes(lang)}
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            setEditForm({
-                              ...editForm,
-                              languages: [...editForm.languages, lang],
-                            });
-                          } else {
-                            setEditForm({
-                              ...editForm,
-                              languages: editForm.languages.filter(
-                                (l) => l !== lang
-                              ),
-                            });
-                          }
-                        }}
-                        className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
-                      />
-                      <span className="text-sm text-gray-700">{lang}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-
-              {/* SEKCJA: O mnie */}
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                  O mnie / Biurze
-                </h3>
-
-                <textarea
-                  value={editForm.bio}
-                  onChange={(e) =>
-                    setEditForm({ ...editForm, bio: e.target.value })
-                  }
-                  rows={5}
-                  maxLength={1000}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
-                  placeholder="Krótki opis Twoich usług księgowych, doświadczenia, specjalizacji..."
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  {editForm.bio.length}/1000 znaków
-                </p>
-              </div>
-
-              {/* Info box */}
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <p className="text-sm text-blue-800">
-                  <strong>Wskazówka:</strong> Kompletny profil zwiększa zaufanie
-                  klientów i poprawia widoczność w wyszukiwarkach.
-                </p>
-              </div>
-            </div>
-
-            {/* Footer buttons */}
-            <div className="sticky bottom-0 bg-gray-50 border-t border-gray-200 px-6 py-4 flex gap-3">
-              <button
-                onClick={() => setIsEditingProfile(false)}
-                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors font-medium"
-              >
-                Anuluj
-              </button>
-              <button
-                onClick={handleSaveProfile}
-                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
-              >
-                Zapisz zmiany
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {renderTopTabs()}
-
-      <main className="max-w-7xl mx-auto p-6">
-        <TabPanel isActive={activeTab === "overview"}>
-          {renderOverview()}
-        </TabPanel>
-
-        <TabPanel isActive={activeTab === "profile"}>
-          {/* Profile editing - currently shows modal, can be moved here */}
-          <div className="text-center py-12">
-            <button
-              onClick={() => setIsEditingProfile(true)}
-              className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700"
-            >
-              Edytuj profil
-            </button>
-          </div>
-        </TabPanel>
-
-        <TabPanel isActive={activeTab === "messages"}>
-          {renderMessages()}
-        </TabPanel>
-
-        <TabPanel isActive={activeTab === "reviews"}>
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-bold">⭐ Wszystkie opinie</h2>
-              {accountant && (
-                <div className="flex items-center gap-2">
-                  <span className="text-3xl font-bold text-yellow-600">
-                    {accountant.rating?.toFixed(1) || "0.0"}
-                  </span>
-                  <div className="text-left">
-                    <div className="flex">
-                      {[1, 2, 3, 4, 5].map((i) => (
-                        <Star
-                          key={i}
-                          className={`w-5 h-5 ${
-                            i <= Math.round(accountant.rating || 0)
-                              ? "text-yellow-400 fill-current"
-                              : "text-gray-300"
-                          }`}
-                        />
-                      ))}
-                    </div>
-                    <p className="text-sm text-gray-500">
-                      ({accountant.rating_count || 0}{" "}
-                      {accountant.rating_count === 1 ? "opinia" : "opinii"})
-                    </p>
+                    <input
+                      type="text"
+                      value={editForm.address}
+                      onChange={(e) =>
+                        setEditForm({ ...editForm, address: e.target.value })
+                      }
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="Coolsingel 42"
+                    />
                   </div>
+
+                  {/* City + Postal Code (row) */}
+                  <div className="grid grid-cols-2 gap-4 mb-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Kod pocztowy
+                      </label>
+                      <input
+                        type="text"
+                        value={editForm.postal_code}
+                        onChange={(e) =>
+                          setEditForm({
+                            ...editForm,
+                            postal_code: e.target.value,
+                          })
+                        }
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="3011 AD"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Miasto
+                      </label>
+                      <input
+                        type="text"
+                        value={editForm.city}
+                        onChange={(e) =>
+                          setEditForm({ ...editForm, city: e.target.value })
+                        }
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="Rotterdam"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Country */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Kraj
+                    </label>
+                    <select
+                      value={editForm.country}
+                      onChange={(e) =>
+                        setEditForm({ ...editForm, country: e.target.value })
+                      }
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
+                      <option value="Nederland">Nederland</option>
+                      <option value="België">België</option>
+                      <option value="Polska">Polska</option>
+                      <option value="Duitsland">Duitsland</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* SEKCJA: Specjalizacje */}
+                <div className="border-b border-gray-200 pb-4">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                    Specjalizacje
+                  </h3>
+
+                  <div className="space-y-2">
+                    {[
+                      "BTW",
+                      "Salarisadministratie",
+                      "Jaarrekening",
+                      "Belastingaangifte",
+                      "ZZP begeleiding",
+                      "Bedrijfsadministratie",
+                    ].map((spec) => (
+                      <label
+                        key={spec}
+                        className="flex items-center gap-2 cursor-pointer"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={editForm.specializations.includes(spec)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setEditForm({
+                                ...editForm,
+                                specializations: [
+                                  ...editForm.specializations,
+                                  spec,
+                                ],
+                              });
+                            } else {
+                              setEditForm({
+                                ...editForm,
+                                specializations:
+                                  editForm.specializations.filter(
+                                    (s) => s !== spec
+                                  ),
+                              });
+                            }
+                          }}
+                          className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
+                        />
+                        <span className="text-sm text-gray-700">{spec}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                {/* SEKCJA: Języki */}
+                <div className="border-b border-gray-200 pb-4">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                    Języki
+                  </h3>
+
+                  <div className="space-y-2">
+                    {[
+                      "Nederlands",
+                      "English",
+                      "Polski",
+                      "Deutsch",
+                      "Français",
+                    ].map((lang) => (
+                      <label
+                        key={lang}
+                        className="flex items-center gap-2 cursor-pointer"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={editForm.languages.includes(lang)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setEditForm({
+                                ...editForm,
+                                languages: [...editForm.languages, lang],
+                              });
+                            } else {
+                              setEditForm({
+                                ...editForm,
+                                languages: editForm.languages.filter(
+                                  (l) => l !== lang
+                                ),
+                              });
+                            }
+                          }}
+                          className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
+                        />
+                        <span className="text-sm text-gray-700">{lang}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                {/* SEKCJA: O mnie */}
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                    O mnie / Biurze
+                  </h3>
+
+                  <textarea
+                    value={editForm.bio}
+                    onChange={(e) =>
+                      setEditForm({ ...editForm, bio: e.target.value })
+                    }
+                    rows={5}
+                    maxLength={1000}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                    placeholder="Krótki opis Twoich usług księgowych, doświadczenia, specjalizacji..."
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    {editForm.bio.length}/1000 znaków
+                  </p>
+                </div>
+
+                {/* Info box */}
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <p className="text-sm text-blue-800">
+                    <strong>Wskazówka:</strong> Kompletny profil zwiększa
+                    zaufanie klientów i poprawia widoczność w wyszukiwarkach.
+                  </p>
+                </div>
+              </div>
+
+              {/* Footer buttons */}
+              <div className="sticky bottom-0 bg-gray-50 border-t border-gray-200 px-6 py-4 flex gap-3">
+                <button
+                  onClick={() => setIsEditingProfile(false)}
+                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors font-medium"
+                >
+                  Anuluj
+                </button>
+                <button
+                  onClick={handleSaveProfile}
+                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                >
+                  Zapisz zmiany
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {renderTopTabs()}
+
+        <main className="max-w-7xl mx-auto p-6">
+          <TabPanel isActive={activeTab === "overview"}>
+            {renderOverview()}
+          </TabPanel>
+
+          <TabPanel isActive={activeTab === "profile"}>
+            {/* Profile editing - currently shows modal, can be moved here */}
+            <div className="text-center py-12">
+              <button
+                onClick={() => setIsEditingProfile(true)}
+                className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700"
+              >
+                Edytuj profil
+              </button>
+            </div>
+          </TabPanel>
+
+          <TabPanel isActive={activeTab === "messages"}>
+            {renderMessages()}
+          </TabPanel>
+
+          <TabPanel isActive={activeTab === "reviews"}>
+            <div className="bg-white rounded-lg shadow p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-bold">⭐ Wszystkie opinie</h2>
+                {accountant && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-3xl font-bold text-yellow-600">
+                      {accountant.rating?.toFixed(1) || "0.0"}
+                    </span>
+                    <div className="text-left">
+                      <div className="flex">
+                        {[1, 2, 3, 4, 5].map((i) => (
+                          <Star
+                            key={i}
+                            className={`w-5 h-5 ${
+                              i <= Math.round(accountant.rating || 0)
+                                ? "text-yellow-400 fill-current"
+                                : "text-gray-300"
+                            }`}
+                          />
+                        ))}
+                      </div>
+                      <p className="text-sm text-gray-500">
+                        ({accountant.rating_count || 0}{" "}
+                        {accountant.rating_count === 1 ? "opinia" : "opinii"})
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {reviewsLoading ? (
+                <div className="text-center py-12 text-gray-500">
+                  <p>Ładowanie opinii...</p>
+                </div>
+              ) : reviews.length === 0 ? (
+                <div className="text-center text-gray-400 py-12">
+                  <p>Brak opinii</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {reviews.map((review) => (
+                    <div
+                      key={review.id}
+                      className="border-b border-gray-200 pb-4 last:border-0"
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <div className="flex">
+                            {[1, 2, 3, 4, 5].map((i) => (
+                              <Star
+                                key={i}
+                                className={`w-4 h-4 ${
+                                  i <= review.rating
+                                    ? "text-yellow-400 fill-current"
+                                    : "text-gray-300"
+                                }`}
+                              />
+                            ))}
+                          </div>
+                          <span className="font-semibold">
+                            {review.rating}.0
+                          </span>
+                        </div>
+                        <span className="text-xs text-gray-500">
+                          {new Date(review.created_at).toLocaleDateString(
+                            "pl-PL"
+                          )}
+                        </span>
+                      </div>
+                      <p className="text-sm text-gray-700 mb-2">
+                        {review.comment}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        — {review.worker?.full_name || "Anonim"}
+                      </p>
+                    </div>
+                  ))}
                 </div>
               )}
             </div>
+          </TabPanel>
 
-            {reviewsLoading ? (
-              <div className="text-center py-12 text-gray-500">
-                <p>Ładowanie opinii...</p>
-              </div>
-            ) : reviews.length === 0 ? (
+          {/* Tablica Tab */}
+          <TabPanel isActive={activeTab === "tablica"}>
+            <FeedPage />
+          </TabPanel>
+
+          <TabPanel isActive={activeTab === "services"}>
+            <div className="bg-white rounded-lg shadow p-6">
+              <h2 className="text-2xl font-bold mb-6">💼 Usługi</h2>
               <div className="text-center text-gray-400 py-12">
-                <p>Brak opinii</p>
+                <p>Brak usług</p>
               </div>
-            ) : (
-              <div className="space-y-4">
-                {reviews.map((review) => (
-                  <div
-                    key={review.id}
-                    className="border-b border-gray-200 pb-4 last:border-0"
-                  >
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center gap-2">
-                        <div className="flex">
-                          {[1, 2, 3, 4, 5].map((i) => (
-                            <Star
-                              key={i}
-                              className={`w-4 h-4 ${
-                                i <= review.rating
-                                  ? "text-yellow-400 fill-current"
-                                  : "text-gray-300"
-                              }`}
-                            />
-                          ))}
-                        </div>
-                        <span className="font-semibold">{review.rating}.0</span>
-                      </div>
-                      <span className="text-xs text-gray-500">
-                        {new Date(review.created_at).toLocaleDateString(
-                          "pl-PL"
-                        )}
-                      </span>
-                    </div>
-                    <p className="text-sm text-gray-700 mb-2">
-                      {review.comment}
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      — {review.worker?.full_name || "Anonim"}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </TabPanel>
-
-        {/* Tablica Tab */}
-        <TabPanel isActive={activeTab === "tablica"}>
-          <FeedPage />
-        </TabPanel>
-
-        <TabPanel isActive={activeTab === "services"}>
-          <div className="bg-white rounded-lg shadow p-6">
-            <h2 className="text-2xl font-bold mb-6">💼 Usługi</h2>
-            <div className="text-center text-gray-400 py-12">
-              <p>Brak usług</p>
             </div>
-          </div>
-        </TabPanel>
+          </TabPanel>
 
-        <TabPanel isActive={activeTab === "submissions"}>
-          {renderSubmissions()}
-        </TabPanel>
+          <TabPanel isActive={activeTab === "submissions"}>
+            {renderSubmissions()}
+          </TabPanel>
 
-        <TabPanel isActive={activeTab === "forms"}>{renderForms()}</TabPanel>
+          <TabPanel isActive={activeTab === "forms"}>{renderForms()}</TabPanel>
 
-        <TabPanel isActive={activeTab === "team"}>{renderTeam()}</TabPanel>
+          <TabPanel isActive={activeTab === "team"}>{renderTeam()}</TabPanel>
 
-        {/* My Posts Tab */}
-        <TabPanel isActive={activeTab === "my_posts"}>
-          <MyPosts />
-        </TabPanel>
+          {/* My Posts Tab */}
+          <TabPanel isActive={activeTab === "my_posts"}>
+            <MyPosts />
+          </TabPanel>
 
-        {/* Saved Activity Tab */}
-        <TabPanel isActive={activeTab === "saved_activity"}>
-          <SavedActivity />
-        </TabPanel>
-      </main>
+          {/* Saved Activity Tab */}
+          <TabPanel isActive={activeTab === "saved_activity"}>
+            <SavedActivity />
+          </TabPanel>
+        </main>
 
-      {/* Support Ticket Modal */}
-      <SupportTicketModal
-        isOpen={showSupportModal}
-        onClose={() => setShowSupportModal(false)}
-      />
+        {/* Support Ticket Modal */}
+        <SupportTicketModal
+          isOpen={showSupportModal}
+          onClose={() => setShowSupportModal(false)}
+        />
+      </div>
     </div>
   );
 }

@@ -80,13 +80,6 @@ const ALL_TABS: TabConfig[] = [
     roles: ["admin", "employer", "worker", "accountant", "cleaning_company"], // ✅ ALL roles!
   },
   {
-    id: "certificates",
-    label: "Certyfikaty",
-    icon: "🏆",
-    description: "Certyfikaty, weryfikacja, egzaminy",
-    roles: ["worker", "cleaning_company"], // ✅ ONLY these roles!
-  },
-  {
     id: "portfolio",
     label: "Portfolio",
     icon: "🎨",

@@ -37,6 +37,7 @@ import EmployerSearchPage from "./pages/public/EmployerSearchPage";
 import EmployerPublicProfilePage from "./pages/public/EmployerPublicProfilePage";
 import WorkerPublicProfilePage from "./pages/public/WorkerPublicProfilePage";
 import CleaningCompanyPublicProfilePage from "./pages/public/CleaningCompanyPublicProfilePage";
+import AdminPublicProfilePage from "./pages/public/AdminPublicProfilePage";
 import FeedPage from "./pages/FeedPage_PREMIUM"; // 🚀 ULTRA-PREMIUM FEED 2025
 import TeamDashboard from "./components/TeamDashboard";
 import { Settings } from "./pages/Settings";
@@ -292,6 +293,10 @@ function App() {
                         <Route
                           path="/cleaning-company/profile/:id"
                           element={<CleaningCompanyPublicProfilePage />}
+                        />
+                        <Route
+                          path="/admin/profile/:id"
+                          element={<AdminPublicProfilePage />}
                         />
                         {/* Legacy routes - redirect to new structure */}
                         <Route

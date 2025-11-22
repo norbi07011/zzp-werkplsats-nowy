@@ -9,6 +9,8 @@
 
 import { useState, useEffect } from "react";
 import { useAuth } from "../../contexts/AuthContext";
+import { PostFormModal } from "../../components/PostFormModal";
+import { PostStatsModal } from "../../components/PostStatsModal";
 import {
   type Post,
   type PostType,
@@ -472,34 +474,6 @@ function PostCard({
       <p className="text-xs text-gray-500 mt-4 text-center">
         Utworzono: {new Date(post.created_at).toLocaleDateString("pl-PL")}
       </p>
-    </div>
-  );
-}
-
-      {/* Modale */}
-      <PostFormModal
-        isOpen={showPostModal}
-        onClose={() => {
-          setShowPostModal(false);
-          setEditingPost(null);
-        }}
-        onSuccess={() => {
-          loadMyPosts();
-          setShowPostModal(false);
-          setEditingPost(null);
-        }}
-        mode={editingPost ? "edit" : "create"}
-        postId={editingPost?.id}
-        initialData={editingPost || undefined}
-        authorType="admin"
-      />
-
-      <PostStatsModal
-        isOpen={showStatsModal}
-        onClose={() => setShowStatsModal(false)}
-        postId={statsPostId || ""}
-        postTitle={statsPostTitle}
-      />
     </div>
   );
 }

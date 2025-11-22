@@ -9,6 +9,7 @@ import { supabase } from "@/lib/supabase";
 import type { User as SupabaseUser } from "@supabase/supabase-js";
 // @ts-ignore - Database types will be regenerated after migration deployment
 import type { Database } from "@/lib/database.types";
+import { LoginLoadingAnimation } from "../components/LoginLoadingAnimation";
 
 export type UserRole =
   | "admin"
@@ -377,6 +378,7 @@ const mapUserDataWithRetry = async (
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [showLoginAnimation, setShowLoginAnimation] = useState(false);
 
   // WHY: Initialize auth state from Supabase session on mount
   useEffect(() => {
@@ -450,6 +452,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const login = async (email: string, password: string): Promise<void> => {
     setIsLoading(true);
+    setShowLoginAnimation(true); // Show animation
 
     try {
       // WHY: rely on real Supabase session only - signInWithPassword returns session + user
@@ -460,19 +463,25 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       // WHY: throw error immediately if Supabase Auth fails
       if (error) {
+        setShowLoginAnimation(false); // Hide on error
         throw new Error(error.message);
       }
 
       // WHY: verify we received user data from Supabase (not just session)
       if (!data.user) {
+        setShowLoginAnimation(false); // Hide on error
         throw new Error("Login failed - no user data received");
       }
 
       // WHY: map Supabase user to app user with role and subscription data
       const appUser = await mapSupabaseUserToAppUser(data.user);
       setUser(appUser);
+
+      // Keep animation visible for smooth transition (hide after navigation)
+      setTimeout(() => setShowLoginAnimation(false), 5000); // 1500 + 3500ms for longer animation
     } catch (error) {
       console.error("Login failed:", error);
+      setShowLoginAnimation(false); // Hide on error
       throw new Error(
         error instanceof Error ? error.message : "Nieprawidłowy email lub hasło"
       );
@@ -766,7 +775,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     resetPassword,
   };
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={value}>
+      {showLoginAnimation && <LoginLoadingAnimation />}
+      {children}
+    </AuthContext.Provider>
+  );
 };
 
 export const useAuth = (): AuthContextType => {

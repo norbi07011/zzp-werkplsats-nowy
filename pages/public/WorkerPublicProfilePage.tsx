@@ -5,6 +5,7 @@ import { useAuth } from "../../contexts/AuthContext";
 import { Modal } from "../../components/Modal";
 import { ReviewWorkerModal } from "../../src/components/employer/ReviewWorkerModal";
 import { LocationCard } from "../../components/LocationCard";
+import { Animated3DProfileBackground } from "../../components/Animated3DProfileBackground";
 import {
   Star,
   MapPin,
@@ -337,7 +338,7 @@ export default function WorkerPublicProfilePage() {
       }
 
       // Load worker profile WITH profile data (full_name, email, phone)
-      const { data: workerData, error: workerError } = await supabase
+      let { data: workerData, error: workerError } = await supabase
         .from("workers")
         .select(
           `
@@ -352,9 +353,33 @@ export default function WorkerPublicProfilePage() {
         .eq("id", id)
         .single();
 
+      // If not found by id, try by profile_id
+      if (workerError?.code === "PGRST116") {
+        const result = await supabase
+          .from("workers")
+          .select(
+            `
+            *,
+            profiles!workers_profile_id_fkey(
+              full_name,
+              email,
+              phone
+            )
+          `
+          )
+          .eq("profile_id", id)
+          .single();
+
+        workerData = result.data;
+        workerError = result.error;
+      }
+
       console.log("🔍 WORKER QUERY RESULT:", { workerData, workerError });
 
       if (workerError) throw workerError;
+      if (!workerData) {
+        throw new Error("Worker not found");
+      }
 
       // Map Supabase data to Worker interface
       if (workerData) {
@@ -383,6 +408,9 @@ export default function WorkerPublicProfilePage() {
         );
       }
 
+      // Use the actual worker.id for reviews query
+      const actualWorkerId = workerData.id;
+
       // Load reviews from reviews table (reviewer_id → profiles)
       const { data: reviewsData, error: reviewsError } = await supabase
         .from("reviews")
@@ -404,7 +432,7 @@ export default function WorkerPublicProfilePage() {
           )
         `
         )
-        .eq("worker_id", id)
+        .eq("worker_id", actualWorkerId)
         .eq("status", "approved")
         .order("created_at", { ascending: false });
 
@@ -415,7 +443,7 @@ export default function WorkerPublicProfilePage() {
         setReviews(
           reviewsData.map((review) => ({
             id: review.id,
-            worker_id: id,
+            worker_id: actualWorkerId,
             employer_id: review.employer_id || "",
             employer_name: (review.profiles as any)?.full_name || "Anoniem",
             rating: review.rating,
@@ -486,246 +514,255 @@ export default function WorkerPublicProfilePage() {
   (window as any).handleOpenReview = handleOpenReview;
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Cover Image Header */}
-      <div className="relative h-64 bg-gradient-to-r from-blue-600 to-indigo-700">
-        {worker.cover_image_url && (
-          <img
-            src={worker.cover_image_url}
-            alt="Cover"
-            className="w-full h-full object-cover"
-          />
-        )}
-        <div className="absolute inset-0 bg-black bg-opacity-30"></div>
-        <button
-          onClick={() => navigate("/workers")}
-          className="absolute top-6 left-6 flex items-center gap-2 px-4 py-2 bg-white rounded-lg shadow-lg hover:bg-gray-50"
-        >
-          <ArrowLeft className="w-5 h-5" />
-          <span>Wróć do wyszukiwarki</span>
-        </button>
+    <div className="min-h-screen bg-gray-50 relative overflow-hidden">
+      {/* 3D Background Layer */}
+      <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden perspective-container">
+        <Animated3DProfileBackground role="worker" opacity={0.25} />
       </div>
 
-      {/* Profile Info */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-16 relative z-10">
-        <div className="bg-white rounded-lg shadow-lg p-8">
-          <div className="flex flex-col md:flex-row gap-8 items-start">
-            {/* Avatar */}
-            <div className="flex-shrink-0">
-              {worker.avatar_url ? (
-                <img
-                  src={worker.avatar_url}
-                  alt={worker.full_name}
-                  className="w-32 h-32 rounded-full border-4 border-white shadow-lg object-cover"
-                />
-              ) : (
-                <div className="w-32 h-32 rounded-full border-4 border-white shadow-lg bg-blue-100 flex items-center justify-center text-5xl font-bold text-blue-600">
-                  {worker.full_name.charAt(0)}
-                </div>
-              )}
-            </div>
+      <div className="relative z-10">
+        {/* Cover Image Header */}
+        <div className="relative h-64 bg-gradient-to-r from-blue-600 to-indigo-700">
+          {worker.cover_image_url && (
+            <img
+              src={worker.cover_image_url}
+              alt="Cover"
+              className="w-full h-full object-cover"
+            />
+          )}
+          <div className="absolute inset-0 bg-black bg-opacity-30"></div>
+          <button
+            onClick={() => navigate("/workers")}
+            className="absolute top-6 left-6 flex items-center gap-2 px-4 py-2 bg-white rounded-lg shadow-lg hover:bg-gray-50"
+          >
+            <ArrowLeft className="w-5 h-5" />
+            <span>Wróć do wyszukiwarki</span>
+          </button>
+        </div>
 
-            {/* Info */}
-            <div className="flex-1">
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <h1 className="text-3xl font-bold text-gray-900 mb-2">
-                    {worker.full_name}
-                  </h1>
-                  {worker.specialization && (
-                    <p className="text-xl text-gray-600 mb-4">
-                      {worker.specialization}
-                    </p>
-                  )}
+        {/* Profile Info */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-16 relative z-10">
+          <div className="bg-white rounded-lg shadow-lg p-8">
+            <div className="flex flex-col md:flex-row gap-8 items-start">
+              {/* Avatar */}
+              <div className="flex-shrink-0">
+                {worker.avatar_url ? (
+                  <img
+                    src={worker.avatar_url}
+                    alt={worker.full_name}
+                    className="w-32 h-32 rounded-full border-4 border-white shadow-lg object-cover"
+                  />
+                ) : (
+                  <div className="w-32 h-32 rounded-full border-4 border-white shadow-lg bg-blue-100 flex items-center justify-center text-5xl font-bold text-blue-600">
+                    {worker.full_name.charAt(0)}
+                  </div>
+                )}
+              </div>
 
-                  {/* Rating & Status */}
-                  <div className="flex items-center gap-4 mb-4 flex-wrap">
-                    <div className="flex items-center gap-2 bg-gray-100 px-4 py-2 rounded-lg">
-                      <Star className="w-5 h-5 fill-yellow-400 text-yellow-400" />
-                      <span className="text-lg font-semibold text-gray-900">
-                        {worker.rating.toFixed(1)}
-                      </span>
-                      <span className="text-gray-600">
-                        ({worker.rating_count} opinii)
-                      </span>
-                    </div>
+              {/* Info */}
+              <div className="flex-1">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <h1 className="text-3xl font-bold text-gray-900 mb-2">
+                      {worker.full_name}
+                    </h1>
+                    {worker.specialization && (
+                      <p className="text-xl text-gray-600 mb-4">
+                        {worker.specialization}
+                      </p>
+                    )}
 
-                    {worker.is_verified && (
-                      <div className="flex items-center gap-2 bg-green-50 border-2 border-green-400 px-4 py-2 rounded-lg">
-                        <CheckCircleIcon className="w-5 h-5 text-green-600" />
-                        <span className="font-medium text-green-700">
-                          Zweryfikowany
+                    {/* Rating & Status */}
+                    <div className="flex items-center gap-4 mb-4 flex-wrap">
+                      <div className="flex items-center gap-2 bg-gray-100 px-4 py-2 rounded-lg">
+                        <Star className="w-5 h-5 fill-yellow-400 text-yellow-400" />
+                        <span className="text-lg font-semibold text-gray-900">
+                          {worker.rating.toFixed(1)}
+                        </span>
+                        <span className="text-gray-600">
+                          ({worker.rating_count} opinii)
                         </span>
                       </div>
-                    )}
 
-                    <div
-                      className={`px-4 py-2 rounded-lg font-medium ${
-                        availabilityColors[worker.availability_status]
-                      }`}
-                    >
-                      {availabilityLabels[worker.availability_status]}
-                    </div>
-                  </div>
-
-                  {/* Quick Info */}
-                  <div className="flex flex-wrap gap-4 text-gray-700">
-                    {worker.city && (
-                      <div className="flex items-center gap-2">
-                        <MapPin className="w-4 h-4" />
-                        <span>{worker.city}</span>
-                      </div>
-                    )}
-                    <div className="flex items-center gap-2">
-                      <Briefcase className="w-4 h-4" />
-                      <span>{worker.years_experience} lat doświadczenia</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Award className="w-4 h-4" />
-                      <span>
-                        {worker.completed_jobs} zrealizowanych projektów
-                      </span>
-                    </div>
-                    {worker.hourly_rate && (
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium">
-                          €{worker.hourly_rate}/godz
-                        </span>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* ✅ FAZA 4: ZZP Certification Badge */}
-                  {(worker as any).zzp_certificate_issued &&
-                    (worker as any).zzp_certificate_number && (
-                      <div className="mt-6 bg-gradient-to-r from-yellow-50 to-orange-50 border-2 border-yellow-400 rounded-xl p-4 shadow-md">
-                        <div className="flex items-center gap-3">
-                          <div className="text-4xl">🏆</div>
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-1">
-                              <h3 className="text-lg font-bold text-gray-900">
-                                Certyfikat Premium ZZP
-                              </h3>
-                              {(worker as any).certificate_status ===
-                                "active" && (
-                                <span className="bg-green-500 text-white text-xs font-bold px-2 py-1 rounded-full">
-                                  AKTYWNY
-                                </span>
-                              )}
-                              {(worker as any).certificate_status ===
-                                "expired" && (
-                                <span className="bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">
-                                  WYGASŁ
-                                </span>
-                              )}
-                              {(worker as any).certificate_status ===
-                                "revoked" && (
-                                <span className="bg-gray-800 text-white text-xs font-bold px-2 py-1 rounded-full">
-                                  COFNIĘTY
-                                </span>
-                              )}
-                            </div>
-                            <code className="text-sm font-mono text-yellow-800 bg-yellow-100 px-2 py-1 rounded">
-                              {(worker as any).zzp_certificate_number}
-                            </code>
-                            {(worker as any).certificate_issued_at && (
-                              <p className="text-xs text-gray-600 mt-2">
-                                Wydany:{" "}
-                                {new Date(
-                                  (worker as any).certificate_issued_at
-                                ).toLocaleDateString("pl-PL")}
-                                {(worker as any).zzp_certificate_expires_at && (
-                                  <>
-                                    {" "}
-                                    · Ważny do:{" "}
-                                    {new Date(
-                                      (worker as any).zzp_certificate_expires_at
-                                    ).toLocaleDateString("pl-PL")}
-                                  </>
-                                )}
-                              </p>
-                            )}
-
-                            {/* Approved categories */}
-                            {(worker as any).approved_categories &&
-                              (worker as any).approved_categories.length >
-                                0 && (
-                                <div className="mt-3">
-                                  <p className="text-xs text-blue-200 font-semibold mb-1">
-                                    ✅ Zatwierdzone specjalizacje:
-                                  </p>
-                                  <div className="flex flex-wrap gap-1.5">
-                                    {(worker as any).approved_categories.map(
-                                      (cat: string) => (
-                                        <span
-                                          key={cat}
-                                          className="bg-yellow-500/30 border border-yellow-400/50 text-yellow-100 px-2 py-0.5 rounded-full text-xs font-medium"
-                                        >
-                                          {cat}
-                                        </span>
-                                      )
-                                    )}
-                                  </div>
-                                </div>
-                              )}
-                          </div>
+                      {worker.is_verified && (
+                        <div className="flex items-center gap-2 bg-green-50 border-2 border-green-400 px-4 py-2 rounded-lg">
+                          <CheckCircleIcon className="w-5 h-5 text-green-600" />
+                          <span className="font-medium text-green-700">
+                            Zweryfikowany
+                          </span>
                         </div>
+                      )}
 
-                        {/* Warning messages for expired/revoked */}
-                        {(worker as any).certificate_status === "expired" && (
-                          <div className="mt-3 bg-red-50 border border-red-300 rounded-lg p-3 text-sm">
-                            <p className="text-red-700">
-                              ⚠️ <strong>Certyfikat wygasł</strong> - ten
-                              pracownik może być w trakcie odnowienia
-                              certyfikatu.
-                            </p>
-                          </div>
-                        )}
-
-                        {(worker as any).certificate_status === "revoked" && (
-                          <div className="mt-3 bg-gray-100 border border-gray-400 rounded-lg p-3 text-sm">
-                            <p className="text-gray-700">
-                              🚫 <strong>Certyfikat cofnięty</strong> -
-                              skontaktuj się z administracją po więcej
-                              informacji.
-                            </p>
-                          </div>
-                        )}
+                      <div
+                        className={`px-4 py-2 rounded-lg font-medium ${
+                          availabilityColors[worker.availability_status]
+                        }`}
+                      >
+                        {availabilityLabels[worker.availability_status]}
                       </div>
-                    )}
-                </div>
+                    </div>
 
-                {/* Contact Button */}
-                <a
-                  href={`mailto:${worker.email}`}
-                  className="px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors shadow-lg"
-                >
-                  Skontaktuj się
-                </a>
+                    {/* Quick Info */}
+                    <div className="flex flex-wrap gap-4 text-gray-700">
+                      {worker.city && (
+                        <div className="flex items-center gap-2">
+                          <MapPin className="w-4 h-4" />
+                          <span>{worker.city}</span>
+                        </div>
+                      )}
+                      <div className="flex items-center gap-2">
+                        <Briefcase className="w-4 h-4" />
+                        <span>{worker.years_experience} lat doświadczenia</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Award className="w-4 h-4" />
+                        <span>
+                          {worker.completed_jobs} zrealizowanych projektów
+                        </span>
+                      </div>
+                      {worker.hourly_rate && (
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium">
+                            €{worker.hourly_rate}/godz
+                          </span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* ✅ FAZA 4: ZZP Certification Badge */}
+                    {(worker as any).zzp_certificate_issued &&
+                      (worker as any).zzp_certificate_number && (
+                        <div className="mt-6 bg-gradient-to-r from-yellow-50 to-orange-50 border-2 border-yellow-400 rounded-xl p-4 shadow-md">
+                          <div className="flex items-center gap-3">
+                            <div className="text-4xl">🏆</div>
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-1">
+                                <h3 className="text-lg font-bold text-gray-900">
+                                  Certyfikat Premium ZZP
+                                </h3>
+                                {(worker as any).certificate_status ===
+                                  "active" && (
+                                  <span className="bg-green-500 text-white text-xs font-bold px-2 py-1 rounded-full">
+                                    AKTYWNY
+                                  </span>
+                                )}
+                                {(worker as any).certificate_status ===
+                                  "expired" && (
+                                  <span className="bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">
+                                    WYGASŁ
+                                  </span>
+                                )}
+                                {(worker as any).certificate_status ===
+                                  "revoked" && (
+                                  <span className="bg-gray-800 text-white text-xs font-bold px-2 py-1 rounded-full">
+                                    COFNIĘTY
+                                  </span>
+                                )}
+                              </div>
+                              <code className="text-sm font-mono text-yellow-800 bg-yellow-100 px-2 py-1 rounded">
+                                {(worker as any).zzp_certificate_number}
+                              </code>
+                              {(worker as any).certificate_issued_at && (
+                                <p className="text-xs text-gray-600 mt-2">
+                                  Wydany:{" "}
+                                  {new Date(
+                                    (worker as any).certificate_issued_at
+                                  ).toLocaleDateString("pl-PL")}
+                                  {(worker as any)
+                                    .zzp_certificate_expires_at && (
+                                    <>
+                                      {" "}
+                                      · Ważny do:{" "}
+                                      {new Date(
+                                        (
+                                          worker as any
+                                        ).zzp_certificate_expires_at
+                                      ).toLocaleDateString("pl-PL")}
+                                    </>
+                                  )}
+                                </p>
+                              )}
+
+                              {/* Approved categories */}
+                              {(worker as any).approved_categories &&
+                                (worker as any).approved_categories.length >
+                                  0 && (
+                                  <div className="mt-3">
+                                    <p className="text-xs text-blue-200 font-semibold mb-1">
+                                      ✅ Zatwierdzone specjalizacje:
+                                    </p>
+                                    <div className="flex flex-wrap gap-1.5">
+                                      {(worker as any).approved_categories.map(
+                                        (cat: string) => (
+                                          <span
+                                            key={cat}
+                                            className="bg-yellow-500/30 border border-yellow-400/50 text-yellow-100 px-2 py-0.5 rounded-full text-xs font-medium"
+                                          >
+                                            {cat}
+                                          </span>
+                                        )
+                                      )}
+                                    </div>
+                                  </div>
+                                )}
+                            </div>
+                          </div>
+
+                          {/* Warning messages for expired/revoked */}
+                          {(worker as any).certificate_status === "expired" && (
+                            <div className="mt-3 bg-red-50 border border-red-300 rounded-lg p-3 text-sm">
+                              <p className="text-red-700">
+                                ⚠️ <strong>Certyfikat wygasł</strong> - ten
+                                pracownik może być w trakcie odnowienia
+                                certyfikatu.
+                              </p>
+                            </div>
+                          )}
+
+                          {(worker as any).certificate_status === "revoked" && (
+                            <div className="mt-3 bg-gray-100 border border-gray-400 rounded-lg p-3 text-sm">
+                              <p className="text-gray-700">
+                                🚫 <strong>Certyfikat cofnięty</strong> -
+                                skontaktuj się z administracją po więcej
+                                informacji.
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                  </div>
+
+                  {/* Contact Button */}
+                  <a
+                    href={`mailto:${worker.email}`}
+                    className="px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors shadow-lg"
+                  >
+                    Skontaktuj się
+                  </a>
+                </div>
               </div>
             </div>
           </div>
         </div>
-      </div>
 
-      {/* Tabs */}
-      <div className="bg-white border-b sticky top-0 z-10 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex gap-1">
-            {[
-              { id: "about", label: "O mnie", icon: "📋" },
-              { id: "portfolio", label: "Portfolio", icon: "📸" },
-              {
-                id: "reviews",
-                label: `Opinie (${reviews.length})`,
-                icon: "⭐",
-              },
-              { id: "contact", label: "Kontakt", icon: "📞" },
-            ].map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id as any)}
-                className={`
+        {/* Tabs */}
+        <div className="bg-white border-b sticky top-0 z-10 shadow-sm">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex gap-1">
+              {[
+                { id: "about", label: "O mnie", icon: "📋" },
+                { id: "portfolio", label: "Portfolio", icon: "📸" },
+                {
+                  id: "reviews",
+                  label: `Opinie (${reviews.length})`,
+                  icon: "⭐",
+                },
+                { id: "contact", label: "Kontakt", icon: "📞" },
+              ].map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id as any)}
+                  className={`
                   px-6 py-4 font-medium transition-colors border-b-2
                   ${
                     activeTab === tab.id
@@ -733,140 +770,141 @@ export default function WorkerPublicProfilePage() {
                       : "border-transparent text-gray-600 hover:text-gray-900"
                   }
                 `}
-              >
-                <span className="mr-2">{tab.icon}</span>
-                {tab.label}
-              </button>
-            ))}
+                >
+                  <span className="mr-2">{tab.icon}</span>
+                  {tab.label}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Main Content */}
-          <div className="lg:col-span-2 space-y-6">
-            {activeTab === "about" && <AboutTab worker={worker} />}
-            {activeTab === "portfolio" && (
-              <PortfolioTab worker={worker} onImageClick={openLightbox} />
-            )}
-            {activeTab === "reviews" && (
-              <ReviewsTab reviews={reviews} worker={worker} />
-            )}
-            {activeTab === "contact" && <ContactTab worker={worker} />}
-          </div>
+        {/* Content */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            {/* Main Content */}
+            <div className="lg:col-span-2 space-y-6">
+              {activeTab === "about" && <AboutTab worker={worker} />}
+              {activeTab === "portfolio" && (
+                <PortfolioTab worker={worker} onImageClick={openLightbox} />
+              )}
+              {activeTab === "reviews" && (
+                <ReviewsTab reviews={reviews} worker={worker} />
+              )}
+              {activeTab === "contact" && <ContactTab worker={worker} />}
+            </div>
 
-          {/* Sidebar */}
-          <div className="space-y-6">
-            <ContactCard worker={worker} />
-            <SkillsCard worker={worker} />
-            <LanguagesCard worker={worker} />
+            {/* Sidebar */}
+            <div className="space-y-6">
+              <ContactCard worker={worker} />
+              <SkillsCard worker={worker} />
+              <LanguagesCard worker={worker} />
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* MODALS */}
-      {/* Contact Modal */}
-      {worker && (
-        <Modal
-          isOpen={isContactModalOpen}
-          onClose={() => setIsContactModalOpen(false)}
-          title={`Kontakt: ${worker.full_name}`}
-          size="lg"
-        >
-          <div className="space-y-4">
-            <div className="bg-blue-50 p-4 rounded-lg mb-4">
-              <p className="text-sm text-blue-800">
-                💡 <strong>Wskazówka:</strong> Napisz konkretną wiadomość
-                opisującą zakres prac, lokalizację i terminy. Zwiększysz szanse
-                na szybką odpowiedź!
-              </p>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Temat <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                value={contactSubject}
-                onChange={(e) => setContactSubject(e.target.value)}
-                placeholder="np. Oferta pracy - {worker.specialization || 'budowlanka'}"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Wiadomość <span className="text-red-500">*</span>
-              </label>
-              <textarea
-                value={contactMessage}
-                onChange={(e) => setContactMessage(e.target.value)}
-                rows={8}
-                placeholder={`Dzień dobry,\n\nJestem zainteresowany Pana/Pani usługami.\n\nTyp prac: \nLokalizacja: \nTermin: \nSzacowany czas: \n\nMogę omówić szczegóły telefonicznie.\n\nPozdrawiam`}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
-              <p className="text-xs text-gray-500 mt-1">
-                {contactMessage.length} znaków
-              </p>
-            </div>
-          </div>
-
-          <div className="flex gap-3 mt-6">
-            <button
-              onClick={() => setIsContactModalOpen(false)}
-              className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
-            >
-              Anuluj
-            </button>
-            <button
-              onClick={handleSendContact}
-              className="flex-1 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
-            >
-              📨 Wyślij wiadomość
-            </button>
-          </div>
-        </Modal>
-      )}
-
-      {/* Review Modal */}
-      {worker && user && (employerId || cleaningCompanyId) && (
-        <ReviewWorkerModal
-          isOpen={isReviewModalOpen}
-          onClose={() => setIsReviewModalOpen(false)}
-          workerId={worker.id}
-          workerName={worker.full_name}
-          employerId={employerId || undefined}
-          cleaningCompanyId={cleaningCompanyId || undefined}
-          onSuccess={handleReviewSuccess}
-        />
-      )}
-
-      {/* Lightbox Modal */}
-      {lightboxOpen && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-90 p-4"
-          onClick={closeLightbox}
-        >
-          <button
-            onClick={closeLightbox}
-            className="absolute top-4 right-4 text-white text-4xl font-bold hover:text-gray-300 transition-colors z-10"
+        {/* MODALS */}
+        {/* Contact Modal */}
+        {worker && (
+          <Modal
+            isOpen={isContactModalOpen}
+            onClose={() => setIsContactModalOpen(false)}
+            title={`Kontakt: ${worker.full_name}`}
+            size="lg"
           >
-            ×
-          </button>
-          <img
-            src={lightboxImage}
-            alt="Portfolio powiększone"
-            className="max-w-full max-h-full object-contain"
-            onClick={(e) => e.stopPropagation()}
+            <div className="space-y-4">
+              <div className="bg-blue-50 p-4 rounded-lg mb-4">
+                <p className="text-sm text-blue-800">
+                  💡 <strong>Wskazówka:</strong> Napisz konkretną wiadomość
+                  opisującą zakres prac, lokalizację i terminy. Zwiększysz
+                  szanse na szybką odpowiedź!
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Temat <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={contactSubject}
+                  onChange={(e) => setContactSubject(e.target.value)}
+                  placeholder="np. Oferta pracy - {worker.specialization || 'budowlanka'}"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Wiadomość <span className="text-red-500">*</span>
+                </label>
+                <textarea
+                  value={contactMessage}
+                  onChange={(e) => setContactMessage(e.target.value)}
+                  rows={8}
+                  placeholder={`Dzień dobry,\n\nJestem zainteresowany Pana/Pani usługami.\n\nTyp prac: \nLokalizacja: \nTermin: \nSzacowany czas: \n\nMogę omówić szczegóły telefonicznie.\n\nPozdrawiam`}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  {contactMessage.length} znaków
+                </p>
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => setIsContactModalOpen(false)}
+                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+              >
+                Anuluj
+              </button>
+              <button
+                onClick={handleSendContact}
+                className="flex-1 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
+              >
+                📨 Wyślij wiadomość
+              </button>
+            </div>
+          </Modal>
+        )}
+
+        {/* Review Modal */}
+        {worker && user && (employerId || cleaningCompanyId) && (
+          <ReviewWorkerModal
+            isOpen={isReviewModalOpen}
+            onClose={() => setIsReviewModalOpen(false)}
+            workerId={worker.id}
+            workerName={worker.full_name}
+            employerId={employerId || undefined}
+            cleaningCompanyId={cleaningCompanyId || undefined}
+            onSuccess={handleReviewSuccess}
           />
-          <div className="absolute bottom-4 left-0 right-0 text-center text-white text-sm">
-            Kliknij poza zdjęciem aby zamknąć
+        )}
+
+        {/* Lightbox Modal */}
+        {lightboxOpen && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-90 p-4"
+            onClick={closeLightbox}
+          >
+            <button
+              onClick={closeLightbox}
+              className="absolute top-4 right-4 text-white text-4xl font-bold hover:text-gray-300 transition-colors z-10"
+            >
+              ×
+            </button>
+            <img
+              src={lightboxImage}
+              alt="Portfolio powiększone"
+              className="max-w-full max-h-full object-contain"
+              onClick={(e) => e.stopPropagation()}
+            />
+            <div className="absolute bottom-4 left-0 right-0 text-center text-white text-sm">
+              Kliknij poza zdjęciem aby zamknąć
+            </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }

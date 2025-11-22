@@ -16,6 +16,8 @@ import { getPosts, likePost, sharePost } from "../../src/services/feedService";
 import type { Post } from "../../types";
 import { Modal } from "../../components/Modal";
 import { LocationCard } from "../../components/LocationCard";
+import { Animated3DProfileBackground } from "../../components/Animated3DProfileBackground";
+import { TypewriterAnimation } from "../../components/TypewriterAnimation";
 import {
   Star,
   MapPin,
@@ -122,23 +124,31 @@ export default function AccountantProfilePage() {
     if (!id) return;
 
     try {
+      // Load accountant first to get the actual accountant.id
+      const accountantData = await getAccountant(id);
+      if (!accountantData) {
+        throw new Error("Accountant not found");
+      }
+      setAccountant(accountantData);
+
+      // Use the actual accountant.id for related queries
+      const actualAccountantId = accountantData.id;
+
+      // Load related data using actual accountant.id
       const [
-        accountantData,
         servicesData,
         reviewsData,
         unavailableData,
         availabilityData,
         postsData,
       ] = await Promise.all([
-        getAccountant(id),
-        getAccountantServices(id),
-        getAccountantReviews(id),
-        getUnavailableDates(id), // Load unavailable dates for this accountant
-        getAvailability(id), // Load weekly availability
-        getPosts({ author_id: id, author_type: "accountant" }), // Load posts by this accountant
+        getAccountantServices(actualAccountantId),
+        getAccountantReviews(actualAccountantId),
+        getUnavailableDates(actualAccountantId),
+        getAvailability(actualAccountantId),
+        getPosts({ author_id: actualAccountantId, author_type: "accountant" }),
       ]);
 
-      setAccountant(accountantData);
       setServices(servicesData);
       setReviews(reviewsData);
       setUnavailableDates(unavailableData);
@@ -290,6 +300,16 @@ export default function AccountantProfilePage() {
     <div className="min-h-screen bg-gray-50">
       {/* Cover Image Header */}
       <div className="relative h-64 bg-gradient-to-r from-amber-600 to-amber-700">
+        <Animated3DProfileBackground role="accountant" opacity={0.3} />
+        <TypewriterAnimation
+          opacity={0.3}
+          style={{
+            position: "absolute",
+            top: "50%",
+            left: "50%",
+            transform: "translate(-50%, -50%)",
+          }}
+        />
         {accountant.cover_image_url && (
           <img
             src={accountant.cover_image_url}

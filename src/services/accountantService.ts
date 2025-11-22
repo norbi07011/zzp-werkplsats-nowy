@@ -179,27 +179,40 @@ export interface UpdateAccountantData {
 // =====================================================
 
 /**
- * Get accountant by ID
+ * Get accountant by ID (can be accountant.id or profile_id)
  */
 export async function getAccountant(
   accountantId: string
 ): Promise<Accountant | null> {
-  const { data, error } = await supabaseAny
+  // First try to find by accountant.id
+  let { data, error } = await supabaseAny
     .from("accountants")
     .select("*")
     .eq("id", accountantId)
     .single();
+
+  // If not found, try to find by profile_id
+  if (error?.code === "PGRST116") {
+    const result = await supabaseAny
+      .from("accountants")
+      .select("*")
+      .eq("profile_id", accountantId)
+      .single();
+
+    data = result.data;
+    error = result.error;
+  }
 
   if (error) {
     console.error("Error fetching accountant:", error);
     return null;
   }
 
-  // Fetch profile view count
+  // Fetch profile view count using accountant's actual ID
   const { count } = await supabase
     .from("profile_views")
     .select("*", { count: "exact", head: true })
-    .eq("accountant_id", accountantId);
+    .eq("accountant_id", data.id);
 
   return {
     ...data,

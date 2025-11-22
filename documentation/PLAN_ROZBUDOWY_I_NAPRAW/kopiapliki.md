@@ -3,6 +3,15 @@ import React from "react";
 import { flushSync } from "react-dom";
 import { useNavigate, Link } from "react-router-dom";
 import { SupportTicketModal } from "../../src/components/SupportTicketModal";
+import {
+  BellIcon,
+  CheckCircleIcon,
+  ExclamationCircleIcon,
+  InformationCircleIcon,
+  XCircleIcon,
+  ClockIcon,
+  ArrowTopRightOnSquareIcon,
+} from "@heroicons/react/24/outline";
 import { supabase } from "../../src/lib/supabase";
 import { useAuth } from "../../contexts/AuthContext";
 import { CompanyInfoEditModal } from "../../src/components/cleaning/CompanyInfoEditModal";
@@ -69,6 +78,8 @@ interface Notification {
   is_read: boolean;
   created_at: string;
   link?: string;
+  priority?: string;
+  data?: any;
 }
 
 const CleaningCompanyDashboard = () => {
@@ -84,6 +95,8 @@ const CleaningCompanyDashboard = () => {
   const [reviews, setReviews] = useState<Review[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [loadingNotifications, setLoadingNotifications] = useState(true);
+  const [unreadCount, setUnreadCount] = useState(0);
   const [selectedMessage, setSelectedMessage] = useState<Message | null>(null);
   const [showMessageModal, setShowMessageModal] = useState(false);
   const [stats, setStats] = useState<Stats>({
@@ -314,12 +327,12 @@ const CleaningCompanyDashboard = () => {
 
   const loadNotifications = async () => {
     try {
+      setLoadingNotifications(true);
       const { data, error } = await supabase
         .from("notifications")
-        .select("id, type, title, message, is_read, created_at, link")
+        .select("id, type, title, message, is_read, created_at, link, priority, data")
         .eq("user_id", user!.id)
-        .order("created_at", { ascending: false })
-        .limit(5);
+        .order("created_at", { ascending: false });
 
       if (error) throw error;
 
@@ -331,12 +344,112 @@ const CleaningCompanyDashboard = () => {
         is_read: n.is_read || false,
         created_at: n.created_at || new Date().toISOString(),
         link: n.link || undefined,
+        priority: n.priority || "normal",
+        data: n.data || null,
       }));
 
       setNotifications(mapped);
+      setUnreadCount(mapped.filter((n) => !n.is_read).length);
     } catch (error) {
       console.error("Error loading notifications:", error);
+    } finally {
+      setLoadingNotifications(false);
     }
+  };
+
+  const markAsRead = async (notificationId: string) => {
+    try {
+      const { error } = await supabase
+        .from("notifications")
+        .update({ is_read: true, read_at: new Date().toISOString() })
+        .eq("id", notificationId);
+
+      if (error) throw error;
+
+      setNotifications((prev) =>
+        prev.map((n) => (n.id === notificationId ? { ...n, is_read: true } : n))
+      );
+      setUnreadCount((prev) => Math.max(0, prev - 1));
+    } catch (error) {
+      console.error("Error marking notification as read:", error);
+    }
+  };
+
+  const markAllAsRead = async () => {
+    try {
+      const unreadIds = notifications
+        .filter((n) => !n.is_read)
+        .map((n) => n.id);
+
+      if (unreadIds.length === 0) return;
+
+      const { error } = await supabase
+        .from("notifications")
+        .update({ is_read: true, read_at: new Date().toISOString() })
+        .in("id", unreadIds);
+
+      if (error) throw error;
+
+      setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
+      setUnreadCount(0);
+    } catch (error) {
+      console.error("Error marking all as read:", error);
+    }
+  };
+
+  const getNotificationIcon = (type: string, priority?: string) => {
+    if (priority === "urgent" || priority === "high") {
+      return <ExclamationCircleIcon className="w-6 h-6 text-red-500" />;
+    }
+
+    switch (type) {
+      case "success":
+      case "NEW_REVIEW":
+      case "CERTIFICATE_APPROVED":
+        return <CheckCircleIcon className="w-6 h-6 text-green-500" />;
+      case "error":
+      case "CERTIFICATE_REJECTED":
+      case "CERTIFICATE_EXPIRED":
+        return <XCircleIcon className="w-6 h-6 text-red-500" />;
+      case "warning":
+      case "CERTIFICATE_EXPIRING_SOON":
+        return <ExclamationCircleIcon className="w-6 h-6 text-yellow-500" />;
+      default:
+        return <InformationCircleIcon className="w-6 h-6 text-blue-500" />;
+    }
+  };
+
+  const getPriorityColor = (priority?: string) => {
+    switch (priority) {
+      case "urgent":
+        return "border-red-500 bg-red-50";
+      case "high":
+        return "border-orange-500 bg-orange-50";
+      case "low":
+        return "border-gray-300 bg-gray-50";
+      default:
+        return "border-blue-500 bg-blue-50";
+    }
+  };
+
+  const formatTimeAgo = (dateString: string) => {
+    const now = new Date();
+    const date = new Date(dateString);
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+
+    if (diffMins < 1) return "Teraz";
+    if (diffMins < 60) return `${diffMins} min temu`;
+    if (diffHours < 24) return `${diffHours} godz. temu`;
+    if (diffDays < 7) return `${diffDays} dni temu`;
+
+    return new Date(dateString).toLocaleDateString("pl-PL", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    });
   };
 
   const handleMessageClick = async (message: Message) => {
@@ -1444,9 +1557,246 @@ const CleaningCompanyDashboard = () => {
                 </div>
               </div>
             </div>
+
+            {/* Powiadomienia - przeniesione z zakładki Wiadomości */}
+            <div className="mt-8 bg-white rounded-2xl shadow-xl p-8">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-3">
+                  <BellIcon className="w-8 h-8 text-blue-600" />
+                  <h2 className="text-2xl font-bold">🔔 Powiadomienia</h2>
+                </div>
+                {unreadCount > 0 && (
+                  <span className="bg-red-500 text-white px-4 py-2 rounded-full">
+                    {unreadCount} nowych
+                  </span>
+                )}
+              </div>
+
+              {loadingNotifications ? (
+                <div className="text-center py-12">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+                </div>
+              ) : notifications.length === 0 ? (
+                <div className="text-center py-12">
+                  <BellIcon className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                  <p className="text-gray-600">Brak powiadomień</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {notifications.map((notif) => (
+                    <div
+                      key={notif.id}
+                      className="border-l-4 border-blue-500 pl-6 pr-4 py-4 bg-blue-50 rounded-r-xl hover:shadow-lg cursor-pointer"
+                      onClick={() => markAsRead(notif.id)}
+                    >
+                      <div className="flex gap-4">
+                        <div>{getNotificationIcon(notif.type, notif.priority)}</div>
+                        <div className="flex-1">
+                          <h3 className="font-bold text-lg mb-2">{notif.title}</h3>
+                          <p className="text-gray-700 mb-2">{notif.message}</p>
+                          {notif.data && (
+                            <div className="text-sm text-gray-600 space-y-1">
+                              {notif.data.certificate_number && <p>Nr: {notif.data.certificate_number}</p>}
+                              {notif.data.rating && <p>Ocena: {"⭐".repeat(notif.data.rating)}</p>}
+                            </div>
+                          )}
+                          <p className="text-xs text-gray-500 mt-2">
+                            {formatTimeAgo(notif.created_at)}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </TabPanel>
 
           {/* Reviews Tab */}
+            <div className="mt-8">
+              <div className="bg-white rounded-2xl shadow-xl p-8">
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center gap-3">
+                    <BellIcon className="w-8 h-8 text-blue-600" />
+                    <div>
+                      <h2 className="text-2xl font-bold text-gray-900">
+                        🔔 Powiadomienia
+                      </h2>
+                      <p className="text-sm text-gray-600">
+                        Wszystkie powiadomienia systemowe i aktualizacje
+                      </p>
+                    </div>
+                  </div>
+
+                  {unreadCount > 0 && (
+                    <div className="flex items-center gap-3">
+                      <span className="bg-red-500 text-white text-sm font-bold px-4 py-2 rounded-full animate-pulse">
+                        {unreadCount} nowych
+                      </span>
+                      <button
+                        onClick={markAllAsRead}
+                        className="text-sm text-blue-600 hover:text-blue-800 font-medium underline"
+                      >
+                        Oznacz wszystkie jako przeczytane
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {loadingNotifications ? (
+                  <div className="text-center py-12">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+                    <p className="text-gray-600 mt-4">Ładowanie powiadomień...</p>
+                  </div>
+                ) : notifications.length === 0 ? (
+                  <div className="text-center py-12 bg-gray-50 rounded-xl">
+                    <BellIcon className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                    <p className="text-gray-600 font-medium">Brak powiadomień</p>
+                    <p className="text-sm text-gray-500 mt-1">
+                      Gdy otrzymasz nowe powiadomienie, pojawi się ono tutaj
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-4 max-h-[600px] overflow-y-auto pr-2">
+                    {notifications.map((notif) => (
+                      <div
+                        key={notif.id}
+                        className={`border-l-4 pl-6 pr-4 py-4 rounded-r-xl transition-all duration-200 hover:shadow-lg cursor-pointer ${
+                          !notif.is_read
+                            ? getPriorityColor(notif.priority)
+                            : "border-gray-300 bg-gray-50"
+                        }`}
+                        onClick={() => {
+                          if (!notif.is_read) markAsRead(notif.id);
+                          if (notif.link) window.open(notif.link, "_blank");
+                        }}
+                      >
+                        <div className="flex items-start gap-4">
+                          {/* Ikona */}
+                          <div className="flex-shrink-0 mt-1">
+                            {getNotificationIcon(notif.type, notif.priority)}
+                          </div>
+
+                          {/* Treść */}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-start justify-between gap-4 mb-2">
+                              <div className="flex items-center gap-3">
+                                {!notif.is_read && (
+                                  <span className="w-3 h-3 bg-blue-500 rounded-full animate-pulse flex-shrink-0"></span>
+                                )}
+                                <h3
+                                  className={`font-bold text-lg ${
+                                    !notif.is_read ? "text-blue-700" : "text-gray-700"
+                                  }`}
+                                >
+                                  {notif.title}
+                                </h3>
+                              </div>
+
+                              {notif.priority && notif.priority !== "normal" && (
+                                <span
+                                  className={`text-xs font-bold px-2 py-1 rounded-full flex-shrink-0 ${
+                                    notif.priority === "urgent"
+                                      ? "bg-red-500 text-white"
+                                      : notif.priority === "high"
+                                      ? "bg-orange-500 text-white"
+                                      : notif.priority === "low"
+                                      ? "bg-gray-400 text-white"
+                                      : ""
+                                  }`}
+                                >
+                                  {notif.priority === "urgent"
+                                    ? "PILNE"
+                                    : notif.priority === "high"
+                                    ? "WAŻNE"
+                                    : "NISKI"}
+                                </span>
+                              )}
+                            </div>
+
+                            <p className="text-gray-700 mb-3 leading-relaxed">
+                              {notif.message}
+                            </p>
+
+                            {/* Dodatkowe dane z notification.data */}
+                            {notif.data && (
+                              <div className="bg-white/80 border border-gray-200 rounded-lg p-3 mb-3 text-sm">
+                                <div className="grid grid-cols-2 gap-2">
+                                  {notif.data.certificate_number && (
+                                    <div>
+                                      <span className="font-medium text-gray-600">
+                                        Nr certyfikatu:
+                                      </span>
+                                      <span className="ml-2 text-gray-900">
+                                        {notif.data.certificate_number}
+                                      </span>
+                                    </div>
+                                  )}
+                                  {notif.data.expiry_date && (
+                                    <div>
+                                      <span className="font-medium text-gray-600">
+                                        Data wygaśnięcia:
+                                      </span>
+                                      <span className="ml-2 text-gray-900">
+                                        {new Date(
+                                          notif.data.expiry_date
+                                        ).toLocaleDateString("pl-PL")}
+                                      </span>
+                                    </div>
+                                  )}
+                                  {notif.data.rejection_reason && (
+                                    <div className="col-span-2">
+                                      <span className="font-medium text-red-600">
+                                        Powód odrzucenia:
+                                      </span>
+                                      <p className="text-gray-900 mt-1">
+                                        {notif.data.rejection_reason}
+                                      </p>
+                                    </div>
+                                  )}
+                                  {notif.data.rating && (
+                                    <div>
+                                      <span className="font-medium text-gray-600">
+                                        Ocena:
+                                      </span>
+                                      <span className="ml-2 text-yellow-600 font-bold">
+                                        {"⭐".repeat(notif.data.rating)} (
+                                        {notif.data.rating}/5)
+                                      </span>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+
+                            <div className="flex items-center justify-between text-xs text-gray-500">
+                              <div className="flex items-center gap-2">
+                                <ClockIcon className="w-4 h-4" />
+                                <span>{formatTimeAgo(notif.created_at)}</span>
+                                <span className="mx-1">•</span>
+                                <span className="text-gray-400">
+                                  {new Date(notif.created_at).toLocaleString("pl-PL")}
+                                </span>
+                              </div>
+
+                              {notif.link && (
+                                <div className="flex items-center gap-1 text-blue-600 hover:text-blue-800 font-medium">
+                                  <span>Zobacz szczegóły</span>
+                                  <ArrowTopRightOnSquareIcon className="w-4 h-4" />
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </TabPanel>
+
+          {/* Reviews Tab */
           <TabPanel isActive={activeTab === "reviews"}>
             <div className="max-w-6xl mx-auto space-y-6">
               {/* Header with stats */}
@@ -1946,53 +2296,6 @@ const CleaningCompanyDashboard = () => {
                   ) : (
                     <p className="text-sm text-gray-500 text-center py-4">
                       Brak wiadomości
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              {/* Notifications */}
-              <div className="bg-white rounded-xl shadow-md p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="font-bold text-lg">🔔 Powiadomienia</h3>
-                  {notifications.filter((n) => !n.is_read).length > 0 && (
-                    <span className="bg-blue-500 text-white text-xs px-2 py-1 rounded-full">
-                      {notifications.filter((n) => !n.is_read).length} nowe
-                    </span>
-                  )}
-                </div>
-                <div className="space-y-3">
-                  {notifications.length > 0 ? (
-                    notifications.map((notif) => (
-                      <div
-                        key={notif.id}
-                        className="border-l-4 border-blue-500 pl-3 pb-3 last:pb-0"
-                      >
-                        <div className="flex items-center space-x-2 mb-1">
-                          {!notif.is_read && (
-                            <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
-                          )}
-                          <p
-                            className={`font-semibold text-sm ${
-                              !notif.is_read ? "text-blue-600" : "text-gray-700"
-                            }`}
-                          >
-                            {notif.title}
-                          </p>
-                        </div>
-                        <p className="text-xs text-gray-600 mt-1">
-                          {notif.message}
-                        </p>
-                        <p className="text-xs text-gray-400 mt-1">
-                          {new Date(notif.created_at).toLocaleDateString(
-                            "pl-PL"
-                          )}
-                        </p>
-                      </div>
-                    ))
-                  ) : (
-                    <p className="text-sm text-gray-500 text-center py-4">
-                      Brak powiadomień
                     </p>
                   )}
                 </div>

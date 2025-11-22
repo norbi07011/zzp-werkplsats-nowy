@@ -5,6 +5,8 @@ import { useAuth } from "../../contexts/AuthContext";
 import { Modal } from "../../components/Modal";
 import { ReviewCleaningCompanyModal } from "../../src/components/employer/ReviewCleaningCompanyModal";
 import { LocationCard } from "../../components/LocationCard";
+import { Animated3DProfileBackground } from "../../components/Animated3DProfileBackground";
+import { SpinningNumbers } from "../../components/SpinningNumbers";
 import {
   Star,
   MapPin,
@@ -86,11 +88,18 @@ export default function CleaningCompanyPublicProfilePage() {
   const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
 
   useEffect(() => {
+    const abortController = new AbortController();
+    let isMounted = true;
+
     if (id) {
-      loadCompanyData();
-      trackProfileView();
+      loadCompanyData(abortController.signal, isMounted);
     }
-  }, [id, employerId]);
+
+    return () => {
+      isMounted = false;
+      abortController.abort();
+    };
+  }, [id]);
 
   useEffect(() => {
     const loadEmployerId = async () => {
@@ -114,55 +123,77 @@ export default function CleaningCompanyPublicProfilePage() {
     loadEmployerId();
   }, [user]);
 
-  const loadCompanyData = async () => {
+  const loadCompanyData = async (
+    signal?: AbortSignal,
+    isMounted: boolean = true
+  ) => {
     if (!id) return;
 
     try {
+      if (!isMounted) return;
       setLoading(true);
 
-      // Load company profile
-      const { data: companyData, error: companyError } = await supabase
+      // Load company profile - try by id first, then by profile_id
+      let { data: companyData, error: companyError } = await supabase
         .from("cleaning_companies")
         .select("*")
         .eq("id", id)
-        .maybeSingle(); // ✅ FIXED: .maybeSingle() zwraca null zamiast error gdy 0 rows
+        .maybeSingle();
+
+      // If not found by id, try by profile_id
+      if (!companyData && !companyError) {
+        const result = await supabase
+          .from("cleaning_companies")
+          .select("*")
+          .eq("profile_id", id)
+          .maybeSingle();
+
+        companyData = result.data;
+        companyError = result.error;
+      }
 
       if (companyError) throw companyError;
       if (!companyData) {
         throw new Error("Company not found");
       }
+      if (!isMounted) return;
       setCompany(companyData);
+
+      // Use the actual company.id for related queries
+      const actualCompanyId = companyData.id;
 
       // Load reviews
       const { data: reviewsData, error: reviewsError } = await supabase
         .from("cleaning_reviews")
         .select("*")
-        .eq("cleaning_company_id", id)
+        .eq("cleaning_company_id", actualCompanyId)
         .order("created_at", { ascending: false });
 
-      if (!reviewsError && reviewsData) {
+      if (!reviewsError && reviewsData && isMounted) {
         setReviews(reviewsData);
+      }
+
+      // Track profile view AFTER company is loaded
+      if (isMounted && user && employerId && companyData.id) {
+        try {
+          await supabase.from("profile_views").insert({
+            cleaning_company_id: companyData.id,
+            employer_id: employerId,
+            viewed_at: new Date().toISOString(),
+          });
+        } catch (viewError) {
+          console.error("Error tracking profile view:", viewError);
+        }
       }
     } catch (error) {
       console.error("Error loading company data:", error);
+      if (isMounted) {
+        setLoading(false);
+      }
     } finally {
-      setLoading(false);
-    }
-  };
-
-  const trackProfileView = async () => {
-    if (!user || !id || !employerId) return;
-
-    try {
-      await supabase.from("profile_views").insert({
-        cleaning_company_id: id,
-        employer_id: employerId,
-        viewed_at: new Date().toISOString(),
-      });
-
-      console.log("✅ Profile view tracked for cleaning company:", id);
-    } catch (error) {
-      console.error("Error tracking profile view:", error);
+      if (isMounted) {
+        setLoading(false);
+      }
     }
   };
 
@@ -300,327 +331,337 @@ export default function CleaningCompanyPublicProfilePage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header with cover image */}
-      <div className="relative h-64 bg-gradient-to-r from-blue-600 to-blue-800">
-        {company.cover_image_url && (
-          <img
-            src={company.cover_image_url}
-            alt="Cover"
-            className="w-full h-full object-cover"
-          />
-        )}
-        <div className="absolute inset-0 bg-black bg-opacity-30"></div>
-        <button
-          onClick={() => navigate(-1)}
-          className="absolute top-6 left-6 flex items-center gap-2 px-4 py-2 bg-white rounded-lg shadow-lg hover:bg-gray-50"
-        >
-          <ArrowLeft className="w-5 h-5" />
-          <span>Wstecz</span>
-        </button>
+    <div className="min-h-screen bg-gray-50 relative overflow-hidden">
+      {/* 3D Background Layer */}
+      <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden perspective-container">
+        <Animated3DProfileBackground role="cleaning_company" opacity={0.25} />
+        <SpinningNumbers opacity={0.15} />
       </div>
 
-      {/* Profile Info */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-16 relative z-10">
-        <div className="bg-white rounded-lg shadow-lg p-8">
-          <div className="flex flex-col md:flex-row gap-6">
-            {/* Avatar */}
-            <div className="flex-shrink-0">
-              {company.avatar_url ? (
-                <img
-                  src={company.avatar_url}
-                  alt={company.company_name}
-                  className="w-32 h-32 rounded-full border-4 border-white shadow-lg object-cover"
-                />
-              ) : (
-                <div className="w-32 h-32 rounded-full border-4 border-white shadow-lg bg-blue-100 flex items-center justify-center">
-                  <Briefcase className="w-16 h-16 text-blue-600" />
+      <div className="relative z-10">
+        {/* Header with cover image */}
+        <div className="relative h-64 bg-gradient-to-r from-blue-600 to-blue-800">
+          {company.cover_image_url && (
+            <img
+              src={company.cover_image_url}
+              alt="Cover"
+              className="w-full h-full object-cover"
+            />
+          )}
+          <div className="absolute inset-0 bg-black bg-opacity-30"></div>
+          <button
+            onClick={() => navigate(-1)}
+            className="absolute top-6 left-6 flex items-center gap-2 px-4 py-2 bg-white rounded-lg shadow-lg hover:bg-gray-50"
+          >
+            <ArrowLeft className="w-5 h-5" />
+            <span>Wstecz</span>
+          </button>
+        </div>
+
+        {/* Profile Info */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-16 relative z-10">
+          <div className="bg-white rounded-lg shadow-lg p-8">
+            <div className="flex flex-col md:flex-row gap-6">
+              {/* Avatar */}
+              <div className="flex-shrink-0">
+                {company.avatar_url ? (
+                  <img
+                    src={company.avatar_url}
+                    alt={company.company_name}
+                    className="w-32 h-32 rounded-full border-4 border-white shadow-lg object-cover"
+                  />
+                ) : (
+                  <div className="w-32 h-32 rounded-full border-4 border-white shadow-lg bg-blue-100 flex items-center justify-center">
+                    <Briefcase className="w-16 h-16 text-blue-600" />
+                  </div>
+                )}
+              </div>
+
+              {/* Company Info */}
+              <div className="flex-1">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <h1 className="text-3xl font-bold text-gray-900">
+                      {company.company_name}
+                    </h1>
+                    <p className="text-lg text-gray-600 mt-1">
+                      właściciel: {company.owner_name}
+                    </p>
+
+                    {/* Rating */}
+                    <div className="flex items-center gap-2 mt-3">
+                      <div className="flex items-center gap-1">
+                        {[1, 2, 3, 4, 5].map((star) => (
+                          <Star
+                            key={star}
+                            className={`w-5 h-5 ${
+                              star <= (company.average_rating || 0)
+                                ? "text-yellow-400 fill-current"
+                                : "text-gray-300"
+                            }`}
+                          />
+                        ))}
+                      </div>
+                      <span className="text-sm font-medium text-gray-700">
+                        {(company.average_rating || 0).toFixed(1)} (
+                        {company.total_reviews || 0} opinii)
+                      </span>
+                    </div>
+
+                    {/* Location & Experience */}
+                    <div className="flex flex-wrap gap-4 mt-4">
+                      {company.location_city && (
+                        <div className="flex items-center gap-2 text-gray-600">
+                          <MapPin className="w-5 h-5" />
+                          <span>{company.location_city}</span>
+                        </div>
+                      )}
+                      <div className="flex items-center gap-2 text-gray-600">
+                        <Briefcase className="w-5 h-5" />
+                        <span>
+                          {company.years_experience} lat doświadczenia
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 text-gray-600">
+                        <Users className="w-5 h-5" />
+                        <span>Zespół: {company.team_size} os.</span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-              )}
+              </div>
             </div>
 
-            {/* Company Info */}
-            <div className="flex-1">
-              <div className="flex items-start justify-between">
-                <div>
-                  <h1 className="text-3xl font-bold text-gray-900">
-                    {company.company_name}
-                  </h1>
-                  <p className="text-lg text-gray-600 mt-1">
-                    właściciel: {company.owner_name}
-                  </p>
+            {/* Tabs */}
+            <div className="mt-8 border-b border-gray-200">
+              <nav className="flex gap-8">
+                {["about", "portfolio", "reviews", "contact"].map((tab) => (
+                  <button
+                    key={tab}
+                    onClick={() => setActiveTab(tab as any)}
+                    className={`pb-4 px-2 font-medium transition-colors ${
+                      activeTab === tab
+                        ? "border-b-2 border-blue-600 text-blue-600"
+                        : "text-gray-600 hover:text-gray-900"
+                    }`}
+                  >
+                    {tab === "about" && "O firmie"}
+                    {tab === "portfolio" && "Portfolio"}
+                    {tab === "reviews" && `Opinie (${company.total_reviews})`}
+                    {tab === "contact" && "Kontakt"}
+                  </button>
+                ))}
+              </nav>
+            </div>
 
-                  {/* Rating */}
-                  <div className="flex items-center gap-2 mt-3">
-                    <div className="flex items-center gap-1">
-                      {[1, 2, 3, 4, 5].map((star) => (
-                        <Star
-                          key={star}
-                          className={`w-5 h-5 ${
-                            star <= (company.average_rating || 0)
-                              ? "text-yellow-400 fill-current"
-                              : "text-gray-300"
-                          }`}
-                        />
+            {/* Tab Content */}
+            <div className="mt-8">
+              {activeTab === "about" && (
+                <div className="space-y-6">
+                  {/* Bio */}
+                  {company.bio && (
+                    <div>
+                      <h3 className="text-xl font-semibold text-gray-900 mb-3">
+                        O nas
+                      </h3>
+                      <p className="text-gray-700 whitespace-pre-line">
+                        {company.bio}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Specialization */}
+                  {company.specialization &&
+                    company.specialization.length > 0 && (
+                      <div>
+                        <h3 className="text-xl font-semibold text-gray-900 mb-3">
+                          Specjalizacja
+                        </h3>
+                        <div className="flex flex-wrap gap-2">
+                          {company.specialization.map((spec) => (
+                            <span
+                              key={spec}
+                              className="px-4 py-2 bg-blue-100 text-blue-800 rounded-lg font-medium"
+                            >
+                              {spec.replace(/_/g, " ")}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                  {/* Additional Services */}
+                  {company.additional_services &&
+                    company.additional_services.length > 0 && (
+                      <div>
+                        <h3 className="text-xl font-semibold text-gray-900 mb-3">
+                          Dodatkowe usługi
+                        </h3>
+                        <div className="grid grid-cols-2 gap-3">
+                          {company.additional_services.map((service) => (
+                            <div
+                              key={service}
+                              className="flex items-center gap-2 text-gray-700"
+                            >
+                              <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+                              <span>{service.replace(/_/g, " ")}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                  {/* Availability */}
+                  <div>
+                    <h3 className="text-xl font-semibold text-gray-900 mb-3">
+                      Dostępność
+                    </h3>
+                    <div className="flex gap-2">
+                      {availableDays.map(([day]) => (
+                        <span
+                          key={day}
+                          className="px-4 py-2 bg-green-100 text-green-800 rounded-lg font-medium"
+                        >
+                          {dayLabels[day]}
+                        </span>
                       ))}
                     </div>
-                    <span className="text-sm font-medium text-gray-700">
-                      {(company.average_rating || 0).toFixed(1)} (
-                      {company.total_reviews || 0} opinii)
-                    </span>
                   </div>
 
-                  {/* Location & Experience */}
-                  <div className="flex flex-wrap gap-4 mt-4">
-                    {company.location_city && (
-                      <div className="flex items-center gap-2 text-gray-600">
-                        <MapPin className="w-5 h-5" />
-                        <span>{company.location_city}</span>
-                      </div>
-                    )}
-                    <div className="flex items-center gap-2 text-gray-600">
-                      <Briefcase className="w-5 h-5" />
-                      <span>{company.years_experience} lat doświadczenia</span>
+                  {/* Pricing */}
+                  {company.hourly_rate_min && company.hourly_rate_max && (
+                    <div>
+                      <h3 className="text-xl font-semibold text-gray-900 mb-3">
+                        Stawka godzinowa
+                      </h3>
+                      <p className="text-2xl font-bold text-blue-600">
+                        €{company.hourly_rate_min} - €{company.hourly_rate_max}
+                        /godz
+                      </p>
+                      {company.rate_negotiable && (
+                        <p className="text-sm text-gray-600 mt-1">
+                          Stawka do negocjacji
+                        </p>
+                      )}
                     </div>
-                    <div className="flex items-center gap-2 text-gray-600">
-                      <Users className="w-5 h-5" />
-                      <span>Zespół: {company.team_size} os.</span>
-                    </div>
-                  </div>
+                  )}
+
+                  {/* Location Card */}
+                  <LocationCard
+                    address={(company as any).address}
+                    city={company.location_city}
+                    postalCode={(company as any).postal_code}
+                    country="Niderland"
+                    latitude={(company as any).latitude}
+                    longitude={(company as any).longitude}
+                    googleMapsUrl={null}
+                    profileType="cleaning_company"
+                  />
                 </div>
-              </div>
+              )}
+
+              {activeTab === "portfolio" && (
+                <div>
+                  <h3 className="text-xl font-semibold text-gray-900 mb-6">
+                    Portfolio
+                  </h3>
+                  {company.portfolio_images &&
+                  company.portfolio_images.length > 0 ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      {company.portfolio_images.map((image, index) => (
+                        <div
+                          key={index}
+                          className="rounded-lg overflow-hidden shadow-lg"
+                        >
+                          <img
+                            src={image}
+                            alt={`Portfolio ${index + 1}`}
+                            className="w-full h-64 object-cover"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-gray-600">Brak zdjęć w portfolio</p>
+                  )}
+                </div>
+              )}
+
+              {activeTab === "reviews" && (
+                <ReviewsTab reviews={reviews} company={company} />
+              )}
+
+              {activeTab === "contact" && (
+                <ContactTab
+                  company={company}
+                  employerId={employerId}
+                  onOpenContact={() => setIsContactModalOpen(true)}
+                  onOpenReview={() => setIsReviewModalOpen(true)}
+                />
+              )}
             </div>
           </div>
+        </div>
 
-          {/* Tabs */}
-          <div className="mt-8 border-b border-gray-200">
-            <nav className="flex gap-8">
-              {["about", "portfolio", "reviews", "contact"].map((tab) => (
-                <button
-                  key={tab}
-                  onClick={() => setActiveTab(tab as any)}
-                  className={`pb-4 px-2 font-medium transition-colors ${
-                    activeTab === tab
-                      ? "border-b-2 border-blue-600 text-blue-600"
-                      : "text-gray-600 hover:text-gray-900"
-                  }`}
-                >
-                  {tab === "about" && "O firmie"}
-                  {tab === "portfolio" && "Portfolio"}
-                  {tab === "reviews" && `Opinie (${company.total_reviews})`}
-                  {tab === "contact" && "Kontakt"}
-                </button>
-              ))}
-            </nav>
-          </div>
-
-          {/* Tab Content */}
-          <div className="mt-8">
-            {activeTab === "about" && (
-              <div className="space-y-6">
-                {/* Bio */}
-                {company.bio && (
-                  <div>
-                    <h3 className="text-xl font-semibold text-gray-900 mb-3">
-                      O nas
-                    </h3>
-                    <p className="text-gray-700 whitespace-pre-line">
-                      {company.bio}
-                    </p>
-                  </div>
-                )}
-
-                {/* Specialization */}
-                {company.specialization &&
-                  company.specialization.length > 0 && (
-                    <div>
-                      <h3 className="text-xl font-semibold text-gray-900 mb-3">
-                        Specjalizacja
-                      </h3>
-                      <div className="flex flex-wrap gap-2">
-                        {company.specialization.map((spec) => (
-                          <span
-                            key={spec}
-                            className="px-4 py-2 bg-blue-100 text-blue-800 rounded-lg font-medium"
-                          >
-                            {spec.replace(/_/g, " ")}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                {/* Additional Services */}
-                {company.additional_services &&
-                  company.additional_services.length > 0 && (
-                    <div>
-                      <h3 className="text-xl font-semibold text-gray-900 mb-3">
-                        Dodatkowe usługi
-                      </h3>
-                      <div className="grid grid-cols-2 gap-3">
-                        {company.additional_services.map((service) => (
-                          <div
-                            key={service}
-                            className="flex items-center gap-2 text-gray-700"
-                          >
-                            <span className="w-2 h-2 bg-green-500 rounded-full"></span>
-                            <span>{service.replace(/_/g, " ")}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                {/* Availability */}
-                <div>
-                  <h3 className="text-xl font-semibold text-gray-900 mb-3">
-                    Dostępność
-                  </h3>
-                  <div className="flex gap-2">
-                    {availableDays.map(([day]) => (
-                      <span
-                        key={day}
-                        className="px-4 py-2 bg-green-100 text-green-800 rounded-lg font-medium"
-                      >
-                        {dayLabels[day]}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Pricing */}
-                {company.hourly_rate_min && company.hourly_rate_max && (
-                  <div>
-                    <h3 className="text-xl font-semibold text-gray-900 mb-3">
-                      Stawka godzinowa
-                    </h3>
-                    <p className="text-2xl font-bold text-blue-600">
-                      €{company.hourly_rate_min} - €{company.hourly_rate_max}
-                      /godz
-                    </p>
-                    {company.rate_negotiable && (
-                      <p className="text-sm text-gray-600 mt-1">
-                        Stawka do negocjacji
-                      </p>
-                    )}
-                  </div>
-                )}
-
-                {/* Location Card */}
-                <LocationCard
-                  address={(company as any).address}
-                  city={company.location_city}
-                  postalCode={(company as any).postal_code}
-                  country="Niderland"
-                  latitude={(company as any).latitude}
-                  longitude={(company as any).longitude}
-                  googleMapsUrl={null}
-                  profileType="cleaning_company"
-                />
-              </div>
-            )}
-
-            {activeTab === "portfolio" && (
-              <div>
-                <h3 className="text-xl font-semibold text-gray-900 mb-6">
-                  Portfolio
-                </h3>
-                {company.portfolio_images &&
-                company.portfolio_images.length > 0 ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {company.portfolio_images.map((image, index) => (
-                      <div
-                        key={index}
-                        className="rounded-lg overflow-hidden shadow-lg"
-                      >
-                        <img
-                          src={image}
-                          alt={`Portfolio ${index + 1}`}
-                          className="w-full h-64 object-cover"
-                        />
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-gray-600">Brak zdjęć w portfolio</p>
-                )}
-              </div>
-            )}
-
-            {activeTab === "reviews" && (
-              <ReviewsTab reviews={reviews} company={company} />
-            )}
-
-            {activeTab === "contact" && (
-              <ContactTab
-                company={company}
-                employerId={employerId}
-                onOpenContact={() => setIsContactModalOpen(true)}
-                onOpenReview={() => setIsReviewModalOpen(true)}
+        {/* Contact Modal */}
+        <Modal
+          isOpen={isContactModalOpen}
+          onClose={() => setIsContactModalOpen(false)}
+          title="Wyślij wiadomość"
+        >
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Temat
+              </label>
+              <input
+                type="text"
+                value={contactSubject}
+                onChange={(e) => setContactSubject(e.target.value)}
+                placeholder="np. Zapytanie o usługę sprzątania"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
               />
-            )}
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Wiadomość
+              </label>
+              <textarea
+                value={contactMessage}
+                onChange={(e) => setContactMessage(e.target.value)}
+                placeholder="Wpisz swoją wiadomość..."
+                rows={6}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={handleSendContact}
+                className="flex-1 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
+              >
+                Wyślij
+              </button>
+              <button
+                onClick={() => setIsContactModalOpen(false)}
+                className="px-6 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-medium"
+              >
+                Anuluj
+              </button>
+            </div>
           </div>
-        </div>
+        </Modal>
+
+        {/* Review Modal */}
+        {company && (
+          <ReviewCleaningCompanyModal
+            isOpen={isReviewModalOpen}
+            onClose={() => setIsReviewModalOpen(false)}
+            companyId={company.id}
+            companyName={company.company_name}
+            onSuccess={loadCompanyData}
+          />
+        )}
       </div>
-
-      {/* Contact Modal */}
-      <Modal
-        isOpen={isContactModalOpen}
-        onClose={() => setIsContactModalOpen(false)}
-        title="Wyślij wiadomość"
-      >
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Temat
-            </label>
-            <input
-              type="text"
-              value={contactSubject}
-              onChange={(e) => setContactSubject(e.target.value)}
-              placeholder="np. Zapytanie o usługę sprzątania"
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Wiadomość
-            </label>
-            <textarea
-              value={contactMessage}
-              onChange={(e) => setContactMessage(e.target.value)}
-              placeholder="Wpisz swoją wiadomość..."
-              rows={6}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-          <div className="flex gap-3">
-            <button
-              onClick={handleSendContact}
-              className="flex-1 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
-            >
-              Wyślij
-            </button>
-            <button
-              onClick={() => setIsContactModalOpen(false)}
-              className="px-6 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-medium"
-            >
-              Anuluj
-            </button>
-          </div>
-        </div>
-      </Modal>
-
-      {/* Review Modal */}
-      {company && (
-        <ReviewCleaningCompanyModal
-          isOpen={isReviewModalOpen}
-          onClose={() => setIsReviewModalOpen(false)}
-          companyId={company.id}
-          companyName={company.company_name}
-          onSuccess={loadCompanyData}
-        />
-      )}
     </div>
   );
 }

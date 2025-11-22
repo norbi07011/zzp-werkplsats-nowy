@@ -1,3 +1,40 @@
+## 🚨 ZASADA ZERO - PYTAJ PRZED USUNIĘCIEM/PRZYWRÓCENIEM
+
+### ⛔ ABSOLUTNY ZAKAZ BEZ PYTANIA UŻYTKOWNIKA:
+
+**NIGDY nie wykonuj tych operacji bez wyraźnego potwierdzenia użytkownika:**
+
+```bash
+# ❌ ZABRONIONE bez pytania:
+git checkout -- plik.ts          # Usuwa niezacommitowane zmiany
+git checkout HEAD -- plik.ts     # Usuwa niezacommitowane zmiany
+git reset --hard                 # Usuwa WSZYSTKIE niezacommitowane zmiany
+git clean -fd                    # Usuwa nieśledzone pliki
+git add .                        # Dodaje pliki do stage
+git commit -m "..."              # Commituje zmiany
+git push                         # Wypycha do remote
+rm -rf katalog/                  # Usuwa katalog
+```
+
+### ✅ POPRAWNY WORKFLOW PRZED DESTRUKCYJNYMI OPERACJAMI:
+
+**ZAWSZE pytaj użytkownika w jasny sposób:**
+
+```
+🚨 UWAGA! Planuję wykonać operację która może usunąć Twoją pracę:
+
+ℹ️  Operacja: git checkout -- plik.ts
+⚠️  Efekt: Straci wszystkie niezacommitowane zmiany w tym pliku
+📊 Status: Plik ma 500+ linii niezacommitowanych zmian
+❓ Pytanie: Czy chcesz żebym to zrobił? (tak/nie)
+
+Jeśli masz tam ważną pracę - najpierw zrób commit:
+git add plik.ts
+git commit -m "work in progress"
+```
+
+---
+
 ## ⚠️ ABSOLUTNIE OBOWIĄZKOWE - PRZED JAKĄKOLWIEK ZMIANĄ
 
 ### WORKFLOW PRZED TWORZENIEM/MODYFIKACJĄ PLIKÓW:
