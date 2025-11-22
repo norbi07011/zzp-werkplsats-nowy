@@ -1,10 +1,10 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
+import { getAccountantReviews } from "../../src/services/accountantReviewService";
 import {
   getAccountant,
   getAccountantServices,
-  getAccountantReviews,
   getUnavailableDates,
   getAvailability,
   type Accountant,
@@ -150,7 +150,7 @@ export default function AccountantProfilePage() {
       ]);
 
       setServices(servicesData);
-      setReviews(reviewsData);
+      setReviews(reviewsData.success ? reviewsData.reviews || [] : []);
       setUnavailableDates(unavailableData);
       setAvailability(availabilityData);
       setPosts(postsData || []);
@@ -998,14 +998,43 @@ function ReviewsTab({
         {reviews.map((review) => (
           <div key={review.id} className="bg-white rounded-lg shadow-sm p-6">
             <div className="flex items-start gap-4">
-              <div className="w-12 h-12 bg-gray-200 rounded-full flex items-center justify-center text-lg font-semibold text-gray-600">
-                {(review.client_name || review.reviewer_name || "A").charAt(0)}
-              </div>
+              {/* Reviewer Avatar */}
+              {(review as any).workers?.workers_profile?.avatar_url ||
+              (review as any).profiles?.avatar_url ||
+              (review as any).cleaning_companies?.avatar_url ||
+              (review as any).employers?.logo_url ? (
+                <img
+                  src={
+                    (review as any).workers?.workers_profile?.avatar_url ||
+                    (review as any).profiles?.avatar_url ||
+                    (review as any).cleaning_companies?.avatar_url ||
+                    (review as any).employers?.logo_url
+                  }
+                  alt="Reviewer"
+                  className="w-12 h-12 rounded-full object-cover"
+                />
+              ) : (
+                <div className="w-12 h-12 bg-gray-200 rounded-full flex items-center justify-center text-lg font-semibold text-gray-600">
+                  {(
+                    (review as any).workers?.workers_profile?.full_name ||
+                    (review as any).profiles?.full_name ||
+                    (review as any).cleaning_companies?.company_name ||
+                    (review as any).employers?.company_name ||
+                    review.reviewer_name ||
+                    "A"
+                  ).charAt(0)}
+                </div>
+              )}
 
               <div className="flex-1">
                 <div className="flex items-center gap-3 mb-2">
                   <h4 className="font-semibold text-gray-900">
-                    {review.client_name || review.reviewer_name || "Anoniem"}
+                    {(review as any).workers?.workers_profile?.full_name ||
+                      (review as any).profiles?.full_name ||
+                      (review as any).cleaning_companies?.company_name ||
+                      (review as any).employers?.company_name ||
+                      review.reviewer_name ||
+                      "Anoniem"}
                   </h4>
                   <div className="flex items-center gap-1">
                     {[...Array(5)].map((_, i) => (

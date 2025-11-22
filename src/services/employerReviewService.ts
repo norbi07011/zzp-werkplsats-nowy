@@ -185,6 +185,24 @@ export async function getEmployerReviews(employerId: string): Promise<{
           id,
           full_name,
           avatar_url
+        ),
+        workers (
+          id,
+          profile_id,
+          workers_profile:profiles!workers_profile_id_fkey (
+            full_name,
+            avatar_url
+          )
+        ),
+        cleaning_companies (
+          id,
+          company_name,
+          avatar_url
+        ),
+        accountants (
+          id,
+          company_name,
+          avatar_url
         )
       `
       )

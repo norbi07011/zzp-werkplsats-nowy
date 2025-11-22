@@ -20,8 +20,8 @@
 import React from "react";
 
 export type UnifiedTab =
-  | "overview" // 📊 Przegląd - stats, aktywność
-  | "profile" // 💼 Profil - edycja, portfolio, availability
+  | "overview" // 📊 Przegląd - stats, aktywność (TYLKO dla Worker - ma specjalną strukturę)
+  | "profile" // 💼 Profil - edycja, portfolio, availability, stats dla Employer/Accountant/CleaningCompany
   | "messages" // 📬 Wiadomości - chat, notifications
   | "reviews" // ⭐ Opinie - ratings, reviews
   | "tablica" // 📋 Tablica - feed, posts board - ALL roles
@@ -49,14 +49,14 @@ const ALL_TABS: TabConfig[] = [
     label: "Przegląd",
     icon: "📊",
     description: "Dashboard, statystyki, aktywność",
-    roles: ["admin", "employer", "worker", "accountant", "cleaning_company"],
+    roles: ["worker"], // TYLKO Worker ma overview jako osobną zakładkę
   },
   {
     id: "profile",
     label: "Profil",
     icon: "💼",
-    description: "Edycja profilu, portfolio, dostępność",
-    roles: ["admin", "employer", "worker", "accountant", "cleaning_company"],
+    description: "Profil, statystyki, aktywność, edycja",
+    roles: ["admin", "employer", "accountant", "cleaning_company"], // Pozostali mają overview w profilu
   },
   {
     id: "messages",

@@ -57,6 +57,7 @@ interface WorkerReview {
   worker_id: string;
   employer_id: string;
   employer_name: string;
+  employer_avatar?: string;
   rating: number;
   comment: string;
   quality_rating?: number;
@@ -427,8 +428,15 @@ export default function WorkerPublicProfilePage() {
           created_at,
           employer_id,
           reviewer_id,
-          profiles!reviews_reviewer_id_fkey(
-            full_name
+          reviewer:profiles!reviews_reviewer_id_fkey (
+            id,
+            full_name,
+            avatar_url
+          ),
+          employer:employers (
+            id,
+            company_name,
+            logo_url
           )
         `
         )
@@ -445,7 +453,14 @@ export default function WorkerPublicProfilePage() {
             id: review.id,
             worker_id: actualWorkerId,
             employer_id: review.employer_id || "",
-            employer_name: (review.profiles as any)?.full_name || "Anoniem",
+            employer_name:
+              (review as any).reviewer?.full_name ||
+              (review as any).employer?.company_name ||
+              "Anoniem",
+            employer_avatar:
+              (review as any).reviewer?.avatar_url ||
+              (review as any).employer?.logo_url ||
+              undefined,
             rating: review.rating,
             comment: review.comment || "",
             quality_rating: review.quality_rating || undefined,
@@ -1113,9 +1128,17 @@ function ReviewsTab({
         {reviews.map((review) => (
           <div key={review.id} className="bg-white rounded-lg shadow-sm p-6">
             <div className="flex items-start gap-4">
-              <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center text-lg font-bold text-white shadow-md">
-                {review.employer_name.charAt(0).toUpperCase()}
-              </div>
+              {review.employer_avatar ? (
+                <img
+                  src={review.employer_avatar}
+                  alt={review.employer_name}
+                  className="w-12 h-12 rounded-full object-cover shadow-md"
+                />
+              ) : (
+                <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center text-lg font-bold text-white shadow-md">
+                  {review.employer_name.charAt(0).toUpperCase()}
+                </div>
+              )}
 
               <div className="flex-1">
                 <div className="flex items-start justify-between mb-3">

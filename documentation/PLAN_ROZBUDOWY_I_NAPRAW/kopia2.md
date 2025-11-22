@@ -32,8 +32,8 @@ import employerService, {
   type EmployerStats,
   type SearchHistoryItem,
   type SavedWorker,
+  type EmployerReview,
 } from "../../services/employerService";
-import { getEmployerReviews } from "../../src/services/employerReviewService";
 import type { Database } from "../../src/lib/database.types";
 import MyPosts from "./MyPosts";
 import SavedActivity from "./SavedActivity";
@@ -188,14 +188,7 @@ export const EmployerDashboard = () => {
   const [savedWorkers, setSavedWorkers] = useState<SavedWorker[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
-  const [reviews, setReviews] = useState<any[]>([]);
-  const [reviewFilter, setReviewFilter] = useState<"all" | 1 | 2 | 3 | 4 | 5>(
-    "all"
-  );
-  const [reviewSort, setReviewSort] = useState<
-    "newest" | "oldest" | "highest" | "lowest"
-  >("newest");
-  const [showAllReviews, setShowAllReviews] = useState(false);
+  const [reviews, setReviews] = useState<EmployerReview[]>([]);
 
   // NEW MESSENGER STATE
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -289,26 +282,13 @@ export const EmployerDashboard = () => {
         "[EMPLOYER-DASH] Loading dashboard data for employer:",
         employer.id
       );
-      const [statsData, historyData, workersData, reviewsResult] =
+      const [statsData, historyData, workersData, reviewsData] =
         await Promise.all([
           employerService.getEmployerStats(employer.id),
           employerService.getSearchHistory(employer.id, 5),
           employerService.getSavedWorkers(employer.id),
-          getEmployerReviews(employer.id),
+          employerService.getEmployerReviews(employer.id),
         ]);
-
-      const reviewsData = reviewsResult.success
-        ? reviewsResult.reviews || []
-        : [];
-
-      console.log(
-        "[EMPLOYER-DASH] 🔍 Reviews data from employerReviewService:",
-        {
-          success: reviewsResult.success,
-          count: reviewsData.length,
-          first_review: reviewsData[0],
-        }
-      );
 
       console.log("[EMPLOYER-DASH] Data loaded:", {
         has_stats: !!statsData,
@@ -937,7 +917,7 @@ export const EmployerDashboard = () => {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 <button
                   onClick={handleQuickSearch}
-                  className="w-full px-4 py-3 bg-orange-600 text-white rounded-lg font-medium hover:bg-orange-700 flex items-center justify-center gap-2"
+                  className="px-4 py-3 bg-orange-600 text-white rounded-lg font-medium hover:bg-orange-700 flex items-center justify-center gap-2 transition-colors"
                 >
                   <svg
                     className="w-5 h-5"
@@ -957,7 +937,7 @@ export const EmployerDashboard = () => {
 
                 <Link
                   to="/cleaning-companies"
-                  className="w-full px-4 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 flex items-center justify-center gap-2"
+                  className="px-4 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 flex items-center justify-center gap-2 transition-colors"
                 >
                   <svg
                     className="w-5 h-5"
@@ -977,7 +957,7 @@ export const EmployerDashboard = () => {
 
                 <Link
                   to="/accountants"
-                  className="w-full px-4 py-3 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 flex items-center justify-center gap-2"
+                  className="px-4 py-3 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 flex items-center justify-center gap-2 transition-colors"
                 >
                   <svg
                     className="w-5 h-5"
@@ -994,68 +974,6 @@ export const EmployerDashboard = () => {
                   </svg>
                   Księgowi
                 </Link>
-
-                <Link
-                  to="/faktury"
-                  className="w-full px-4 py-3 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 flex items-center justify-center gap-2"
-                >
-                  <svg
-                    className="w-5 h-5"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                    />
-                  </svg>
-                  Faktury & BTW
-                </Link>
-
-                <button
-                  onClick={() => {
-                    console.log("Subskrypcja clicked");
-                  }}
-                  className="w-full px-4 py-3 bg-purple-600 text-white rounded-lg font-medium hover:bg-purple-700 flex items-center justify-center gap-2"
-                >
-                  <svg
-                    className="w-5 h-5"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"
-                    />
-                  </svg>
-                  Subskrypcja
-                </button>
-
-                <button
-                  onClick={() => setShowSupportModal(true)}
-                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg font-medium text-gray-700 hover:bg-gray-50 flex items-center justify-center gap-2"
-                >
-                  <svg
-                    className="w-5 h-5"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-5 0a4 4 0 11-8 0 4 4 0 018 0z"
-                    />
-                  </svg>
-                  Wsparcie
-                </button>
               </div>
             </div>
 
@@ -1228,526 +1146,71 @@ export const EmployerDashboard = () => {
                   )}
                 </div>
 
-                {/* My Reviews - Full System */}
-                <div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
-                  {/* Gradient Header with Stats */}
-                  <div className="bg-gradient-to-r from-purple-600 to-pink-600 p-6">
-                    <h2 className="text-2xl font-bold text-white mb-6">
+                {/* My Reviews */}
+                <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6">
+                  <div className="flex items-center justify-between mb-6">
+                    <h2 className="text-xl font-bold text-gray-900">
                       Moje opinie
                     </h2>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      {/* Total Reviews */}
-                      <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4">
-                        <p className="text-white/80 text-sm mb-1">
-                          Łącznie opinii
-                        </p>
-                        <p className="text-white text-2xl font-bold">
-                          {reviews.length}
-                        </p>
-                      </div>
-                      {/* Average Rating */}
-                      <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4">
-                        <p className="text-white/80 text-sm mb-1">
-                          Średnia ocena
-                        </p>
-                        <p className="text-white text-2xl font-bold">
-                          {reviews.length > 0
-                            ? (
-                                reviews.reduce((sum, r) => sum + r.rating, 0) /
-                                reviews.length
-                              ).toFixed(1)
-                            : "0.0"}
-                          <span className="text-lg ml-1">⭐</span>
-                        </p>
-                      </div>
-                      {/* Positive Reviews */}
-                      <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4">
-                        <p className="text-white/80 text-sm mb-1">
-                          Pozytywne (4-5⭐)
-                        </p>
-                        <p className="text-white text-2xl font-bold">
-                          {reviews.filter((r) => r.rating >= 4).length}
-                        </p>
-                      </div>
-                    </div>
+                    <span className="text-sm text-gray-500">
+                      {reviews.length} opinii
+                    </span>
                   </div>
 
-                  {/* Rating Breakdown */}
-                  <div className="p-6 border-b border-gray-200">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                      Rozkład ocen
-                    </h3>
-                    <div className="space-y-2">
-                      {[5, 4, 3, 2, 1].map((stars) => {
-                        const count = reviews.filter(
-                          (r) => r.rating === stars
-                        ).length;
-                        const percentage =
-                          reviews.length > 0
-                            ? (count / reviews.length) * 100
-                            : 0;
-                        return (
-                          <div key={stars} className="flex items-center gap-3">
-                            <span className="text-sm text-gray-600 w-12">
-                              {stars} ⭐
-                            </span>
-                            <div className="flex-1 bg-gray-200 rounded-full h-2.5">
-                              <div
-                                className="bg-gradient-to-r from-purple-600 to-pink-600 h-2.5 rounded-full transition-all duration-300"
-                                style={{ width: `${percentage}%` }}
-                              ></div>
-                            </div>
-                            <span className="text-sm text-gray-600 w-16 text-right">
-                              {count} ({percentage.toFixed(0)}%)
-                            </span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  {/* Filters and Sorting */}
-                  <div className="p-6 border-b border-gray-200">
-                    <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
-                      {/* Filter Buttons */}
-                      <div className="flex flex-wrap gap-2">
-                        <button
-                          onClick={() => setReviewFilter("all")}
-                          className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                            reviewFilter === "all"
-                              ? "bg-purple-600 text-white"
-                              : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                          }`}
-                        >
-                          Wszystkie
-                        </button>
-                        {[5, 4, 3, 2, 1].map((stars) => (
-                          <button
-                            key={stars}
-                            onClick={() =>
-                              setReviewFilter(stars as 1 | 2 | 3 | 4 | 5)
-                            }
-                            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                              reviewFilter === stars
-                                ? "bg-purple-600 text-white"
-                                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                            }`}
-                          >
-                            {stars}⭐
-                          </button>
-                        ))}
-                      </div>
-
-                      {/* Sort Dropdown */}
-                      <select
-                        value={reviewSort}
-                        onChange={(e) =>
-                          setReviewSort(
-                            e.target.value as
-                              | "newest"
-                              | "oldest"
-                              | "highest"
-                              | "lowest"
-                          )
-                        }
-                        className="px-4 py-2 border border-gray-300 rounded-lg bg-white text-gray-700 font-medium focus:outline-none focus:ring-2 focus:ring-purple-500"
-                      >
-                        <option value="newest">Najnowsze</option>
-                        <option value="oldest">Najstarsze</option>
-                        <option value="highest">Najwyższe oceny</option>
-                        <option value="lowest">Najniższe oceny</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  {/* Reviews List */}
-                  <div className="p-6">
-                    {reviews.length === 0 ? (
-                      <div className="text-center py-12">
-                        <div className="text-6xl mb-4">📝</div>
-                        <p className="text-gray-500 text-lg mb-2">
-                          Brak wystawionych opinii
-                        </p>
-                        <p className="text-sm text-gray-400">
-                          Wystawiaj opinie pracownikom po zakończeniu współpracy
-                        </p>
-                      </div>
-                    ) : (
-                      <div className="space-y-6">
-                        {(() => {
-                          // Filter reviews
-                          let filteredReviews = reviews;
-                          if (reviewFilter !== "all") {
-                            filteredReviews = reviews.filter(
-                              (r) => r.rating === reviewFilter
-                            );
-                          }
-
-                          // Sort reviews
-                          const sortedReviews = [...filteredReviews].sort(
-                            (a, b) => {
-                              switch (reviewSort) {
-                                case "newest":
-                                  return (
-                                    new Date(b.created_at || 0).getTime() -
-                                    new Date(a.created_at || 0).getTime()
-                                  );
-                                case "oldest":
-                                  return (
-                                    new Date(a.created_at || 0).getTime() -
-                                    new Date(b.created_at || 0).getTime()
-                                  );
-                                case "highest":
-                                  return b.rating - a.rating;
-                                case "lowest":
-                                  return a.rating - b.rating;
-                                default:
-                                  return 0;
-                              }
-                            }
-                          );
-
-                          // Pagination
-                          const displayedReviews = showAllReviews
-                            ? sortedReviews
-                            : sortedReviews.slice(0, 5);
-
-                          return (
-                            <>
-                              {displayedReviews.map((review) => (
-                                <div
-                                  key={review.id}
-                                  className="border border-gray-200 rounded-xl p-6 hover:shadow-md transition-shadow"
-                                >
-                                  {/* Review Header */}
-                                  <div className="flex items-start gap-4 mb-4">
-                                    {/* Reviewer Avatar */}
-                                    <div className="flex-shrink-0">
-                                      {(review as any).workers?.workers_profile
-                                        ?.avatar_url ||
-                                      (review as any).profiles?.avatar_url ||
-                                      (review as any).cleaning_companies
-                                        ?.avatar_url ||
-                                      (review as any).accountants
-                                        ?.avatar_url ? (
-                                        <img
-                                          src={
-                                            (review as any).workers
-                                              ?.workers_profile?.avatar_url ||
-                                            (review as any).profiles
-                                              ?.avatar_url ||
-                                            (review as any).cleaning_companies
-                                              ?.avatar_url ||
-                                            (review as any).accountants
-                                              ?.avatar_url
-                                          }
-                                          alt="Reviewer"
-                                          className="w-12 h-12 rounded-full object-cover border-2 border-purple-200"
-                                        />
-                                      ) : (
-                                        <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white font-bold text-lg">
-                                          {((review as any).workers
-                                            ?.workers_profile?.full_name ||
-                                            (review as any).profiles
-                                              ?.full_name ||
-                                            (review as any).cleaning_companies
-                                              ?.company_name ||
-                                            (review as any).accountants
-                                              ?.company_name ||
-                                            "U")?.[0]?.toUpperCase() || "U"}
-                                        </div>
-                                      )}
-                                    </div>
-
-                                    {/* Reviewer Info and Rating */}
-                                    <div className="flex-1 min-w-0">
-                                      <h4 className="font-semibold text-gray-900 text-lg">
-                                        {(review as any).workers
-                                          ?.workers_profile?.full_name ||
-                                          (review as any).profiles?.full_name ||
-                                          (review as any).cleaning_companies
-                                            ?.company_name ||
-                                          (review as any).accountants
-                                            ?.company_name ||
-                                          "Użytkownik"}
-                                      </h4>
-                                      <p className="text-sm text-gray-600 mb-2">
-                                        {(review as any).worker_id
-                                          ? "Pracownik"
-                                          : (review as any).cleaning_company_id
-                                          ? "Firma sprzątająca"
-                                          : (review as any).accountant_id
-                                          ? "Księgowy"
-                                          : "Recenzent"}
-                                      </p>
-                                      <div className="flex items-center gap-3">
-                                        <div className="flex items-center">
-                                          {Array.from({ length: 5 }, (_, i) => (
-                                            <span
-                                              key={i}
-                                              className={`text-xl ${
-                                                i < review.rating
-                                                  ? "text-yellow-400"
-                                                  : "text-gray-300"
-                                              }`}
-                                            >
-                                              ⭐
-                                            </span>
-                                          ))}
-                                        </div>
-                                        <span className="text-sm text-gray-600 font-medium">
-                                          {review.rating}/5
-                                        </span>
-                                      </div>
-                                    </div>
-
-                                    {/* Date */}
-                                    <div className="text-right">
-                                      <p className="text-sm text-gray-500">
-                                        {review.created_at
-                                          ? new Date(
-                                              review.created_at
-                                            ).toLocaleDateString("pl-PL", {
-                                              year: "numeric",
-                                              month: "long",
-                                              day: "numeric",
-                                            })
-                                          : "N/A"}
-                                      </p>
-                                      {review.status === "pending" && (
-                                        <span className="inline-block mt-2 px-2 py-1 bg-yellow-100 text-yellow-800 text-xs rounded font-medium">
-                                          Oczekuje
-                                        </span>
-                                      )}
-                                    </div>
-                                  </div>
-
-                                  {/* Detailed Ratings (4 mini cards) */}
-                                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
-                                    {/* Quality Rating */}
-                                    <div className="border-l-4 border-purple-500 bg-purple-50 rounded-lg p-3">
-                                      <p className="text-xs text-purple-700 font-medium mb-1">
-                                        Jakość pracy
-                                      </p>
-                                      <div className="flex items-center gap-1">
-                                        {Array.from({ length: 5 }, (_, i) => (
-                                          <span
-                                            key={i}
-                                            className={`text-sm ${
-                                              i < review.rating
-                                                ? "text-purple-600"
-                                                : "text-purple-200"
-                                            }`}
-                                          >
-                                            ⭐
-                                          </span>
-                                        ))}
-                                      </div>
-                                    </div>
-
-                                    {/* Communication Rating */}
-                                    <div className="border-l-4 border-green-500 bg-green-50 rounded-lg p-3">
-                                      <p className="text-xs text-green-700 font-medium mb-1">
-                                        Komunikacja
-                                      </p>
-                                      <div className="flex items-center gap-1">
-                                        {Array.from({ length: 5 }, (_, i) => (
-                                          <span
-                                            key={i}
-                                            className={`text-sm ${
-                                              i < review.rating
-                                                ? "text-green-600"
-                                                : "text-green-200"
-                                            }`}
-                                          >
-                                            ⭐
-                                          </span>
-                                        ))}
-                                      </div>
-                                    </div>
-
-                                    {/* Punctuality Rating */}
-                                    <div className="border-l-4 border-orange-500 bg-orange-50 rounded-lg p-3">
-                                      <p className="text-xs text-orange-700 font-medium mb-1">
-                                        Terminowość
-                                      </p>
-                                      <div className="flex items-center gap-1">
-                                        {Array.from({ length: 5 }, (_, i) => (
-                                          <span
-                                            key={i}
-                                            className={`text-sm ${
-                                              i < review.rating
-                                                ? "text-orange-600"
-                                                : "text-orange-200"
-                                            }`}
-                                          >
-                                            ⭐
-                                          </span>
-                                        ))}
-                                      </div>
-                                    </div>
-
-                                    {/* Professionalism Rating */}
-                                    <div className="border-l-4 border-blue-500 bg-blue-50 rounded-lg p-3">
-                                      <p className="text-xs text-blue-700 font-medium mb-1">
-                                        Profesjonalizm
-                                      </p>
-                                      <div className="flex items-center gap-1">
-                                        {Array.from({ length: 5 }, (_, i) => (
-                                          <span
-                                            key={i}
-                                            className={`text-sm ${
-                                              i < review.rating
-                                                ? "text-blue-600"
-                                                : "text-blue-200"
-                                            }`}
-                                          >
-                                            ⭐
-                                          </span>
-                                        ))}
-                                      </div>
-                                    </div>
-                                  </div>
-
-                                  {/* Review Comment */}
-                                  {review.comment && (
-                                    <div className="mb-4">
-                                      <p className="text-gray-700 leading-relaxed">
-                                        {review.comment}
-                                      </p>
-                                    </div>
-                                  )}
-                                </div>
-                              ))}
-
-                              {/* Show More Button */}
-                              {sortedReviews.length > 5 && (
-                                <div className="text-center pt-4">
-                                  <button
-                                    onClick={() =>
-                                      setShowAllReviews(!showAllReviews)
-                                    }
-                                    className="px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg font-medium hover:from-purple-700 hover:to-pink-700 transition-all"
-                                  >
-                                    {showAllReviews
-                                      ? "Pokaż mniej"
-                                      : `Pokaż wszystkie (${sortedReviews.length})`}
-                                  </button>
-                                </div>
-                              )}
-                            </>
-                          );
-                        })()}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Export Section */}
-                  {reviews.length > 0 && (
-                    <div className="p-6 bg-gray-50 border-t border-gray-200">
-                      <h3 className="text-sm font-semibold text-gray-700 mb-3">
-                        Eksportuj opinie
-                      </h3>
-                      <div className="flex flex-col sm:flex-row gap-3">
-                        <button
-                          onClick={() => {
-                            const htmlContent = `
-                              <!DOCTYPE html>
-                              <html>
-                              <head>
-                                <meta charset="UTF-8">
-                                <title>Opinie - ${
-                                  employerProfile?.company_name || "Pracodawca"
-                                }</title>
-                                <style>
-                                  body { font-family: Arial, sans-serif; max-width: 800px; margin: 40px auto; padding: 20px; }
-                                  h1 { color: #9333ea; }
-                                  .review { border: 1px solid #e5e7eb; border-radius: 8px; padding: 20px; margin-bottom: 20px; }
-                                  .rating { color: #fbbf24; }
-                                </style>
-                              </head>
-                              <body>
-                                <h1>Opinie - ${
-                                  employerProfile?.company_name || "Pracodawca"
-                                }</h1>
-                                ${reviews
-                                  .map(
-                                    (r) => `
-                                  <div class="review">
-                                    <h3>${
-                                      r.worker?.profile?.full_name ||
-                                      "Nieznany pracownik"
-                                    }</h3>
-                                    <p class="rating">${"⭐".repeat(
-                                      r.rating
-                                    )}</p>
-                                    <p>${r.comment || "Brak komentarza"}</p>
-                                    <small>${
-                                      r.created_at
-                                        ? new Date(
-                                            r.created_at
-                                          ).toLocaleDateString("pl-PL")
-                                        : "N/A"
-                                    }</small>
-                                  </div>
-                                `
-                                  )
-                                  .join("")}
-                              </body>
-                              </html>
-                            `;
-                            const blob = new Blob([htmlContent], {
-                              type: "text/html",
-                            });
-                            const url = URL.createObjectURL(blob);
-                            const a = document.createElement("a");
-                            a.href = url;
-                            a.download = `opinie-${Date.now()}.html`;
-                            a.click();
-                            URL.revokeObjectURL(url);
-                          }}
-                          className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg font-medium hover:bg-purple-700 transition-colors flex items-center justify-center gap-2"
-                        >
-                          📄 Pobierz PDF (HTML)
-                        </button>
-                        <button
-                          onClick={() => {
-                            const csvContent = [
-                              ["Pracownik", "Ocena", "Komentarz", "Data"].join(
-                                ","
-                              ),
-                              ...reviews.map((r) =>
-                                [
-                                  r.worker?.profile?.full_name || "Nieznany",
-                                  r.rating,
-                                  `"${(r.comment || "").replace(/"/g, '""')}"`,
-                                  r.created_at
-                                    ? new Date(r.created_at).toLocaleDateString(
-                                        "pl-PL"
-                                      )
-                                    : "N/A",
-                                ].join(",")
-                              ),
-                            ].join("\n");
-                            const blob = new Blob([csvContent], {
-                              type: "text/csv;charset=utf-8;",
-                            });
-                            const url = URL.createObjectURL(blob);
-                            const a = document.createElement("a");
-                            a.href = url;
-                            a.download = `opinie-${Date.now()}.csv`;
-                            a.click();
-                            URL.revokeObjectURL(url);
-                          }}
-                          className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition-colors flex items-center justify-center gap-2"
-                        >
-                          📊 Pobierz CSV
-                        </button>
-                      </div>
-                      <p className="text-xs text-gray-500 mt-2">
-                        💡 PDF (HTML) - otwórz w przeglądarce i zapisz jako PDF
-                        | CSV - importuj do Excel/Sheets
+                  {reviews.length === 0 ? (
+                    <div className="text-center py-8">
+                      <p className="text-gray-500">Brak wystawionych opinii</p>
+                      <p className="text-sm text-gray-400 mt-2">
+                        Wystawiaj opinie pracownikom po zakończeniu współpracy
                       </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {reviews.slice(0, 5).map((review) => (
+                        <div
+                          key={review.id}
+                          className="border-b border-gray-200 pb-4 last:border-0 last:pb-0"
+                        >
+                          <div className="flex items-start gap-3">
+                            <div className="flex-1 min-w-0">
+                              <p className="font-medium text-gray-900">
+                                {review.worker?.profile?.full_name ||
+                                  "Nieznany pracownik"}
+                              </p>
+                              <p className="text-sm text-gray-600 mb-2">
+                                {review.worker?.specialization ||
+                                  "Brak specjalizacji"}
+                              </p>
+                              <div className="flex items-center gap-2 mb-2">
+                                <div className="flex items-center">
+                                  {"⭐".repeat(review.rating)}
+                                  {"☆".repeat(5 - review.rating)}
+                                </div>
+                                <span className="text-sm text-gray-600">
+                                  {review.rating}/5
+                                </span>
+                                {review.status === "pending" && (
+                                  <span className="px-2 py-0.5 bg-yellow-100 text-yellow-800 text-xs rounded">
+                                    Oczekuje
+                                  </span>
+                                )}
+                              </div>
+                              {review.comment && (
+                                <p className="text-sm text-gray-600 line-clamp-2">
+                                  {review.comment}
+                                </p>
+                              )}
+                              <p className="text-xs text-gray-400 mt-1">
+                                {review.created_at
+                                  ? new Date(
+                                      review.created_at
+                                    ).toLocaleDateString("pl-PL")
+                                  : "N/A"}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   )}
                 </div>
@@ -1841,523 +1304,246 @@ export const EmployerDashboard = () => {
             </div>
           </TabPanel>
 
+          {/* Profile Tab */}
+          <TabPanel isActive={activeTab === "profile"}>
+            <div className="max-w-2xl mx-auto">
+              {/* Employer Profile Card */}
+              <div className="bg-white rounded-lg shadow p-6 mb-8">
+                <div className="flex flex-col items-center">
+                  {/* Avatar with fallback */}
+                  <div className="relative mb-4">
+                    {employerProfile?.logo_url ? (
+                      <img
+                        src={employerProfile.logo_url}
+                        alt={employerProfile.company_name || "Pracodawca"}
+                        className="w-32 h-32 rounded-full object-cover border-4 border-orange-100"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).style.display = "none";
+                          const fallback = (e.target as HTMLImageElement)
+                            .nextElementSibling as HTMLElement;
+                          if (fallback) fallback.style.display = "flex";
+                        }}
+                      />
+                    ) : null}
+                    <div
+                      className="w-32 h-32 bg-gradient-to-br from-orange-500 to-orange-600 rounded-full flex items-center justify-center text-white font-bold text-5xl border-4 border-orange-100"
+                      style={{
+                        display: employerProfile?.logo_url ? "none" : "flex",
+                      }}
+                    >
+                      {employerProfile?.company_name?.[0]?.toUpperCase() || "P"}
+                    </div>
+                  </div>
+
+                  {/* Logo Upload Button */}
+                  <label className="mb-4 w-full bg-orange-600 hover:bg-orange-700 text-white px-4 py-3 rounded-lg font-medium cursor-pointer text-center transition-colors">
+                    📷 Zmień logo
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleLogoUpload}
+                      className="hidden"
+                    />
+                  </label>
+
+                  {/* Company Info */}
+                  <h3 className="text-2xl font-bold text-gray-900 text-center mb-2">
+                    {employerProfile?.company_name || "Firma"}
+                  </h3>
+
+                  <div className="w-full space-y-3 mt-4">
+                    {employerProfile?.contact_email && (
+                      <div className="flex items-center gap-2 text-gray-600">
+                        <svg
+                          className="w-5 h-5"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+                          />
+                        </svg>
+                        <span>{employerProfile.contact_email}</span>
+                      </div>
+                    )}
+
+                    {employerProfile?.contact_phone && (
+                      <div className="flex items-center gap-2 text-gray-600">
+                        <svg
+                          className="w-5 h-5"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"
+                          />
+                        </svg>
+                        <span>{employerProfile.contact_phone}</span>
+                      </div>
+                    )}
+
+                    {employerProfile?.location_city && (
+                      <div className="flex items-center gap-2 text-gray-600">
+                        <svg
+                          className="w-5 h-5"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
+                          />
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
+                          />
+                        </svg>
+                        <span>{employerProfile.location_city}</span>
+                      </div>
+                    )}
+
+                    {employerProfile?.btw_number && (
+                      <div className="flex items-center gap-2 text-gray-600">
+                        <svg
+                          className="w-5 h-5"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                          />
+                        </svg>
+                        <span>BTW: {employerProfile.btw_number}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Edit Profile Button */}
+                  <Link
+                    to="/employer/profile"
+                    className="w-full px-6 py-3 mt-6 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-lg font-medium hover:from-orange-600 hover:to-orange-700 transition-all text-center"
+                  >
+                    ⚙️ Edytuj pełny profil
+                  </Link>
+                </div>
+              </div>
+
+              {/* Cover Image Uploader (if exists) */}
+              {employerProfile && (
+                <div className="bg-white rounded-lg shadow p-6">
+                  <h3 className="text-lg font-bold text-gray-900 mb-4">
+                    Zdjęcie okładki
+                  </h3>
+                  <CoverImageUploader
+                    profileType="employer"
+                    profileId={employerId || ""}
+                    currentCoverUrl={employerProfile.cover_image_url || ""}
+                    onUploadSuccess={(url) => {
+                      console.log("✅ Cover uploaded:", url);
+                      loadDashboardData();
+                    }}
+                  />
+                </div>
+              )}
+            </div>
+          </TabPanel>
+
           {/* Reviews Tab */}
           <TabPanel isActive={activeTab === "reviews"}>
-            <div className="max-w-7xl mx-auto">
-              {/* My Reviews - Full System */}
-              <div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
-                {/* Gradient Header with Stats */}
-                <div className="bg-gradient-to-r from-purple-600 to-pink-600 p-6">
-                  <h2 className="text-2xl font-bold text-white mb-6">
+            <div className="max-w-4xl mx-auto">
+              <div className="bg-white rounded-lg shadow p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-2xl font-bold text-gray-900">
                     Moje opinie
                   </h2>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    {/* Total Reviews */}
-                    <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4">
-                      <p className="text-white/80 text-sm mb-1">
-                        Łącznie opinii
-                      </p>
-                      <p className="text-white text-2xl font-bold">
-                        {reviews.length}
-                      </p>
-                    </div>
-                    {/* Average Rating */}
-                    <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4">
-                      <p className="text-white/80 text-sm mb-1">
-                        Średnia ocena
-                      </p>
-                      <p className="text-white text-2xl font-bold">
-                        {reviews.length > 0
-                          ? (
-                              reviews.reduce((sum, r) => sum + r.rating, 0) /
-                              reviews.length
-                            ).toFixed(1)
-                          : "0.0"}
-                        <span className="text-lg ml-1">⭐</span>
-                      </p>
-                    </div>
-                    {/* Positive Reviews */}
-                    <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4">
-                      <p className="text-white/80 text-sm mb-1">
-                        Pozytywne (4-5⭐)
-                      </p>
-                      <p className="text-white text-2xl font-bold">
-                        {reviews.filter((r) => r.rating >= 4).length}
-                      </p>
-                    </div>
-                  </div>
+                  <span className="text-sm text-gray-500 bg-orange-100 px-3 py-1 rounded-full">
+                    {reviews.length} opinii
+                  </span>
                 </div>
 
-                {/* Rating Breakdown */}
-                <div className="p-6 border-b border-gray-200">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                    Rozkład ocen
-                  </h3>
-                  <div className="space-y-2">
-                    {[5, 4, 3, 2, 1].map((stars) => {
-                      const count = reviews.filter(
-                        (r) => r.rating === stars
-                      ).length;
-                      const percentage =
-                        reviews.length > 0 ? (count / reviews.length) * 100 : 0;
-                      return (
-                        <div key={stars} className="flex items-center gap-3">
-                          <span className="text-sm text-gray-600 w-12">
-                            {stars} ⭐
-                          </span>
-                          <div className="flex-1 bg-gray-200 rounded-full h-2.5">
-                            <div
-                              className="bg-gradient-to-r from-purple-600 to-pink-600 h-2.5 rounded-full transition-all duration-300"
-                              style={{ width: `${percentage}%` }}
-                            ></div>
-                          </div>
-                          <span className="text-sm text-gray-600 w-16 text-right">
-                            {count} ({percentage.toFixed(0)}%)
-                          </span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* Filters and Sorting */}
-                <div className="p-6 border-b border-gray-200">
-                  <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
-                    {/* Filter Buttons */}
-                    <div className="flex flex-wrap gap-2">
-                      <button
-                        onClick={() => setReviewFilter("all")}
-                        className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                          reviewFilter === "all"
-                            ? "bg-purple-600 text-white"
-                            : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                        }`}
-                      >
-                        Wszystkie
-                      </button>
-                      {[5, 4, 3, 2, 1].map((stars) => (
-                        <button
-                          key={stars}
-                          onClick={() =>
-                            setReviewFilter(stars as 1 | 2 | 3 | 4 | 5)
-                          }
-                          className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                            reviewFilter === stars
-                              ? "bg-purple-600 text-white"
-                              : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                          }`}
-                        >
-                          {stars}⭐
-                        </button>
-                      ))}
-                    </div>
-
-                    {/* Sort Dropdown */}
-                    <select
-                      value={reviewSort}
-                      onChange={(e) =>
-                        setReviewSort(
-                          e.target.value as
-                            | "newest"
-                            | "oldest"
-                            | "highest"
-                            | "lowest"
-                        )
-                      }
-                      className="px-4 py-2 border border-gray-300 rounded-lg bg-white text-gray-700 font-medium focus:outline-none focus:ring-2 focus:ring-purple-500"
-                    >
-                      <option value="newest">Najnowsze</option>
-                      <option value="oldest">Najstarsze</option>
-                      <option value="highest">Najwyższe oceny</option>
-                      <option value="lowest">Najniższe oceny</option>
-                    </select>
-                  </div>
-                </div>
-
-                {/* Reviews List */}
-                <div className="p-6">
-                  {reviews.length === 0 ? (
-                    <div className="text-center py-12">
-                      <div className="text-6xl mb-4">📝</div>
-                      <p className="text-gray-500 text-lg mb-2">
-                        Brak wystawionych opinii
-                      </p>
-                      <p className="text-sm text-gray-400">
-                        Wystawiaj opinie pracownikom po zakończeniu współpracy
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="space-y-6">
-                      {(() => {
-                        // Filter reviews
-                        let filteredReviews = reviews;
-                        if (reviewFilter !== "all") {
-                          filteredReviews = reviews.filter(
-                            (r) => r.rating === reviewFilter
-                          );
-                        }
-
-                        // Sort reviews
-                        const sortedReviews = [...filteredReviews].sort(
-                          (a, b) => {
-                            switch (reviewSort) {
-                              case "newest":
-                                return (
-                                  new Date(b.created_at || 0).getTime() -
-                                  new Date(a.created_at || 0).getTime()
-                                );
-                              case "oldest":
-                                return (
-                                  new Date(a.created_at || 0).getTime() -
-                                  new Date(b.created_at || 0).getTime()
-                                );
-                              case "highest":
-                                return b.rating - a.rating;
-                              case "lowest":
-                                return a.rating - b.rating;
-                              default:
-                                return 0;
-                            }
-                          }
-                        );
-
-                        // Pagination
-                        const displayedReviews = showAllReviews
-                          ? sortedReviews
-                          : sortedReviews.slice(0, 5);
-
-                        return (
-                          <>
-                            {displayedReviews.map((review) => (
-                              <div
-                                key={review.id}
-                                className="border border-gray-200 rounded-xl p-6 hover:shadow-md transition-shadow"
-                              >
-                                {/* Review Header */}
-                                <div className="flex items-start gap-4 mb-4">
-                                  {/* Reviewer Avatar */}
-                                  <div className="flex-shrink-0">
-                                    {(review as any).workers?.workers_profile
-                                      ?.avatar_url ||
-                                    (review as any).profiles?.avatar_url ||
-                                    (review as any).cleaning_companies
-                                      ?.avatar_url ||
-                                    (review as any).accountants?.avatar_url ? (
-                                      <img
-                                        src={
-                                          (review as any).workers
-                                            ?.workers_profile?.avatar_url ||
-                                          (review as any).profiles
-                                            ?.avatar_url ||
-                                          (review as any).cleaning_companies
-                                            ?.avatar_url ||
-                                          (review as any).accountants
-                                            ?.avatar_url
-                                        }
-                                        alt="Reviewer"
-                                        className="w-12 h-12 rounded-full object-cover border-2 border-purple-200"
-                                      />
-                                    ) : (
-                                      <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white font-bold text-lg">
-                                        {((review as any).workers
-                                          ?.workers_profile?.full_name ||
-                                          (review as any).profiles?.full_name ||
-                                          (review as any).cleaning_companies
-                                            ?.company_name ||
-                                          (review as any).accountants
-                                            ?.company_name ||
-                                          "U")?.[0]?.toUpperCase() || "U"}
-                                      </div>
-                                    )}
-                                  </div>
-
-                                  {/* Reviewer Info and Rating */}
-                                  <div className="flex-1 min-w-0">
-                                    <h4 className="font-semibold text-gray-900 text-lg">
-                                      {(review as any).workers?.workers_profile
-                                        ?.full_name ||
-                                        (review as any).profiles?.full_name ||
-                                        (review as any).cleaning_companies
-                                          ?.company_name ||
-                                        (review as any).accountants
-                                          ?.company_name ||
-                                        "Użytkownik"}
-                                    </h4>
-                                    <p className="text-sm text-gray-600 mb-2">
-                                      {(review as any).worker_id
-                                        ? "Pracownik"
-                                        : (review as any).cleaning_company_id
-                                        ? "Firma sprzątająca"
-                                        : (review as any).accountant_id
-                                        ? "Księgowy"
-                                        : "Recenzent"}
-                                    </p>
-                                    <div className="flex items-center gap-3">
-                                      <div className="flex items-center">
-                                        {Array.from({ length: 5 }, (_, i) => (
-                                          <span
-                                            key={i}
-                                            className={`text-xl ${
-                                              i < review.rating
-                                                ? "text-yellow-400"
-                                                : "text-gray-300"
-                                            }`}
-                                          >
-                                            ⭐
-                                          </span>
-                                        ))}
-                                      </div>
-                                      <span className="text-sm text-gray-600 font-medium">
-                                        {review.rating}/5
-                                      </span>
-                                    </div>
-                                  </div>
-
-                                  {/* Date */}
-                                  <div className="text-right">
-                                    <p className="text-sm text-gray-500">
-                                      {review.created_at
-                                        ? new Date(
-                                            review.created_at
-                                          ).toLocaleDateString("pl-PL", {
-                                            year: "numeric",
-                                            month: "long",
-                                            day: "numeric",
-                                          })
-                                        : "N/A"}
-                                    </p>
-                                    {review.status === "pending" && (
-                                      <span className="inline-block mt-2 px-2 py-1 bg-yellow-100 text-yellow-800 text-xs rounded font-medium">
-                                        Oczekuje
-                                      </span>
-                                    )}
-                                  </div>
-                                </div>
-
-                                {/* Detailed Ratings (4 mini cards) */}
-                                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
-                                  {/* Quality Rating */}
-                                  <div className="border-l-4 border-purple-500 bg-purple-50 rounded-lg p-3">
-                                    <p className="text-xs text-purple-700 font-medium mb-1">
-                                      Jakość pracy
-                                    </p>
-                                    <div className="flex items-center gap-1">
-                                      {Array.from({ length: 5 }, (_, i) => (
-                                        <span
-                                          key={i}
-                                          className={`text-sm ${
-                                            i < review.rating
-                                              ? "text-purple-600"
-                                              : "text-purple-200"
-                                          }`}
-                                        >
-                                          ⭐
-                                        </span>
-                                      ))}
-                                    </div>
-                                  </div>
-
-                                  {/* Communication Rating */}
-                                  <div className="border-l-4 border-green-500 bg-green-50 rounded-lg p-3">
-                                    <p className="text-xs text-green-700 font-medium mb-1">
-                                      Komunikacja
-                                    </p>
-                                    <div className="flex items-center gap-1">
-                                      {Array.from({ length: 5 }, (_, i) => (
-                                        <span
-                                          key={i}
-                                          className={`text-sm ${
-                                            i < review.rating
-                                              ? "text-green-600"
-                                              : "text-green-200"
-                                          }`}
-                                        >
-                                          ⭐
-                                        </span>
-                                      ))}
-                                    </div>
-                                  </div>
-
-                                  {/* Punctuality Rating */}
-                                  <div className="border-l-4 border-orange-500 bg-orange-50 rounded-lg p-3">
-                                    <p className="text-xs text-orange-700 font-medium mb-1">
-                                      Terminowość
-                                    </p>
-                                    <div className="flex items-center gap-1">
-                                      {Array.from({ length: 5 }, (_, i) => (
-                                        <span
-                                          key={i}
-                                          className={`text-sm ${
-                                            i < review.rating
-                                              ? "text-orange-600"
-                                              : "text-orange-200"
-                                          }`}
-                                        >
-                                          ⭐
-                                        </span>
-                                      ))}
-                                    </div>
-                                  </div>
-
-                                  {/* Professionalism Rating */}
-                                  <div className="border-l-4 border-blue-500 bg-blue-50 rounded-lg p-3">
-                                    <p className="text-xs text-blue-700 font-medium mb-1">
-                                      Profesjonalizm
-                                    </p>
-                                    <div className="flex items-center gap-1">
-                                      {Array.from({ length: 5 }, (_, i) => (
-                                        <span
-                                          key={i}
-                                          className={`text-sm ${
-                                            i < review.rating
-                                              ? "text-blue-600"
-                                              : "text-blue-200"
-                                          }`}
-                                        >
-                                          ⭐
-                                        </span>
-                                      ))}
-                                    </div>
-                                  </div>
-                                </div>
-
-                                {/* Review Comment */}
-                                {review.comment && (
-                                  <div className="mb-4">
-                                    <p className="text-gray-700 leading-relaxed">
-                                      {review.comment}
-                                    </p>
-                                  </div>
-                                )}
-                              </div>
-                            ))}
-
-                            {/* Show More Button */}
-                            {sortedReviews.length > 5 && (
-                              <div className="text-center pt-4">
-                                <button
-                                  onClick={() =>
-                                    setShowAllReviews(!showAllReviews)
-                                  }
-                                  className="px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg font-medium hover:from-purple-700 hover:to-pink-700 transition-all"
-                                >
-                                  {showAllReviews
-                                    ? "Pokaż mniej"
-                                    : `Pokaż wszystkie (${sortedReviews.length})`}
-                                </button>
-                              </div>
-                            )}
-                          </>
-                        );
-                      })()}
-                    </div>
-                  )}
-                </div>
-
-                {/* Export Section */}
-                {reviews.length > 0 && (
-                  <div className="p-6 bg-gray-50 border-t border-gray-200">
-                    <h3 className="text-sm font-semibold text-gray-700 mb-3">
-                      Eksportuj opinie
-                    </h3>
-                    <div className="flex flex-col sm:flex-row gap-3">
-                      <button
-                        onClick={() => {
-                          const htmlContent = `
-                            <!DOCTYPE html>
-                            <html>
-                            <head>
-                              <meta charset="UTF-8">
-                              <title>Opinie - ${
-                                employerProfile?.company_name || "Pracodawca"
-                              }</title>
-                              <style>
-                                body { font-family: Arial, sans-serif; max-width: 800px; margin: 40px auto; padding: 20px; }
-                                h1 { color: #9333ea; }
-                                .review { border: 1px solid #e5e7eb; border-radius: 8px; padding: 20px; margin-bottom: 20px; }
-                                .rating { color: #fbbf24; }
-                              </style>
-                            </head>
-                            <body>
-                              <h1>Opinie - ${
-                                employerProfile?.company_name || "Pracodawca"
-                              }</h1>
-                              ${reviews
-                                .map(
-                                  (r) => `
-                                <div class="review">
-                                  <h3>${
-                                    r.worker?.profile?.full_name ||
-                                    "Nieznany pracownik"
-                                  }</h3>
-                                  <p class="rating">${"⭐".repeat(r.rating)}</p>
-                                  <p>${r.comment || "Brak komentarza"}</p>
-                                  <small>${
-                                    r.created_at
-                                      ? new Date(
-                                          r.created_at
-                                        ).toLocaleDateString("pl-PL")
-                                      : "N/A"
-                                  }</small>
-                                </div>
-                              `
-                                )
-                                .join("")}
-                            </body>
-                            </html>
-                          `;
-                          const blob = new Blob([htmlContent], {
-                            type: "text/html",
-                          });
-                          const url = URL.createObjectURL(blob);
-                          const a = document.createElement("a");
-                          a.href = url;
-                          a.download = `opinie-${Date.now()}.html`;
-                          a.click();
-                          URL.revokeObjectURL(url);
-                        }}
-                        className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg font-medium hover:bg-purple-700 transition-colors flex items-center justify-center gap-2"
-                      >
-                        📄 Pobierz PDF (HTML)
-                      </button>
-                      <button
-                        onClick={() => {
-                          const csvContent = [
-                            ["Pracownik", "Ocena", "Komentarz", "Data"].join(
-                              ","
-                            ),
-                            ...reviews.map((r) =>
-                              [
-                                r.worker?.profile?.full_name || "Nieznany",
-                                r.rating,
-                                `"${(r.comment || "").replace(/"/g, '""')}"`,
-                                r.created_at
-                                  ? new Date(r.created_at).toLocaleDateString(
-                                      "pl-PL"
-                                    )
-                                  : "N/A",
-                              ].join(",")
-                            ),
-                          ].join("\n");
-                          const blob = new Blob([csvContent], {
-                            type: "text/csv;charset=utf-8;",
-                          });
-                          const url = URL.createObjectURL(blob);
-                          const a = document.createElement("a");
-                          a.href = url;
-                          a.download = `opinie-${Date.now()}.csv`;
-                          a.click();
-                          URL.revokeObjectURL(url);
-                        }}
-                        className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition-colors flex items-center justify-center gap-2"
-                      >
-                        📊 Pobierz CSV
-                      </button>
-                    </div>
-                    <p className="text-xs text-gray-500 mt-2">
-                      💡 PDF (HTML) - otwórz w przeglądarce i zapisz jako PDF |
-                      CSV - importuj do Excel/Sheets
+                {reviews.length === 0 ? (
+                  <div className="text-center py-12">
+                    <div className="text-6xl mb-4">⭐</div>
+                    <p className="text-gray-500 text-lg">
+                      Brak wystawionych opinii
                     </p>
+                    <p className="text-sm text-gray-400 mt-2">
+                      Wystawiaj opinie pracownikom po zakończeniu współpracy
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {reviews.map((review) => (
+                      <div
+                        key={review.id}
+                        className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow"
+                      >
+                        <div className="flex items-start gap-4">
+                          <div className="flex-1 min-w-0">
+                            <p className="font-bold text-gray-900 text-lg">
+                              {review.worker?.profile?.full_name ||
+                                "Nieznany pracownik"}
+                            </p>
+                            <p className="text-sm text-gray-600 mb-3">
+                              {review.worker?.specialization ||
+                                "Brak specjalizacji"}
+                            </p>
+                            <div className="flex items-center gap-3 mb-3">
+                              <div className="flex items-center text-lg">
+                                {"⭐".repeat(review.rating)}
+                                {"☆".repeat(5 - review.rating)}
+                              </div>
+                              <span className="text-sm font-medium text-gray-700">
+                                {review.rating}/5
+                              </span>
+                              {review.status === "pending" && (
+                                <span className="px-2 py-1 bg-yellow-100 text-yellow-800 text-xs font-medium rounded">
+                                  Oczekuje
+                                </span>
+                              )}
+                              {review.status === "published" && (
+                                <span className="px-2 py-1 bg-green-100 text-green-800 text-xs font-medium rounded">
+                                  Opublikowana
+                                </span>
+                              )}
+                            </div>
+                            {review.comment && (
+                              <p className="text-sm text-gray-700 bg-gray-50 p-3 rounded-lg">
+                                {review.comment}
+                              </p>
+                            )}
+                            <p className="text-xs text-gray-400 mt-2">
+                              {review.created_at
+                                ? new Date(
+                                    review.created_at
+                                  ).toLocaleDateString("pl-PL", {
+                                    day: "numeric",
+                                    month: "long",
+                                    year: "numeric",
+                                  })
+                                : "N/A"}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>

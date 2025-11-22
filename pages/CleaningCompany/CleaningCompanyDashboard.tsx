@@ -1342,14 +1342,15 @@ const CleaningCompanyDashboard = () => {
           />
 
           {/* Tab Panels */}
-          <TabPanel isActive={activeTab === "overview"}>
-            {/* Szybkie działania Card */}
-            <div className="bg-white rounded-lg shadow p-6 mb-8">
-              <h2 className="text-xl font-bold text-gray-900 mb-6">
+          <TabPanel isActive={activeTab === "profile"}>
+            {/* Overview content merged into profile */}
+            {/* Szybkie działania Card - Full Width */}
+            <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6 mb-6">
+              <h2 className="text-xl font-bold text-gray-900 mb-4">
                 ⚡ Szybkie działania
               </h2>
 
-              <div className="space-y-3">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 <Link
                   to="/employers"
                   className="w-full px-4 py-3 bg-orange-600 text-white rounded-lg font-medium hover:bg-orange-700 flex items-center justify-center gap-2"
@@ -1473,8 +1474,8 @@ const CleaningCompanyDashboard = () => {
             </div>
 
             {/* Stats Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-              <div className="bg-gradient-to-br from-orange-100 to-orange-50 rounded-xl p-6 shadow-md">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+              <div className="bg-gradient-to-br from-orange-100 to-orange-50 rounded-xl p-4 shadow-sm border border-orange-200">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-orange-600 mb-1">
@@ -1488,7 +1489,7 @@ const CleaningCompanyDashboard = () => {
                 </div>
               </div>
 
-              <div className="bg-gradient-to-br from-purple-100 to-purple-50 rounded-xl p-6 shadow-md">
+              <div className="bg-gradient-to-br from-purple-100 to-purple-50 rounded-xl p-4 shadow-sm border border-purple-200">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-purple-600 mb-1">
@@ -1505,7 +1506,7 @@ const CleaningCompanyDashboard = () => {
                 </div>
               </div>
 
-              <div className="bg-gradient-to-br from-blue-100 to-blue-50 rounded-xl p-6 shadow-md">
+              <div className="bg-gradient-to-br from-blue-100 to-blue-50 rounded-xl p-4 shadow-sm border border-blue-200">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-blue-600 mb-1">
@@ -1519,7 +1520,7 @@ const CleaningCompanyDashboard = () => {
                 </div>
               </div>
 
-              <div className="bg-gradient-to-br from-green-100 to-green-50 rounded-xl p-6 shadow-md">
+              <div className="bg-gradient-to-br from-green-100 to-green-50 rounded-xl p-4 shadow-sm border border-green-200">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-green-600 mb-1">
@@ -1533,192 +1534,278 @@ const CleaningCompanyDashboard = () => {
                 </div>
               </div>
             </div>
-          </TabPanel>
 
-          {/* Profile Tab */}
-          <TabPanel isActive={activeTab === "profile"}>
-            {/* Main Content Grid */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-              {/* Left Column */}
-              <div className="space-y-6">
-                {/* Profile Photo */}
-                <div className="bg-white rounded-xl shadow-md p-6">
-                  <h3 className="font-bold text-lg mb-4">
-                    📸 Zdjęcie profilowe
-                  </h3>
-                  <div className="text-center">
-                    <div className="relative inline-block">
-                      <img
-                        src={companyData.avatar_url || "/default-avatar.png"}
-                        alt="Profile"
-                        className="w-32 h-32 rounded-full object-cover mx-auto border-4 border-purple-200"
-                      />
+            {/* Profile Tab Content - NEW 2+1 LAYOUT */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* LEFT COLUMN: MAIN CONTENT (2/3 width) */}
+              <div className="lg:col-span-2 space-y-6">
+                {/* Availability + Blocked Dates (2 cards side by side) */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Availability */}
+                  <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6">
+                    <h3 className="font-bold text-lg mb-4">
+                      📅 Twoja dostępność
+                    </h3>
+                    <p className="text-sm text-gray-600 mb-4">
+                      Wybierz dni w których możesz przyjąć zlecenia
+                    </p>
+                    <div className="space-y-2">
+                      {[
+                        { key: "monday", label: "Poniedziałek" },
+                        { key: "tuesday", label: "Wtorek" },
+                        { key: "wednesday", label: "Środa" },
+                        { key: "thursday", label: "Czwartek" },
+                        { key: "friday", label: "Piątek" },
+                        { key: "saturday", label: "Sobota" },
+                        { key: "sunday", label: "Niedziela" },
+                      ].map((day) => (
+                        <label
+                          key={day.key}
+                          className="flex items-center space-x-3 cursor-pointer hover:bg-gray-50 p-2 rounded-lg transition-colors"
+                        >
+                          <input
+                            type="checkbox"
+                            className="w-4 h-4 text-blue-600 rounded"
+                            checked={
+                              companyData.availability &&
+                              typeof companyData.availability === "object" &&
+                              day.key in companyData.availability
+                                ? (companyData.availability as any)[day.key]
+                                : false
+                            }
+                            onChange={(e) =>
+                              handleAvailabilityChange(
+                                day.key,
+                                e.target.checked
+                              )
+                            }
+                          />
+                          <span className="text-sm text-gray-700">
+                            {day.label}
+                          </span>
+                        </label>
+                      ))}
                     </div>
-                    <p className="text-sm text-gray-600 mt-2">
-                      Adres URL przekierowany poprawnie do profilu rozszerzonego
-                      firmy
+                    <div className="mt-4 pt-4 border-t border-gray-200">
+                      <div className="flex items-center justify-between">
+                        <p className="text-xs text-gray-600">Preferowane:</p>
+                        <p className="text-sm font-semibold text-gray-900">
+                          {companyData.preferred_days_per_week || 2} dni/tydzień
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Blocked Dates */}
+                  <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6">
+                    <h3 className="font-bold text-lg mb-4">
+                      🚫 Zablokowane daty
+                    </h3>
+                    <p className="text-sm text-gray-600 mb-4">
+                      Zaznacz okresy niedostępności (urlop, przerwy)
                     </p>
-                    <p className="text-xs text-blue-600 mt-1">
-                      https://zzp-werkplaats.nl/firma/vsvs
-                    </p>
-                    <div className="mt-4 space-y-2">
-                      <button
-                        onClick={() => setShowEditModal(true)}
-                        className="w-full bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
-                      >
-                        📝 Edytuj dane firmy
-                      </button>
-                      <button className="w-full bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600">
-                        🗑️ Usuń
-                      </button>
+                    <DateBlocker
+                      blockedDates={blockedDates}
+                      onBlock={handleBlockDate}
+                      onUnblock={handleUnblockDate}
+                    />
+                    <div className="mt-4 pt-4 border-t border-gray-200">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <p className="text-xs text-gray-600 mb-1">
+                            Dostępne dni:
+                          </p>
+                          <p className="text-2xl font-bold text-blue-600">
+                            {blockedDates.length > 0
+                              ? Math.max(0, 30 - blockedDates.length)
+                              : 30}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-gray-600 mb-1">
+                            Zablokowane:
+                          </p>
+                          <p className="text-2xl font-bold text-red-600">
+                            {blockedDates.length}
+                          </p>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
 
-                {/* Availability */}
-                <div className="bg-white rounded-xl shadow-md p-6">
-                  <h3 className="font-bold text-lg mb-4">
-                    📅 Twoja dostępność
-                  </h3>
-                  <p className="text-sm text-gray-600 mb-4">
-                    Wybierz dni w których możesz przyjąć zlecenia (pracujesz)
-                  </p>
-                  <div className="space-y-2">
-                    {[
-                      { key: "monday", label: "Poniedziałek" },
-                      { key: "tuesday", label: "Wtorek" },
-                      { key: "wednesday", label: "Środa" },
-                      { key: "thursday", label: "Czwartek" },
-                      { key: "friday", label: "Piątek" },
-                      { key: "saturday", label: "Sobota" },
-                      { key: "sunday", label: "Niedziela" },
-                    ].map((day) => (
-                      <label
-                        key={day.key}
-                        className="flex items-center space-x-3 cursor-pointer"
-                      >
-                        <input
-                          type="checkbox"
-                          className="w-5 h-5 text-blue-600 rounded"
-                          checked={
-                            companyData.availability &&
-                            typeof companyData.availability === "object" &&
-                            day.key in companyData.availability
-                              ? (companyData.availability as any)[day.key]
-                              : false
-                          }
-                          onChange={(e) =>
-                            handleAvailabilityChange(day.key, e.target.checked)
-                          }
-                        />
-                        <span className="text-gray-700">{day.label}</span>
-                      </label>
-                    ))}
-                  </div>
-                  <div className="mt-4 pt-4 border-t">
-                    <p className="text-xs text-gray-500">
-                      Preferowana liczba dni:{" "}
-                      {companyData.preferred_days_per_week || 2} dni/tydzień
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Middle Column */}
-              <div className="space-y-6">
-                {/* Dane firmy */}
-                <div className="bg-white rounded-xl shadow-md p-6">
+                {/* Company Info - Full Width */}
+                <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6">
                   <h3 className="font-bold text-lg mb-4">ℹ️ Dane firmy</h3>
-                  <div className="space-y-3">
-                    <div>
-                      <p className="text-sm text-gray-600">Kontakt</p>
-                      <p className="font-semibold">
-                        {companyData.email || "Brak"}
-                      </p>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="space-y-3">
+                      <div>
+                        <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">
+                          Kontakt
+                        </p>
+                        <p className="font-semibold text-gray-900">
+                          {companyData.email || "Brak"}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">
+                          Telefon
+                        </p>
+                        <p className="font-semibold text-gray-900">
+                          {companyData.phone || "Brak"}
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-sm text-gray-600">Zespół</p>
-                      <p className="font-semibold">
-                        {companyData.team_size || 1} osoba
-                      </p>
+                    <div className="space-y-3">
+                      <div>
+                        <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">
+                          Miasto
+                        </p>
+                        <p className="font-semibold text-gray-900">
+                          {companyData.location_city || "Brak"}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">
+                          Zespół
+                        </p>
+                        <p className="font-semibold text-gray-900">
+                          {companyData.team_size || 1}{" "}
+                          {companyData.team_size === 1 ? "osoba" : "osób"}
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-sm text-gray-600">Miasto</p>
-                      <p className="font-semibold">
-                        {companyData.location_city || "Brak"}
-                      </p>
+                    <div className="space-y-3">
+                      <div>
+                        <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">
+                          Status
+                        </p>
+                        <span className="inline-flex items-center gap-1 px-3 py-1 bg-green-100 text-green-700 text-xs font-medium rounded-full">
+                          <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+                          Aktywny
+                        </span>
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">
+                          Preferencje
+                        </p>
+                        <p className="font-semibold text-gray-900">
+                          {companyData.preferred_days_per_week || 2} dni/tydz.
+                        </p>
+                      </div>
                     </div>
                   </div>
-                  <button className="mt-4 text-blue-600 hover:text-blue-800 text-sm">
-                    Zobacz wszystkie →
-                  </button>
-                </div>
-
-                {/* Zarezerwowane daty */}
-                <div className="bg-white rounded-xl shadow-md p-6">
-                  <h3 className="font-bold text-lg mb-4">
-                    📅 Zarezerwuj datami
-                  </h3>
-                  <p className="text-sm text-gray-600 mb-4">
-                    Zablokuj daty, kiedy się nie pojawicie (np. przerwa, urlop)
-                  </p>
-                  <DateBlocker
-                    blockedDates={blockedDates}
-                    onBlock={handleBlockDate}
-                    onUnblock={handleUnblockDate}
-                  />
-                  <div className="mt-4">
-                    <p className="text-sm font-semibold mb-2">Dostępne dni:</p>
-                    <p className="text-2xl font-bold text-blue-600">
-                      {blockedDates.length > 0
-                        ? Math.max(0, 30 - blockedDates.length)
-                        : 30}
-                    </p>
-                    <p className="text-sm font-semibold mt-4 mb-2">
-                      Preferowane:
-                    </p>
-                    <p className="text-lg text-gray-700">
-                      {companyData?.preferred_days_per_week || 2} dni/tydzień
-                    </p>
+                  <div className="mt-6 pt-4 border-t border-gray-200 flex gap-3">
+                    <button
+                      onClick={() => setShowEditModal(true)}
+                      className="flex-1 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                    >
+                      📝 Edytuj profil
+                    </button>
+                    <button className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium">
+                      👁️ Podgląd publiczny
+                    </button>
                   </div>
                 </div>
-              </div>
 
-              {/* Right Column */}
-              <div className="space-y-6">
-                {/* Portfolio */}
-                <div className="bg-white rounded-xl shadow-md p-6">
+                {/* Portfolio - Full Width */}
+                <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6">
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="font-bold text-lg">
-                      🎨 Portfolio zdjęć (
-                      {companyData.portfolio_images?.length || 0} zdjęć)
+                      🎨 Portfolio ({companyData.portfolio_images?.length || 0}{" "}
+                      zdjęć)
                     </h3>
                     <button
                       onClick={() => setShowPortfolioModal(true)}
-                      className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm"
+                      className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm font-medium transition-colors"
                     >
-                      Dodaj zdjęcia
+                      + Dodaj zdjęcia
                     </button>
                   </div>
                   <p className="text-sm text-gray-600 mb-4">
-                    Pokazuj swoją pracę - dodaj zdjęcia projektów gotowe
+                    Pokazuj swoją pracę - dodaj zdjęcia ukończonych projektów
                   </p>
-                  <div className="grid grid-cols-2 gap-4">
-                    {companyData.portfolio_images
-                      ?.slice(0, 2)
-                      .map((img: string, i: number) => (
-                        <img
-                          key={i}
-                          src={img}
-                          alt={`Portfolio ${i + 1}`}
-                          className="w-full h-40 object-cover rounded-lg"
-                        />
-                      ))}
+                  {companyData.portfolio_images &&
+                  companyData.portfolio_images.length > 0 ? (
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      {companyData.portfolio_images
+                        ?.slice(0, 4)
+                        .map((img: string, i: number) => (
+                          <img
+                            key={i}
+                            src={img}
+                            alt={`Portfolio ${i + 1}`}
+                            className="w-full h-32 object-cover rounded-lg border border-gray-200 hover:scale-105 transition-transform cursor-pointer"
+                          />
+                        ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8 border-2 border-dashed border-gray-300 rounded-lg">
+                      <p className="text-4xl mb-2">📷</p>
+                      <p className="text-sm text-gray-500">
+                        Brak zdjęć w portfolio
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* RIGHT COLUMN: SIDEBAR (1/3 width) */}
+              <div className="lg:col-span-1 space-y-6">
+                {/* Profile Card */}
+                <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6">
+                  <h3 className="font-bold text-lg mb-4">📸 Profil firmy</h3>
+                  <div className="text-center">
+                    <div className="relative inline-block mb-4">
+                      <img
+                        src={companyData.avatar_url || "/default-avatar.png"}
+                        alt="Profile"
+                        className="w-24 h-24 rounded-full object-cover mx-auto border-4 border-purple-200 shadow-lg"
+                      />
+                    </div>
+                    <h4 className="font-bold text-lg text-gray-900 mb-1">
+                      {companyData.company_name || "Firma Sprzątająca"}
+                    </h4>
+                    <p className="text-sm text-gray-600 mb-2">
+                      {companyData.email || "kontakt@firma.nl"}
+                    </p>
+                    <p className="text-xs text-blue-600 mb-4 hover:underline cursor-pointer">
+                      zzp-werkplaats.nl/firma/{companyData.id || "profil"}
+                    </p>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => setShowEditModal(true)}
+                        className="flex-1 bg-blue-600 text-white px-3 py-2 rounded-lg hover:bg-blue-700 text-sm font-medium"
+                      >
+                        Edytuj
+                      </button>
+                      <button className="px-3 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 text-sm">
+                        <svg
+                          className="w-4 h-4"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                          />
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                          />
+                        </svg>
+                      </button>
+                    </div>
                   </div>
                 </div>
 
-                {/* Powiadomienia - przeniesione z zakładki Wiadomości i rozbudowane */}
-                <div className="bg-white rounded-xl shadow-md p-6">
+                {/* Powiadomienia */}
+                <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6">
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="font-bold text-lg">🔔 Powiadomienia</h3>
                     <div className="flex items-center gap-2">

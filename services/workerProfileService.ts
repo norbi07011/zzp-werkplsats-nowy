@@ -109,8 +109,15 @@ export interface WorkerReview {
   response: string | null;
   response_date: string | null;
   created_at: string;
+  reviewer?: {
+    id: string;
+    full_name: string;
+    avatar_url: string | null;
+  };
   employer?: {
+    id: string;
     company_name: string;
+    logo_url: string | null;
   };
 }
 
@@ -1062,7 +1069,8 @@ export async function getReviews(workerId: string): Promise<Review[]> {
       .select(
         `
         *,
-        employer:employers(company_name)
+        reviewer:profiles!reviews_reviewer_id_fkey (id, full_name, avatar_url),
+        employer:employers(id, company_name, logo_url)
       `
       )
       .eq("reviewee_id", workerId) // Changed from worker_id to reviewee_id

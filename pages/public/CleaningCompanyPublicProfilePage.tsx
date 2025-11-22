@@ -65,6 +65,31 @@ interface CleaningReview {
   review_text: string | null;
   work_date: string | null;
   created_at: string | null;
+  employers?: {
+    company_name: string;
+    user_id: string;
+    employer_profile: {
+      avatar_url: string | null;
+    };
+  } | null;
+  workers?: {
+    profile_id: string;
+    worker_profile: {
+      full_name: string;
+      avatar_url: string | null;
+    };
+  } | null;
+  accountants?: {
+    company_name: string;
+    profile_id: string;
+    accountant_profile: {
+      avatar_url: string | null;
+    };
+  } | null;
+  reviewer?: {
+    name: string;
+    avatar_url?: string;
+  };
 }
 
 export default function CleaningCompanyPublicProfilePage() {
@@ -162,15 +187,83 @@ export default function CleaningCompanyPublicProfilePage() {
       // Use the actual company.id for related queries
       const actualCompanyId = companyData.id;
 
-      // Load reviews
+      // Load reviews with reviewer profiles (employer/worker/accountant)
       const { data: reviewsData, error: reviewsError } = await supabase
         .from("cleaning_reviews")
-        .select("*")
+        .select(
+          `
+          id,
+          rating,
+          review_text,
+          work_date,
+          work_type,
+          created_at,
+          quality_rating,
+          punctuality_rating,
+          communication_rating,
+          safety_rating,
+          would_recommend,
+          response_text,
+          response_date,
+          employer_id,
+          worker_id,
+          accountant_id,
+          employers (
+            company_name,
+            user_id,
+            employer_profile:profiles!employers_user_id_fkey (
+              avatar_url
+            )
+          ),
+          workers (
+            profile_id,
+            worker_profile:profiles!workers_profile_id_fkey (
+              full_name,
+              avatar_url
+            )
+          ),
+          accountants (
+            company_name,
+            profile_id,
+            accountant_profile:profiles!accountants_profile_id_fkey (
+              avatar_url
+            )
+          )
+        `
+        )
         .eq("cleaning_company_id", actualCompanyId)
         .order("created_at", { ascending: false });
 
       if (!reviewsError && reviewsData && isMounted) {
-        setReviews(reviewsData);
+        // Map reviews to extract reviewer name and avatar
+        const mappedReviews = (reviewsData || []).map((review: any) => {
+          let reviewerName = "Użytkownik";
+          let reviewerAvatar: string | undefined = undefined;
+
+          if (review.employer_id && review.employers?.company_name) {
+            reviewerName = review.employers.company_name;
+            reviewerAvatar = review.employers?.employer_profile?.avatar_url;
+          } else if (
+            review.worker_id &&
+            review.workers?.worker_profile?.full_name
+          ) {
+            reviewerName = review.workers.worker_profile.full_name;
+            reviewerAvatar = review.workers?.worker_profile?.avatar_url;
+          } else if (review.accountant_id && review.accountants?.company_name) {
+            reviewerName = review.accountants.company_name;
+            reviewerAvatar = review.accountants?.accountant_profile?.avatar_url;
+          }
+
+          return {
+            ...review,
+            reviewer: {
+              name: reviewerName,
+              avatar_url: reviewerAvatar,
+            },
+          };
+        });
+
+        setReviews(mappedReviews);
       }
 
       // Track profile view AFTER company is loaded
@@ -849,8 +942,27 @@ function ReviewsTab({
         {reviews.map((review) => (
           <div key={review.id} className="bg-white rounded-lg shadow-sm p-6">
             <div className="flex items-start gap-4">
-              <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-lg font-bold text-white shadow-md">
-                {review.employer_id ? "P" : review.worker_id ? "W" : "K"}
+              {/* Reviewer Avatar */}
+              {review.reviewer?.avatar_url ? (
+                <img
+                  src={review.reviewer.avatar_url}
+                  alt={review.reviewer.name}
+                  className="w-12 h-12 rounded-full object-cover shadow-md"
+                  onError={(e) => {
+                    // Fallback to initial if image fails to load
+                    e.currentTarget.style.display = "none";
+                    e.currentTarget.nextElementSibling!.style.display = "flex";
+                  }}
+                />
+              ) : null}
+              <div
+                className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-lg font-bold text-white shadow-md"
+                style={{
+                  display: review.reviewer?.avatar_url ? "none" : "flex",
+                }}
+              >
+                {review.reviewer?.name?.[0]?.toUpperCase() ||
+                  (review.employer_id ? "P" : review.worker_id ? "W" : "K")}
               </div>
 
               <div className="flex-1">
@@ -858,11 +970,12 @@ function ReviewsTab({
                   <div>
                     <div className="flex items-center gap-3 mb-1">
                       <h4 className="font-semibold text-gray-900">
-                        {review.employer_id
-                          ? "Pracodawca"
-                          : review.worker_id
-                          ? "Pracownik"
-                          : "Księgowy"}
+                        {review.reviewer?.name ||
+                          (review.employer_id
+                            ? "Pracodawca"
+                            : review.worker_id
+                            ? "Pracownik"
+                            : "Księgowy")}
                       </h4>
                       <div className="flex items-center gap-1">
                         {[...Array(5)].map((_, i) => (

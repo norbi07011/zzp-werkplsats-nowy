@@ -1,8 +1,12 @@
-import React, { useEffect, useState } from 'react';
-import type { Database } from '../lib/database.types';
-import { getWorkerReviews, getWorkerReviewStats, type WorkerReviewStats } from '../services/reviewService';
+import React, { useEffect, useState } from "react";
+import type { Database } from "../lib/database.types";
+import {
+  getWorkerReviews,
+  getWorkerReviewStats,
+  type WorkerReviewStats,
+} from "../services/reviewService";
 
-type ReviewRow = Database['public']['Tables']['reviews']['Row'];
+type ReviewRow = Database["public"]["Tables"]["reviews"]["Row"];
 
 interface WorkerReviewsProps {
   workerId: string;
@@ -10,15 +14,20 @@ interface WorkerReviewsProps {
   maxReviews?: number;
 }
 
-const StarDisplay: React.FC<{ rating: number; label?: string }> = ({ rating, label }) => {
+const StarDisplay: React.FC<{ rating: number; label?: string }> = ({
+  rating,
+  label,
+}) => {
   return (
     <div className="flex items-center gap-1">
       {label && <span className="text-sm text-gray-600 mr-1">{label}:</span>}
       {[1, 2, 3, 4, 5].map((star) => (
         <svg
           key={star}
-          className={`w-4 h-4 ${star <= rating ? 'text-yellow-400 fill-current' : 'text-gray-300'}`}
-          fill={star <= rating ? 'currentColor' : 'none'}
+          className={`w-4 h-4 ${
+            star <= rating ? "text-yellow-400 fill-current" : "text-gray-300"
+          }`}
+          fill={star <= rating ? "currentColor" : "none"}
           stroke="currentColor"
           viewBox="0 0 24 24"
         >
@@ -30,47 +39,51 @@ const StarDisplay: React.FC<{ rating: number; label?: string }> = ({ rating, lab
           />
         </svg>
       ))}
-      <span className="ml-1 text-sm font-medium text-gray-700">{rating.toFixed(1)}</span>
+      <span className="ml-1 text-sm font-medium text-gray-700">
+        {rating.toFixed(1)}
+      </span>
     </div>
   );
 };
 
-export const WorkerReviews: React.FC<WorkerReviewsProps> = ({ 
-  workerId, 
+export const WorkerReviews: React.FC<WorkerReviewsProps> = ({
+  workerId,
   showStats = true,
-  maxReviews 
+  maxReviews,
 }) => {
   const [reviews, setReviews] = useState<ReviewRow[]>([]);
   const [stats, setStats] = useState<WorkerReviewStats | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
 
   useEffect(() => {
     async function loadReviews() {
       setLoading(true);
-      setError('');
+      setError("");
 
       try {
         const [reviewsResult, statsResult] = await Promise.all([
           getWorkerReviews(workerId),
-          showStats ? getWorkerReviewStats(workerId) : Promise.resolve({ success: true, stats: null })
+          showStats
+            ? getWorkerReviewStats(workerId)
+            : Promise.resolve({ success: true, stats: null }),
         ]);
 
         if (reviewsResult.success) {
-          const displayReviews = maxReviews 
+          const displayReviews = maxReviews
             ? (reviewsResult.reviews || []).slice(0, maxReviews)
-            : (reviewsResult.reviews || []);
+            : reviewsResult.reviews || [];
           setReviews(displayReviews);
         } else {
-          setError(reviewsResult.error || 'Nie udało się załadować opinii');
+          setError(reviewsResult.error || "Nie udało się załadować opinii");
         }
 
         if (statsResult.success && statsResult.stats) {
           setStats(statsResult.stats);
         }
       } catch (err) {
-        console.error('Error loading reviews:', err);
-        setError('Wystąpił błąd podczas ładowania opinii');
+        console.error("Error loading reviews:", err);
+        setError("Wystąpił błąd podczas ładowania opinii");
       } finally {
         setLoading(false);
       }
@@ -100,7 +113,9 @@ export const WorkerReviews: React.FC<WorkerReviewsProps> = ({
     return (
       <div className="bg-gray-50 border border-gray-200 rounded-lg p-6 text-center">
         <p className="text-gray-600">Brak opinii dla tego pracownika</p>
-        <p className="text-sm text-gray-500 mt-1">Bądź pierwszy, który wystawi opinię!</p>
+        <p className="text-sm text-gray-500 mt-1">
+          Bądź pierwszy, który wystawi opinię!
+        </p>
       </div>
     );
   }
@@ -110,20 +125,28 @@ export const WorkerReviews: React.FC<WorkerReviewsProps> = ({
       {/* Statistics Summary */}
       {showStats && stats && stats.total_reviews > 0 && (
         <div className="bg-gradient-to-r from-yellow-50 to-orange-50 border border-yellow-200 rounded-lg p-6">
-          <h3 className="text-lg font-bold text-gray-900 mb-4">📊 Podsumowanie opinii</h3>
-          
+          <h3 className="text-lg font-bold text-gray-900 mb-4">
+            📊 Podsumowanie opinii
+          </h3>
+
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
             <div className="text-center">
-              <p className="text-3xl font-bold text-orange-600">{stats.average_rating.toFixed(1)}</p>
+              <p className="text-3xl font-bold text-orange-600">
+                {stats.average_rating.toFixed(1)}
+              </p>
               <StarDisplay rating={Math.round(stats.average_rating)} />
-              <p className="text-sm text-gray-600 mt-1">{stats.total_reviews} opinii</p>
+              <p className="text-sm text-gray-600 mt-1">
+                {stats.total_reviews} opinii
+              </p>
             </div>
 
             {stats.average_communication > 0 && (
               <div>
                 <p className="text-xs text-gray-600 mb-1">📞 Komunikacja</p>
                 <StarDisplay rating={Math.round(stats.average_communication)} />
-                <p className="text-xs text-gray-500">{stats.average_communication.toFixed(1)}/5</p>
+                <p className="text-xs text-gray-500">
+                  {stats.average_communication.toFixed(1)}/5
+                </p>
               </div>
             )}
 
@@ -131,7 +154,9 @@ export const WorkerReviews: React.FC<WorkerReviewsProps> = ({
               <div>
                 <p className="text-xs text-gray-600 mb-1">⏰ Punktualność</p>
                 <StarDisplay rating={Math.round(stats.average_punctuality)} />
-                <p className="text-xs text-gray-500">{stats.average_punctuality.toFixed(1)}/5</p>
+                <p className="text-xs text-gray-500">
+                  {stats.average_punctuality.toFixed(1)}/5
+                </p>
               </div>
             )}
 
@@ -139,7 +164,9 @@ export const WorkerReviews: React.FC<WorkerReviewsProps> = ({
               <div>
                 <p className="text-xs text-gray-600 mb-1">🔨 Jakość pracy</p>
                 <StarDisplay rating={Math.round(stats.average_quality)} />
-                <p className="text-xs text-gray-500">{stats.average_quality.toFixed(1)}/5</p>
+                <p className="text-xs text-gray-500">
+                  {stats.average_quality.toFixed(1)}/5
+                </p>
               </div>
             )}
 
@@ -147,14 +174,18 @@ export const WorkerReviews: React.FC<WorkerReviewsProps> = ({
               <div>
                 <p className="text-xs text-gray-600 mb-1">🦺 Bezpieczeństwo</p>
                 <StarDisplay rating={Math.round(stats.average_safety)} />
-                <p className="text-xs text-gray-500">{stats.average_safety.toFixed(1)}/5</p>
+                <p className="text-xs text-gray-500">
+                  {stats.average_safety.toFixed(1)}/5
+                </p>
               </div>
             )}
 
             {stats.recommendation_percentage > 0 && (
               <div>
                 <p className="text-xs text-gray-600 mb-1">👍 Polecenia</p>
-                <p className="text-2xl font-bold text-green-600">{Math.round(stats.recommendation_percentage)}%</p>
+                <p className="text-2xl font-bold text-green-600">
+                  {Math.round(stats.recommendation_percentage)}%
+                </p>
                 <p className="text-xs text-gray-500">poleca tego pracownika</p>
               </div>
             )}
@@ -164,41 +195,89 @@ export const WorkerReviews: React.FC<WorkerReviewsProps> = ({
 
       {/* Reviews List */}
       <div className="space-y-4">
-        <h3 className="text-lg font-bold text-gray-900">💬 Opinie ({reviews.length})</h3>
-        
+        <h3 className="text-lg font-bold text-gray-900">
+          💬 Opinie ({reviews.length})
+        </h3>
+
         {reviews.map((review) => (
-          <div key={review.id} className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow">
+          <div
+            key={review.id}
+            className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow"
+          >
             {/* Rating & Date */}
             <div className="flex items-start justify-between mb-3">
               <StarDisplay rating={review.rating} />
               <span className="text-xs text-gray-500">
-                {new Date(review.created_at || '').toLocaleDateString('pl-PL', {
-                  year: 'numeric',
-                  month: 'long',
-                  day: 'numeric'
+                {new Date(review.created_at || "").toLocaleDateString("pl-PL", {
+                  year: "numeric",
+                  month: "long",
+                  day: "numeric",
                 })}
               </span>
             </div>
 
             {/* Comment */}
             {review.comment && (
-              <p className="text-gray-700 mb-3 leading-relaxed">{review.comment}</p>
+              <p className="text-gray-700 mb-3 leading-relaxed">
+                {review.comment}
+              </p>
             )}
 
+            {/* Reviewer Info */}
+            <div className="flex items-center gap-2 mb-3 pb-3 border-b border-gray-100">
+              {(review as any).reviewer?.avatar_url ||
+              (review as any).employer?.logo_url ? (
+                <img
+                  src={
+                    (review as any).reviewer?.avatar_url ||
+                    (review as any).employer?.logo_url
+                  }
+                  alt="Reviewer"
+                  className="w-8 h-8 rounded-full object-cover"
+                />
+              ) : (
+                <div className="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center text-sm font-bold text-white">
+                  {((review as any).reviewer?.full_name ||
+                    (review as any).employer?.company_name ||
+                    "A")[0].toUpperCase()}
+                </div>
+              )}
+              <p className="text-sm text-gray-600">
+                {(review as any).reviewer?.full_name ||
+                  (review as any).employer?.company_name ||
+                  "Anonim"}
+              </p>
+            </div>
+
             {/* Detailed Ratings */}
-            {(review.communication_rating || review.punctuality_rating || review.quality_rating || review.safety_rating) && (
+            {(review.communication_rating ||
+              review.punctuality_rating ||
+              review.quality_rating ||
+              review.safety_rating) && (
               <div className="grid grid-cols-2 gap-2 mb-3 bg-gray-50 p-3 rounded">
                 {review.communication_rating && (
-                  <StarDisplay rating={review.communication_rating} label="📞 Komunikacja" />
+                  <StarDisplay
+                    rating={review.communication_rating}
+                    label="📞 Komunikacja"
+                  />
                 )}
                 {review.punctuality_rating && (
-                  <StarDisplay rating={review.punctuality_rating} label="⏰ Punktualność" />
+                  <StarDisplay
+                    rating={review.punctuality_rating}
+                    label="⏰ Punktualność"
+                  />
                 )}
                 {review.quality_rating && (
-                  <StarDisplay rating={review.quality_rating} label="🔨 Jakość" />
+                  <StarDisplay
+                    rating={review.quality_rating}
+                    label="🔨 Jakość"
+                  />
                 )}
                 {review.safety_rating && (
-                  <StarDisplay rating={review.safety_rating} label="🦺 Bezpieczeństwo" />
+                  <StarDisplay
+                    rating={review.safety_rating}
+                    label="🦺 Bezpieczeństwo"
+                  />
                 )}
               </div>
             )}
@@ -221,8 +300,16 @@ export const WorkerReviews: React.FC<WorkerReviewsProps> = ({
             {/* Verification Badge */}
             {review.verified_by_platform && (
               <div className="mt-2 flex items-center gap-1 text-xs text-blue-600">
-                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                <svg
+                  className="w-4 h-4"
+                  fill="currentColor"
+                  viewBox="0 0 20 20"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                    clipRule="evenodd"
+                  />
                 </svg>
                 <span>Zweryfikowana przez platformę</span>
               </div>

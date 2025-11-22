@@ -255,6 +255,13 @@ export default function WorkerDashboard() {
   const [earnings, setEarnings] = useState<any[]>([]);
   const [earningsStats, setEarningsStats] = useState<any>(null);
   const [reviews, setReviews] = useState<any[]>([]);
+  const [reviewFilter, setReviewFilter] = useState<"all" | 1 | 2 | 3 | 4 | 5>(
+    "all"
+  );
+  const [reviewSort, setReviewSort] = useState<
+    "newest" | "oldest" | "highest" | "lowest"
+  >("newest");
+  const [showAllReviews, setShowAllReviews] = useState(false);
   const [analytics, setAnalytics] = useState<any>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -1334,39 +1341,39 @@ export default function WorkerDashboard() {
           }
         />
 
-        {/* STATS GRID */}
-        <StatsGrid columns={4}>
-          <StatCard
-            title="Ukończone projekty"
-            value={`${analytics?.completed_jobs || 0}`}
-            icon={<span className="text-2xl">✅</span>}
-            color="blue"
-          />
-          <StatCard
-            title="Średnia ocena"
-            value={
-              workerProfile?.rating && workerProfile.rating_count > 0
+        {/* STATS GRID - 4 ładne karty z gradientami */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+          <div className="bg-gradient-to-br from-orange-100 to-orange-50 rounded-xl shadow-md border border-orange-200 p-6">
+            <p className="text-sm text-orange-600 mb-1">Ukończone projekty</p>
+            <p className="text-3xl font-bold text-orange-900">
+              {analytics?.completed_jobs || 0}
+            </p>
+            <span className="text-3xl">✅</span>
+          </div>
+          <div className="bg-gradient-to-br from-purple-100 to-purple-50 rounded-xl shadow-md border border-purple-200 p-6">
+            <p className="text-sm text-purple-600 mb-1">Średnia ocena</p>
+            <p className="text-3xl font-bold text-purple-900">
+              {workerProfile?.rating && workerProfile.rating_count > 0
                 ? `${workerProfile.rating.toFixed(1)} / 5.0`
-                : "0.0 / 5.0"
-            }
-            icon={<span className="text-2xl">⭐</span>}
-            color="orange"
-          />
-          <StatCard
-            title="Wyświetlenia profilu"
-            value={`${analytics?.profile_views || 0}`}
-            icon={<span className="text-2xl">👁️</span>}
-            color="purple"
-          />
-          <StatCard
-            title="Wiadomości"
-            value={`${messages.length}${
-              unreadCount > 0 ? ` (${unreadCount} nowe)` : ""
-            }`}
-            icon={<span className="text-2xl">📬</span>}
-            color="green"
-          />
-        </StatsGrid>
+                : "0.0 / 5.0"}
+            </p>
+            <span className="text-3xl">⭐</span>
+          </div>
+          <div className="bg-gradient-to-br from-blue-100 to-blue-50 rounded-xl shadow-md border border-blue-200 p-6">
+            <p className="text-sm text-blue-600 mb-1">Wyświetlenia profilu</p>
+            <p className="text-3xl font-bold text-blue-900">
+              {analytics?.profile_views || 0}
+            </p>
+            <span className="text-3xl">👁️</span>
+          </div>
+          <div className="bg-gradient-to-br from-green-100 to-green-50 rounded-xl shadow-md border border-green-200 p-6">
+            <p className="text-sm text-green-600 mb-1">Wiadomości</p>
+            <p className="text-3xl font-bold text-green-900">
+              {messages.length} {unreadCount > 0 ? `(${unreadCount} nowe)` : ""}
+            </p>
+            <span className="text-3xl">📬</span>
+          </div>
+        </div>
 
         {/* PROFILE MANAGEMENT - 3 cards */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
@@ -1458,7 +1465,7 @@ export default function WorkerDashboard() {
         {/* ✅ DOSTĘPNOŚĆ + ZARZĄDZANIE DATAMI - 2 kolumny (jak CleaningDashboard) */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
           {/* LEFT: Dostępność */}
-          <ContentCard>
+          <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6">
             <h2 className="text-xl font-semibold text-gray-800 mb-2">
               � Twoja dostępność
             </h2>
@@ -1513,10 +1520,10 @@ export default function WorkerDashboard() {
                 </p>
               </div>
             </div>
-          </ContentCard>
+          </div>
 
           {/* RIGHT: Zarządzaj datami */}
-          <ContentCard>
+          <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6">
             <h2 className="text-xl font-semibold text-gray-800 mb-2">
               🚫 Zarządzaj datami
             </h2>
@@ -1540,11 +1547,11 @@ export default function WorkerDashboard() {
                 są synchronizowane automatycznie.
               </p>
             </div>
-          </ContentCard>
+          </div>
         </div>
 
         {/* ✅ OSTATNIE WIADOMOŚCI */}
-        <ContentCard className="mb-6">
+        <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6 mb-6">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <h2 className="text-xl font-semibold text-gray-800">
@@ -1632,10 +1639,10 @@ export default function WorkerDashboard() {
               ))}
             </div>
           )}
-        </ContentCard>
+        </div>
 
         {/* ✅ OPINIE OD KLIENTÓW */}
-        <ContentCard className="mb-6">
+        <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6 mb-6">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-semibold text-gray-800">
               ⭐ Opinie od klientów
@@ -1686,17 +1693,38 @@ export default function WorkerDashboard() {
                     </span>
                   </div>
                   <p className="text-sm text-gray-700">{review.comment}</p>
-                  <p className="text-xs text-gray-500 mt-2">
-                    — {review.employer?.full_name || "Anonim"}
-                  </p>
+                  <div className="flex items-center gap-2 mt-2">
+                    {review.reviewer?.avatar_url ||
+                    review.employer?.logo_url ? (
+                      <img
+                        src={
+                          review.reviewer?.avatar_url ||
+                          review.employer?.logo_url
+                        }
+                        alt="Reviewer"
+                        className="w-6 h-6 rounded-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-6 h-6 rounded-full bg-gray-300 flex items-center justify-center text-xs font-bold text-white">
+                        {(review.reviewer?.full_name ||
+                          review.employer?.company_name ||
+                          "A")[0].toUpperCase()}
+                      </div>
+                    )}
+                    <p className="text-xs text-gray-500">
+                      {review.reviewer?.full_name ||
+                        review.employer?.company_name ||
+                        "Anonim"}
+                    </p>
+                  </div>
                 </div>
               ))}
             </div>
           )}
-        </ContentCard>
+        </div>
 
         {/* ✅ PORTFOLIO ZDJĘĆ */}
-        <ContentCard className="mb-6">
+        <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6 mb-6">
           <div className="flex items-center justify-between mb-4">
             <div>
               <h2 className="text-xl font-semibold text-gray-800">
@@ -1725,15 +1753,15 @@ export default function WorkerDashboard() {
               </div>
             ))}
           </div>
-        </ContentCard>
+        </div>
 
         {/* Szybkie działania Card */}
-        <ContentCard>
-          <h3 className="text-lg font-semibold text-gray-800 mb-4">
+        <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6 mb-6">
+          <h2 className="text-xl font-bold text-gray-900 mb-4">
             ⚡ Szybkie działania
-          </h3>
+          </h2>
 
-          <div className="space-y-2">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <Link
               to="/employers"
               className="w-full px-4 py-2.5 bg-orange-600 text-white rounded-lg font-medium hover:bg-orange-700 flex items-center justify-center gap-2 transition-colors text-sm"
@@ -1854,7 +1882,7 @@ export default function WorkerDashboard() {
               Wsparcie
             </button>
           </div>
-        </ContentCard>
+        </div>
 
         {/* DateBlocker Modal */}
         {showDateBlocker && (
@@ -3476,7 +3504,7 @@ export default function WorkerDashboard() {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 p-8">
         <div className="max-w-7xl mx-auto">
-          {/* Analytics Section */}
+          {/* Analytics Section - ZACHOWANE */}
           <div className="mb-12">
             <h1 className="text-3xl font-bold text-gray-900 mb-8">
               📊 Analityka
@@ -3557,51 +3585,478 @@ export default function WorkerDashboard() {
             </div>
           </div>
 
-          {/* Reviews Section */}
-          <div>
-            <div className="flex justify-between items-center mb-8">
-              <h2 className="text-3xl font-bold text-white">⭐ Opinie</h2>
-              <div className="flex items-center gap-4">
-                <div className="text-center">
-                  <div className="text-5xl font-bold text-yellow-400">
-                    {analytics?.average_rating?.toFixed(1) || "0.0"}
-                  </div>
-                  <div className="text-neutral-400 text-sm">Średnia ocena</div>
+          {/* Reviews Section - NOWY PEŁNY SYSTEM (WHITE THEME) */}
+          <div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
+            {/* Gradient Header with Stats */}
+            <div className="bg-gradient-to-r from-blue-600 to-cyan-600 p-6">
+              <h2 className="text-2xl font-bold text-white mb-6">
+                ⭐ Opinie od pracodawców
+              </h2>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {/* Total Reviews */}
+                <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4">
+                  <p className="text-white/80 text-sm mb-1">Łącznie opinii</p>
+                  <p className="text-white text-2xl font-bold">
+                    {reviews.length}
+                  </p>
+                </div>
+                {/* Average Rating */}
+                <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4">
+                  <p className="text-white/80 text-sm mb-1">Średnia ocena</p>
+                  <p className="text-white text-2xl font-bold">
+                    {reviews.length > 0
+                      ? (
+                          reviews.reduce((sum, r) => sum + r.rating, 0) /
+                          reviews.length
+                        ).toFixed(1)
+                      : analytics?.average_rating?.toFixed(1) || "0.0"}
+                    <span className="text-lg ml-1">⭐</span>
+                  </p>
+                </div>
+                {/* Positive Reviews */}
+                <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4">
+                  <p className="text-white/80 text-sm mb-1">
+                    Pozytywne (4-5⭐)
+                  </p>
+                  <p className="text-white text-2xl font-bold">
+                    {reviews.filter((r) => r.rating >= 4).length}
+                  </p>
                 </div>
               </div>
             </div>
 
-            {reviews.length === 0 ? (
-              <div className="text-center py-16 bg-dark-800 rounded-xl border border-neutral-700">
-                <div className="text-6xl mb-4">💬</div>
-                <p className="text-neutral-400">Brak opinii</p>
-              </div>
-            ) : (
-              <div className="space-y-6">
-                {reviews.map((review) => (
-                  <div
-                    key={review.id}
-                    className="bg-dark-800 rounded-xl p-6 border border-neutral-700"
-                  >
-                    <div className="flex items-start justify-between mb-4">
-                      <div>
-                        <h3 className="text-lg font-bold text-white">
-                          {review.employer?.company_name || "Pracodawca"}
-                        </h3>
-                        <div className="text-yellow-400 text-xl mt-1">
-                          {"⭐".repeat(review.rating)}
-                          {"☆".repeat(5 - review.rating)}
-                        </div>
+            {/* Rating Breakdown */}
+            <div className="p-6 border-b border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                Rozkład ocen
+              </h3>
+              <div className="space-y-2">
+                {[5, 4, 3, 2, 1].map((stars) => {
+                  const count = reviews.filter(
+                    (r) => r.rating === stars
+                  ).length;
+                  const percentage =
+                    reviews.length > 0 ? (count / reviews.length) * 100 : 0;
+                  return (
+                    <div key={stars} className="flex items-center gap-3">
+                      <span className="text-sm text-gray-600 w-12">
+                        {stars} ⭐
+                      </span>
+                      <div className="flex-1 bg-gray-200 rounded-full h-2.5">
+                        <div
+                          className="bg-gradient-to-r from-blue-600 to-cyan-600 h-2.5 rounded-full transition-all duration-300"
+                          style={{ width: `${percentage}%` }}
+                        ></div>
                       </div>
-                      <div className="text-neutral-500 text-sm">
-                        {new Date(review.created_at).toLocaleDateString(
-                          "pl-PL"
-                        )}
-                      </div>
+                      <span className="text-sm text-gray-600 w-16 text-right">
+                        {count} ({percentage.toFixed(0)}%)
+                      </span>
                     </div>
-                    <p className="text-neutral-300">{review.comment}</p>
-                  </div>
-                ))}
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Filters and Sorting */}
+            <div className="p-6 border-b border-gray-200">
+              <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
+                {/* Filter Buttons */}
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    onClick={() => setReviewFilter("all")}
+                    className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                      reviewFilter === "all"
+                        ? "bg-blue-600 text-white"
+                        : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                    }`}
+                  >
+                    Wszystkie
+                  </button>
+                  {[5, 4, 3, 2, 1].map((stars) => (
+                    <button
+                      key={stars}
+                      onClick={() =>
+                        setReviewFilter(stars as 1 | 2 | 3 | 4 | 5)
+                      }
+                      className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                        reviewFilter === stars
+                          ? "bg-blue-600 text-white"
+                          : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                      }`}
+                    >
+                      {stars}⭐
+                    </button>
+                  ))}
+                </div>
+
+                {/* Sort Dropdown */}
+                <select
+                  value={reviewSort}
+                  onChange={(e) =>
+                    setReviewSort(
+                      e.target.value as
+                        | "newest"
+                        | "oldest"
+                        | "highest"
+                        | "lowest"
+                    )
+                  }
+                  className="px-4 py-2 border border-gray-300 rounded-lg bg-white text-gray-700 font-medium focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="newest">Najnowsze</option>
+                  <option value="oldest">Najstarsze</option>
+                  <option value="highest">Najwyższe oceny</option>
+                  <option value="lowest">Najniższe oceny</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Reviews List */}
+            <div className="p-6">
+              {reviews.length === 0 ? (
+                <div className="text-center py-12">
+                  <div className="text-6xl mb-4">📝</div>
+                  <p className="text-gray-500 text-lg mb-2">Brak opinii</p>
+                  <p className="text-sm text-gray-400">
+                    Pracodawcy będą mogli wystawić opinie po zakończeniu
+                    współpracy
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  {(() => {
+                    // Filter reviews
+                    let filteredReviews = reviews;
+                    if (reviewFilter !== "all") {
+                      filteredReviews = reviews.filter(
+                        (r) => r.rating === reviewFilter
+                      );
+                    }
+
+                    // Sort reviews
+                    const sortedReviews = [...filteredReviews].sort((a, b) => {
+                      switch (reviewSort) {
+                        case "newest":
+                          return (
+                            new Date(b.created_at || 0).getTime() -
+                            new Date(a.created_at || 0).getTime()
+                          );
+                        case "oldest":
+                          return (
+                            new Date(a.created_at || 0).getTime() -
+                            new Date(b.created_at || 0).getTime()
+                          );
+                        case "highest":
+                          return b.rating - a.rating;
+                        case "lowest":
+                          return a.rating - b.rating;
+                        default:
+                          return 0;
+                      }
+                    });
+
+                    // Pagination
+                    const displayedReviews = showAllReviews
+                      ? sortedReviews
+                      : sortedReviews.slice(0, 5);
+
+                    return (
+                      <>
+                        {displayedReviews.map((review) => (
+                          <div
+                            key={review.id}
+                            className="border border-gray-200 rounded-xl p-6 hover:shadow-md transition-shadow"
+                          >
+                            {/* Review Header */}
+                            <div className="flex items-start gap-4 mb-4">
+                              {/* Reviewer/Employer Avatar */}
+                              <div className="flex-shrink-0">
+                                {(review as any).reviewer?.avatar_url ||
+                                (review as any).employer?.logo_url ? (
+                                  <img
+                                    src={
+                                      (review as any).reviewer?.avatar_url ||
+                                      (review as any).employer?.logo_url
+                                    }
+                                    alt={
+                                      (review as any).reviewer?.full_name ||
+                                      (review as any).employer?.company_name ||
+                                      "Reviewer"
+                                    }
+                                    className="w-12 h-12 rounded-full object-cover border-2 border-blue-200"
+                                  />
+                                ) : (
+                                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center text-white font-bold text-lg">
+                                    {((review as any).reviewer?.full_name ||
+                                      (review as any).employer?.company_name ||
+                                      "A")[0]?.toUpperCase()}
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* Reviewer/Employer Info and Rating */}
+                              <div className="flex-1 min-w-0">
+                                <h4 className="font-semibold text-gray-900 text-lg">
+                                  {(review as any).reviewer?.full_name ||
+                                    (review as any).employer?.company_name ||
+                                    "Anonim"}
+                                </h4>
+                                <div className="flex items-center gap-3 mt-2">
+                                  <div className="flex items-center">
+                                    {Array.from({ length: 5 }, (_, i) => (
+                                      <span
+                                        key={i}
+                                        className={`text-xl ${
+                                          i < review.rating
+                                            ? "text-yellow-400"
+                                            : "text-gray-300"
+                                        }`}
+                                      >
+                                        ⭐
+                                      </span>
+                                    ))}
+                                  </div>
+                                  <span className="text-sm text-gray-600 font-medium">
+                                    {review.rating}/5
+                                  </span>
+                                </div>
+                              </div>
+
+                              {/* Date */}
+                              <div className="text-right">
+                                <p className="text-sm text-gray-500">
+                                  {review.created_at
+                                    ? new Date(
+                                        review.created_at
+                                      ).toLocaleDateString("pl-PL", {
+                                        year: "numeric",
+                                        month: "long",
+                                        day: "numeric",
+                                      })
+                                    : "N/A"}
+                                </p>
+                              </div>
+                            </div>
+
+                            {/* Detailed Ratings (4 mini cards) */}
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+                              {/* Quality Rating */}
+                              <div className="border-l-4 border-blue-500 bg-blue-50 rounded-lg p-3">
+                                <p className="text-xs text-blue-700 font-medium mb-1">
+                                  Jakość pracy
+                                </p>
+                                <div className="flex items-center gap-1">
+                                  {Array.from({ length: 5 }, (_, i) => (
+                                    <span
+                                      key={i}
+                                      className={`text-sm ${
+                                        i < review.rating
+                                          ? "text-blue-600"
+                                          : "text-blue-200"
+                                      }`}
+                                    >
+                                      ⭐
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+
+                              {/* Communication Rating */}
+                              <div className="border-l-4 border-green-500 bg-green-50 rounded-lg p-3">
+                                <p className="text-xs text-green-700 font-medium mb-1">
+                                  Komunikacja
+                                </p>
+                                <div className="flex items-center gap-1">
+                                  {Array.from({ length: 5 }, (_, i) => (
+                                    <span
+                                      key={i}
+                                      className={`text-sm ${
+                                        i < review.rating
+                                          ? "text-green-600"
+                                          : "text-green-200"
+                                      }`}
+                                    >
+                                      ⭐
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+
+                              {/* Punctuality Rating */}
+                              <div className="border-l-4 border-orange-500 bg-orange-50 rounded-lg p-3">
+                                <p className="text-xs text-orange-700 font-medium mb-1">
+                                  Terminowość
+                                </p>
+                                <div className="flex items-center gap-1">
+                                  {Array.from({ length: 5 }, (_, i) => (
+                                    <span
+                                      key={i}
+                                      className={`text-sm ${
+                                        i < review.rating
+                                          ? "text-orange-600"
+                                          : "text-orange-200"
+                                      }`}
+                                    >
+                                      ⭐
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+
+                              {/* Professionalism Rating */}
+                              <div className="border-l-4 border-purple-500 bg-purple-50 rounded-lg p-3">
+                                <p className="text-xs text-purple-700 font-medium mb-1">
+                                  Profesjonalizm
+                                </p>
+                                <div className="flex items-center gap-1">
+                                  {Array.from({ length: 5 }, (_, i) => (
+                                    <span
+                                      key={i}
+                                      className={`text-sm ${
+                                        i < review.rating
+                                          ? "text-purple-600"
+                                          : "text-purple-200"
+                                      }`}
+                                    >
+                                      ⭐
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Review Comment */}
+                            {review.comment && (
+                              <div className="mb-4">
+                                <p className="text-gray-700 leading-relaxed">
+                                  {review.comment}
+                                </p>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+
+                        {/* Show More Button */}
+                        {sortedReviews.length > 5 && (
+                          <div className="text-center pt-4">
+                            <button
+                              onClick={() => setShowAllReviews(!showAllReviews)}
+                              className="px-6 py-3 bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-lg font-medium hover:from-blue-700 hover:to-cyan-700 transition-all"
+                            >
+                              {showAllReviews
+                                ? "Pokaż mniej"
+                                : `Pokaż wszystkie (${sortedReviews.length})`}
+                            </button>
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
+                </div>
+              )}
+            </div>
+
+            {/* Export Section */}
+            {reviews.length > 0 && (
+              <div className="p-6 bg-gray-50 border-t border-gray-200">
+                <h3 className="text-sm font-semibold text-gray-700 mb-3">
+                  Eksportuj opinie
+                </h3>
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <button
+                    onClick={() => {
+                      const htmlContent = `
+                        <!DOCTYPE html>
+                        <html>
+                        <head>
+                          <meta charset="UTF-8">
+                          <title>Opinie - ${
+                            workerProfile?.full_name || "Pracownik"
+                          }</title>
+                          <style>
+                            body { font-family: Arial, sans-serif; max-width: 800px; margin: 40px auto; padding: 20px; }
+                            h1 { color: #2563eb; }
+                            .review { border: 1px solid #e5e7eb; border-radius: 8px; padding: 20px; margin-bottom: 20px; }
+                            .rating { color: #fbbf24; }
+                          </style>
+                        </head>
+                        <body>
+                          <h1>Opinie - ${
+                            workerProfile?.full_name || "Pracownik"
+                          }</h1>
+                          ${reviews
+                            .map(
+                              (r) => `
+                            <div class="review">
+                              <h3>${
+                                r.employer?.company_name || "Pracodawca"
+                              }</h3>
+                              <p class="rating">${"⭐".repeat(r.rating)}</p>
+                              <p>${r.comment || "Brak komentarza"}</p>
+                              <small>${
+                                r.created_at
+                                  ? new Date(r.created_at).toLocaleDateString(
+                                      "pl-PL"
+                                    )
+                                  : "N/A"
+                              }</small>
+                            </div>
+                          `
+                            )
+                            .join("")}
+                        </body>
+                        </html>
+                      `;
+                      const blob = new Blob([htmlContent], {
+                        type: "text/html",
+                      });
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement("a");
+                      a.href = url;
+                      a.download = `opinie-${Date.now()}.html`;
+                      a.click();
+                      URL.revokeObjectURL(url);
+                    }}
+                    className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
+                  >
+                    📄 Pobierz PDF (HTML)
+                  </button>
+                  <button
+                    onClick={() => {
+                      const csvContent = [
+                        ["Pracodawca", "Ocena", "Komentarz", "Data"].join(","),
+                        ...reviews.map((r) =>
+                          [
+                            r.employer?.company_name || "Pracodawca",
+                            r.rating,
+                            `"${(r.comment || "").replace(/"/g, '""')}"`,
+                            r.created_at
+                              ? new Date(r.created_at).toLocaleDateString(
+                                  "pl-PL"
+                                )
+                              : "N/A",
+                          ].join(",")
+                        ),
+                      ].join("\n");
+                      const blob = new Blob([csvContent], {
+                        type: "text/csv;charset=utf-8;",
+                      });
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement("a");
+                      a.href = url;
+                      a.download = `opinie-${Date.now()}.csv`;
+                      a.click();
+                      URL.revokeObjectURL(url);
+                    }}
+                    className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition-colors flex items-center justify-center gap-2"
+                  >
+                    📊 Pobierz CSV
+                  </button>
+                </div>
+                <p className="text-xs text-gray-500 mt-2">
+                  💡 PDF (HTML) - otwórz w przeglądarce i zapisz jako PDF | CSV
+                  - importuj do Excel/Sheets
+                </p>
               </div>
             )}
           </div>

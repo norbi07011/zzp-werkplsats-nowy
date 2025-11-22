@@ -184,9 +184,7 @@ export async function createAccountantReview(
 /**
  * Get all reviews for an accountant
  */
-export async function getAccountantReviews(
-  accountantId: string
-): Promise<{
+export async function getAccountantReviews(accountantId: string): Promise<{
   success: boolean;
   reviews?: AccountantReviewRow[];
   error?: string;
@@ -194,7 +192,18 @@ export async function getAccountantReviews(
   try {
     const { data, error } = await supabase
       .from("accountant_reviews")
-      .select("*")
+      .select(
+        `
+        *,
+        profiles:reviewer_id (id, full_name, avatar_url),
+        workers (
+          id, profile_id,
+          workers_profile:profiles!workers_profile_id_fkey (full_name, avatar_url)
+        ),
+        cleaning_companies (id, company_name, avatar_url),
+        employers (id, company_name, logo_url)
+      `
+      )
       .eq("accountant_id", accountantId)
       .eq("status", "approved")
       .order("created_at", { ascending: false });
@@ -217,9 +226,7 @@ export async function getAccountantReviews(
 /**
  * Get statistics for an accountant's reviews
  */
-export async function getAccountantReviewStats(
-  accountantId: string
-): Promise<{
+export async function getAccountantReviewStats(accountantId: string): Promise<{
   success: boolean;
   stats?: AccountantReviewStats;
   error?: string;

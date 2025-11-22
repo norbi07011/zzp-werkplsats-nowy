@@ -188,7 +188,13 @@ export async function getWorkerReviews(
   try {
     const { data, error } = await supabase
       .from("reviews")
-      .select("*")
+      .select(
+        `
+        *,
+        reviewer:profiles!reviews_reviewer_id_fkey (id, full_name, avatar_url),
+        employer:employers (id, company_name, logo_url)
+      `
+      )
       .eq("worker_id", workerId)
       .order("created_at", { ascending: false });
 

@@ -191,6 +191,14 @@ export default function EmployerPublicProfilePage() {
 
       // Load employer reviews
       const reviewsResult = await getEmployerReviews(actualEmployerId);
+      console.log(
+        "[PUBLIC-PROFILE] 🔍 Reviews data from employerReviewService:",
+        {
+          success: reviewsResult.success,
+          count: reviewsResult.reviews?.length || 0,
+          first_review: reviewsResult.reviews?.[0],
+        }
+      );
       if (reviewsResult.success && reviewsResult.reviews && isMounted) {
         setReviews(reviewsResult.reviews);
       }
@@ -1421,11 +1429,33 @@ function ReviewsTab({
             >
               <div className="flex gap-4">
                 {/* Avatar */}
-                <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold text-xl flex-shrink-0">
-                  {(review as any).profiles?.full_name
-                    ?.substring(0, 1)
-                    .toUpperCase() || "U"}
-                </div>
+                {(review as any).profiles?.avatar_url ||
+                (review as any).workers?.workers_profile?.avatar_url ||
+                (review as any).cleaning_companies?.avatar_url ||
+                (review as any).accountants?.avatar_url ? (
+                  <img
+                    src={
+                      (review as any).profiles?.avatar_url ||
+                      (review as any).workers?.workers_profile?.avatar_url ||
+                      (review as any).cleaning_companies?.avatar_url ||
+                      (review as any).accountants?.avatar_url
+                    }
+                    alt="Reviewer"
+                    className="w-12 h-12 rounded-full object-cover shadow-md flex-shrink-0"
+                  />
+                ) : (
+                  <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold text-xl flex-shrink-0">
+                    {(
+                      (review as any).profiles?.full_name ||
+                      (review as any).workers?.workers_profile?.full_name ||
+                      (review as any).cleaning_companies?.company_name ||
+                      (review as any).accountants?.company_name ||
+                      "U"
+                    )
+                      ?.substring(0, 1)
+                      .toUpperCase() || "U"}
+                  </div>
+                )}
 
                 {/* Review Content */}
                 <div className="flex-1">
@@ -1435,6 +1465,10 @@ function ReviewsTab({
                       <div className="flex items-center gap-2">
                         <h4 className="font-bold text-gray-900">
                           {(review as any).profiles?.full_name ||
+                            (review as any).workers?.workers_profile
+                              ?.full_name ||
+                            (review as any).cleaning_companies?.company_name ||
+                            (review as any).accountants?.company_name ||
                             "Użytkownik anonimowy"}
                         </h4>
                         <div className="flex gap-0.5">
