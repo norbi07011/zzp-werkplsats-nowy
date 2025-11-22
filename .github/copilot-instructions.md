@@ -1,4 +1,42 @@
-## 🚨 ZASADA ZERO - PYTAJ PRZED USUNIĘCIEM/PRZYWRÓCENIEM
+## 🗣️ ZASADA NR 0 - ROZMOWA PRZED DZIAŁANIEM
+
+### 💬 NAJPIERW LUDZKA ROZMOWA:
+
+**Gdy użytkownik zada zadanie - ZAWSZE zacznij od rozmowy prostym językiem:**
+
+1. **Potwierdź że rozumiesz** co użytkownik chce osiągnąć
+2. **Opisz LUDZKIM JĘZYKIEM** jak to widzisz i jak to będzie działać
+3. **NIE używaj** nazw plików, folderów, technicznego żargonu
+4. **Wyjaśnij jak dziecku 5-letniemu** - prosto i zrozumiale
+5. **Zapytaj czy dobrze zrozumiałeś** i poczekaj na potwierdzenie
+
+**PRZYKŁAD DOBREJ ROZMOWY:**
+
+```
+Użytkownik: "Zrób żeby avatary się pokazywały w wiadomościach"
+
+✅ DOBRA ODPOWIEDŹ:
+"Ok, rozumiem! Chcesz żeby:
+- Gdy ktoś pisze wiadomość → obok pokazywało się jego zdjęcie profilowe
+- To działa jak na Facebooku - wszędzie gdzie ktoś coś robi, widać jego twarz
+- Niezależnie czy to pracodawca, księgowy czy sprzątaczka - każdy ma swoje zdjęcie
+
+Mój plan:
+1. System musi wiedzieć gdzie są zdjęcia wszystkich użytkowników
+2. Gdy ktoś pisze wiadomość → pobieram jego zdjęcie
+3. Wyświetlam to zdjęcie obok wiadomości
+
+Dobrze rozumiem? Mogę zacząć?"
+
+❌ ZŁA ODPOWIEDŹ:
+"Dodam JOIN do profiles.avatar_url w loadMessages() i zmienię query..."
+```
+
+**DOPIERO PO POTWIERDZENIU** zaczynam techniczną analizę i kodowanie!
+
+---
+
+## 🚨 ZASADA PIERWSZA - PYTAJ PRZED USUNIĘCIEM/PRZYWRÓCENIEM
 
 ### ⛔ ABSOLUTNY ZAKAZ BEZ PYTANIA UŻYTKOWNIKA:
 
@@ -129,12 +167,12 @@ Wylistuj minimalne MVP tej karty, żeby była używalna i kompatybilna w przysz�
 
 Po każdej swojej wykonanej pracy w naszej konwersaci i dodawaj sekcję: 'RAPORT KOŃCOWY'.  
 W raporcie wyjaśniaj jasno i prosto:
-1) co zrobiłeś,  
-2) co jest teraz OK,  
-3) co musimy poprawić,  
-4) jakie są kolejne kroki i w jakiej kolejności.  
-Zero tłumaczenia o liniach kodu — mów normalnie, ludzkim językiem. tumacz to jak bys tumaczyła dzecku 5 letniemu 
 
+1. co zrobiłeś,
+2. co jest teraz OK,
+3. co musimy poprawić,
+4. jakie są kolejne kroki i w jakiej kolejności.  
+   Zero tłumaczenia o liniach kodu — mów normalnie, ludzkim językiem. tumacz to jak bys tumaczyła dzecku 5 letniemu
 
 ---
 

@@ -53,6 +53,41 @@ import { CoverImageUploader } from "../src/components/common/CoverImageUploader"
 import SavedActivity from "./worker/SavedActivity";
 
 // ===================================================================
+// TYPESCRIPT INTERFACES - MESSENGER
+// ===================================================================
+
+interface Message {
+  id: string;
+  subject: string;
+  content: string;
+  created_at: string;
+  is_read: boolean;
+  sender_id: string;
+  recipient_id: string;
+  sender: {
+    id: string;
+    full_name?: string;
+    avatar_url?: string;
+  };
+  recipient?: {
+    id: string;
+    full_name?: string;
+    avatar_url?: string;
+  };
+  attachments?: string[];
+}
+
+interface Conversation {
+  partnerId: string;
+  partnerName: string;
+  partnerAvatar?: string;
+  lastMessage: Message;
+  unreadCount: number;
+  messages: Message[];
+  isOnline?: boolean;
+}
+
+// ===================================================================
 // CONSTANT TAB CONFIGURATIONS (prevent infinite re-render)
 // ===================================================================
 
@@ -78,6 +113,94 @@ const SUGGESTED_SKILLS = [
   "Malowanie",
   "Izolacje",
 ] as const;
+
+// ===================================================================
+// HELPER FUNCTIONS - MESSENGER CHAT
+// ===================================================================
+
+const groupMessagesByConversation = (
+  messages: Message[],
+  currentUserId: string
+): Conversation[] => {
+  const conversationMap = new Map<string, Conversation>();
+
+  messages.forEach((msg) => {
+    // Identify conversation partner (other person in the conversation)
+    const partnerId =
+      msg.sender_id === currentUserId ? msg.recipient_id : msg.sender_id;
+
+    const partnerInfo =
+      msg.sender_id === currentUserId ? msg.recipient : msg.sender;
+
+    if (!conversationMap.has(partnerId)) {
+      conversationMap.set(partnerId, {
+        partnerId: partnerId,
+        partnerName: partnerInfo?.full_name || "Użytkownik",
+        partnerAvatar: partnerInfo?.avatar_url || undefined, // Force undefined if null
+        lastMessage: msg,
+        unreadCount: 0,
+        messages: [],
+        isOnline: false,
+      });
+    }
+
+    const conversation = conversationMap.get(partnerId)!;
+    conversation.messages.push(msg);
+
+    // Count unread messages (received by current user)
+    if (!msg.is_read && msg.recipient_id === currentUserId) {
+      conversation.unreadCount++;
+    }
+
+    // Update last message if this one is newer
+    if (
+      new Date(msg.created_at) > new Date(conversation.lastMessage.created_at)
+    ) {
+      conversation.lastMessage = msg;
+    }
+  });
+
+  // Sort conversations by last message time (newest first)
+  return Array.from(conversationMap.values()).sort(
+    (a, b) =>
+      new Date(b.lastMessage.created_at).getTime() -
+      new Date(a.lastMessage.created_at).getTime()
+  );
+};
+
+const formatRelativeTime = (dateString: string): string => {
+  const date = new Date(dateString);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMs / 3600000);
+  const diffDays = Math.floor(diffMs / 86400000);
+
+  if (diffMins < 1) return "Teraz";
+  if (diffMins < 60) return `${diffMins} min temu`;
+  if (diffHours < 24) return `${diffHours} godz. temu`;
+  if (diffDays < 7) return `${diffDays} dni temu`;
+  return date.toLocaleDateString("pl-PL");
+};
+
+const getConversationPartner = (
+  msg: Message,
+  currentUserId: string
+): { id: string; name: string; avatar?: string } => {
+  if (msg.sender_id === currentUserId) {
+    return {
+      id: msg.recipient_id,
+      name: msg.recipient?.full_name || "Użytkownik",
+      avatar: msg.recipient?.avatar_url,
+    };
+  } else {
+    return {
+      id: msg.sender_id,
+      name: msg.sender?.full_name || "Użytkownik",
+      avatar: msg.sender?.avatar_url,
+    };
+  }
+};
 
 // ===================================================================
 // MAIN WORKER DASHBOARD COMPONENT
@@ -133,7 +256,14 @@ export default function WorkerDashboard() {
   const [earningsStats, setEarningsStats] = useState<any>(null);
   const [reviews, setReviews] = useState<any[]>([]);
   const [analytics, setAnalytics] = useState<any>(null);
-  const [messages, setMessages] = useState<any[]>([]);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [selectedConversation, setSelectedConversation] =
+    useState<Conversation | null>(null);
+  const [messageInput, setMessageInput] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [uploadingFile, setUploadingFile] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [selectedMessage, setSelectedMessage] = useState<any>(null);
   const [replyContent, setReplyContent] = useState("");
@@ -208,106 +338,208 @@ export default function WorkerDashboard() {
 
   const loadMessages = async (userId: string) => {
     try {
-      // Fetch messages where worker is recipient
       const { data, error } = await supabase
         .from("messages")
         .select(
           `
-          *,
-          sender_profile:profiles!messages_sender_id_fkey(
+          id, 
+          subject, 
+          content, 
+          created_at, 
+          is_read, 
+          sender_id,
+          recipient_id,
+          attachments,
+          sender:profiles!messages_sender_id_fkey (
+            id,
             full_name,
-            email,
-            role,
-            id
+            avatar_url
+          ),
+          recipient:profiles!messages_recipient_id_fkey (
+            id,
+            full_name,
+            avatar_url
           )
         `
         )
-        .eq("recipient_id", userId)
+        .or(`sender_id.eq.${userId},recipient_id.eq.${userId}`)
         .order("created_at", { ascending: false });
 
       if (error) throw error;
 
-      console.log("📬 WORKER MESSAGES DEBUG - Raw data:", data);
+      console.log("🔍 [WorkerDashboard] Raw messages data:", data?.slice(0, 2));
       console.log(
-        "📬 First message sender_profile:",
-        data?.[0]?.sender_profile
+        "🔍 [WorkerDashboard] First message sender:",
+        data?.[0]?.sender
+      );
+      console.log(
+        "🔍 [WorkerDashboard] First message recipient:",
+        data?.[0]?.recipient
       );
 
-      // For each message, fetch avatar based on sender role
-      const messagesWithAvatars = await Promise.all(
-        (data || []).map(async (msg: any) => {
-          let avatar_url = null;
-          const senderId = msg.sender_profile?.id;
-          const role = msg.sender_profile?.role;
-
-          if (senderId && role) {
-            try {
-              if (role === "worker") {
-                const { data: worker } = await supabase
-                  .from("workers")
-                  .select("avatar_url")
-                  .eq("profile_id", senderId)
-                  .single();
-                avatar_url = worker?.avatar_url;
-              } else if (role === "employer") {
-                const { data: employer } = await supabase
-                  .from("employers")
-                  .select("logo_url")
-                  .eq("profile_id", senderId)
-                  .single();
-                avatar_url = employer?.logo_url;
-              } else if (role === "accountant") {
-                const { data: accountant } = await supabase
-                  .from("accountants")
-                  .select("avatar_url")
-                  .eq("profile_id", senderId)
-                  .single();
-                avatar_url = accountant?.avatar_url;
-              } else if (role === "cleaning_company") {
-                const { data: cleaning } = await supabase
-                  .from("cleaning_companies")
-                  .select("avatar_url")
-                  .eq("profile_id", senderId)
-                  .single();
-                avatar_url = cleaning?.avatar_url;
-              }
-            } catch (err) {
-              console.error(`Error fetching avatar for ${role}:`, err);
+      const messagesWithSenders: Message[] = (data || []).map((msg) => ({
+        id: msg.id,
+        subject: msg.subject || "Bez tematu",
+        content: msg.content,
+        created_at: msg.created_at || new Date().toISOString(),
+        is_read: msg.is_read || false,
+        sender_id: msg.sender_id,
+        recipient_id: msg.recipient_id,
+        attachments: msg.attachments || [],
+        sender: {
+          id: msg.sender_id || "",
+          full_name: msg.sender?.full_name || "Użytkownik",
+          avatar_url: msg.sender?.avatar_url || undefined,
+        },
+        recipient: msg.recipient
+          ? {
+              id: msg.recipient_id || "",
+              full_name: msg.recipient?.full_name || "Użytkownik",
+              avatar_url: msg.recipient?.avatar_url || undefined,
             }
-          }
-
-          return {
-            ...msg,
-            sender_profile: {
-              ...msg.sender_profile,
-              avatar_url,
-            },
-          };
-        })
-      );
+          : undefined,
+      }));
 
       console.log(
-        "📬 Worker messages with avatars:",
-        messagesWithAvatars.map((m) => ({
+        "✅ [WorkerDashboard] Processed messages:",
+        messagesWithSenders.slice(0, 2).map((m) => ({
           subject: m.subject,
-          sender: m.sender_profile?.full_name,
-          role: m.sender_profile?.role,
-          avatar: m.sender_profile?.avatar_url,
-          has_avatar: !!m.sender_profile?.avatar_url,
+          sender_name: m.sender.full_name,
+          sender_avatar: m.sender.avatar_url,
+          recipient_name: m.recipient?.full_name,
+          recipient_avatar: m.recipient?.avatar_url,
         }))
       );
 
-      setMessages(messagesWithAvatars || []);
+      setMessages(messagesWithSenders);
+
+      // Grupuj wiadomości w konwersacje
+      const groupedConversations = groupMessagesByConversation(
+        messagesWithSenders,
+        userId
+      );
+      setConversations(groupedConversations);
 
       // Count unread messages
-      const unread = (messagesWithAvatars || []).filter(
-        (msg: any) => !msg.is_read
+      const unread = messagesWithSenders.filter(
+        (msg) => !msg.is_read && msg.recipient_id === userId
       ).length;
       setUnreadCount(unread);
     } catch (err) {
       console.error("Error loading messages:", err);
       setMessages([]);
+      setConversations([]);
       setUnreadCount(0);
+    }
+  };
+
+  // ===================================================================
+  // MESSENGER ACTION HANDLERS
+  // ===================================================================
+
+  const handleSelectConversation = async (conversation: Conversation) => {
+    setSelectedConversation(conversation);
+    setSearchQuery("");
+    setShowEmojiPicker(false);
+
+    // Mark all unread messages in this conversation as read
+    if (conversation.unreadCount > 0) {
+      await handleMarkConversationAsRead(conversation);
+    }
+  };
+
+  const handleMarkConversationAsRead = async (conversation: Conversation) => {
+    try {
+      const unreadMessageIds = conversation.messages
+        .filter((msg) => !msg.is_read && msg.recipient_id === userId)
+        .map((msg) => msg.id);
+
+      if (unreadMessageIds.length === 0) return;
+
+      const { error } = await supabase
+        .from("messages")
+        .update({ is_read: true, read_at: new Date().toISOString() })
+        .in("id", unreadMessageIds);
+
+      if (error) throw error;
+
+      // Reload messages to update UI
+      await loadMessages(userId);
+    } catch (error) {
+      console.error("Error marking conversation as read:", error);
+    }
+  };
+
+  const handleSendMessage = async () => {
+    if (!selectedConversation || !messageInput.trim()) return;
+
+    const currentPartnerId = selectedConversation.partnerId; // Zapamiętaj partnera
+
+    try {
+      const { error } = await supabase.from("messages").insert({
+        sender_id: userId,
+        recipient_id: selectedConversation.partnerId,
+        subject: "Chat message",
+        content: messageInput.trim(),
+        is_read: false,
+        message_type: "direct",
+      });
+
+      if (error) throw error;
+
+      setMessageInput("");
+      setShowEmojiPicker(false);
+
+      // Reload messages
+      await loadMessages(userId);
+
+      // 🔥 FIX: Ponownie wybierz tę samą konwersację żeby zaktualizować czat
+      setTimeout(() => {
+        const updatedConversation = conversations.find(
+          (conv) => conv.partnerId === currentPartnerId
+        );
+        if (updatedConversation) {
+          setSelectedConversation(updatedConversation);
+        }
+      }, 100); // Krótkie opóźnienie żeby conversations zdążyło się zaktualizować
+    } catch (error) {
+      console.error("Error sending message:", error);
+    }
+  };
+
+  const addEmojiToMessage = (emoji: string) => {
+    setMessageInput((prev) => prev + emoji);
+    setShowEmojiPicker(false);
+  };
+
+  const handleFileUpload = async (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    try {
+      setUploadingFile(true);
+      const fileExt = file.name.split(".").pop();
+      const fileName = `${userId}-${Date.now()}.${fileExt}`;
+      const filePath = `message-attachments/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("attachments")
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      const {
+        data: { publicUrl },
+      } = supabase.storage.from("attachments").getPublicUrl(filePath);
+
+      setMessageInput((prev) => `${prev} 📎 ${file.name}`);
+    } catch (error) {
+      console.error("Error uploading file:", error);
+      alert("Błąd podczas przesłania pliku");
+    } finally {
+      setUploadingFile(false);
     }
   };
 
@@ -3554,209 +3786,407 @@ export default function WorkerDashboard() {
   };
 
   // ===================================================================
-  // MESSAGES TAB
+  // MESSAGES TAB - MESSENGER UI
   // ===================================================================
 
   const renderMessages = () => {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 p-8">
-        <div className="max-w-7xl mx-auto">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            📬 Wiadomości
-          </h1>
-          <p className="text-gray-600 mb-8">
-            {unreadCount > 0
-              ? `Masz ${unreadCount} nieprzeczytanych wiadomości`
-              : "Brak nowych wiadomości"}
-          </p>
+      <div className="max-w-7xl mx-auto">
+        <div
+          className="bg-white rounded-2xl shadow-xl overflow-hidden"
+          style={{ height: "700px" }}
+        >
+          <div className="flex h-full">
+            {/* ============================================ */}
+            {/* LEFT PANEL: CONVERSATION LIST */}
+            {/* ============================================ */}
+            <div className="w-1/3 border-r border-gray-200 flex flex-col bg-gray-50">
+              {/* Header */}
+              <div className="p-5 border-b border-gray-200 bg-gradient-to-r from-blue-600 to-purple-600">
+                <h3 className="font-bold text-xl text-white mb-3 flex items-center gap-2">
+                  <span>💬</span> Wiadomości
+                </h3>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Messages List */}
-            <div className="lg:col-span-1 bg-white rounded-2xl shadow-xl border border-gray-200 p-6 max-h-[800px] overflow-y-auto">
-              <h2 className="text-xl font-bold text-gray-900 mb-4">
-                Skrzynka odbiorcza
-              </h2>
+                {/* Search */}
+                <div className="relative">
+                  <input
+                    type="text"
+                    placeholder="🔍 Szukaj konwersacji..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full px-4 py-2 pl-10 rounded-lg border-0 focus:ring-2 focus:ring-white/50 text-sm"
+                  />
+                  <span className="absolute left-3 top-2.5 text-gray-400">
+                    🔍
+                  </span>
+                </div>
+              </div>
 
-              {messages.length === 0 ? (
-                <p className="text-gray-500 text-center py-8">
-                  Brak wiadomości
-                </p>
-              ) : (
-                <div className="space-y-2">
-                  {messages.map((msg) => (
-                    <button
-                      key={msg.id}
-                      onClick={() => {
-                        setSelectedMessage(msg);
-                        if (!msg.is_read) handleMarkAsRead(msg.id);
-                      }}
-                      className={`w-full text-left p-4 rounded-lg transition-all ${
-                        selectedMessage?.id === msg.id
-                          ? "bg-blue-100 border border-blue-500"
-                          : msg.is_read
-                          ? "bg-gray-50 border border-transparent hover:border-gray-300"
-                          : "bg-green-50 border border-green-300 hover:border-green-500"
+              {/* Conversation List */}
+              <div className="flex-1 overflow-y-auto">
+                {conversations
+                  .filter((conv) =>
+                    conv.partnerName
+                      .toLowerCase()
+                      .includes(searchQuery.toLowerCase())
+                  )
+                  .map((conversation) => (
+                    <div
+                      key={conversation.partnerId}
+                      onClick={() => handleSelectConversation(conversation)}
+                      className={`p-4 border-b border-gray-200 cursor-pointer transition-all duration-200 hover:bg-blue-50 ${
+                        selectedConversation?.partnerId ===
+                        conversation.partnerId
+                          ? "bg-blue-100 border-l-4 border-l-blue-600"
+                          : "hover:border-l-4 hover:border-l-blue-300"
                       }`}
                     >
-                      {/* Avatar + Text Content */}
                       <div className="flex items-start gap-3">
                         {/* Avatar */}
-                        {msg.sender_profile?.avatar_url ? (
-                          <img
-                            src={msg.sender_profile.avatar_url}
-                            alt={msg.sender_profile.full_name || "Avatar"}
-                            className="w-12 h-12 rounded-full object-cover flex-shrink-0"
-                            onError={(e) => {
-                              (e.target as HTMLImageElement).style.display =
-                                "none";
-                              const fallback = (e.target as HTMLImageElement)
-                                .nextElementSibling;
-                              if (fallback)
-                                (fallback as HTMLElement).style.display =
-                                  "flex";
-                            }}
-                          />
-                        ) : null}
-                        <div
-                          className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white font-bold text-lg flex-shrink-0"
-                          style={{
-                            display: msg.sender_profile?.avatar_url
-                              ? "none"
-                              : "flex",
-                          }}
-                        >
-                          {msg.sender_profile?.full_name?.[0]?.toUpperCase() ||
-                            "?"}
+                        <div className="relative flex-shrink-0">
+                          {conversation.partnerAvatar ? (
+                            <img
+                              src={conversation.partnerAvatar}
+                              alt={conversation.partnerName}
+                              className="w-12 h-12 rounded-full object-cover border-2 border-white shadow-md"
+                            />
+                          ) : (
+                            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-lg shadow-md">
+                              {conversation.partnerName.charAt(0).toUpperCase()}
+                            </div>
+                          )}
+                          {conversation.isOnline && (
+                            <span className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-green-500 border-2 border-white rounded-full"></span>
+                          )}
                         </div>
 
-                        {/* Message Info */}
+                        {/* Content */}
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-start justify-between mb-2">
-                            <span
-                              className={`font-semibold ${
-                                msg.is_read ? "text-gray-900" : "text-green-700"
+                          <div className="flex items-center justify-between mb-1">
+                            <p
+                              className={`font-semibold text-sm truncate ${
+                                conversation.unreadCount > 0
+                                  ? "text-blue-700"
+                                  : "text-gray-900"
                               }`}
                             >
-                              {msg.sender_profile?.full_name ||
-                                "Nieznany nadawca"}
-                            </span>
-                            {!msg.is_read && (
-                              <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+                              {conversation.partnerName}
+                            </p>
+                            {conversation.unreadCount > 0 && (
+                              <span className="bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full ml-2 flex-shrink-0">
+                                {conversation.unreadCount}
+                              </span>
                             )}
                           </div>
-                          <p className="text-sm text-gray-700 mb-1 truncate">
-                            {msg.subject || "Brak tematu"}
+
+                          <p className="text-xs text-gray-600 truncate mb-1">
+                            {conversation.lastMessage.content}
                           </p>
-                          <p className="text-xs text-gray-500">
-                            {new Date(msg.created_at).toLocaleDateString(
-                              "pl-PL"
+
+                          <p className="text-xs text-gray-400">
+                            {formatRelativeTime(
+                              conversation.lastMessage.created_at
                             )}
                           </p>
                         </div>
                       </div>
-                    </button>
+                    </div>
                   ))}
-                </div>
-              )}
+
+                {conversations.length === 0 && (
+                  <div className="flex flex-col items-center justify-center h-full text-gray-400 p-8">
+                    <div className="text-6xl mb-4">💬</div>
+                    <p className="text-center font-medium">Brak konwersacji</p>
+                    <p className="text-xs text-center mt-2">
+                      Twoje wiadomości pojawią się tutaj
+                    </p>
+                  </div>
+                )}
+              </div>
             </div>
 
-            {/* Message Detail */}
-            <div className="lg:col-span-2 bg-white rounded-2xl shadow-xl border border-gray-200 p-6">
-              {!selectedMessage ? (
-                <div className="flex items-center justify-center h-full text-gray-400">
-                  Wybierz wiadomość aby ją przeczytać
-                </div>
-              ) : (
-                <div>
-                  {/* Message Header with Avatar */}
-                  <div className="mb-6 pb-6 border-b border-gray-200">
-                    <div className="flex items-start gap-4 mb-4">
-                      {/* Sender Avatar */}
-                      {selectedMessage.sender_profile?.avatar_url ? (
-                        <img
-                          src={selectedMessage.sender_profile.avatar_url}
-                          alt={
-                            selectedMessage.sender_profile.full_name || "Avatar"
-                          }
-                          className="w-16 h-16 rounded-full object-cover flex-shrink-0"
-                          onError={(e) => {
-                            (e.target as HTMLImageElement).style.display =
-                              "none";
-                            const fallback = (e.target as HTMLImageElement)
-                              .nextElementSibling;
-                            if (fallback)
-                              (fallback as HTMLElement).style.display = "flex";
-                          }}
-                        />
-                      ) : null}
-                      <div
-                        className="w-16 h-16 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white font-bold text-2xl flex-shrink-0"
-                        style={{
-                          display: selectedMessage.sender_profile?.avatar_url
-                            ? "none"
-                            : "flex",
-                        }}
-                      >
-                        {selectedMessage.sender_profile?.full_name?.[0]?.toUpperCase() ||
-                          "?"}
-                      </div>
-
-                      {/* Message Info */}
-                      <div className="flex-1">
-                        <h2 className="text-2xl font-bold text-gray-900 mb-2">
-                          {selectedMessage.subject || "Brak tematu"}
-                        </h2>
-                        <div className="flex items-center gap-4 text-sm text-gray-600">
-                          <span className="font-medium">
-                            Od:{" "}
-                            {selectedMessage.sender_profile?.full_name ||
-                              "Nieznany nadawca"}
-                          </span>
-                          <span>•</span>
-                          <span>
-                            {new Date(
-                              selectedMessage.created_at
-                            ).toLocaleString("pl-PL")}
-                          </span>
+            {/* ============================================ */}
+            {/* RIGHT PANEL: CHAT WINDOW */}
+            {/* ============================================ */}
+            <div className="w-2/3 flex flex-col bg-white">
+              {selectedConversation ? (
+                <>
+                  {console.log("🎨 [DEBUG] Selected conversation:", {
+                    partnerId: selectedConversation.partnerId,
+                    partnerName: selectedConversation.partnerName,
+                    partnerAvatar: selectedConversation.partnerAvatar,
+                    hasAvatar: !!selectedConversation.partnerAvatar,
+                  })}
+                  {/* Chat Header */}
+                  <div className="p-5 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-white shadow-sm">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        {selectedConversation.partnerAvatar ? (
+                          <img
+                            src={selectedConversation.partnerAvatar}
+                            alt={selectedConversation.partnerName}
+                            className="w-10 h-10 rounded-full object-cover border-2 border-blue-500"
+                          />
+                        ) : (
+                          <div className="relative z-10 w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold shadow-lg">
+                            {selectedConversation.partnerName
+                              .charAt(0)
+                              .toUpperCase()}
+                          </div>
+                        )}
+                        <div>
+                          <h4 className="font-bold text-gray-900">
+                            {selectedConversation.partnerName}
+                          </h4>
+                          <p className="text-xs text-gray-500">
+                            {selectedConversation.isOnline ? (
+                              <span className="text-green-600 flex items-center gap-1">
+                                <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+                                Online
+                              </span>
+                            ) : (
+                              "Offline"
+                            )}
+                          </p>
                         </div>
                       </div>
+
+                      <div className="flex items-center gap-2">
+                        <button
+                          className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                          title="Więcej opcji"
+                        >
+                          <span className="text-gray-600">⋮</span>
+                        </button>
+                      </div>
                     </div>
                   </div>
 
-                  <div className="mb-6 text-gray-700 whitespace-pre-wrap">
-                    {selectedMessage.content}
+                  {/* Messages Area */}
+                  <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-gray-50">
+                    {selectedConversation.messages
+                      .sort(
+                        (a, b) =>
+                          new Date(a.created_at).getTime() -
+                          new Date(b.created_at).getTime()
+                      )
+                      .map((msg, index) => {
+                        const isOwnMessage = msg.sender_id === userId;
+                        const showAvatar =
+                          index === 0 ||
+                          selectedConversation.messages[index - 1]
+                            ?.sender_id !== msg.sender_id;
+
+                        return (
+                          <div
+                            key={msg.id}
+                            className={`flex ${
+                              isOwnMessage ? "justify-end" : "justify-start"
+                            } gap-2`}
+                          >
+                            {/* Avatar (for received messages) */}
+                            {!isOwnMessage && showAvatar && (
+                              <div className="flex-shrink-0">
+                                {selectedConversation.partnerAvatar ? (
+                                  <img
+                                    src={selectedConversation.partnerAvatar}
+                                    alt={selectedConversation.partnerName}
+                                    className="w-8 h-8 rounded-full object-cover"
+                                  />
+                                ) : (
+                                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-gray-400 to-gray-600 flex items-center justify-center text-white text-xs font-bold">
+                                    {selectedConversation.partnerName
+                                      .charAt(0)
+                                      .toUpperCase()}
+                                  </div>
+                                )}
+                              </div>
+                            )}
+
+                            {!isOwnMessage && !showAvatar && (
+                              <div className="w-8"></div>
+                            )}
+
+                            {/* Message Bubble */}
+                            <div
+                              className={`max-w-[70%] ${
+                                isOwnMessage ? "order-first" : ""
+                              }`}
+                            >
+                              <div
+                                className={`p-3 rounded-2xl shadow-md ${
+                                  isOwnMessage
+                                    ? "bg-gradient-to-br from-blue-600 to-blue-700 text-white rounded-br-sm"
+                                    : "bg-white text-gray-900 border border-gray-200 rounded-bl-sm"
+                                }`}
+                              >
+                                <p className="text-sm leading-relaxed break-words">
+                                  {msg.content}
+                                </p>
+
+                                {/* Attachments */}
+                                {msg.attachments &&
+                                  msg.attachments.length > 0 && (
+                                    <div className="mt-2 space-y-1">
+                                      {msg.attachments.map((att, i) => (
+                                        <div
+                                          key={i}
+                                          className={`text-xs px-2 py-1 rounded ${
+                                            isOwnMessage
+                                              ? "bg-blue-800/30"
+                                              : "bg-gray-100"
+                                          }`}
+                                        >
+                                          📎 {att}
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+
+                                <div className="flex items-center justify-end gap-2 mt-1">
+                                  <p
+                                    className={`text-xs ${
+                                      isOwnMessage
+                                        ? "text-blue-200"
+                                        : "text-gray-400"
+                                    }`}
+                                  >
+                                    {new Date(
+                                      msg.created_at
+                                    ).toLocaleTimeString("pl-PL", {
+                                      hour: "2-digit",
+                                      minute: "2-digit",
+                                    })}
+                                  </p>
+                                  {isOwnMessage && msg.is_read && (
+                                    <span
+                                      className="text-blue-200"
+                                      title="Przeczytane"
+                                    >
+                                      ✓✓
+                                    </span>
+                                  )}
+                                  {isOwnMessage && !msg.is_read && (
+                                    <span
+                                      className="text-blue-300"
+                                      title="Dostarczone"
+                                    >
+                                      ✓
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
                   </div>
 
-                  {/* Reply Form */}
-                  <div className="bg-gray-50 rounded-xl p-6 border border-gray-200">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                      Odpowiedz
-                    </h3>
-                    <textarea
-                      value={replyContent}
-                      onChange={(e) => setReplyContent(e.target.value)}
-                      placeholder="Wpisz swoją odpowiedź..."
-                      className="w-full bg-white border border-gray-300 rounded-lg p-4 text-gray-900 placeholder-gray-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/50 min-h-[120px]"
-                    />
-                    <div className="flex justify-end gap-3 mt-4">
+                  {/* Input Area */}
+                  <div className="p-4 border-t border-gray-200 bg-white">
+                    {/* Emoji Picker */}
+                    {showEmojiPicker && (
+                      <div className="mb-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                        <div className="flex flex-wrap gap-2">
+                          {[
+                            "😀",
+                            "😂",
+                            "😍",
+                            "🥰",
+                            "😎",
+                            "🤔",
+                            "👍",
+                            "👏",
+                            "🙌",
+                            "❤️",
+                            "🔥",
+                            "✨",
+                            "🎉",
+                            "💯",
+                            "👌",
+                            "🤝",
+                          ].map((emoji) => (
+                            <button
+                              key={emoji}
+                              onClick={() => addEmojiToMessage(emoji)}
+                              className="text-2xl hover:scale-125 transition-transform"
+                            >
+                              {emoji}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="flex items-center gap-3">
+                      {/* Emoji Button */}
                       <button
-                        onClick={() => {
-                          setSelectedMessage(null);
-                          setReplyContent("");
+                        onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                        className="p-2 hover:bg-gray-100 rounded-lg transition-colors text-2xl"
+                        title="Dodaj emoji"
+                      >
+                        😊
+                      </button>
+
+                      {/* File Upload */}
+                      <label
+                        className="p-2 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer"
+                        title="Załącz plik"
+                      >
+                        <input
+                          type="file"
+                          onChange={handleFileUpload}
+                          className="hidden"
+                          accept="image/*,.pdf,.doc,.docx"
+                        />
+                        <span className="text-xl">📎</span>
+                      </label>
+
+                      {/* Message Input */}
+                      <input
+                        type="text"
+                        value={messageInput}
+                        onChange={(e) => setMessageInput(e.target.value)}
+                        onKeyPress={(e) => {
+                          if (e.key === "Enter" && !e.shiftKey) {
+                            e.preventDefault();
+                            handleSendMessage();
+                          }
                         }}
-                        className="px-6 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
-                      >
-                        Anuluj
-                      </button>
+                        placeholder="Napisz wiadomość..."
+                        className="flex-1 px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        disabled={uploadingFile}
+                      />
+
+                      {/* Send Button */}
                       <button
-                        onClick={handleSendReply}
-                        disabled={saving || !replyContent.trim()}
-                        className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        onClick={handleSendMessage}
+                        disabled={!messageInput.trim() || uploadingFile}
+                        className={`px-6 py-3 rounded-xl font-medium transition-all shadow-lg ${
+                          messageInput.trim() && !uploadingFile
+                            ? "bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:from-blue-700 hover:to-purple-700 hover:shadow-xl"
+                            : "bg-gray-200 text-gray-400 cursor-not-allowed"
+                        }`}
                       >
-                        {saving ? "Wysyłanie..." : "Wyślij odpowiedź"}
+                        {uploadingFile ? "📤" : "📨"} Wyślij
                       </button>
                     </div>
+
+                    <p className="text-xs text-gray-400 mt-2 text-center">
+                      Enter = wyślij • Shift+Enter = nowa linia
+                    </p>
                   </div>
+                </>
+              ) : (
+                /* Empty State */
+                <div className="flex flex-col items-center justify-center h-full text-gray-400 bg-gray-50">
+                  <div className="text-8xl mb-6">💬</div>
+                  <p className="text-xl font-medium mb-2">
+                    Wybierz konwersację
+                  </p>
+                  <p className="text-sm text-center max-w-xs">
+                    Kliknij na konwersację po lewej stronie, aby rozpocząć czat
+                  </p>
                 </div>
               )}
             </div>

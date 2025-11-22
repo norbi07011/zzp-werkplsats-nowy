@@ -32,7 +32,6 @@ import employerService, {
   type EmployerStats,
   type SearchHistoryItem,
   type SavedWorker,
-  type Message,
   type EmployerReview,
 } from "../../services/employerService";
 import type { Database } from "../../src/lib/database.types";
@@ -48,6 +47,129 @@ interface StatCard {
   icon: string;
   color: string;
 }
+
+// ===================================================================
+// TYPESCRIPT INTERFACES - MESSENGER
+// ===================================================================
+
+interface Message {
+  id: string;
+  subject: string;
+  content: string;
+  created_at: string;
+  is_read: boolean;
+  sender_id: string;
+  recipient_id: string;
+  sender: {
+    id: string;
+    full_name?: string;
+    avatar_url?: string;
+  };
+  recipient?: {
+    id: string;
+    full_name?: string;
+    avatar_url?: string;
+  };
+  attachments?: string[];
+}
+
+interface Conversation {
+  partnerId: string;
+  partnerName: string;
+  partnerAvatar?: string;
+  lastMessage: Message;
+  unreadCount: number;
+  messages: Message[];
+  isOnline?: boolean;
+}
+
+// ===================================================================
+// HELPER FUNCTIONS - MESSENGER CHAT
+// ===================================================================
+
+const groupMessagesByConversation = (
+  messages: Message[],
+  currentUserId: string
+): Conversation[] => {
+  const conversationMap = new Map<string, Conversation>();
+
+  messages.forEach((msg) => {
+    // Identify conversation partner (other person in the conversation)
+    const partnerId =
+      msg.sender_id === currentUserId ? msg.recipient_id : msg.sender_id;
+
+    const partnerInfo =
+      msg.sender_id === currentUserId ? msg.recipient : msg.sender;
+
+    if (!conversationMap.has(partnerId)) {
+      conversationMap.set(partnerId, {
+        partnerId: partnerId,
+        partnerName: partnerInfo?.full_name || "Użytkownik",
+        partnerAvatar: partnerInfo?.avatar_url || undefined,
+        lastMessage: msg,
+        unreadCount: 0,
+        messages: [],
+        isOnline: false,
+      });
+    }
+
+    const conversation = conversationMap.get(partnerId)!;
+    conversation.messages.push(msg);
+
+    // Count unread messages (received by current user)
+    if (!msg.is_read && msg.recipient_id === currentUserId) {
+      conversation.unreadCount++;
+    }
+
+    // Update last message if this one is newer
+    if (
+      new Date(msg.created_at) > new Date(conversation.lastMessage.created_at)
+    ) {
+      conversation.lastMessage = msg;
+    }
+  });
+
+  // Sort conversations by last message time (newest first)
+  return Array.from(conversationMap.values()).sort(
+    (a, b) =>
+      new Date(b.lastMessage.created_at).getTime() -
+      new Date(a.lastMessage.created_at).getTime()
+  );
+};
+
+const formatRelativeTime = (dateString: string): string => {
+  const date = new Date(dateString);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMs / 3600000);
+  const diffDays = Math.floor(diffMs / 86400000);
+
+  if (diffMins < 1) return "Teraz";
+  if (diffMins < 60) return `${diffMins} min temu`;
+  if (diffHours < 24) return `${diffHours} godz. temu`;
+  if (diffDays < 7) return `${diffDays} dni temu`;
+  return date.toLocaleDateString("pl-PL");
+};
+
+const getConversationPartner = (
+  msg: Message,
+  currentUserId: string
+): { id: string; name: string; avatar?: string } => {
+  if (msg.sender_id === currentUserId) {
+    return {
+      id: msg.recipient_id,
+      name: msg.recipient?.full_name || "Użytkownik",
+      avatar: msg.recipient?.avatar_url,
+    };
+  } else {
+    return {
+      id: msg.sender_id,
+      name: msg.sender?.full_name || "Użytkownik",
+      avatar: msg.sender?.avatar_url,
+    };
+  }
+};
 
 export const EmployerDashboard = () => {
   const { user } = useAuth();
@@ -68,11 +190,14 @@ export const EmployerDashboard = () => {
   const [unreadCount, setUnreadCount] = useState(0);
   const [reviews, setReviews] = useState<EmployerReview[]>([]);
 
-  // Messages UI state
-  const [showMessagesModal, setShowMessagesModal] = useState(false);
-  const [selectedMessage, setSelectedMessage] = useState<Message | null>(null);
-  const [replyContent, setReplyContent] = useState("");
-  const [sending, setSending] = useState(false);
+  // NEW MESSENGER STATE
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [selectedConversation, setSelectedConversation] =
+    useState<Conversation | null>(null);
+  const [messageInput, setMessageInput] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [uploadingFile, setUploadingFile] = useState(false);
 
   // Communication UI state
   const [showCommunicationPanel, setShowCommunicationPanel] = useState(false);
@@ -157,49 +282,28 @@ export const EmployerDashboard = () => {
         "[EMPLOYER-DASH] Loading dashboard data for employer:",
         employer.id
       );
-      const [
-        statsData,
-        historyData,
-        workersData,
-        messagesData,
-        unreadCountData,
-        reviewsData,
-      ] = await Promise.all([
-        employerService.getEmployerStats(employer.id),
-        employerService.getSearchHistory(employer.id, 5),
-        employerService.getSavedWorkers(employer.id),
-        employerService.getMessages(user.id, 3),
-        employerService.getUnreadMessageCount(user.id),
-        employerService.getEmployerReviews(employer.id),
-      ]);
+      const [statsData, historyData, workersData, reviewsData] =
+        await Promise.all([
+          employerService.getEmployerStats(employer.id),
+          employerService.getSearchHistory(employer.id, 5),
+          employerService.getSavedWorkers(employer.id),
+          employerService.getEmployerReviews(employer.id),
+        ]);
 
       console.log("[EMPLOYER-DASH] Data loaded:", {
         has_stats: !!statsData,
         history_count: historyData.length,
         saved_workers: workersData.length,
-        messages_count: messagesData.length,
-        unread: unreadCountData,
         reviews_count: reviewsData.length,
       });
-
-      // Debug messages structure
-      console.log(
-        "📬 EMPLOYER MESSAGES DEBUG:",
-        messagesData.map((m) => ({
-          id: m.id,
-          subject: m.subject,
-          sender: m.sender_profile?.full_name,
-          avatar: m.sender_profile?.avatar_url,
-          has_avatar: !!m.sender_profile?.avatar_url,
-        }))
-      );
 
       setStats(statsData);
       setSearchHistory(historyData);
       setSavedWorkers(workersData);
-      setMessages(messagesData);
-      setUnreadCount(unreadCountData);
       setReviews(reviewsData);
+
+      // 3. Load messages with NEW bidirectional query
+      await loadMessages(user.id);
     } catch (err) {
       console.error("[EMPLOYER-DASH] Error loading dashboard data:", err);
       setError("Failed to load dashboard data. Please refresh the page.");
@@ -210,76 +314,198 @@ export const EmployerDashboard = () => {
   };
 
   // =====================================================
-  // MESSAGE HANDLERS
+  // NEW MESSENGER FUNCTIONS
   // =====================================================
 
-  const handleMarkAsRead = async (messageId: string) => {
+  const loadMessages = async (userId: string) => {
     try {
-      const success = await employerService.markMessageAsRead(messageId);
-      if (success) {
-        setMessages((prevMessages) =>
-          prevMessages.map((msg) =>
-            msg.id === messageId ? { ...msg, is_read: true } : msg
+      const { data, error } = await supabase
+        .from("messages")
+        .select(
+          `
+          id, 
+          subject, 
+          content, 
+          created_at, 
+          is_read, 
+          sender_id,
+          recipient_id,
+          attachments,
+          sender:profiles!messages_sender_id_fkey (
+            id,
+            full_name,
+            avatar_url
+          ),
+          recipient:profiles!messages_recipient_id_fkey (
+            id,
+            full_name,
+            avatar_url
           )
-        );
-        setUnreadCount((prev) => Math.max(0, prev - 1));
-      }
+        `
+        )
+        .or(`sender_id.eq.${userId},recipient_id.eq.${userId}`)
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+
+      console.log(
+        "🔍 [EmployerDashboard] Raw messages data:",
+        data?.slice(0, 2)
+      );
+
+      const messagesWithSenders: Message[] = (data || []).map((msg) => ({
+        id: msg.id,
+        subject: msg.subject || "Bez tematu",
+        content: msg.content,
+        created_at: msg.created_at || new Date().toISOString(),
+        is_read: msg.is_read || false,
+        sender_id: msg.sender_id,
+        recipient_id: msg.recipient_id,
+        attachments: msg.attachments || [],
+        sender: {
+          id: msg.sender_id || "",
+          full_name: msg.sender?.full_name || "Użytkownik",
+          avatar_url: msg.sender?.avatar_url || undefined,
+        },
+        recipient: msg.recipient
+          ? {
+              id: msg.recipient_id || "",
+              full_name: msg.recipient?.full_name || "Użytkownik",
+              avatar_url: msg.recipient?.avatar_url || undefined,
+            }
+          : undefined,
+      }));
+
+      console.log(
+        "✅ [EmployerDashboard] Processed messages:",
+        messagesWithSenders.length
+      );
+
+      setMessages(messagesWithSenders);
+
+      // Grupuj wiadomości w konwersacje
+      const groupedConversations = groupMessagesByConversation(
+        messagesWithSenders,
+        userId
+      );
+      setConversations(groupedConversations);
+
+      // Count unread messages
+      const unread = messagesWithSenders.filter(
+        (msg) => !msg.is_read && msg.recipient_id === userId
+      ).length;
+      setUnreadCount(unread);
     } catch (err) {
-      console.error("Error marking message as read:", err);
+      console.error("Error loading messages:", err);
+      setMessages([]);
+      setConversations([]);
+      setUnreadCount(0);
     }
   };
 
-  const handleOpenMessage = (message: Message) => {
-    setSelectedMessage(message);
-    if (!message.is_read) {
-      handleMarkAsRead(message.id);
+  const handleSelectConversation = async (conversation: Conversation) => {
+    setSelectedConversation(conversation);
+    setSearchQuery("");
+    setShowEmojiPicker(false);
+
+    // Mark all unread messages in this conversation as read
+    if (conversation.unreadCount > 0) {
+      await handleMarkConversationAsRead(conversation);
     }
   };
 
-  const handleOpenMessagesModal = async () => {
-    setShowMessagesModal(true);
-    // Load more messages when opening modal (10 instead of 3)
-    if (user?.id) {
-      try {
-        const messagesData = await employerService.getMessages(user.id, 10);
-        setMessages(messagesData);
-        console.log("📬 MODAL OPENED - Loaded messages:", messagesData.length);
-      } catch (err) {
-        console.error("Error loading more messages:", err);
-      }
+  const handleMarkConversationAsRead = async (conversation: Conversation) => {
+    try {
+      const unreadMessageIds = conversation.messages
+        .filter((msg) => !msg.is_read && msg.recipient_id === user?.id)
+        .map((msg) => msg.id);
+
+      if (unreadMessageIds.length === 0) return;
+
+      const { error } = await supabase
+        .from("messages")
+        .update({ is_read: true, read_at: new Date().toISOString() })
+        .in("id", unreadMessageIds);
+
+      if (error) throw error;
+
+      // Reload messages to update UI
+      if (user?.id) await loadMessages(user.id);
+    } catch (error) {
+      console.error("Error marking conversation as read:", error);
     }
   };
 
-  const handleSendReply = async () => {
-    if (!selectedMessage || !replyContent.trim() || !user?.id) return;
+  const handleSendMessage = async () => {
+    if (!selectedConversation || !messageInput.trim() || !user?.id) return;
+
+    const currentPartnerId = selectedConversation.partnerId; // Zapamiętaj partnera
 
     try {
-      setSending(true);
-
       const { error } = await supabase.from("messages").insert({
         sender_id: user.id,
-        recipient_id: selectedMessage.sender_id,
-        subject: `Re: ${selectedMessage.subject}`,
-        content: replyContent,
+        recipient_id: selectedConversation.partnerId,
+        subject: "Chat message",
+        content: messageInput.trim(),
         is_read: false,
+        message_type: "direct",
       });
 
       if (error) throw error;
 
-      alert("✅ Odpowiedź wysłana!");
-      setReplyContent("");
-      setSelectedMessage(null);
+      setMessageInput("");
+      setShowEmojiPicker(false);
 
       // Reload messages
-      if (user?.id) {
-        const messagesData = await employerService.getMessages(user.id, 10);
-        setMessages(messagesData);
-      }
-    } catch (err) {
-      console.error("Error sending reply:", err);
-      alert("❌ Nie udało się wysłać odpowiedzi");
+      await loadMessages(user.id);
+
+      // 🔥 FIX: Ponownie wybierz tę samą konwersację żeby zaktualizować czat
+      setTimeout(() => {
+        const updatedConversation = conversations.find(
+          (conv) => conv.partnerId === currentPartnerId
+        );
+        if (updatedConversation) {
+          setSelectedConversation(updatedConversation);
+        }
+      }, 100); // Krótkie opóźnienie żeby conversations zdążyło się zaktualizować
+    } catch (error) {
+      console.error("Error sending message:", error);
+    }
+  };
+
+  const addEmojiToMessage = (emoji: string) => {
+    setMessageInput((prev) => prev + emoji);
+    setShowEmojiPicker(false);
+  };
+
+  const handleFileUpload = async (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = event.target.files?.[0];
+    if (!file || !user?.id) return;
+
+    try {
+      setUploadingFile(true);
+      const fileExt = file.name.split(".").pop();
+      const fileName = `${user.id}-${Date.now()}.${fileExt}`;
+      const filePath = `message-attachments/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("attachments")
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      const {
+        data: { publicUrl },
+      } = supabase.storage.from("attachments").getPublicUrl(filePath);
+
+      setMessageInput((prev) => `${prev} 📎 ${file.name}`);
+    } catch (error) {
+      console.error("Error uploading file:", error);
+      alert("Błąd podczas przesłania pliku");
     } finally {
-      setSending(false);
+      setUploadingFile(false);
     }
   };
 
@@ -1006,112 +1232,6 @@ export const EmployerDashboard = () => {
                   </div>
                 )}
 
-                {/* Messages Preview */}
-                <div className="bg-white rounded-lg shadow p-6 mb-8">
-                  <div className="flex items-center justify-between mb-6">
-                    <h2 className="text-xl font-bold text-gray-900">
-                      Wiadomości
-                    </h2>
-                    {unreadCount > 0 && (
-                      <span className="px-2 py-1 bg-red-500 text-white text-xs font-bold rounded-full">
-                        {unreadCount}
-                      </span>
-                    )}
-                  </div>
-
-                  {messages.length === 0 ? (
-                    <div className="text-center py-4">
-                      <p className="text-gray-500 text-sm">Brak wiadomości</p>
-                    </div>
-                  ) : (
-                    <div className="space-y-4">
-                      {messages.map((message) => (
-                        <div
-                          key={message.id}
-                          onClick={() => handleOpenMessage(message)}
-                          className={`border-b border-gray-100 pb-4 last:border-0 last:pb-0 cursor-pointer hover:bg-gray-50 transition-colors ${
-                            !message.is_read
-                              ? "bg-orange-50 -mx-4 px-4 py-2 rounded"
-                              : ""
-                          }`}
-                        >
-                          <div className="flex items-start gap-3 mb-1">
-                            {/* Sender Avatar */}
-                            <div className="flex-shrink-0">
-                              {message.sender_profile?.avatar_url ? (
-                                <img
-                                  src={message.sender_profile.avatar_url}
-                                  alt={
-                                    message.sender_profile.full_name ||
-                                    "Użytkownik"
-                                  }
-                                  className="w-10 h-10 rounded-full object-cover"
-                                  onError={(e) => {
-                                    (
-                                      e.target as HTMLImageElement
-                                    ).style.display = "none";
-                                    const fallback = (
-                                      e.target as HTMLImageElement
-                                    ).nextElementSibling as HTMLElement;
-                                    if (fallback)
-                                      fallback.style.display = "flex";
-                                  }}
-                                />
-                              ) : null}
-                              <div
-                                className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white font-semibold text-sm"
-                                style={{
-                                  display: message.sender_profile?.avatar_url
-                                    ? "none"
-                                    : "flex",
-                                }}
-                              >
-                                {message.sender_profile?.full_name?.[0]?.toUpperCase() ||
-                                  "U"}
-                              </div>
-                            </div>
-
-                            {/* Message Content */}
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-start justify-between mb-1">
-                                <p
-                                  className={`text-sm ${
-                                    !message.is_read
-                                      ? "font-bold"
-                                      : "font-medium"
-                                  } text-gray-900`}
-                                >
-                                  {message.sender_profile.full_name}
-                                </p>
-                                {!message.is_read && (
-                                  <span className="w-2 h-2 bg-red-500 rounded-full flex-shrink-0 mt-1.5"></span>
-                                )}
-                              </div>
-                              <p className="text-sm text-gray-600 mb-1 truncate">
-                                {message.subject}
-                              </p>
-                              <p className="text-xs text-gray-500">
-                                {message.created_at
-                                  ? new Date(
-                                      message.created_at
-                                    ).toLocaleDateString("pl-PL")
-                                  : "N/A"}
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  <button
-                    onClick={handleOpenMessagesModal}
-                    className="w-full mt-4 px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50"
-                  >
-                    Zobacz wszystkie
-                  </button>
-                </div>
-
                 {/* Quick Actions */}
                 <div className="bg-white rounded-lg shadow p-6">
                   <h2 className="text-xl font-bold text-gray-900 mb-6">
@@ -1497,342 +1617,417 @@ export const EmployerDashboard = () => {
 
           {/* Messages Tab */}
           <TabPanel isActive={activeTab === "messages"}>
-            <div className="max-w-4xl mx-auto">
-              <div className="bg-white rounded-lg shadow p-6">
-                <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-2xl font-bold text-gray-900">
-                    Wiadomości
-                  </h2>
-                  {unreadCount > 0 && (
-                    <span className="px-3 py-1 bg-red-500 text-white text-sm font-bold rounded-full">
-                      {unreadCount} nieprzeczytane
-                    </span>
-                  )}
-                </div>
+            {/* 💬 NOWOCZESNY MESSENGER UI - FULL REDESIGN */}
+            <div className="max-w-7xl mx-auto">
+              <div
+                className="bg-white rounded-2xl shadow-xl overflow-hidden"
+                style={{ height: "700px" }}
+              >
+                <div className="flex h-full">
+                  {/* ============================================ */}
+                  {/* LEFT PANEL: CONVERSATION LIST */}
+                  {/* ============================================ */}
+                  <div className="w-1/3 border-r border-gray-200 flex flex-col bg-gray-50">
+                    {/* Header */}
+                    <div className="p-5 border-b border-gray-200 bg-gradient-to-r from-blue-600 to-purple-600">
+                      <h3 className="font-bold text-xl text-white mb-3 flex items-center gap-2">
+                        <span>💬</span> Wiadomości
+                      </h3>
 
-                {messages.length === 0 ? (
-                  <div className="text-center py-12">
-                    <div className="text-6xl mb-4">📬</div>
-                    <p className="text-gray-500 text-lg">Brak wiadomości</p>
-                    <p className="text-sm text-gray-400 mt-2">
-                      Wiadomości od pracowników pojawią się tutaj
-                    </p>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {messages.map((message) => (
-                      <div
-                        key={message.id}
-                        onClick={() => handleOpenMessage(message)}
-                        className={`border rounded-lg p-4 cursor-pointer hover:shadow-md transition-all ${
-                          !message.is_read
-                            ? "bg-orange-50 border-orange-200"
-                            : "bg-white border-gray-200 hover:bg-gray-50"
-                        }`}
-                      >
-                        <div className="flex items-start gap-4">
-                          {/* Sender Avatar */}
-                          <div className="flex-shrink-0">
-                            {message.sender_profile?.avatar_url ? (
-                              <img
-                                src={message.sender_profile.avatar_url}
-                                alt={
-                                  message.sender_profile.full_name ||
-                                  "Użytkownik"
-                                }
-                                className="w-12 h-12 rounded-full object-cover"
-                                onError={(e) => {
-                                  (e.target as HTMLImageElement).style.display =
-                                    "none";
-                                  const fallback = (
-                                    e.target as HTMLImageElement
-                                  ).nextElementSibling as HTMLElement;
-                                  if (fallback) fallback.style.display = "flex";
-                                }}
-                              />
-                            ) : null}
-                            <div
-                              className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white font-semibold text-lg"
-                              style={{
-                                display: message.sender_profile?.avatar_url
-                                  ? "none"
-                                  : "flex",
-                              }}
-                            >
-                              {message.sender_profile?.full_name?.[0]?.toUpperCase() ||
-                                "U"}
-                            </div>
-                          </div>
-
-                          {/* Message Content */}
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-start justify-between mb-1">
-                              <p
-                                className={`text-base ${
-                                  !message.is_read
-                                    ? "font-bold"
-                                    : "font-semibold"
-                                } text-gray-900`}
-                              >
-                                {message.sender_profile.full_name}
-                              </p>
-                              {!message.is_read && (
-                                <span className="w-3 h-3 bg-red-500 rounded-full flex-shrink-0 mt-1"></span>
-                              )}
-                            </div>
-                            <p
-                              className={`text-sm mb-2 ${
-                                !message.is_read ? "font-medium" : ""
-                              } text-gray-700`}
-                            >
-                              {message.subject}
-                            </p>
-                            <p className="text-xs text-gray-500">
-                              {message.created_at
-                                ? new Date(
-                                    message.created_at
-                                  ).toLocaleDateString("pl-PL", {
-                                    day: "numeric",
-                                    month: "long",
-                                    year: "numeric",
-                                    hour: "2-digit",
-                                    minute: "2-digit",
-                                  })
-                                : "N/A"}
-                            </p>
-                          </div>
-                        </div>
+                      {/* Search */}
+                      <div className="relative">
+                        <input
+                          type="text"
+                          placeholder="🔍 Szukaj konwersacji..."
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
+                          className="w-full px-4 py-2 pl-10 rounded-lg border-0 focus:ring-2 focus:ring-white/50 text-sm"
+                        />
+                        <span className="absolute left-3 top-2.5 text-gray-400">
+                          🔍
+                        </span>
                       </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-          </TabPanel>
+                    </div>
 
-          {/* Messages Modal */}
-          {showMessagesModal && (
-            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-              <div className="bg-white rounded-lg shadow-xl max-w-6xl w-full max-h-[90vh] overflow-hidden">
-                <div className="flex items-center justify-between p-6 border-b">
-                  <h2 className="text-2xl font-bold text-gray-900">
-                    Wiadomości {unreadCount > 0 && `(${unreadCount} nowe)`}
-                  </h2>
-                  <button
-                    onClick={() => {
-                      setShowMessagesModal(false);
-                      setSelectedMessage(null);
-                      setReplyContent("");
-                    }}
-                    className="text-gray-500 hover:text-gray-700"
-                  >
-                    ✕
-                  </button>
-                </div>
-
-                <div className="grid grid-cols-1 lg:grid-cols-3 h-[calc(90vh-120px)]">
-                  {/* Messages List */}
-                  <div className="lg:col-span-1 border-r border-gray-200 overflow-y-auto p-4">
-                    {messages.length === 0 ? (
-                      <p className="text-gray-500 text-center py-8">
-                        Brak wiadomości
-                      </p>
-                    ) : (
-                      <div className="space-y-2">
-                        {messages.map((msg) => (
-                          <button
-                            key={msg.id}
-                            onClick={() => handleOpenMessage(msg)}
-                            className={`w-full text-left p-4 rounded-lg transition-all ${
-                              selectedMessage?.id === msg.id
-                                ? "bg-orange-100 border-2 border-orange-500"
-                                : msg.is_read
-                                ? "bg-white border border-gray-200 hover:border-gray-300"
-                                : "bg-orange-50 border-2 border-orange-300 hover:border-orange-400"
+                    {/* Conversation List */}
+                    <div className="flex-1 overflow-y-auto">
+                      {conversations
+                        .filter((conv) =>
+                          conv.partnerName
+                            .toLowerCase()
+                            .includes(searchQuery.toLowerCase())
+                        )
+                        .map((conversation) => (
+                          <div
+                            key={conversation.partnerId}
+                            onClick={() =>
+                              handleSelectConversation(conversation)
+                            }
+                            className={`p-4 border-b border-gray-200 cursor-pointer transition-all duration-200 hover:bg-blue-50 ${
+                              selectedConversation?.partnerId ===
+                              conversation.partnerId
+                                ? "bg-blue-100 border-l-4 border-l-blue-600"
+                                : "hover:border-l-4 hover:border-l-blue-300"
                             }`}
                           >
                             <div className="flex items-start gap-3">
-                              {/* Sender Avatar */}
-                              <div className="flex-shrink-0">
-                                {msg.sender_profile?.avatar_url ? (
+                              {/* Avatar */}
+                              <div className="relative flex-shrink-0">
+                                {conversation.partnerAvatar ? (
                                   <img
-                                    src={msg.sender_profile.avatar_url}
-                                    alt={
-                                      msg.sender_profile.full_name ||
-                                      "Użytkownik"
-                                    }
-                                    className="w-12 h-12 rounded-full object-cover"
-                                    onError={(e) => {
-                                      (
-                                        e.target as HTMLImageElement
-                                      ).style.display = "none";
-                                      const fallback = (
-                                        e.target as HTMLImageElement
-                                      ).nextElementSibling as HTMLElement;
-                                      if (fallback)
-                                        fallback.style.display = "flex";
-                                    }}
+                                    src={conversation.partnerAvatar}
+                                    alt={conversation.partnerName}
+                                    className="w-12 h-12 rounded-full object-cover border-2 border-white shadow-md"
                                   />
-                                ) : null}
-                                <div
-                                  className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white font-semibold text-lg"
-                                  style={{
-                                    display: msg.sender_profile?.avatar_url
-                                      ? "none"
-                                      : "flex",
-                                  }}
-                                >
-                                  {msg.sender_profile?.full_name?.[0]?.toUpperCase() ||
-                                    "U"}
-                                </div>
+                                ) : (
+                                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-lg shadow-md">
+                                    {conversation.partnerName
+                                      .charAt(0)
+                                      .toUpperCase()}
+                                  </div>
+                                )}
+                                {conversation.isOnline && (
+                                  <span className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-green-500 border-2 border-white rounded-full"></span>
+                                )}
                               </div>
 
-                              {/* Message Info */}
+                              {/* Content */}
                               <div className="flex-1 min-w-0">
-                                <div className="flex items-start justify-between mb-2">
-                                  <span
-                                    className={`font-semibold ${
-                                      msg.is_read
-                                        ? "text-gray-900"
-                                        : "text-orange-600"
+                                <div className="flex items-center justify-between mb-1">
+                                  <p
+                                    className={`font-semibold text-sm truncate ${
+                                      conversation.unreadCount > 0
+                                        ? "text-blue-700"
+                                        : "text-gray-900"
                                     }`}
                                   >
-                                    {msg.sender_profile?.full_name ||
-                                      "Nieznany nadawca"}
-                                  </span>
-                                  {!msg.is_read && (
-                                    <span className="w-2 h-2 bg-orange-500 rounded-full"></span>
+                                    {conversation.partnerName}
+                                  </p>
+                                  {conversation.unreadCount > 0 && (
+                                    <span className="bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full ml-2 flex-shrink-0">
+                                      {conversation.unreadCount}
+                                    </span>
                                   )}
                                 </div>
-                                <p className="text-sm text-gray-600 mb-1 truncate">
-                                  {msg.subject}
+
+                                <p className="text-xs text-gray-600 truncate mb-1">
+                                  {conversation.lastMessage.content}
                                 </p>
-                                <p className="text-xs text-gray-500">
-                                  {msg.created_at
-                                    ? new Date(
-                                        msg.created_at
-                                      ).toLocaleDateString("pl-PL")
-                                    : "N/A"}
+
+                                <p className="text-xs text-gray-400">
+                                  {formatRelativeTime(
+                                    conversation.lastMessage.created_at
+                                  )}
                                 </p>
                               </div>
                             </div>
-                          </button>
+                          </div>
                         ))}
-                      </div>
-                    )}
+
+                      {conversations.length === 0 && (
+                        <div className="flex flex-col items-center justify-center h-full text-gray-400 p-8">
+                          <div className="text-6xl mb-4">💬</div>
+                          <p className="text-center font-medium">
+                            Brak konwersacji
+                          </p>
+                          <p className="text-xs text-center mt-2">
+                            Twoje wiadomości pojawią się tutaj
+                          </p>
+                        </div>
+                      )}
+                    </div>
                   </div>
 
-                  {/* Message Detail */}
-                  <div className="lg:col-span-2 overflow-y-auto p-6">
-                    {!selectedMessage ? (
-                      <div className="flex items-center justify-center h-full text-gray-400">
-                        Wybierz wiadomość aby ją przeczytać
-                      </div>
-                    ) : (
-                      <div>
-                        <div className="mb-6 pb-6 border-b border-gray-200">
-                          {/* Sender Info with Avatar */}
-                          <div className="flex items-start gap-4 mb-4">
-                            <div className="flex-shrink-0">
-                              {selectedMessage.sender_profile?.avatar_url ? (
+                  {/* ============================================ */}
+                  {/* RIGHT PANEL: CHAT WINDOW */}
+                  {/* ============================================ */}
+                  <div className="w-2/3 flex flex-col bg-white">
+                    {selectedConversation ? (
+                      <>
+                        {/* Chat Header */}
+                        <div className="p-5 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-white shadow-sm">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              {selectedConversation.partnerAvatar ? (
                                 <img
-                                  src={
-                                    selectedMessage.sender_profile.avatar_url
-                                  }
-                                  alt={
-                                    selectedMessage.sender_profile.full_name ||
-                                    "Użytkownik"
-                                  }
-                                  className="w-16 h-16 rounded-full object-cover"
-                                  onError={(e) => {
-                                    (
-                                      e.target as HTMLImageElement
-                                    ).style.display = "none";
-                                    const fallback = (
-                                      e.target as HTMLImageElement
-                                    ).nextElementSibling as HTMLElement;
-                                    if (fallback)
-                                      fallback.style.display = "flex";
-                                  }}
+                                  src={selectedConversation.partnerAvatar}
+                                  alt={selectedConversation.partnerName}
+                                  className="w-10 h-10 rounded-full object-cover border-2 border-blue-500"
                                 />
-                              ) : null}
-                              <div
-                                className="w-16 h-16 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white font-bold text-2xl"
-                                style={{
-                                  display: selectedMessage.sender_profile
-                                    ?.avatar_url
-                                    ? "none"
-                                    : "flex",
-                                }}
+                              ) : (
+                                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold shadow-lg">
+                                  {selectedConversation.partnerName
+                                    .charAt(0)
+                                    .toUpperCase()}
+                                </div>
+                              )}
+                              <div>
+                                <h4 className="font-bold text-gray-900">
+                                  {selectedConversation.partnerName}
+                                </h4>
+                                <p className="text-xs text-gray-500">
+                                  {selectedConversation.isOnline ? (
+                                    <span className="text-green-600 flex items-center gap-1">
+                                      <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+                                      Online
+                                    </span>
+                                  ) : (
+                                    "Offline"
+                                  )}
+                                </p>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-2">
+                              <button
+                                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                                title="Więcej opcji"
                               >
-                                {selectedMessage.sender_profile?.full_name?.[0]?.toUpperCase() ||
-                                  "U"}
-                              </div>
-                            </div>
-
-                            <div className="flex-1">
-                              <h3 className="text-xl font-bold text-gray-900 mb-2">
-                                {selectedMessage.subject}
-                              </h3>
-                              <div className="flex items-center gap-4 text-sm text-gray-500">
-                                <span>
-                                  Od:{" "}
-                                  {selectedMessage.sender_profile?.full_name}
-                                </span>
-                                <span>•</span>
-                                <span>
-                                  {selectedMessage.created_at
-                                    ? new Date(
-                                        selectedMessage.created_at
-                                      ).toLocaleString("pl-PL")
-                                    : "N/A"}
-                                </span>
-                              </div>
+                                <span className="text-gray-600">⋮</span>
+                              </button>
                             </div>
                           </div>
                         </div>
 
-                        <div className="mb-6 text-gray-700 whitespace-pre-wrap">
-                          {selectedMessage.content}
+                        {/* Messages Area */}
+                        <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-gray-50">
+                          {selectedConversation.messages
+                            .sort(
+                              (a, b) =>
+                                new Date(a.created_at).getTime() -
+                                new Date(b.created_at).getTime()
+                            )
+                            .map((msg, index) => {
+                              const isOwnMessage = msg.sender_id === user?.id;
+                              const showAvatar =
+                                index === 0 ||
+                                selectedConversation.messages[index - 1]
+                                  ?.sender_id !== msg.sender_id;
+
+                              return (
+                                <div
+                                  key={msg.id}
+                                  className={`flex ${
+                                    isOwnMessage
+                                      ? "justify-end"
+                                      : "justify-start"
+                                  } gap-2`}
+                                >
+                                  {/* Avatar (for received messages) */}
+                                  {!isOwnMessage && showAvatar && (
+                                    <div className="flex-shrink-0">
+                                      {selectedConversation.partnerAvatar ? (
+                                        <img
+                                          src={
+                                            selectedConversation.partnerAvatar
+                                          }
+                                          alt={selectedConversation.partnerName}
+                                          className="w-8 h-8 rounded-full object-cover"
+                                        />
+                                      ) : (
+                                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-gray-400 to-gray-600 flex items-center justify-center text-white text-xs font-bold">
+                                          {selectedConversation.partnerName
+                                            .charAt(0)
+                                            .toUpperCase()}
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
+
+                                  {!isOwnMessage && !showAvatar && (
+                                    <div className="w-8"></div>
+                                  )}
+
+                                  {/* Message Bubble */}
+                                  <div
+                                    className={`max-w-[70%] ${
+                                      isOwnMessage ? "order-first" : ""
+                                    }`}
+                                  >
+                                    <div
+                                      className={`p-3 rounded-2xl shadow-md ${
+                                        isOwnMessage
+                                          ? "bg-gradient-to-br from-blue-600 to-blue-700 text-white rounded-br-sm"
+                                          : "bg-white text-gray-900 border border-gray-200 rounded-bl-sm"
+                                      }`}
+                                    >
+                                      <p className="text-sm leading-relaxed break-words">
+                                        {msg.content}
+                                      </p>
+
+                                      {/* Attachments */}
+                                      {msg.attachments &&
+                                        msg.attachments.length > 0 && (
+                                          <div className="mt-2 space-y-1">
+                                            {msg.attachments.map((att, i) => (
+                                              <div
+                                                key={i}
+                                                className={`text-xs px-2 py-1 rounded ${
+                                                  isOwnMessage
+                                                    ? "bg-blue-800/30"
+                                                    : "bg-gray-100"
+                                                }`}
+                                              >
+                                                📎 {att}
+                                              </div>
+                                            ))}
+                                          </div>
+                                        )}
+
+                                      <div className="flex items-center justify-end gap-2 mt-1">
+                                        <p
+                                          className={`text-xs ${
+                                            isOwnMessage
+                                              ? "text-blue-200"
+                                              : "text-gray-400"
+                                          }`}
+                                        >
+                                          {new Date(
+                                            msg.created_at
+                                          ).toLocaleTimeString("pl-PL", {
+                                            hour: "2-digit",
+                                            minute: "2-digit",
+                                          })}
+                                        </p>
+                                        {isOwnMessage && msg.is_read && (
+                                          <span
+                                            className="text-blue-200"
+                                            title="Przeczytane"
+                                          >
+                                            ✓✓
+                                          </span>
+                                        )}
+                                        {isOwnMessage && !msg.is_read && (
+                                          <span
+                                            className="text-blue-300"
+                                            title="Dostarczone"
+                                          >
+                                            ✓
+                                          </span>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            })}
                         </div>
 
-                        {/* Reply Form */}
-                        <div className="bg-gray-50 rounded-lg p-6 border border-gray-200">
-                          <h4 className="text-lg font-semibold text-gray-900 mb-4">
-                            Odpowiedz
-                          </h4>
-                          <textarea
-                            value={replyContent}
-                            onChange={(e) => setReplyContent(e.target.value)}
-                            placeholder="Wpisz swoją odpowiedź..."
-                            className="w-full bg-white border border-gray-300 rounded-lg p-4 text-gray-900 placeholder-gray-400 focus:border-orange-500 focus:ring-2 focus:ring-orange-200 min-h-[120px]"
-                          />
-                          <div className="flex justify-end gap-3 mt-4">
+                        {/* Input Area */}
+                        <div className="p-4 border-t border-gray-200 bg-white">
+                          {/* Emoji Picker */}
+                          {showEmojiPicker && (
+                            <div className="mb-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                              <div className="flex flex-wrap gap-2">
+                                {[
+                                  "😀",
+                                  "😂",
+                                  "😍",
+                                  "🥰",
+                                  "😎",
+                                  "🤔",
+                                  "👍",
+                                  "👏",
+                                  "🙌",
+                                  "❤️",
+                                  "🔥",
+                                  "✨",
+                                  "🎉",
+                                  "💯",
+                                  "👌",
+                                  "🤝",
+                                ].map((emoji) => (
+                                  <button
+                                    key={emoji}
+                                    onClick={() => addEmojiToMessage(emoji)}
+                                    className="text-2xl hover:scale-125 transition-transform"
+                                  >
+                                    {emoji}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          <div className="flex items-center gap-3">
+                            {/* Emoji Button */}
                             <button
-                              onClick={() => {
-                                setSelectedMessage(null);
-                                setReplyContent("");
+                              onClick={() =>
+                                setShowEmojiPicker(!showEmojiPicker)
+                              }
+                              className="p-2 hover:bg-gray-100 rounded-lg transition-colors text-2xl"
+                              title="Dodaj emoji"
+                            >
+                              😊
+                            </button>
+
+                            {/* File Upload */}
+                            <label
+                              className="p-2 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer"
+                              title="Załącz plik"
+                            >
+                              <input
+                                type="file"
+                                onChange={handleFileUpload}
+                                className="hidden"
+                                accept="image/*,.pdf,.doc,.docx"
+                              />
+                              <span className="text-xl">📎</span>
+                            </label>
+
+                            {/* Message Input */}
+                            <input
+                              type="text"
+                              value={messageInput}
+                              onChange={(e) => setMessageInput(e.target.value)}
+                              onKeyPress={(e) => {
+                                if (e.key === "Enter" && !e.shiftKey) {
+                                  e.preventDefault();
+                                  handleSendMessage();
+                                }
                               }}
-                              className="px-6 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-                            >
-                              Anuluj
-                            </button>
+                              placeholder="Napisz wiadomość..."
+                              className="flex-1 px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                              disabled={uploadingFile}
+                            />
+
+                            {/* Send Button */}
                             <button
-                              onClick={handleSendReply}
-                              disabled={sending || !replyContent.trim()}
-                              className="px-6 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                              onClick={handleSendMessage}
+                              disabled={!messageInput.trim() || uploadingFile}
+                              className={`px-6 py-3 rounded-xl font-medium transition-all shadow-lg ${
+                                messageInput.trim() && !uploadingFile
+                                  ? "bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:from-blue-700 hover:to-purple-700 hover:shadow-xl"
+                                  : "bg-gray-200 text-gray-400 cursor-not-allowed"
+                              }`}
                             >
-                              {sending ? "Wysyłanie..." : "Wyślij odpowiedź"}
+                              {uploadingFile ? "📤" : "📨"} Wyślij
                             </button>
                           </div>
+
+                          <p className="text-xs text-gray-400 mt-2 text-center">
+                            Enter = wyślij • Shift+Enter = nowa linia
+                          </p>
                         </div>
+                      </>
+                    ) : (
+                      /* Empty State */
+                      <div className="flex flex-col items-center justify-center h-full text-gray-400 bg-gray-50">
+                        <div className="text-8xl mb-6">💬</div>
+                        <p className="text-xl font-medium mb-2">
+                          Wybierz konwersację
+                        </p>
+                        <p className="text-sm text-center max-w-xs">
+                          Kliknij na konwersację po lewej stronie, aby rozpocząć
+                          czat
+                        </p>
                       </div>
                     )}
                   </div>
                 </div>
               </div>
             </div>
-          )}
+          </TabPanel>
 
           {/* Communication Panel */}
           {showCommunicationPanel && (

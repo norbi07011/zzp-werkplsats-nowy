@@ -49,7 +49,16 @@ export const ReviewList: React.FC<ReviewListProps> = ({
           comment,
           created_at,
           reviewer_id,
-          employer_id
+          employer_id,
+          reviewer:profiles!reviews_reviewer_id_fkey (
+            id,
+            full_name,
+            avatar_url
+          ),
+          employer:employers (
+            id,
+            company_name
+          )
         `)
         .eq('worker_id', workerId)
         .eq('status', 'approved')
@@ -62,22 +71,15 @@ export const ReviewList: React.FC<ReviewListProps> = ({
         return;
       }
 
-      // Load employer company names
-      const reviewsWithEmployers = await Promise.all(
-        (reviewsData || []).map(async (review) => {
-          if (review.employer_id) {
-            const { data: employerData } = await supabase
-              .from('employers')
-              .select('company_name')
-              .eq('id', review.employer_id)
-              .single();
+      // Map reviews with reviewer info from JOIN
+      const reviewsWithEmployers = (reviewsData || []).map((review: any) => {
+        return {
+          ...review,
+          employer: review.employer
+        };
+      });
 
-            return {
-              ...review,
-              employer: employerData
-            };
-          }
-          return review;
+      setReviews(reviewsWithEmployers);
         })
       );
 
@@ -178,15 +180,29 @@ export const ReviewList: React.FC<ReviewListProps> = ({
             >
               <div className="flex items-start justify-between mb-3">
                 <div className="flex items-center gap-3">
-                  <StarRating
-                    rating={review.rating}
-                    readonly={true}
-                    showLabel={false}
-                    size="sm"
-                  />
-                  <span className="font-medium text-gray-900">
-                    {review.employer?.company_name || 'Pracodawca'}
-                  </span>
+                  {/* Avatar reviewer */}
+                  {review.reviewer?.avatar_url ? (
+                    <img
+                      src={review.reviewer.avatar_url}
+                      alt={review.reviewer.full_name || 'Reviewer'}
+                      className="w-10 h-10 rounded-full object-cover border-2 border-gray-200"
+                    />
+                  ) : (
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm">
+                      {(review.reviewer?.full_name || review.employer?.company_name || 'P').charAt(0).toUpperCase()}
+                    </div>
+                  )}
+                  <div>
+                    <StarRating
+                      rating={review.rating}
+                      readonly={true}
+                      showLabel={false}
+                      size="sm"
+                    />
+                    <span className="font-medium text-gray-900 block text-sm mt-1">
+                      {review.reviewer?.full_name || review.employer?.company_name || 'Pracodawca'}
+                    </span>
+                  </div>
                 </div>
                 <span className="text-sm text-gray-500">
                   {review.created_at ? formatDate(review.created_at) : 'Brak daty'}

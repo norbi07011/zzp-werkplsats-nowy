@@ -259,7 +259,7 @@ CREATE OR REPLACE FUNCTION "public"."mark_notification_as_read"() RETURNS "trigg
     LANGUAGE "plpgsql"
     AS $$
 BEGIN
-    IF NEW.read = true AND OLD.read = false THEN
+    IF NEW.is_read = true AND OLD.is_read = false THEN
         NEW.read_at = NOW();
     END IF;
     RETURN NEW;
