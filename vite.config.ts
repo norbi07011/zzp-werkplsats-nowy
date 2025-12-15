@@ -146,8 +146,8 @@ export default defineConfig(({ mode }) => {
             // Core React libs - cached by browser
             "vendor-react": ["react", "react-dom", "react-router-dom"],
 
-            // UI libraries
-            "vendor-ui": ["lucide-react", "@heroicons/react"],
+            // UI libraries (excluding lucide-react to avoid ESM issues)
+            "vendor-ui": ["@heroicons/react"],
 
             // Supabase client
             "vendor-supabase": ["@supabase/supabase-js"],
