@@ -111,17 +111,7 @@ export default defineConfig(({ mode }) => {
     build: {
       // Performance optimizations
       target: "esnext",
-      minify: "terser",
-      terserOptions: {
-        compress: {
-          drop_console: isProd,
-          drop_debugger: isProd,
-          pure_funcs: isProd ? ["console.log", "console.info"] : [],
-        },
-        mangle: {
-          safari10: true,
-        },
-      },
+      minify: "esbuild", // Use esbuild instead of terser to avoid ESM export issues
 
       // Source maps
       sourcemap: !isProd,
