@@ -32,6 +32,7 @@ import {
   Briefcase,
   Languages,
   Award,
+  Globe,
 } from "lucide-react";
 
 

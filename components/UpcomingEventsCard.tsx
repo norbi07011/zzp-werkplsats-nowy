@@ -17,6 +17,19 @@ import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../src/lib/supabase";
 import { useAuth } from "../contexts/AuthContext";
+import {
+  Calendar,
+  Clock,
+  MapPin,
+  CheckCircle,
+  AlertCircle,
+  ChevronRight,
+  Loader2,
+  RefreshCw,
+  Plus,
+  Bell,
+  Video,
+} from "lucide-react";
 
 
 

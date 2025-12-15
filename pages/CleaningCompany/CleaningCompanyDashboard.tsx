@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import React from "react";
 import { flushSync } from "react-dom";
 import { useNavigate, Link } from "react-router-dom";
+import { Crown } from "lucide-react";
 import { SupportTicketModal } from "../../src/components/SupportTicketModal";
 import { CleaningCompanySettingsPanel } from "../../components/settings/CleaningCompanySettingsPanel";
 import { supabase } from "../../src/lib/supabase";

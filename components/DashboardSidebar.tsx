@@ -33,6 +33,9 @@ import {
   HelpCircle,
   Menu,
   X,
+  Search,
+  Headphones,
+  Receipt,
 } from "lucide-react";
 
 

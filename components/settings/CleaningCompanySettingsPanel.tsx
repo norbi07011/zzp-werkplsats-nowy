@@ -22,6 +22,7 @@ import {
   ChevronUp,
   User,
   Building,
+  Building2,
   Phone,
   Mail,
   MapPin,
