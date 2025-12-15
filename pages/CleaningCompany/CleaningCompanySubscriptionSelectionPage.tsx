@@ -9,15 +9,14 @@ import React, { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import { supabase } from "../../src/lib/supabase";
-
-
-
-
-
-
-
-
-
+import {
+  Building2,
+  CheckCircle,
+  Crown,
+  Star,
+  Loader2,
+  ArrowLeft,
+} from "lucide-react";
 
 import { handleCleaningCompanyUpgradeToPremium } from "../../src/services/stripe";
 import { STRIPE_CONFIG } from "../../src/config/stripe";
