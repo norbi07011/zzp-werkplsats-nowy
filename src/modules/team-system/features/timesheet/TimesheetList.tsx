@@ -5,9 +5,7 @@
  */
 
 import React, { useState, useEffect, useCallback } from "react";
-
-
-
+import { Calendar, Clock, User, Check, ChevronDown, ChevronUp, Filter, Loader2, AlertCircle } from 'lucide-react';
 
 
 
@@ -290,7 +288,7 @@ export const TimesheetList: React.FC<TimesheetListProps> = ({
       <div className="divide-y divide-gray-100">
         {isLoading ? (
           <div className="flex justify-center py-12">
-            <Loader className="w-8 h-8 text-emerald-500 animate-spin" />
+            <Loader2 className="w-8 h-8 text-emerald-500 animate-spin" />
           </div>
         ) : entries.length === 0 ? (
           <div className="text-center py-12 text-gray-500">

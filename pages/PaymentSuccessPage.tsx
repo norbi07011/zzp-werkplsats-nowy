@@ -7,10 +7,7 @@ import React, { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { supabase } from "../src/lib/supabase";
-
-
-
-
+import { Loader2, CheckCircle, AlertCircle } from 'lucide-react';
 
 const PaymentSuccessPage: React.FC = () => {
   console.log("[PaymentSuccess] 🚀 COMPONENT RENDERED");
@@ -360,7 +357,7 @@ const PaymentSuccessPage: React.FC = () => {
     return (
       <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-blue-50 flex items-center justify-center">
         <div className="text-center">
-          <Loader className="w-16 h-16 text-green-500 animate-spin mx-auto mb-4" />
+          <Loader2 className="w-16 h-16 text-green-500 animate-spin mx-auto mb-4" />
           <h2 className="text-2xl font-bold text-gray-800 mb-2">
             Weryfikacja płatności...
           </h2>

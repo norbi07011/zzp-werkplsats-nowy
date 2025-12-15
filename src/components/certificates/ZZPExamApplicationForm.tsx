@@ -4,7 +4,7 @@
  */
 
 import React, { useState } from 'react';
-import { Calendar, MapPin, FileText, CreditCard, CheckCircle, AlertCircle, Loader } from 'lucide-react';
+import { Calendar, MapPin, FileText, CreditCard, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
 import { STRIPE_CONFIG } from '../../config/stripe';
 import { supabase } from '@/lib/supabase';
 
@@ -307,7 +307,7 @@ export const ZZPExamApplicationForm: React.FC<ZZPExamApplicationFormProps> = ({
         >
           {loading ? (
             <>
-              <Loader className="w-5 h-5 animate-spin" />
+              <Loader2 className="w-5 h-5 animate-spin" />
               Przetwarzanie...
             </>
           ) : (

@@ -8,16 +8,7 @@
  */
 
 import React, { useState, useRef } from "react";
-
-
-
-
-
-
-
-
-
-
+import { FileText, Download, Calendar, Clock, Loader2, AlertCircle, CheckCircle, ChevronDown, User, DollarSign, Briefcase, Users } from 'lucide-react';
 
 import { supabase } from "../../../../lib/supabase";
 import { toast } from "sonner";
@@ -372,7 +363,7 @@ export const ReportGenerator: React.FC<ReportGeneratorProps> = ({
             }`}
           >
             {isGenerating ? (
-              <Loader className="w-5 h-5 animate-spin" />
+              <Loader2 className="w-5 h-5 animate-spin" />
             ) : (
               <Eye className="w-5 h-5" />
             )}

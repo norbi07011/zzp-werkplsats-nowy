@@ -5,16 +5,7 @@
  */
 
 import React, { useState, useEffect, useCallback } from "react";
-
-
-
-
-
-
-
-
-
-
+import { Wifi, WifiOff, Cloud, CloudOff, RefreshCw, Loader2, AlertCircle, CheckCircle, Trash2 } from 'lucide-react';
 
 import { supabaseUntyped as supabase } from "../../../../lib/supabase";
 import { useAuth } from "../../../../../contexts/AuthContext";
@@ -350,7 +341,7 @@ export const OfflineSync: React.FC<OfflineSyncProps> = ({ teamId, userId }) => {
               }`}
             >
               {status.isSyncing ? (
-                <Loader className="w-4 h-4 animate-spin" />
+                <Loader2 className="w-4 h-4 animate-spin" />
               ) : (
                 <RefreshCw className="w-4 h-4" />
               )}

@@ -5,15 +5,7 @@
  */
 
 import React, { useState, useEffect, useRef } from "react";
-
-
-
-
-
-
-
-
-
+import { DollarSign, Calendar, FileText, Upload, Loader2, Save, AlertCircle, CheckCircle, Image, X } from 'lucide-react';
 
 import { supabase } from "../../../../lib/supabase";
 import { useAuth } from "../../../../../contexts/AuthContext";
@@ -457,7 +449,7 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
             }`}
           >
             {isSaving ? (
-              <Loader className="w-5 h-5 animate-spin" />
+              <Loader2 className="w-5 h-5 animate-spin" />
             ) : (
               <Save className="w-5 h-5" />
             )}

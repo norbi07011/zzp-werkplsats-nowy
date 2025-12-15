@@ -196,7 +196,7 @@ export const CleaningCompanySubscriptionSelectionPage: React.FC = () => {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
-          <Loader className="w-12 h-12 text-blue-500 animate-spin" />
+          <Loader2 className="w-12 h-12 text-blue-500 animate-spin" />
           <p className="text-gray-600">Ładowanie danych...</p>
         </div>
       </div>
@@ -415,7 +415,7 @@ export const CleaningCompanySubscriptionSelectionPage: React.FC = () => {
               >
                 {isLoading && selectedPlan === "basic" ? (
                   <>
-                    <Loader className="w-5 h-5 animate-spin" />
+                    <Loader2 className="w-5 h-5 animate-spin" />
                     Zapisywanie...
                   </>
                 ) : isPremium ? (
@@ -514,7 +514,7 @@ export const CleaningCompanySubscriptionSelectionPage: React.FC = () => {
               >
                 {isLoading && selectedPlan === "premium" ? (
                   <>
-                    <Loader className="w-5 h-5 animate-spin" />
+                    <Loader2 className="w-5 h-5 animate-spin" />
                     Przekierowuję do płatności...
                   </>
                 ) : isPremium ? (

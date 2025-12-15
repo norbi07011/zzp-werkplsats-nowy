@@ -8,7 +8,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { CheckCircle, XCircle, Crown, ArrowRight, Loader } from 'lucide-react';
+import { CheckCircle, XCircle, Crown, ArrowRight, Loader2 } from 'lucide-react';
 import { STRIPE_CONFIG } from '../../src/config/stripe';
 import { handleUpgradeToPremium } from '../../src/services/stripe';
 
@@ -145,7 +145,7 @@ export const WorkerSubscriptionSelectionPage: React.FC = () => {
               >
                 {isLoading && selectedPlan === 'basic' ? (
                   <>
-                    <Loader className="w-5 h-5 animate-spin" />
+                    <Loader2 className="w-5 h-5 animate-spin" />
                     Bezig...
                   </>
                 ) : (
@@ -221,7 +221,7 @@ export const WorkerSubscriptionSelectionPage: React.FC = () => {
               >
                 {isLoading && selectedPlan === 'premium' ? (
                   <>
-                    <Loader className="w-5 h-5 animate-spin" />
+                    <Loader2 className="w-5 h-5 animate-spin" />
                     Doorsturen naar betaling...
                   </>
                 ) : (

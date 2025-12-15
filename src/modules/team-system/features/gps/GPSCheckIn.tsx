@@ -6,11 +6,7 @@
  */
 
 import React, { useState, useEffect } from "react";
-
-
-
-
-
+import { MapPin, Clock, Loader2, AlertCircle, CheckCircle, Navigation, LogIn, LogOut } from 'lucide-react';
 
 import { supabase } from "../../../../lib/supabase";
 import { useAuth } from "../../../../../contexts/AuthContext";
@@ -306,7 +302,7 @@ export const GPSCheckIn: React.FC<GPSCheckInProps> = ({
           }`}
         >
           {isLoading && currentStatus !== "checked_in" ? (
-            <Loader className="w-5 h-5 animate-spin" />
+            <Loader2 className="w-5 h-5 animate-spin" />
           ) : (
             <LogIn className="w-5 h-5" />
           )}
@@ -327,7 +323,7 @@ export const GPSCheckIn: React.FC<GPSCheckInProps> = ({
           }`}
         >
           {isLoading && currentStatus === "checked_in" ? (
-            <Loader className="w-5 h-5 animate-spin" />
+            <Loader2 className="w-5 h-5 animate-spin" />
           ) : (
             <LogOut className="w-5 h-5" />
           )}

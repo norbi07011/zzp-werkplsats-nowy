@@ -11,15 +11,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import { supabase } from "../../src/lib/supabase";
-
-
-
-
-
-
-
-
-
+import { Building2, CheckCircle, Crown, Star, Loader2, ArrowLeft, XCircle, AlertCircle } from 'lucide-react';
 
 import { handleAccountantUpgradeToPremium } from "../../src/services/stripe";
 import { STRIPE_CONFIG } from "../../src/config/stripe";
@@ -268,7 +260,7 @@ export const AccountantSubscriptionPage: React.FC = () => {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-emerald-50 via-white to-teal-50">
         <div className="text-center">
-          <Loader className="w-12 h-12 text-emerald-600 animate-spin mx-auto mb-4" />
+          <Loader2 className="w-12 h-12 text-emerald-600 animate-spin mx-auto mb-4" />
           <p className="text-gray-600">Ładowanie danych...</p>
         </div>
       </div>
@@ -435,7 +427,7 @@ export const AccountantSubscriptionPage: React.FC = () => {
               >
                 {isLoading && selectedPlan === "basic" ? (
                   <>
-                    <Loader className="w-5 h-5 animate-spin" />
+                    <Loader2 className="w-5 h-5 animate-spin" />
                     Zapisywanie...
                   </>
                 ) : isPro ? (
@@ -532,7 +524,7 @@ export const AccountantSubscriptionPage: React.FC = () => {
               >
                 {isLoading && selectedPlan === "pro" ? (
                   <>
-                    <Loader className="w-5 h-5 animate-spin" />
+                    <Loader2 className="w-5 h-5 animate-spin" />
                     Przekierowuję do płatności...
                   </>
                 ) : isPro ? (

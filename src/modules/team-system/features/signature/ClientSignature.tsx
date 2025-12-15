@@ -5,10 +5,7 @@
  */
 
 import React, { useRef, useState, useEffect } from "react";
-
-
-
-
+import { Save, X, Trash2, Loader2, AlertCircle, CheckCircle } from 'lucide-react';
 
 import { supabase } from "../../../../lib/supabase";
 import { useAuth } from "../../../../../contexts/AuthContext";
@@ -320,7 +317,7 @@ export const ClientSignature: React.FC<ClientSignatureProps> = ({
           }`}
         >
           {isSaving ? (
-            <Loader className="w-5 h-5 animate-spin" />
+            <Loader2 className="w-5 h-5 animate-spin" />
           ) : (
             <Check className="w-5 h-5" />
           )}

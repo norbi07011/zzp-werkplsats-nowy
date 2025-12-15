@@ -5,11 +5,7 @@
  */
 
 import React, { useState, useEffect } from "react";
-
-
-
-
-
+import { Calendar, Clock, Briefcase, Save, Loader2 } from 'lucide-react';
 
 import { supabase } from "../../../../lib/supabase";
 import { useAuth } from "../../../../../contexts/AuthContext";
@@ -363,7 +359,7 @@ export const TimesheetEntry: React.FC<TimesheetEntryProps> = ({
             }`}
           >
             {isSaving ? (
-              <Loader className="w-5 h-5 animate-spin" />
+              <Loader2 className="w-5 h-5 animate-spin" />
             ) : (
               <Save className="w-5 h-5" />
             )}

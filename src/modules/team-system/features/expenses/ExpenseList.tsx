@@ -5,19 +5,7 @@
  */
 
 import React, { useState, useEffect, useCallback } from "react";
-
-
-
-
-
-
-
-
-
-
-
-
-
+import { DollarSign, Calendar, Filter, Loader2, Check, X, Eye, ChevronDown, ChevronUp, AlertCircle, Image, User, FileText } from 'lucide-react';
 
 import { supabaseUntyped as supabase } from "../../../../lib/supabase";
 import { useAuth } from "../../../../../contexts/AuthContext";
@@ -326,7 +314,7 @@ export const ExpenseList: React.FC<ExpenseListProps> = ({
       <div className="divide-y divide-gray-100">
         {isLoading ? (
           <div className="flex justify-center py-12">
-            <Loader className="w-8 h-8 text-purple-500 animate-spin" />
+            <Loader2 className="w-8 h-8 text-purple-500 animate-spin" />
           </div>
         ) : entries.length === 0 ? (
           <div className="text-center py-12 text-gray-500">

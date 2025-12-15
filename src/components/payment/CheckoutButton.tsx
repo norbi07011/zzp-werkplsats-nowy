@@ -4,7 +4,7 @@
  */
 
 import React, { useState } from 'react';
-import { CreditCard, Loader, AlertCircle, CheckCircle, TrendingUp } from 'lucide-react';
+import { CreditCard, Loader2, AlertCircle, CheckCircle, TrendingUp } from 'lucide-react';
 import { handleUpgradeToPremium } from '../../services/stripe';
 import { isStripeConfigured } from '../../config/stripe';
 
@@ -83,7 +83,7 @@ export const CheckoutButton: React.FC<CheckoutButtonProps> = ({
       >
         {loading ? (
           <>
-            <Loader className="w-5 h-5 animate-spin" />
+            <Loader2 className="w-5 h-5 animate-spin" />
             Laden...
           </>
         ) : (

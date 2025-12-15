@@ -5,16 +5,7 @@
  */
 
 import React, { useState, useEffect } from "react";
-
-
-
-
-
-
-
-
-
-
+import { Bell, BellOff, Mail, Smartphone, MessageSquare, Save, Loader2, AlertCircle, CheckCircle, Settings } from 'lucide-react';
 
 import { supabase } from "../../../../lib/supabase";
 import { useAuth } from "../../../../../contexts/AuthContext";
@@ -189,7 +180,7 @@ export const NotificationPreferences: React.FC<
   if (isLoading) {
     return (
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 flex justify-center">
-        <Loader className="w-8 h-8 text-blue-500 animate-spin" />
+        <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
       </div>
     );
   }
@@ -410,7 +401,7 @@ export const NotificationPreferences: React.FC<
           }`}
         >
           {isSaving ? (
-            <Loader className="w-5 h-5 animate-spin" />
+            <Loader2 className="w-5 h-5 animate-spin" />
           ) : (
             <Save className="w-5 h-5" />
           )}
