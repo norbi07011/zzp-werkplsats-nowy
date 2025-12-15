@@ -13,15 +13,22 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import { supabase } from "../../src/lib/supabase";
 import {
+  ArrowRight,
+  Award,
+  AlertCircle,
+  ArrowLeft,
+  Briefcase,
   Building2,
   CheckCircle,
   Crown,
-  Star,
+  Eye,
   Loader2,
-  ArrowLeft,
+  MessageSquare,
+  Sparkles,
+  Star,
+  TrendingUp,
+  User,
   XCircle,
-  AlertCircle,
-  Award,
 } from "lucide-react";
 
 import { handleUpgradeToPremium } from "../../src/services/stripe";

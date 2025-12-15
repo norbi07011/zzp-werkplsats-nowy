@@ -28,8 +28,10 @@ import {
   RefreshCw,
   Plus,
   Bell,
-  Video,
 } from "lucide-react";
+
+// Video doesn't export directly, using Calendar as fallback for video events
+const Video = Calendar;
 
 // Event types with colors
 const EVENT_STYLES: Record<
@@ -131,7 +133,8 @@ export const UpcomingEventsCard: React.FC<UpcomingEventsCardProps> = ({
       const nextWeek = new Date();
       nextWeek.setDate(nextWeek.getDate() + 7);
 
-      const { data, error } = await supabase
+      // Use any type cast since calendar_events may not be in generated types
+      const { data, error } = await (supabase as any)
         .from("calendar_events")
         .select("*")
         .eq("user_id", user.id)
@@ -146,18 +149,18 @@ export const UpcomingEventsCard: React.FC<UpcomingEventsCardProps> = ({
         console.error("Error loading upcoming events:", error);
         setEvents([]);
       } else {
-        setEvents(data || []);
+        setEvents((data as CalendarEvent[]) || []);
 
         // Count today's events
         const today = now.toISOString().split("T")[0];
         const todayEvents = (data || []).filter(
-          (e) => e.start_date.split("T")[0] === today
+          (e: CalendarEvent) => e.start_date.split("T")[0] === today
         );
         setTodayCount(todayEvents.length);
 
         // Find imminent events (within 30 minutes)
         const thirtyMinutesFromNow = new Date(now.getTime() + 30 * 60 * 1000);
-        const imminent = (data || []).filter((e) => {
+        const imminent = (data || []).filter((e: CalendarEvent) => {
           const eventTime = new Date(e.start_date);
           return eventTime >= now && eventTime <= thirtyMinutesFromNow;
         });
@@ -184,7 +187,7 @@ export const UpcomingEventsCard: React.FC<UpcomingEventsCardProps> = ({
     if (!user?.id) return;
 
     try {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from("calendar_events")
         .update({ status: "completed" })
         .eq("id", eventId)

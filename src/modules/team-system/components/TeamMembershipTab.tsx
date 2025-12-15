@@ -23,14 +23,6 @@ import {
   X,
 } from "lucide-react";
 
-
-
-
-
-
-
-
-
 // Type definitions
 interface TeamMembership {
   id: string;

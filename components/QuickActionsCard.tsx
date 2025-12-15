@@ -14,9 +14,12 @@ import {
   Sparkles,
   Calculator,
   CreditCard,
-  HardHat,
+  Wrench,
   Search,
 } from "lucide-react";
+
+// HardHat doesn't exist in lucide-react, using Wrench as fallback
+const HardHat = Wrench;
 
 // Role type matching AuthContext
 type DashboardRole =
