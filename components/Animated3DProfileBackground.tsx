@@ -86,9 +86,7 @@ interface Animated3DProfileBackgroundProps {
   opacity?: number;
 }
 
-export const Animated3DProfileBackground: React.FC<
-  Animated3DProfileBackgroundProps
-> = ({ role, opacity = 0.25 }) => {
+export function Animated3DProfileBackground({ role, opacity = 0.25 }: Animated3DProfileBackgroundProps) {
   // Render 3D shapes based on user role
   const render3DShapes = () => {
     switch (role) {
@@ -201,7 +199,7 @@ export const Animated3DProfileBackground: React.FC<
       {render3DShapes()}
     </div>
   );
-};
+}
 
 // Default export for compatibility
 export default Animated3DProfileBackground;
