@@ -18,6 +18,14 @@ import {
   Star,
   Loader2,
   ArrowLeft,
+  ArrowRight,
+  XCircle,
+  Bookmark,
+  MessageSquare,
+  Search,
+  Sparkles,
+  Users,
+  Zap,
 } from "lucide-react";
 
 import { handleEmployerSubscription } from "../../src/services/stripe";
