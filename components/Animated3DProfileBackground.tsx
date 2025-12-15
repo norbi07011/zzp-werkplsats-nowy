@@ -25,6 +25,7 @@ const NebulaCore = React.memo(({ style }: { style: React.CSSProperties }) => (
     <div className="absolute bottom-10 right-10 w-3 h-3 bg-orange-500 rounded-full blur-[2px] animate-bounce"></div>
   </div>
 ));
+NebulaCore.displayName = 'NebulaCore';
 
 // 2. The Cyber Tesseract (Jobs/Oferty pracy)
 const CyberTesseract = React.memo(
@@ -42,6 +43,7 @@ const CyberTesseract = React.memo(
     </div>
   )
 );
+CyberTesseract.displayName = 'CyberTesseract';
 
 // 3. Paint Roller (Jobs/Oferty pracy - Vacatures)
 const PaintRoller = React.memo(({ style }: { style: React.CSSProperties }) => (
@@ -54,6 +56,7 @@ const PaintRoller = React.memo(({ style }: { style: React.CSSProperties }) => (
     </div>
   </div>
 ));
+PaintRoller.displayName = 'PaintRoller';
 
 // 4. The Prismatic Obelisk (Ads/Reklamy)
 const PrismaticObelisk = React.memo(
@@ -74,6 +77,7 @@ const PrismaticObelisk = React.memo(
     </div>
   )
 );
+PrismaticObelisk.displayName = 'PrismaticObelisk';
 
 interface Animated3DProfileBackgroundProps {
   /** Rola użytkownika: worker, employer, cleaning_company, admin, accountant */
@@ -198,3 +202,6 @@ export const Animated3DProfileBackground: React.FC<
     </div>
   );
 };
+
+// Default export for compatibility
+export default Animated3DProfileBackground;
