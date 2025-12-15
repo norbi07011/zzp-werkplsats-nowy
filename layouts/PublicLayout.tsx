@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { Logo } from "../components/Logo";
 import { LanguageSwitcher } from "../components/LanguageSwitcher";
 import { ThemeToggle } from "../src/components/common/ThemeToggle";
+import { Menu, X } from "lucide-react";
 
 
 
