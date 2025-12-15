@@ -2,12 +2,12 @@ import React, { useState, useEffect } from "react";
 import { useInvites } from "../hooks/useInvites";
 import { useAuth } from "../contexts/AuthContext";
 import { supabase } from "../src/lib/supabase";
-import X from "lucide-react/dist/esm/icons/x";
-import Mail from "lucide-react/dist/esm/icons/mail";
-import Shield from "lucide-react/dist/esm/icons/shield";
-import Send from "lucide-react/dist/esm/icons/send";
-import Building2 from "lucide-react/dist/esm/icons/building-2";
-import Users from "lucide-react/dist/esm/icons/users";
+
+
+
+
+
+
 
 interface CleaningCompany {
   id: string;

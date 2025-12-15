@@ -4,8 +4,8 @@ import { useTranslation } from "react-i18next";
 import { Logo } from "../components/Logo";
 import { LanguageSwitcher } from "../components/LanguageSwitcher";
 import { ThemeToggle } from "../src/components/common/ThemeToggle";
-import Menu from "lucide-react/dist/esm/icons/menu";
-import X from "lucide-react/dist/esm/icons/x";
+
+
 
 export const PublicLayout: React.FC = () => {
   const { t } = useTranslation();

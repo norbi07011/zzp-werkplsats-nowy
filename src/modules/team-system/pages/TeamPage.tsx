@@ -9,16 +9,16 @@
 import React, { useState } from "react";
 import { useTeamStore } from "../context/TeamStoreContext";
 import { TeamUserRole, TeamMember } from "../types";
-import Phone from "lucide-react/dist/esm/icons/phone";
-import Users from "lucide-react/dist/esm/icons/users";
-import Plus from "lucide-react/dist/esm/icons/plus";
-import Edit2 from "lucide-react/dist/esm/icons/edit-2";
-import Trash2 from "lucide-react/dist/esm/icons/trash-2";
-import Mail from "lucide-react/dist/esm/icons/mail";
-import Euro from "lucide-react/dist/esm/icons/euro";
-import CheckCircle from "lucide-react/dist/esm/icons/check-circle";
-import XCircle from "lucide-react/dist/esm/icons/x-circle";
-import Search from "lucide-react/dist/esm/icons/search";
+
+
+
+
+
+
+
+
+
+
 
 export const TeamPage = () => {
   const { currentUser, users, addUser, updateUser, deleteUser, t } =

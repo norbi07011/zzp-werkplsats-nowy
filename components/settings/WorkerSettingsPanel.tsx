@@ -11,25 +11,25 @@
  */
 
 import React, { useState } from "react";
-import User from "lucide-react/dist/esm/icons/user";
-import Bell from "lucide-react/dist/esm/icons/bell";
-import Shield from "lucide-react/dist/esm/icons/shield";
-import Calendar from "lucide-react/dist/esm/icons/calendar";
-import Globe from "lucide-react/dist/esm/icons/globe";
-import Camera from "lucide-react/dist/esm/icons/camera";
-import Image from "lucide-react/dist/esm/icons/image";
-import Lock from "lucide-react/dist/esm/icons/lock";
-import Save from "lucide-react/dist/esm/icons/save";
-import Check from "lucide-react/dist/esm/icons/check";
-import FileText from "lucide-react/dist/esm/icons/file-text";
-import Briefcase from "lucide-react/dist/esm/icons/briefcase";
-import MapPin from "lucide-react/dist/esm/icons/map-pin";
-import Euro from "lucide-react/dist/esm/icons/euro";
-import Languages from "lucide-react/dist/esm/icons/languages";
-import Wrench from "lucide-react/dist/esm/icons/wrench";
-import Car from "lucide-react/dist/esm/icons/car";
-import X from "lucide-react/dist/esm/icons/x";
-import Plus from "lucide-react/dist/esm/icons/plus";
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 import { CoverImageUploader } from "../../src/components/common/CoverImageUploader";
 import DateBlocker from "../../src/components/common/DateBlocker";
 import { GlowButton } from "../ui/GlowButton";

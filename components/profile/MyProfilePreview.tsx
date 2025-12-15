@@ -10,8 +10,8 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "../../contexts/AuthContext";
 import { supabase } from "../../src/lib/supabase";
-import Loader2 from "lucide-react/dist/esm/icons/loader-2";
-import User from "lucide-react/dist/esm/icons/user";
+
+
 
 // Import public profile components
 import WorkerPublicProfilePage from "../../pages/public/WorkerPublicProfilePage";

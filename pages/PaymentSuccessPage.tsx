@@ -7,10 +7,10 @@ import React, { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { supabase } from "../src/lib/supabase";
-import CheckCircle from "lucide-react/dist/esm/icons/check-circle";
-import Loader from "lucide-react/dist/esm/icons/loader";
-import Crown from "lucide-react/dist/esm/icons/crown";
-import Sparkles from "lucide-react/dist/esm/icons/sparkles";
+
+
+
+
 
 const PaymentSuccessPage: React.FC = () => {
   console.log("[PaymentSuccess] 🚀 COMPONENT RENDERED");

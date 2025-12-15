@@ -1,14 +1,14 @@
 import React, { useState } from "react";
 import type { Vehicle, VehicleType, FuelType } from "../types";
 import { getVehicleRate, formatDutchPlate, DUTCH_RATES_2025 } from "../types";
-import Car from "lucide-react/dist/esm/icons/car";
-import Bike from "lucide-react/dist/esm/icons/bike";
-import Motorcycle from "lucide-react/dist/esm/icons/bike"; // Close enough
-import Plus from "lucide-react/dist/esm/icons/plus";
-import Edit3 from "lucide-react/dist/esm/icons/edit-3";
-import Trash2 from "lucide-react/dist/esm/icons/trash-2";
-import Star from "lucide-react/dist/esm/icons/star";
-import Check from "lucide-react/dist/esm/icons/check";
+
+
+ // Close enough
+
+
+
+
+
 
 const VEHICLE_ICONS: Record<VehicleType, React.ReactNode> = {
   car: <Car size={24} />,

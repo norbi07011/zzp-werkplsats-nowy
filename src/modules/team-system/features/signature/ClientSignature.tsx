@@ -5,11 +5,11 @@
  */
 
 import React, { useRef, useState, useEffect } from "react";
-import Trash2 from "lucide-react/dist/esm/icons/trash-2";
-import Check from "lucide-react/dist/esm/icons/check";
-import RotateCcw from "lucide-react/dist/esm/icons/rotate-ccw";
-import PenTool from "lucide-react/dist/esm/icons/pen-tool";
-import Loader from "lucide-react/dist/esm/icons/loader";
+
+
+
+
+
 import { supabase } from "../../../../lib/supabase";
 import { useAuth } from "../../../../../contexts/AuthContext";
 import { toast } from "sonner";

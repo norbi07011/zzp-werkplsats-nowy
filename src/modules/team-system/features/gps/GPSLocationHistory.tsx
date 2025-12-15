@@ -5,12 +5,12 @@
  */
 
 import React, { useState, useEffect } from "react";
-import MapPin from "lucide-react/dist/esm/icons/map-pin";
-import Clock from "lucide-react/dist/esm/icons/clock";
-import User from "lucide-react/dist/esm/icons/user";
-import ChevronDown from "lucide-react/dist/esm/icons/chevron-down";
-import ChevronUp from "lucide-react/dist/esm/icons/chevron-up";
-import Calendar from "lucide-react/dist/esm/icons/calendar";
+
+
+
+
+
+
 import { supabaseUntyped as supabase } from "../../../../lib/supabase";
 import { useAuth } from "../../../../../contexts/AuthContext";
 

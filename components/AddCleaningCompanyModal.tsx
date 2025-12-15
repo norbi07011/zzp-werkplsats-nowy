@@ -1,13 +1,13 @@
 import React, { useState } from "react";
 import { supabase } from "../src/lib/supabase";
-import X from "lucide-react/dist/esm/icons/x";
-import Building2 from "lucide-react/dist/esm/icons/building-2";
-import User from "lucide-react/dist/esm/icons/user";
-import Phone from "lucide-react/dist/esm/icons/phone";
-import Mail from "lucide-react/dist/esm/icons/mail";
-import MapPin from "lucide-react/dist/esm/icons/map-pin";
-import Users from "lucide-react/dist/esm/icons/users";
-import FileText from "lucide-react/dist/esm/icons/file-text";
+
+
+
+
+
+
+
+
 
 interface AddCleaningCompanyModalProps {
   isOpen: boolean;

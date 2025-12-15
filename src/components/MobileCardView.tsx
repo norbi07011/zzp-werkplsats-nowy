@@ -1,6 +1,6 @@
 import React, { useState } from "react";
-import ChevronRight from "lucide-react/dist/esm/icons/chevron-right";
-import X from "lucide-react/dist/esm/icons/x";
+
+
 
 export interface CardField {
   label: string;

@@ -9,19 +9,19 @@
 import React, { useState } from "react";
 import { useTeamStore } from "../context/TeamStoreContext";
 import { Priority, TaskStatus, Task, Project } from "../types";
-import Plus from "lucide-react/dist/esm/icons/plus";
-import FileText from "lucide-react/dist/esm/icons/file-text";
-import Users from "lucide-react/dist/esm/icons/users";
-import Calendar from "lucide-react/dist/esm/icons/calendar";
-import MapPin from "lucide-react/dist/esm/icons/map-pin";
-import Euro from "lucide-react/dist/esm/icons/euro";
-import Clock from "lucide-react/dist/esm/icons/clock";
-import CheckCircle from "lucide-react/dist/esm/icons/check-circle";
-import AlertCircle from "lucide-react/dist/esm/icons/alert-circle";
-import ChevronRight from "lucide-react/dist/esm/icons/chevron-right";
-import ChevronLeft from "lucide-react/dist/esm/icons/chevron-left";
-import Save from "lucide-react/dist/esm/icons/save";
-import Briefcase from "lucide-react/dist/esm/icons/briefcase";
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 interface OrderFormData {
   title: string;

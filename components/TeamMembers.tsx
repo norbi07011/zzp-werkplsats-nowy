@@ -4,19 +4,19 @@ import { supabase } from "../src/lib/supabase";
 import { AddCleaningCompanyModal } from "./AddCleaningCompanyModal";
 import { EditCleaningCompanyModal } from "./EditCleaningCompanyModal";
 import { AssignCompanyToProjectModal } from "./AssignCompanyToProjectModal";
-import UserPlus from "lucide-react/dist/esm/icons/user-plus";
-import Mail from "lucide-react/dist/esm/icons/mail";
-import Shield from "lucide-react/dist/esm/icons/shield";
-import Calendar from "lucide-react/dist/esm/icons/calendar";
-import MoreVertical from "lucide-react/dist/esm/icons/more-vertical";
-import CheckCircle from "lucide-react/dist/esm/icons/check-circle";
-import XCircle from "lucide-react/dist/esm/icons/x-circle";
-import Building2 from "lucide-react/dist/esm/icons/building-2";
-import Star from "lucide-react/dist/esm/icons/star";
-import Users from "lucide-react/dist/esm/icons/users";
-import Edit from "lucide-react/dist/esm/icons/edit";
-import Trash2 from "lucide-react/dist/esm/icons/trash-2";
-import FolderPlus from "lucide-react/dist/esm/icons/folder-plus";
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 interface TeamMembersProps {
   projectId: string;

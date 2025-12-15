@@ -1,23 +1,23 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
-import Calendar from "lucide-react/dist/esm/icons/calendar";
-import Clock from "lucide-react/dist/esm/icons/clock";
-import MapPin from "lucide-react/dist/esm/icons/map-pin";
-import User from "lucide-react/dist/esm/icons/user";
-import Plus from "lucide-react/dist/esm/icons/plus";
-import ChevronLeft from "lucide-react/dist/esm/icons/chevron-left";
-import ChevronRight from "lucide-react/dist/esm/icons/chevron-right";
-import MoreVertical from "lucide-react/dist/esm/icons/more-vertical";
-import Sparkles from "lucide-react/dist/esm/icons/sparkles";
-import Zap from "lucide-react/dist/esm/icons/zap";
-import CheckCircle from "lucide-react/dist/esm/icons/check-circle";
-import Edit3 from "lucide-react/dist/esm/icons/edit-3";
-import Trash2 from "lucide-react/dist/esm/icons/trash-2";
-import X from "lucide-react/dist/esm/icons/x";
-import Bell from "lucide-react/dist/esm/icons/bell";
-import Video from "lucide-react/dist/esm/icons/video";
-import Save from "lucide-react/dist/esm/icons/save";
-import Link from "lucide-react/dist/esm/icons/link";
-import AlertCircle from "lucide-react/dist/esm/icons/alert-circle";
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 import { useAuth } from "../../../../contexts/AuthContext";
 import { supabase } from "../../../../src/lib/supabase";
 

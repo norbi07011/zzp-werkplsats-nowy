@@ -17,15 +17,15 @@ import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../src/lib/supabase";
 import { useAuth } from "../contexts/AuthContext";
-import Calendar from "lucide-react/dist/esm/icons/calendar";
-import Clock from "lucide-react/dist/esm/icons/clock";
-import MapPin from "lucide-react/dist/esm/icons/map-pin";
-import Video from "lucide-react/dist/esm/icons/video";
-import Bell from "lucide-react/dist/esm/icons/bell";
-import CheckCircle from "lucide-react/dist/esm/icons/check-circle";
-import Plus from "lucide-react/dist/esm/icons/plus";
-import ChevronRight from "lucide-react/dist/esm/icons/chevron-right";
-import AlertCircle from "lucide-react/dist/esm/icons/alert-circle";
+
+
+
+
+
+
+
+
+
 
 // Event types with colors
 const EVENT_STYLES: Record<

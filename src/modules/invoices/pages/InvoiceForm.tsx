@@ -25,12 +25,12 @@ import {
 } from "../lib";
 import { useAuth } from "../../../../contexts/AuthContext";
 import type { InvoiceLine, CreateInvoiceData } from "../types";
-import Palette from "lucide-react/dist/esm/icons/palette";
-import ArrowRight from "lucide-react/dist/esm/icons/arrow-right";
-import ImageIcon from "lucide-react/dist/esm/icons/image";
-import Briefcase from "lucide-react/dist/esm/icons/briefcase";
-import Clock from "lucide-react/dist/esm/icons/clock";
-import Box from "lucide-react/dist/esm/icons/box";
+
+
+
+
+
+
 
 // --- Types from Documents.tsx ---
 interface InvoiceDesign {

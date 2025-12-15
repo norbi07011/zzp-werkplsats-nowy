@@ -11,16 +11,16 @@ import React, { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import { supabase } from "../../src/lib/supabase";
-import CheckCircle from "lucide-react/dist/esm/icons/check-circle";
-import XCircle from "lucide-react/dist/esm/icons/x-circle";
-import Crown from "lucide-react/dist/esm/icons/crown";
-import ArrowRight from "lucide-react/dist/esm/icons/arrow-right";
-import Loader from "lucide-react/dist/esm/icons/loader";
-import Sparkles from "lucide-react/dist/esm/icons/sparkles";
-import Calculator from "lucide-react/dist/esm/icons/calculator";
-import Users from "lucide-react/dist/esm/icons/users";
-import Star from "lucide-react/dist/esm/icons/star";
-import ArrowLeft from "lucide-react/dist/esm/icons/arrow-left";
+
+
+
+
+
+
+
+
+
+
 import { handleAccountantUpgradeToPremium } from "../../src/services/stripe";
 import { STRIPE_CONFIG } from "../../src/config/stripe";
 

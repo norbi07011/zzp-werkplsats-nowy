@@ -29,7 +29,7 @@ import { UpcomingEventsCard } from "../../components/UpcomingEventsCard";
 import { MyProfilePreview } from "../../components/profile/MyProfilePreview";
 import CleaningCompanySubscriptionSelectionPage from "./CleaningCompanySubscriptionSelectionPage";
 import { TeamMembershipTab } from "../../src/modules/team-system/components/TeamMembershipTab";
-import Crown from "lucide-react/dist/esm/icons/crown";
+
 // NOTE: Kilometers, Appointments and I18nProvider removed - they are only in /faktury module
 
 interface Review {

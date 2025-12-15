@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { supabase } from "../src/lib/supabase";
-import X from "lucide-react/dist/esm/icons/x";
-import Building2 from "lucide-react/dist/esm/icons/building-2";
-import Folder from "lucide-react/dist/esm/icons/folder";
+
+
+
 
 interface Project {
   id: string;

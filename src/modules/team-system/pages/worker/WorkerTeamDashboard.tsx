@@ -7,23 +7,23 @@
  */
 
 import React, { useState, useEffect, useCallback } from "react";
-import Users from "lucide-react/dist/esm/icons/users";
-import Briefcase from "lucide-react/dist/esm/icons/briefcase";
-import CheckSquare from "lucide-react/dist/esm/icons/check-square";
-import MessageSquare from "lucide-react/dist/esm/icons/message-square";
-import Calendar from "lucide-react/dist/esm/icons/calendar";
-import Clock from "lucide-react/dist/esm/icons/clock";
-import MapPin from "lucide-react/dist/esm/icons/map-pin";
-import Navigation from "lucide-react/dist/esm/icons/navigation";
-import ChevronRight from "lucide-react/dist/esm/icons/chevron-right";
-import AlertTriangle from "lucide-react/dist/esm/icons/alert-triangle";
-import CheckCircle from "lucide-react/dist/esm/icons/check-circle";
-import Play from "lucide-react/dist/esm/icons/play";
-import Pause from "lucide-react/dist/esm/icons/pause";
-import Send from "lucide-react/dist/esm/icons/send";
-import BarChart3 from "lucide-react/dist/esm/icons/bar-chart-3";
-import User from "lucide-react/dist/esm/icons/user";
-import Building2 from "lucide-react/dist/esm/icons/building-2";
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 import { useAuth } from "../../../../../contexts/AuthContext";
 import { supabase } from "../../../../lib/supabase";
 import { toast } from "sonner";

@@ -22,13 +22,13 @@ import React, {
 import { createPortal } from "react-dom";
 import { supabase } from "../src/lib/supabase";
 import { useAuth } from "../contexts/AuthContext";
-import Bell from "lucide-react/dist/esm/icons/bell";
-import X from "lucide-react/dist/esm/icons/x";
-import Calendar from "lucide-react/dist/esm/icons/calendar";
-import Clock from "lucide-react/dist/esm/icons/clock";
-import MapPin from "lucide-react/dist/esm/icons/map-pin";
-import Video from "lucide-react/dist/esm/icons/video";
-import CheckCircle from "lucide-react/dist/esm/icons/check-circle";
+
+
+
+
+
+
+
 
 interface CalendarEvent {
   id: string;

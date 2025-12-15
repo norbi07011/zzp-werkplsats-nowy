@@ -11,32 +11,32 @@ import React, { useState } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import { Link } from "react-router-dom";
 import { Logo } from "./Logo";
-import LayoutDashboard from "lucide-react/dist/esm/icons/layout-dashboard";
-import User from "lucide-react/dist/esm/icons/user";
-import MessageSquare from "lucide-react/dist/esm/icons/message-square";
-import Star from "lucide-react/dist/esm/icons/star";
-import Clipboard from "lucide-react/dist/esm/icons/clipboard";
-import Palette from "lucide-react/dist/esm/icons/palette";
-import CreditCard from "lucide-react/dist/esm/icons/credit-card";
-import Briefcase from "lucide-react/dist/esm/icons/briefcase";
-import FileText from "lucide-react/dist/esm/icons/file-text";
-import ClipboardList from "lucide-react/dist/esm/icons/clipboard-list";
-import Users from "lucide-react/dist/esm/icons/users";
-import Bookmark from "lucide-react/dist/esm/icons/bookmark";
-import Menu from "lucide-react/dist/esm/icons/menu";
-import X from "lucide-react/dist/esm/icons/x";
-import ChevronLeft from "lucide-react/dist/esm/icons/chevron-left";
-import ChevronRight from "lucide-react/dist/esm/icons/chevron-right";
-import ChevronDown from "lucide-react/dist/esm/icons/chevron-down";
-import Receipt from "lucide-react/dist/esm/icons/receipt";
-import Search from "lucide-react/dist/esm/icons/search";
-import Building2 from "lucide-react/dist/esm/icons/building-2";
-import HardHat from "lucide-react/dist/esm/icons/hard-hat";
-import Calculator from "lucide-react/dist/esm/icons/calculator";
-import Sparkles from "lucide-react/dist/esm/icons/sparkles";
-import Settings from "lucide-react/dist/esm/icons/settings";
-import Eye from "lucide-react/dist/esm/icons/eye";
-import Headphones from "lucide-react/dist/esm/icons/headphones";
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 import type { UnifiedTab } from "./UnifiedDashboardTabs";
 
 interface TabConfig {

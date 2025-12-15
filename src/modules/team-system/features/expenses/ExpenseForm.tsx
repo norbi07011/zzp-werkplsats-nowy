@@ -5,16 +5,16 @@
  */
 
 import React, { useState, useEffect, useRef } from "react";
-import Receipt from "lucide-react/dist/esm/icons/receipt";
-import Camera from "lucide-react/dist/esm/icons/camera";
-import Upload from "lucide-react/dist/esm/icons/upload";
-import Euro from "lucide-react/dist/esm/icons/euro";
-import Calendar from "lucide-react/dist/esm/icons/calendar";
-import FileText from "lucide-react/dist/esm/icons/file-text";
-import Save from "lucide-react/dist/esm/icons/save";
-import Loader from "lucide-react/dist/esm/icons/loader";
-import X from "lucide-react/dist/esm/icons/x";
-import ImageIcon from "lucide-react/dist/esm/icons/image";
+
+
+
+
+
+
+
+
+
+
 import { supabase } from "../../../../lib/supabase";
 import { useAuth } from "../../../../../contexts/AuthContext";
 import { toast } from "sonner";

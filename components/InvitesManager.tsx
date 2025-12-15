@@ -2,15 +2,15 @@ import React from "react";
 import { useInvites, type ProjectInvite } from "../hooks/useInvites";
 import { useAuth } from "../contexts/AuthContext";
 import { InviteMemberModal } from "./InviteMemberModal";
-import Mail from "lucide-react/dist/esm/icons/mail";
-import Clock from "lucide-react/dist/esm/icons/clock";
-import Check from "lucide-react/dist/esm/icons/check";
-import X from "lucide-react/dist/esm/icons/x";
-import RefreshCw from "lucide-react/dist/esm/icons/refresh-cw";
-import Trash2 from "lucide-react/dist/esm/icons/trash-2";
-import Send from "lucide-react/dist/esm/icons/send";
-import Building2 from "lucide-react/dist/esm/icons/building-2";
-import Users from "lucide-react/dist/esm/icons/users";
+
+
+
+
+
+
+
+
+
 
 interface InvitesManagerProps {
   projectId?: string;

@@ -1,18 +1,18 @@
 import React, { useState, useEffect, useMemo } from "react";
-import ChevronLeft from "lucide-react/dist/esm/icons/chevron-left";
-import ChevronRight from "lucide-react/dist/esm/icons/chevron-right";
-import Save from "lucide-react/dist/esm/icons/save";
-import Download from "lucide-react/dist/esm/icons/download";
-import Clock from "lucide-react/dist/esm/icons/clock";
-import Calendar from "lucide-react/dist/esm/icons/calendar";
-import Building2 from "lucide-react/dist/esm/icons/building-2";
-import User from "lucide-react/dist/esm/icons/user";
-import MapPin from "lucide-react/dist/esm/icons/map-pin";
-import Calculator from "lucide-react/dist/esm/icons/calculator";
-import Wand2 from "lucide-react/dist/esm/icons/wand-2";
-import Loader from "lucide-react/dist/esm/icons/loader";
-import Palette from "lucide-react/dist/esm/icons/palette";
-import ArrowRight from "lucide-react/dist/esm/icons/arrow-right";
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 import { useAuth } from "../../../../contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
 import jsPDF from "jspdf";

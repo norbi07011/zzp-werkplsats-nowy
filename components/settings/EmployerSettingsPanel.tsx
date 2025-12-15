@@ -11,22 +11,22 @@
  */
 
 import React, { useState, useEffect } from "react";
-import User from "lucide-react/dist/esm/icons/user";
-import Bell from "lucide-react/dist/esm/icons/bell";
-import Shield from "lucide-react/dist/esm/icons/shield";
-import Globe from "lucide-react/dist/esm/icons/globe";
-import Camera from "lucide-react/dist/esm/icons/camera";
-import Image from "lucide-react/dist/esm/icons/image";
-import Save from "lucide-react/dist/esm/icons/save";
-import Check from "lucide-react/dist/esm/icons/check";
-import FileText from "lucide-react/dist/esm/icons/file-text";
-import Building2 from "lucide-react/dist/esm/icons/building-2";
-import MapPin from "lucide-react/dist/esm/icons/map-pin";
-import Phone from "lucide-react/dist/esm/icons/phone";
-import Mail from "lucide-react/dist/esm/icons/mail";
-import Link2 from "lucide-react/dist/esm/icons/link-2";
-import Users from "lucide-react/dist/esm/icons/users";
-import Briefcase from "lucide-react/dist/esm/icons/briefcase";
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 import { CoverImageUploader } from "../../src/components/common/CoverImageUploader";
 import { GlowButton } from "../ui/GlowButton";
 

@@ -21,19 +21,19 @@ import { RankingPage } from "../../src/modules/team-system/pages/RankingPage";
 import { Dashboard as TeamDashboard } from "../../src/modules/team-system/pages/TeamDashboard";
 import { OrderBuilder } from "../../src/modules/team-system/pages/OrderBuilder";
 import { DocumentBuilder } from "../../src/modules/team-system/tools";
-import Users from "lucide-react/dist/esm/icons/users";
-import FolderKanban from "lucide-react/dist/esm/icons/folder-kanban";
-import Wrench from "lucide-react/dist/esm/icons/wrench";
-import Calendar from "lucide-react/dist/esm/icons/calendar";
-import MessageCircle from "lucide-react/dist/esm/icons/message-circle";
-import Trophy from "lucide-react/dist/esm/icons/trophy";
-import LayoutDashboard from "lucide-react/dist/esm/icons/layout-dashboard";
-import Menu from "lucide-react/dist/esm/icons/menu";
-import X from "lucide-react/dist/esm/icons/x";
-import ChevronLeft from "lucide-react/dist/esm/icons/chevron-left";
-import ChevronRight from "lucide-react/dist/esm/icons/chevron-right";
-import Settings from "lucide-react/dist/esm/icons/settings";
-import HelpCircle from "lucide-react/dist/esm/icons/help-circle";
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 type TabType =
   | "dashboard"

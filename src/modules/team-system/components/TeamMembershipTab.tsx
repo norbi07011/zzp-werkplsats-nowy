@@ -9,14 +9,14 @@
 import React, { useState, useEffect } from "react";
 import { supabase } from "../../../lib/supabase";
 import { toast } from "sonner";
-import Users from "lucide-react/dist/esm/icons/users";
-import Building2 from "lucide-react/dist/esm/icons/building-2";
-import Clock from "lucide-react/dist/esm/icons/clock";
-import CheckCircle2 from "lucide-react/dist/esm/icons/check-circle-2";
-import Mail from "lucide-react/dist/esm/icons/mail";
-import AlertCircle from "lucide-react/dist/esm/icons/alert-circle";
-import Loader2 from "lucide-react/dist/esm/icons/loader-2";
-import Calendar from "lucide-react/dist/esm/icons/calendar";
+
+
+
+
+
+
+
+
 
 // Type definitions
 interface TeamMembership {

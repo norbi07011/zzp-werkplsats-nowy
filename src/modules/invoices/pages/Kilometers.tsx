@@ -9,35 +9,6 @@ import { TruckAnimation } from "../components/TruckAnimation";
 import { VehicleAnimation } from "../components/VehicleAnimations";
 import { TiltCard } from "../components/TiltCard";
 // Import icons from lucide-react (React 18+ style)
-import Plus from "lucide-react/dist/esm/icons/plus";
-import MapPin from "lucide-react/dist/esm/icons/map-pin";
-import Navigation from "lucide-react/dist/esm/icons/navigation";
-import ArrowRight from "lucide-react/dist/esm/icons/arrow-right";
-import TrendingUp from "lucide-react/dist/esm/icons/trending-up";
-import ShieldCheck from "lucide-react/dist/esm/icons/shield-check";
-import FileSpreadsheet from "lucide-react/dist/esm/icons/file-spreadsheet";
-import Gauge from "lucide-react/dist/esm/icons/gauge";
-import Fuel from "lucide-react/dist/esm/icons/fuel";
-import History from "lucide-react/dist/esm/icons/history";
-import Settings from "lucide-react/dist/esm/icons/settings";
-import Calendar from "lucide-react/dist/esm/icons/calendar";
-import Trash2 from "lucide-react/dist/esm/icons/trash-2";
-import Save from "lucide-react/dist/esm/icons/save";
-import MoreHorizontal from "lucide-react/dist/esm/icons/more-horizontal";
-import CheckCircle from "lucide-react/dist/esm/icons/check-circle";
-import Edit3 from "lucide-react/dist/esm/icons/edit-3";
-import Filter from "lucide-react/dist/esm/icons/filter";
-import X from "lucide-react/dist/esm/icons/x";
-import Download from "lucide-react/dist/esm/icons/download";
-import Car from "lucide-react/dist/esm/icons/car";
-import FileText from "lucide-react/dist/esm/icons/file-text";
-import BarChart from "lucide-react/dist/esm/icons/bar-chart";
-import Calculator from "lucide-react/dist/esm/icons/calculator";
-import Bike from "lucide-react/dist/esm/icons/bike";
-import Zap from "lucide-react/dist/esm/icons/zap";
-import User from "lucide-react/dist/esm/icons/user";
-import Check from "lucide-react/dist/esm/icons/check";
-import RefreshCw from "lucide-react/dist/esm/icons/refresh-cw";
 const CheckCircle2 = CheckCircle; // Alias for compatibility
 
 // --- Constants & Dutch Tax Rules ---

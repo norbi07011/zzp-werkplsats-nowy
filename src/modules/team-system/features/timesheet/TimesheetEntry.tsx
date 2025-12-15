@@ -5,12 +5,12 @@
  */
 
 import React, { useState, useEffect } from "react";
-import Clock from "lucide-react/dist/esm/icons/clock";
-import Calendar from "lucide-react/dist/esm/icons/calendar";
-import Briefcase from "lucide-react/dist/esm/icons/briefcase";
-import Save from "lucide-react/dist/esm/icons/save";
-import Loader from "lucide-react/dist/esm/icons/loader";
-import Coffee from "lucide-react/dist/esm/icons/coffee";
+
+
+
+
+
+
 import { supabase } from "../../../../lib/supabase";
 import { useAuth } from "../../../../../contexts/AuthContext";
 import { toast } from "sonner";

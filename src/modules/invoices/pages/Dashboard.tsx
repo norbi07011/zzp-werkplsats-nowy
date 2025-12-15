@@ -18,8 +18,8 @@ import {
   MobileCardView,
   type CardItem,
 } from "../../../components/MobileCardView";
-import Eye from "lucide-react/dist/esm/icons/eye";
-import Edit from "lucide-react/dist/esm/icons/edit";
+
+
 
 interface DashboardProps {
   onNavigate: (page: string, id?: string) => void;

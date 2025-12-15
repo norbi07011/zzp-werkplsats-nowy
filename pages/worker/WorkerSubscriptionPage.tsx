@@ -12,20 +12,20 @@ import React, { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import { supabase } from "../../src/lib/supabase";
-import CheckCircle from "lucide-react/dist/esm/icons/check-circle";
-import XCircle from "lucide-react/dist/esm/icons/x-circle";
-import Crown from "lucide-react/dist/esm/icons/crown";
-import ArrowRight from "lucide-react/dist/esm/icons/arrow-right";
-import Loader from "lucide-react/dist/esm/icons/loader";
-import Sparkles from "lucide-react/dist/esm/icons/sparkles";
-import User from "lucide-react/dist/esm/icons/user";
-import Star from "lucide-react/dist/esm/icons/star";
-import ArrowLeft from "lucide-react/dist/esm/icons/arrow-left";
-import Eye from "lucide-react/dist/esm/icons/eye";
-import TrendingUp from "lucide-react/dist/esm/icons/trending-up";
-import Award from "lucide-react/dist/esm/icons/award";
-import MessageSquare from "lucide-react/dist/esm/icons/message-square";
-import Briefcase from "lucide-react/dist/esm/icons/briefcase";
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 import { handleUpgradeToPremium } from "../../src/services/stripe";
 import { STRIPE_CONFIG } from "../../src/config/stripe";
 
