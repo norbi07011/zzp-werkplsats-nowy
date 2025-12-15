@@ -1,7 +1,15 @@
 import React, { useState } from "react";
 import type { Vehicle, VehicleType, FuelType } from "../types";
 import { getVehicleRate, formatDutchPlate, DUTCH_RATES_2025 } from "../types";
-import { Check, Edit3, Plus, Star, Trash2, Settings, XCircle } from "lucide-react";
+import {
+  Check,
+  Edit3,
+  Plus,
+  Star,
+  Trash2,
+  Settings,
+  XCircle,
+} from "lucide-react";
 
 // Car and Bike don't export directly, using alternatives
 const Car = Settings;
