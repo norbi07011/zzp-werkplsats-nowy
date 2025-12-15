@@ -6,13 +6,16 @@
   command = "npm run build"
   # Directory with built files
   publish = "dist"
-  # Node.js version
-  environment = { NODE_VERSION = "20" }
+
+# Environment variables for build
+[build.environment]
+  NODE_VERSION = "20"
+  # CRITICAL: Install devDependencies (vite, etc.) during build
+  NPM_FLAGS = "--include=dev"
 
 # Production context
 [context.production]
-  command = "npm run build:prod"
-  environment = { NODE_ENV = "production" }
+  command = "npm run build"
 
 # Deploy Preview context
 [context.deploy-preview]
