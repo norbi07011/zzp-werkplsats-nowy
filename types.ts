@@ -1,4 +1,10 @@
-export type UserRole = "client" | "worker" | "admin" | "cleaning_company";
+export type UserRole =
+  | "admin"
+  | "worker"
+  | "employer"
+  | "accountant"
+  | "cleaning_company"
+  | "regular_user";
 
 export interface Subscription {
   planId: "worker-basic" | "worker-plus" | "client-basic" | "client-pro";

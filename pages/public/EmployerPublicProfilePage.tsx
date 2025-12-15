@@ -92,8 +92,17 @@ interface Job {
   applications_count?: number;
 }
 
-export default function EmployerPublicProfilePage() {
-  const { id } = useParams<{ id: string }>();
+interface EmployerPublicProfilePageProps {
+  employerId?: string;
+  embedded?: boolean;
+}
+
+export default function EmployerPublicProfilePage({
+  employerId: propId,
+  embedded = false,
+}: EmployerPublicProfilePageProps) {
+  const { id: urlId } = useParams<{ id: string }>();
+  const id = propId || urlId;
   const navigate = useNavigate();
   const { user } = useAuth();
 

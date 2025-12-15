@@ -236,7 +236,55 @@ export const AccountantsManager = () => {
 
         {/* Accountants Table */}
         <div className="bg-white/10 backdrop-blur-md rounded-2xl border border-white/20 overflow-hidden">
-          <div className="overflow-x-auto">
+          {/* Mobile Card View */}
+          <div className="md:hidden divide-y divide-white/10">
+            {filteredAccountants.length === 0 ? (
+              <div className="px-6 py-12 text-center text-gray-400">
+                <User className="mx-auto text-gray-600 mb-3" size={48} />
+                <p className="text-lg">Brak księgowych do wyświetlenia</p>
+              </div>
+            ) : (
+              filteredAccountants.map((accountant) => (
+                <div
+                  key={accountant.id}
+                  className="p-4 hover:bg-white/5 transition-colors"
+                  onClick={() => navigate(`/profile/accountant/${accountant.id}`)}
+                >
+                  <div className="flex items-start gap-3">
+                    <img
+                      src={accountant.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${accountant.id}`}
+                      alt={accountant.full_name}
+                      className="w-12 h-12 rounded-full border-2 border-white/20 flex-shrink-0"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2">
+                        <h3 className="font-semibold text-white truncate">{accountant.full_name}</h3>
+                        {accountant.is_verified ? (
+                          <span className="text-green-400 text-xs flex items-center gap-1">
+                            <CheckCircle size={12} /> Zweryfikowany
+                          </span>
+                        ) : (
+                          <span className="text-yellow-400 text-xs flex items-center gap-1">
+                            <AlertTriangle size={12} /> Niezweryfikowany
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-sm text-gray-400 truncate">{accountant.email}</p>
+                      {accountant.phone && (
+                        <p className="text-sm text-gray-500">{accountant.phone}</p>
+                      )}
+                      <p className="text-xs text-gray-500 mt-1">
+                        Zarejestrowany: {new Date(accountant.created_at).toLocaleDateString("pl-PL")}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+          
+          {/* Desktop Table View */}
+          <div className="hidden md:block overflow-x-auto scrollable-table-container scroll-right">
             <table className="w-full">
               <thead>
                 <tr className="border-b border-white/10">

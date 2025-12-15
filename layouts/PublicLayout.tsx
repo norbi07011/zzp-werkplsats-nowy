@@ -1,11 +1,15 @@
-import React from "react";
+import React, { useState } from "react";
 import { Link, Outlet } from "react-router-dom";
 import { useTranslation } from "react-i18next";
+import { Logo } from "../components/Logo";
 import { LanguageSwitcher } from "../components/LanguageSwitcher";
 import { ThemeToggle } from "../src/components/common/ThemeToggle";
+import Menu from "lucide-react/dist/esm/icons/menu";
+import X from "lucide-react/dist/esm/icons/x";
 
 export const PublicLayout: React.FC = () => {
   const { t } = useTranslation();
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   return (
     <div className="min-h-screen bg-primary-dark flex flex-col">
@@ -14,16 +18,11 @@ export const PublicLayout: React.FC = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             {/* Logo */}
-            <Link to="/" className="flex items-center space-x-3 group">
-              <div className="w-12 h-12 bg-gradient-cyber rounded-xl flex items-center justify-center shadow-glow-cyber group-hover:scale-110 transition-transform">
-                <span className="text-white font-bold text-xl">ZZP</span>
-              </div>
-              <span className="text-2xl font-bold text-white font-heading">
-                {t("common.platformName", "ZZP Werkplaats")}
-              </span>
+            <Link to="/" className="flex items-center group">
+              <Logo variant="full" size="sm" />
             </Link>
 
-            {/* Navigation */}
+            {/* Desktop Navigation */}
             <nav className="hidden md:flex items-center space-x-8">
               <Link
                 to="/"
@@ -62,8 +61,8 @@ export const PublicLayout: React.FC = () => {
               </Link>
             </nav>
 
-            {/* Right side: Theme Toggle + Language + Login */}
-            <div className="flex items-center space-x-4">
+            {/* Right side: Theme Toggle + Language + Login - DESKTOP */}
+            <div className="hidden md:flex items-center space-x-4">
               <ThemeToggle />
               <LanguageSwitcher />
               <Link
@@ -79,7 +78,76 @@ export const PublicLayout: React.FC = () => {
                 {t("nav.register", "Registreren")}
               </Link>
             </div>
+
+            {/* Mobile: Hamburger Button */}
+            <button
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              className="md:hidden p-2 text-white hover:text-accent-cyber transition-colors"
+              aria-label="Toggle menu"
+            >
+              {isMobileMenuOpen ? <X size={28} /> : <Menu size={28} />}
+            </button>
           </div>
+
+          {/* Mobile Menu Dropdown */}
+          {isMobileMenuOpen && (
+            <div className="md:hidden py-4 border-t border-accent-cyber/20 animate-in slide-in-from-top duration-200">
+              <nav className="flex flex-col space-y-3">
+                <Link
+                  to="/"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="text-neutral-300 hover:text-accent-cyber font-medium py-2 px-4 rounded-lg hover:bg-white/5 transition-colors"
+                >
+                  {t("nav.home", "Home")}
+                </Link>
+                <Link
+                  to="/about"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="text-neutral-300 hover:text-accent-cyber font-medium py-2 px-4 rounded-lg hover:bg-white/5 transition-colors"
+                >
+                  {t("nav.about", "Over ons")}
+                </Link>
+                <Link
+                  to="/experience-certificate"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="text-neutral-300 hover:text-accent-cyber font-medium py-2 px-4 rounded-lg hover:bg-white/5 transition-colors"
+                >
+                  {t("nav.certificate", "Certificaat aanvragen")}
+                </Link>
+                <Link
+                  to="/for-employers"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="text-neutral-300 hover:text-accent-cyber font-medium py-2 px-4 rounded-lg hover:bg-white/5 transition-colors"
+                >
+                  {t("nav.forEmployers", "Voor opdrachtgevers")}
+                </Link>
+                <Link
+                  to="/contact"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="text-neutral-300 hover:text-accent-cyber font-medium py-2 px-4 rounded-lg hover:bg-white/5 transition-colors"
+                >
+                  {t("nav.contact", "Contact")}
+                </Link>
+
+                <div className="border-t border-accent-cyber/20 pt-3 mt-2"></div>
+
+                <Link
+                  to="/login"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="text-neutral-300 hover:text-accent-cyber font-bold py-3 px-4 rounded-lg hover:bg-white/5 transition-colors text-center"
+                >
+                  {t("nav.login", "Inloggen")} →
+                </Link>
+                <Link
+                  to="/register"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="bg-gradient-cyber text-white font-bold py-3 px-4 rounded-xl hover:shadow-glow-cyber transition-all text-center"
+                >
+                  {t("nav.register", "Registreren")}
+                </Link>
+              </nav>
+            </div>
+          )}
         </div>
       </header>
 

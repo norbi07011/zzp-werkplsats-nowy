@@ -1,0 +1,4 @@
+# Netlify _redirects file for SPA routing
+# All routes redirect to index.html for React Router to handle
+
+/*    /index.html   200

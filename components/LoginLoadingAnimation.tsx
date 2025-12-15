@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useIsMobile } from "../src/hooks/useIsMobile";
 
 interface Dot {
   id: number;
@@ -14,6 +15,8 @@ interface Dot {
 export const LoginLoadingAnimation: React.FC = () => {
   const [assembled, setAssembled] = useState(false);
   const [dots, setDots] = useState<Dot[]>([]);
+  const [visible, setVisible] = useState(true);
+  const isMobile = useIsMobile();
 
   // Definicja liter Z Z P w siatce 5x5
   // 1 = kropka, 0 = pusto
@@ -37,19 +40,18 @@ export const LoginLoadingAnimation: React.FC = () => {
     const newDots: Dot[] = [];
     let idCounter = 0;
 
-    // Konfiguracja siatki
-    const dotSize = 24; // Rozmiar kwadratu (8 * 3)
-    const gap = 42; // Odstęp między środkami punktów (14 * 3)
-    const letterSpacing = 60; // Odstęp między literami (20 * 3)
+    // Konfiguracja siatki - responsive
+    const scale = isMobile ? 0.5 : 1; // Mobile = 50% scale
+    const dotSize = 24 * scale;
+    const gap = 42 * scale;
+    const letterSpacing = 60 * scale;
 
     // Obliczanie szerokości napisu, aby go wycentrować
-    // Z(5 kolumn) + odstęp + Z(5 kolumn) + odstęp + P(4 kolumny)
-    // Szerokość w pikselach = (kolumny * gap)
     const totalCols = 5 + 5 + 5;
     const totalWidth = totalCols * gap + 2 * letterSpacing;
 
     const startXOffset = -(totalWidth / 2) + gap / 2;
-    const startYOffset = -120; // Przesunięcie w pionie (-40 * 3)
+    const startYOffset = -120 * scale;
 
     const addLetter = (grid: number[][], xOffset: number) => {
       grid.forEach((row, rowIndex) => {
@@ -78,28 +80,42 @@ export const LoginLoadingAnimation: React.FC = () => {
     // P
     addLetter(letterP, 10 * gap + 2 * letterSpacing);
 
-    // Dodatkowe "latające" kropki dla efektu chaosu, które nie tworzą napisu
-    for (let i = 0; i < 15; i++) {
+    // Dodatkowe "latające" kropki
+    const extraDots = isMobile ? 8 : 15; // Mniej na mobile
+    for (let i = 0; i < extraDots; i++) {
       newDots.push({
         id: idCounter++,
-        x: (Math.random() - 0.5) * 660, // (220 * 3)
-        y: (Math.random() - 0.5) * 750, // (250 * 3)
-        startX: (Math.random() - 0.5) * 1500, // (500 * 3)
-        startY: (Math.random() - 0.5) * 1500, // (500 * 3)
-        delay: Math.random() * 3.5, // (1.5 + 2.0)
-        size: Math.random() > 0.5 ? 15 : 30, // (5 * 3) : (10 * 3)
+        x: (Math.random() - 0.5) * 660 * scale,
+        y: (Math.random() - 0.5) * 750 * scale,
+        startX: (Math.random() - 0.5) * 1500 * scale,
+        startY: (Math.random() - 0.5) * 1500 * scale,
+        delay: Math.random() * 3.5,
+        size: (Math.random() > 0.5 ? 15 : 30) * scale,
         isExtra: true,
       });
     }
 
     setDots(newDots);
 
-    // Małe opóźnienie żeby DOM się załadował przed animacją
+    // Małe opóźnienie
     const timer = setTimeout(() => {
       setAssembled(true);
     }, 100);
-    return () => clearTimeout(timer);
-  }, []);
+
+    // Auto-hide po 3 sekundach
+    const hideTimer = setTimeout(() => {
+      setVisible(false);
+    }, 3000);
+
+    return () => {
+      clearTimeout(timer);
+      clearTimeout(hideTimer);
+    };
+  }, [isMobile]);
+
+  if (!visible) {
+    return null;
+  }
 
   return (
     <div className="loader-wrapper">
@@ -199,17 +215,18 @@ export const LoginLoadingAnimation: React.FC = () => {
         /* Styl Kropek */
         .u-dot {
           position: absolute;
-          /* Gradient dot */
           background: linear-gradient(
             45deg,
             rgb(255, 255, 255) 0%,
             rgba(255, 255, 255, 0.34) 100%
           );
-          border-top: 3px solid rgb(255, 255, 255); /* 1px * 3 */
-          border-right: 3px solid white; /* 1px * 3 */
-          border-radius: 6px; /* 2px * 3 */
-          transition: all 2.5s cubic-bezier(0.2, 0.8, 0.2, 1); /* 1.2s + 1.3s */
-          box-shadow: 0 0 30px rgba(255, 255, 255, 0.2); /* 10px * 3 */
+          border-top: ${isMobile ? "2px" : "3px"} solid rgb(255, 255, 255);
+          border-right: ${isMobile ? "2px" : "3px"} solid white;
+          border-radius: ${isMobile ? "3px" : "6px"};
+          transition: all 2.5s cubic-bezier(0.2, 0.8, 0.2, 1);
+          box-shadow: 0 0 ${
+            isMobile ? "15px" : "30px"
+          } rgba(255, 255, 255, 0.2);
         }
 
         /* Kropki tła */
@@ -229,19 +246,18 @@ export const LoginLoadingAnimation: React.FC = () => {
           transition: transform 0.2s ease;
         }
 
-        /* Napis na dole */
         .u-text {
           position: absolute;
-          bottom: 90px; /* 30px * 3 */
+          bottom: ${isMobile ? "30px" : "90px"};
           left: 50%;
-          transform: translateX(-50%) translateY(45px); /* 15px * 3 */
+          transform: translateX(-50%) translateY(${isMobile ? "15px" : "45px"});
           font-family: "Outfit", sans-serif;
           font-weight: 800;
-          font-size: 42px; /* 14px * 3 */
-          letter-spacing: 9px; /* 3px * 3 */
+          font-size: ${isMobile ? "18px" : "42px"};
+          letter-spacing: ${isMobile ? "4px" : "9px"};
           color: white;
           opacity: 0;
-          transition: all 1.5s cubic-bezier(0.895, 0.03, 0.685, 0.22) 2.5s; /* delay: 0.5s -> 2.5s */
+          transition: all 1.5s cubic-bezier(0.895, 0.03, 0.685, 0.22) 2.5s;
           text-transform: uppercase;
           white-space: nowrap;
         }

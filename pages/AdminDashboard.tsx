@@ -1,4 +1,4 @@
-import { useState, useEffect, lazy, Suspense } from "react";
+﻿import { useState, useEffect, lazy, Suspense } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useToasts } from "../contexts/ToastContext";
@@ -15,6 +15,8 @@ import {
   TabPanel,
   type UnifiedTab,
 } from "../components/UnifiedDashboardTabs";
+import { AdminSidebar } from "../components/Admin/AdminSidebar";
+import { Menu } from "lucide-react";
 import FeedPage from "./FeedPage_PREMIUM";
 import MyPosts from "./Admin/MyPosts";
 import SavedActivity from "./Admin/SavedActivity";
@@ -218,6 +220,10 @@ export const AdminDashboard: React.FC = () => {
   const [showNewsletterModal, setShowNewsletterModal] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
   const [showSupportModal, setShowSupportModal] = useState(false);
+
+  // Sidebar states for new admin layout
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
   // Real data from database (NIE HARDCODED!)
   const [stats, setStats] = useState({
@@ -846,17 +852,42 @@ export const AdminDashboard: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 relative overflow-hidden">
-      {/* 3D Background Layer */}
-      <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden perspective-container">
-        <Animated3DProfileBackground role="admin" opacity={0.25} />
-        <SpinningNumbers opacity={0.15} />
-      </div>
+    <div className="flex h-screen bg-gray-50 overflow-hidden">
+      {/* Admin Sidebar */}
+      <AdminSidebar
+        isCollapsed={sidebarCollapsed}
+        onCollapsedChange={setSidebarCollapsed}
+        isMobileOpen={mobileSidebarOpen}
+        onMobileClose={() => setMobileSidebarOpen(false)}
+      />
 
-      <div className="relative z-10">
-        {/* Tab Navigation */}
-        {renderTopTabs()}
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col min-h-screen overflow-hidden">
+        {/* Mobile Header with Hamburger */}
+        <div className="lg:hidden bg-white border-b border-gray-200 px-4 py-3 flex items-center gap-4">
+          <button
+            onClick={() => setMobileSidebarOpen(true)}
+            className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+          >
+            <Menu size={24} className="text-gray-700" />
+          </button>
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 bg-gradient-to-br from-primary-500 to-primary-600 rounded-lg flex items-center justify-center">
+              <span className="text-white text-lg">🚀</span>
+            </div>
+            <span className="font-bold text-gray-900">Admin Panel</span>
+          </div>
+        </div>
 
+        {/* Scrollable Content */}
+        <div className="flex-1 overflow-y-auto relative">
+          {/* 3D Background Layer */}
+          <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden perspective-container">
+            <Animated3DProfileBackground role="admin" opacity={0.25} />
+            <SpinningNumbers opacity={0.15} />
+          </div>
+
+          <div className="relative z-10">
         {/* Overview Tab - Main Admin Dashboard */}
         <TabPanel isActive={activeTab === "overview"}>
           {/* Header */}
@@ -1548,6 +1579,8 @@ export const AdminDashboard: React.FC = () => {
           onClose={() => setShowSupportModal(false)}
         />
       </div>
+    </div>
+    </div>
     </div>
   );
 };

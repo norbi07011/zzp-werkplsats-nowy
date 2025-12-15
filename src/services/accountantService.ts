@@ -35,6 +35,8 @@ export interface Accountant {
   total_clients: number;
   profile_views?: number;
   years_experience: number;
+  latitude?: number | null;
+  longitude?: number | null;
   is_verified: boolean;
   is_active: boolean;
   created_at: string;

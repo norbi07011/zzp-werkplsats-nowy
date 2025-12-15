@@ -1,10 +1,16 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="nl">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <link rel="icon" type="image/jpeg" href="/Public/LOGOEIFEO.jpg" />
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="apple-touch-icon" href="/icons/icon-192.svg" />
+    <meta name="theme-color" content="#10b981" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="ZZP Werkplaats" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>ZZP WerkPlaats - Premium Platform voor ZZP Professionals</title>
+    <title>ZZP Werkplaats - Gecertificeerde Vakmensen voor Uw Bedrijf</title>
 
     <!-- Auto-clear cache on F5/reload -->
     <meta
@@ -30,6 +36,8 @@
     />
 
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- html2pdf.js for PDF generation in DocumentBuilder -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script>
       tailwind.config = {
         darkMode: "class",
@@ -253,6 +261,33 @@
       };
     </script>
     <style>
+      /* ===================================
+         GLOBAL 3D KILLER - DISABLE ALL 3D EFFECTS
+         =================================== */
+      * {
+        perspective: none !important;
+        transform-style: flat !important;
+        backface-visibility: visible !important;
+      }
+
+      /* Disable specific problematic animations */
+      .perspective-container,
+      .preserve-3d,
+      .nebula-container,
+      .tesseract-container,
+      .prism-container,
+      .nr-1,
+      .nr-2,
+      .nr-3,
+      [class*="float"],
+      [class*="rotate"],
+      [class*="3d"] {
+        animation: none !important;
+        transform: none !important;
+        transform-style: flat !important;
+        perspective: none !important;
+      }
+
       /* Custom CSS for gradient range slider thumb */
       input[type="range"].gradient-slider {
         -webkit-appearance: none;
@@ -368,18 +403,18 @@
          =============================================== */
 
       .perspective-container {
-        perspective: 1200px;
+        perspective: none !important;
       }
       .preserve-3d {
-        transform-style: preserve-3d;
+        transform-style: flat !important;
       }
 
       /* Nebula Core Animation (Announcements/Ogłoszenia) */
       .nebula-container {
         position: absolute;
-        transform-style: preserve-3d;
-        animation: float-heavy 8s ease-in-out infinite;
-        will-change: transform;
+        transform-style: flat !important;
+        animation: none !important;
+        will-change: auto;
       }
 
       .nebula-core {
@@ -404,30 +439,30 @@
         border-right: 2px solid #fff;
         top: 50%;
         left: 50%;
-        transform-style: preserve-3d;
+        transform-style: flat !important;
         box-shadow: 0 0 15px rgba(255, 126, 51, 0.1);
       }
 
       .nr-1 {
         width: 140px;
         height: 140px;
-        animation: orbit-1 8s linear infinite;
-        will-change: transform;
+        animation: none !important;
+        will-change: auto;
       }
       .nr-2 {
         width: 220px;
         height: 220px;
-        animation: orbit-2 12s linear infinite;
+        animation: none !important;
         border-width: 2px;
         border-color: rgba(255, 126, 51, 0.1);
-        will-change: transform;
+        will-change: auto;
       }
       .nr-3 {
         width: 300px;
         height: 300px;
-        animation: orbit-3 20s linear infinite;
+        animation: none !important;
         border: 1px dashed rgba(255, 126, 51, 0.2);
-        will-change: transform;
+        will-change: auto;
       }
 
       @keyframes orbit-1 {
@@ -471,18 +506,18 @@
       /* Cyber Tesseract (Jobs/Oferty pracy) */
       .tesseract-container {
         position: absolute;
-        transform-style: preserve-3d;
-        animation: float-heavy 10s ease-in-out infinite reverse;
-        will-change: transform;
+        transform-style: flat !important;
+        animation: none !important;
+        will-change: auto;
       }
 
       .tesseract-cube {
         width: 100%;
         height: 100%;
         position: relative;
-        transform-style: preserve-3d;
-        animation: rotate-complex 20s linear infinite;
-        will-change: transform;
+        transform-style: flat !important;
+        animation: none !important;
+        will-change: auto;
       }
 
       .t-face {
@@ -556,16 +591,16 @@
       /* Prismatic Obelisk (Ads/Reklamy) */
       .prism-container {
         position: absolute;
-        transform-style: preserve-3d;
-        animation: float-heavy 6s ease-in-out infinite;
-        will-change: transform;
+        transform-style: flat !important;
+        animation: none !important;
+        will-change: auto;
       }
 
       .prism-shape {
         position: relative;
-        transform-style: preserve-3d;
-        animation: rotate-prism 12s linear infinite;
-        will-change: transform;
+        transform-style: flat !important;
+        animation: none !important;
+        will-change: auto;
       }
 
       .p-face {
@@ -1002,6 +1037,8 @@
   </head>
   <body class="bg-slate-100 dark:bg-slate-900">
     <div id="root"></div>
+    <div id="modal-root"></div>
+    <div id="notification-root"></div>
     <script type="module" src="/index.tsx"></script>
   </body>
 </html>

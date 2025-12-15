@@ -1,5 +1,10 @@
 import { useState, useEffect } from "react";
-import { Link, useNavigate, useLocation } from "react-router-dom";
+import {
+  Link,
+  useNavigate,
+  useLocation,
+  useSearchParams,
+} from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../../contexts/AuthContext";
 import { useToasts } from "../../contexts/ToastContext";
@@ -9,11 +14,20 @@ export const LoginPage = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams] = useSearchParams();
   const { login, isAuthenticated, user } = useAuth();
   const { success, error: showError } = useToasts();
 
+  // Sprawdź czy to przekierowanie po płatności
+  const paymentSuccess = searchParams.get("payment_success") === "true";
+  const paymentUserType = searchParams.get("user_type");
+  const prefilledEmail = searchParams.get("email");
+
+  // ✅ Handle redirect parameter from URL (e.g., after Stripe payment)
+  const redirectUrl = searchParams.get("redirect");
+
   const [formData, setFormData] = useState({
-    email: "",
+    email: prefilledEmail || "",
     password: "",
   });
   const [showPassword, setShowPassword] = useState(false);
@@ -23,6 +37,9 @@ export const LoginPage = () => {
 
   // Load saved login data on component mount
   useEffect(() => {
+    // If email was prefilled from URL (payment success), don't override it
+    if (prefilledEmail) return;
+
     const savedEmail = localStorage.getItem("zzp_remember_email");
     const isRemembered = localStorage.getItem("zzp_remember_me") === "true";
 
@@ -30,16 +47,31 @@ export const LoginPage = () => {
       setFormData((prev) => ({ ...prev, email: savedEmail }));
       setRememberMe(true);
     }
-  }, []);
+  }, [prefilledEmail]);
 
   // Redirect if already authenticated
   useEffect(() => {
     if (isAuthenticated && user) {
+      // ✅ Check for redirect URL parameter FIRST (e.g., from Stripe payment success)
+      if (redirectUrl) {
+        console.log("[Login] Redirecting to URL param:", redirectUrl);
+        navigate(redirectUrl, { replace: true });
+        return;
+      }
+
+      // ✅ Check for post-payment redirect in localStorage
+      const postLoginRedirect = localStorage.getItem("post_login_redirect");
+      if (postLoginRedirect) {
+        localStorage.removeItem("post_login_redirect");
+        navigate(postLoginRedirect, { replace: true });
+        return;
+      }
+
       const from =
         (location.state as any)?.from?.pathname || getDefaultRoute(user.role);
       navigate(from, { replace: true });
     }
-  }, [isAuthenticated, user, navigate, location]);
+  }, [isAuthenticated, user, navigate, location, redirectUrl]);
 
   const getDefaultRoute = (role: string) => {
     switch (role) {
@@ -52,8 +84,9 @@ export const LoginPage = () => {
       case "accountant":
         return "/accountant/dashboard";
       case "cleaning_company":
-        // NOTE: Reusing WorkerDashboard - same functionality
-        return "/worker";
+        return "/cleaning-company"; // ✅ FIXED: dedicated route for cleaning companies
+      case "regular_user":
+        return "/regular-user"; // ✅ Dashboard dla Regular User
       default:
         return "/";
     }
@@ -128,29 +161,12 @@ export const LoginPage = () => {
       <div className="max-w-md w-full relative z-10">
         {/* Header */}
         <div className="text-center mb-8">
-          {/* Logo */}
-          <div className="flex justify-center mb-6">
-            <Logo
-              size="lg"
-              showText={true}
-              className="filter drop-shadow-2xl"
+          <div className="inline-flex items-center justify-center w-24 h-24 bg-white rounded-2xl mb-4 shadow-glow-cyber animate-float p-2">
+            <img
+              src="/Public/LOGOEIFEO.jpg"
+              alt="ZZP Werkplaats"
+              className="w-full h-full object-contain"
             />
-          </div>
-
-          <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-cyber rounded-2xl mb-4 shadow-glow-cyber animate-float">
-            <svg
-              className="w-10 h-10 text-white"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
-              />
-            </svg>
           </div>
           <h1 className="text-4xl font-bold text-white mb-2 font-heading">
             Welkom terug
@@ -162,6 +178,34 @@ export const LoginPage = () => {
 
         {/* Main Login Card */}
         <div className="bg-gradient-glass backdrop-blur-md border border-accent-cyber/20 rounded-2xl shadow-3d p-8">
+          {/* ✅ Payment Success Message */}
+          {paymentSuccess && (
+            <div className="mb-6 bg-green-50 border-l-4 border-green-500 rounded-r-lg p-4 flex items-start gap-3">
+              <svg
+                className="w-6 h-6 text-green-500 flex-shrink-0 mt-0.5"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              </svg>
+              <div className="flex-1">
+                <p className="text-sm font-bold text-green-800">
+                  🎉 Płatność zakończona sukcesem!
+                </p>
+                <p className="text-sm text-green-700 mt-1">
+                  Twoja subskrypcja Premium została aktywowana. Zaloguj się, aby
+                  uzyskać dostęp do panelu.
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* Error Message */}
           {error && (
             <div className="mb-6 bg-red-50 border-l-4 border-red-500 rounded-r-lg p-4 flex items-start gap-3 animate-shake">

@@ -32,6 +32,7 @@ interface Worker {
   reviewsCount: number;
   certificateId: string;
   availability: "active" | "busy";
+  is_available: boolean; // ✅ NEW: Real availability from database
   // NEW: Subscription system
   subscription_tier: SubscriptionTier;
   zzp_certificate_issued: boolean;
@@ -334,7 +335,8 @@ export const WorkerSearch = () => {
             rating: w.rating || 0,
             reviewsCount: w.rating_count || 0,
             certificateId: w.zzp_certificate_number || "N/A",
-            availability: "active" as const, // TODO: add available column
+            availability: w.is_available ? "active" : "busy", // ✅ Real status from DB
+            is_available: w.is_available ?? true, // ✅ Real availability from database
             subscription_tier:
               (w.subscription_tier as SubscriptionTier) || "basic",
             zzp_certificate_issued: w.zzp_certificate_issued || false,
@@ -897,14 +899,14 @@ export const WorkerSearch = () => {
 
                       {/* Availability badge on photo */}
                       <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2">
-                        {worker.availability === "active" ? (
+                        {worker.is_available ? (
                           <span className="bg-green-500 text-white px-5 py-2 rounded-full whitespace-nowrap flex items-center gap-2">
                             <span className="w-2 h-2 bg-white rounded-full animate-pulse"></span>
                             Dostępny
                           </span>
                         ) : (
                           <span className="bg-gray-600 text-white px-5 py-2 rounded-full whitespace-nowrap">
-                            Zajęty
+                            Niedostępny
                           </span>
                         )}
                       </div>
@@ -1017,14 +1019,14 @@ export const WorkerSearch = () => {
                 <div className="flex items-center gap-4 mb-3">
                   <span
                     className={`inline-flex items-center px-4 py-2 rounded-full text-sm font-medium ${
-                      selectedWorker.availability === "active"
+                      selectedWorker.is_available
                         ? "bg-green-100 text-green-800"
                         : "bg-red-100 text-red-800"
                     }`}
                   >
-                    {selectedWorker.availability === "active"
+                    {selectedWorker.is_available
                       ? "✓ Dostępny"
-                      : "✗ Zajęty"}
+                      : "✗ Niedostępny"}
                   </span>
                   <div className="flex items-center">
                     <svg
@@ -1151,7 +1153,7 @@ export const WorkerSearch = () => {
             >
               Zamknij
             </button>
-            {selectedWorker.availability === "active" && (
+            {selectedWorker.is_available && (
               <>
                 <button
                   onClick={() => {

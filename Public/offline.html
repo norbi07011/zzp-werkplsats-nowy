@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="nl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Offline - ZZP Werkplaats</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          Oxygen, Ubuntu, sans-serif;
+        background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+      }
+      .container {
+        text-align: center;
+        max-width: 400px;
+      }
+      .icon {
+        font-size: 80px;
+        margin-bottom: 20px;
+      }
+      h1 {
+        color: #1f2937;
+        font-size: 24px;
+        margin-bottom: 12px;
+      }
+      p {
+        color: #6b7280;
+        font-size: 16px;
+        line-height: 1.5;
+        margin-bottom: 24px;
+      }
+      .features {
+        background: white;
+        border-radius: 12px;
+        padding: 20px;
+        text-align: left;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      }
+      .features h3 {
+        color: #374151;
+        font-size: 14px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 12px;
+      }
+      .feature {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 8px 0;
+        color: #4b5563;
+      }
+      .feature span {
+        font-size: 20px;
+      }
+      .retry-btn {
+        margin-top: 24px;
+        padding: 12px 24px;
+        background: #10b981;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-size: 16px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background 0.2s;
+      }
+      .retry-btn:hover {
+        background: #059669;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="icon">📴</div>
+      <h1>Je bent offline</h1>
+      <p>
+        Geen internetverbinding gevonden. Sommige functies zijn beperkt
+        beschikbaar.
+      </p>
+
+      <div class="features">
+        <h3>Beschikbaar in offline modus:</h3>
+        <div class="feature">
+          <span>✅</span>
+          <div>Uren registreren (worden later gesynchroniseerd)</div>
+        </div>
+        <div class="feature">
+          <span>✅</span>
+          <div>Declaraties indienen (met foto)</div>
+        </div>
+        <div class="feature">
+          <span>✅</span>
+          <div>GPS Check-in/Check-out</div>
+        </div>
+        <div class="feature">
+          <span>⏳</span>
+          <div>Gegevens worden automatisch gesynchroniseerd</div>
+        </div>
+      </div>
+
+      <button class="retry-btn" onclick="location.reload()">
+        Opnieuw proberen
+      </button>
+    </div>
+  </body>
+</html>

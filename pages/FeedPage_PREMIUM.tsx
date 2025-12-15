@@ -16,7 +16,7 @@
  * ╚════════════════════════════════════════════════════════════════════╝
  */
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import { supabase } from "../src/lib/supabase";
 // @ts-ignore
@@ -37,7 +37,6 @@ import {
   type CreatePostData,
   type ReactionType,
 } from "../src/services/feedService";
-import { searchUsers, type SearchResult } from "../src/services/searchService";
 import {
   uploadMultipleFeedMedia,
   type MediaUploadResult,
@@ -75,79 +74,12 @@ import {
   Mail,
   Phone,
 } from "../components/icons";
-import { LayoutGrid, Info, Megaphone } from "../components/icons-additions";
 import { LoadingOverlay } from "../components/Loading";
 import { ShareModal } from "../components/ShareModal";
 import {
   ReactionButton,
   ReactionCountsDisplay,
 } from "../src/components/ReactionPicker";
-import React from "react";
-
-// =====================================================
-// 3D BACKGROUND COMPONENTS (From Project 4)
-// =====================================================
-
-// 1. The Nebula Core (Announcements/Ogłoszenia)
-const NebulaCore = React.memo(({ style }: { style: React.CSSProperties }) => (
-  <div className="nebula-container" style={style}>
-    <div className="nebula-core"></div>
-    <div className="nebula-ring nr-1"></div>
-    <div className="nebula-ring nr-2"></div>
-    <div className="nebula-ring nr-3"></div>
-    <div className="absolute top-0 left-20 w-2 h-2 bg-white rounded-full blur-[1px] animate-pulse"></div>
-    <div className="absolute bottom-10 right-10 w-3 h-3 bg-orange-500 rounded-full blur-[2px] animate-bounce"></div>
-  </div>
-));
-
-// 2. The Cyber Tesseract (Jobs/Oferty pracy) - używane tylko na "Alles"
-const CyberTesseract = React.memo(
-  ({ style }: { style: React.CSSProperties }) => (
-    <div className="tesseract-container" style={style}>
-      <div className="tesseract-cube">
-        <div className="t-face f1"></div>
-        <div className="t-face f2"></div>
-        <div className="t-face f3"></div>
-        <div className="t-face f4"></div>
-        <div className="t-face f5"></div>
-        <div className="t-face f6"></div>
-        <div className="t-inner"></div>
-      </div>
-    </div>
-  )
-);
-
-// 2b. Paint Roller (Jobs/Oferty pracy - Vacatures)
-const PaintRoller = React.memo(({ style }: { style: React.CSSProperties }) => (
-  <div className="paint-roller-wrapper" style={style}>
-    <div className="paint-roller-container">
-      <div className="paint-roller-roller">
-        <div className="paint-roller-handle" />
-      </div>
-      <div className="paint-roller-paint" />
-    </div>
-  </div>
-));
-
-// 3. The Prismatic Obelisk (Ads/Reklamy)
-const PrismaticObelisk = React.memo(
-  ({ style }: { style: React.CSSProperties }) => (
-    <div className="prism-container" style={style}>
-      <div className="prism-shape">
-        <div className="prism-core"></div>
-        <div className="p-face pf-1"></div>
-        <div className="p-face pf-2"></div>
-        <div className="p-face pf-3"></div>
-        <div className="p-face pf-4"></div>
-        <div className="prism-ring pr-1"></div>
-        <div className="prism-ring pr-2"></div>
-        <div className="prism-glow"></div>
-        <div className="prism-sparkle ps-1"></div>
-        <div className="prism-sparkle ps-2"></div>
-      </div>
-    </div>
-  )
-);
 
 // =====================================================
 // TYPES
@@ -177,15 +109,21 @@ export default function FeedPagePremium() {
   const [loading, setLoading] = useState(true);
   const [showCreatePost, setShowCreatePost] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [activeFilter, setActiveFilter] = useState<
+    "all" | "announcements" | "jobs" | "ads" | "service_requests"
+  >("all");
 
-  // Category filter (NEW)
-  const [activeCategory, setActiveCategory] = useState<PostType | "all">("all");
-
-  // User search
-  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
-  const [showSearchResults, setShowSearchResults] = useState(false);
-  const [selectedUser, setSelectedUser] = useState<SearchResult | null>(null);
-  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  // 🔥 NOWE: Rozbudowane filtry
+  const [selectedCity, setSelectedCity] = useState<string>("all");
+  const [selectedCategory, setSelectedCategory] = useState<string>("all");
+  const [showFilters, setShowFilters] = useState(false);
+  const [priceRange, setPriceRange] = useState<{ min: number; max: number }>({
+    min: 0,
+    max: 10000,
+  });
+  const [sortBy, setSortBy] = useState<
+    "newest" | "popular" | "price_low" | "price_high"
+  >("newest");
 
   // Infinite scroll
   const [page, setPage] = useState(1);
@@ -196,9 +134,6 @@ export default function FeedPagePremium() {
   const [stories, setStories] = useState<Story[]>([]);
   const [showStories, setShowStories] = useState(false);
 
-  // Image Lightbox
-  const [lightboxImage, setLightboxImage] = useState<string | null>(null);
-
   // Trending
   const [trending, setTrending] = useState<TrendingPost[]>([]);
 
@@ -207,112 +142,107 @@ export default function FeedPagePremium() {
     user?.role === "accountant" ||
     user?.role === "admin";
 
-  // Filter posts by category and selected user
-  const filteredPosts = posts.filter((post) => {
-    // Filter by category
-    if (activeCategory !== "all" && post.type !== activeCategory) {
-      return false;
-    }
+  // 🔥 MIASTA W HOLANDII
+  const cities = [
+    "all",
+    "Amsterdam",
+    "Rotterdam",
+    "Den Haag",
+    "Utrecht",
+    "Eindhoven",
+    "Groningen",
+    "Tilburg",
+    "Almere",
+    "Breda",
+    "Nijmegen",
+    "Arnhem",
+    "Haarlem",
+    "Enschede",
+    "Apeldoorn",
+    "Leiden",
+    "Maastricht",
+    "Dordrecht",
+    "Zoetermeer",
+    "Zwolle",
+    "Den Bosch",
+  ];
 
-    // Filter by selected user
-    if (selectedUser && post.author_id !== selectedUser.id) {
-      return false;
-    }
+  // 🔥 KATEGORIE BRANŻOWE
+  const categories = [
+    "all",
+    "Budowa/Renovatie",
+    "Instalacje elektryczne",
+    "Hydraulika",
+    "Ogrodnictwo",
+    "Malowanie",
+    "Sprzątanie",
+    "Transport",
+    "IT/Tech",
+    "Administracja",
+    "Księgowość",
+    "Marketing",
+    "Fotografia",
+    "Catering",
+    "Inne",
+  ];
 
-    return true;
-  });
+  // 🔥 FUNKCJA FILTROWANIA POSTÓW
+  const filterPosts = useCallback(
+    (allPosts: Post[]) => {
+      let filtered = [...allPosts];
 
-  // Background style based on category
-  const getBackgroundStyle = () => {
-    switch (activeCategory) {
-      case "announcement":
-        return "bg-[#fff7ed] bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-orange-200/40 via-transparent to-transparent";
-      case "job_offer":
-        return "bg-[#fff4e6] bg-[radial-gradient(ellipse_at_top_left,_var(--tw-gradient-stops))] from-orange-300/40 via-transparent to-transparent";
-      case "ad":
-        return "bg-[#faf5ff] bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-fuchsia-200/40 via-transparent to-transparent";
-      default:
-        return "bg-slate-50 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-slate-200/30 via-slate-50 to-slate-50";
-    }
-  };
+      // Filtr wyszukiwania
+      if (searchQuery.trim()) {
+        filtered = filtered.filter(
+          (post) =>
+            post.content?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            post.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            post.location?.toLowerCase().includes(searchQuery.toLowerCase())
+        );
+      }
 
-  // Render 3D background based on category
-  const render3DBackground = () => {
-    switch (activeCategory) {
-      case "announcement":
-        return (
-          <>
-            <div className="absolute top-[15%] left-[10%] opacity-90 scale-90 md:scale-110">
-              <NebulaCore style={{ animationDuration: "8s" }} />
-            </div>
-            <div className="absolute bottom-[20%] right-[10%] opacity-60 scale-60 rotate-12">
-              <NebulaCore
-                style={{ animationDelay: "-4s", animationDuration: "12s" }}
-              />
-            </div>
-            <div className="absolute top-[25%] right-[30%] opacity-30 scale-40 -rotate-12">
-              <NebulaCore
-                style={{ animationDelay: "-1s", animationDuration: "15s" }}
-              />
-            </div>
-            <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-orange-500/5 rounded-full blur-[100px] -z-10 pointer-events-none"></div>
-          </>
+      // Filtr miasta
+      if (selectedCity !== "all") {
+        filtered = filtered.filter((post) =>
+          post.location?.toLowerCase().includes(selectedCity.toLowerCase())
         );
-      case "job_offer":
-        return (
-          <>
-            <div className="absolute top-[20%] right-[15%] opacity-70">
-              <PaintRoller style={{ animationDelay: "0s" }} />
-            </div>
-            <div className="absolute bottom-[25%] left-[10%] opacity-60">
-              <PaintRoller style={{ animationDelay: "-1s" }} />
-            </div>
-            <div className="absolute top-[50%] right-[30%] opacity-40">
-              <PaintRoller style={{ animationDelay: "-1.5s" }} />
-            </div>
-            <div className="fixed top-1/3 right-1/3 w-[600px] h-[600px] bg-orange-500/5 rounded-full blur-[100px] -z-10 pointer-events-none"></div>
-          </>
+      }
+
+      // Filtr kategorii
+      if (selectedCategory !== "all") {
+        filtered = filtered.filter(
+          (post) =>
+            post.category
+              ?.toLowerCase()
+              .includes(selectedCategory.toLowerCase()) ||
+            post.content?.toLowerCase().includes(selectedCategory.toLowerCase())
         );
-      case "ad":
-        return (
-          <>
-            <div className="absolute top-[18%] left-[18%] opacity-80 scale-90 md:scale-110">
-              <PrismaticObelisk style={{ animationDuration: "9s" }} />
-            </div>
-            <div className="absolute bottom-[25%] right-[15%] opacity-60 scale-60 rotate-6">
-              <PrismaticObelisk
-                style={{ animationDelay: "-3s", animationDuration: "14s" }}
-              />
-            </div>
-            <div className="absolute top-[12%] right-[25%] opacity-30 scale-[0.35] -rotate-12 blur-[0.5px]">
-              <PrismaticObelisk
-                style={{ animationDelay: "-6s", animationDuration: "18s" }}
-              />
-            </div>
-            <div className="fixed bottom-0 left-0 w-full h-[500px] bg-gradient-to-t from-purple-500/10 to-transparent -z-10 pointer-events-none"></div>
-          </>
-        );
-      default:
-        return (
-          <>
-            <div className="absolute top-[15%] right-[15%] opacity-80 scale-90 md:scale-110">
-              <CyberTesseract style={{ animationDuration: "10s" }} />
-            </div>
-            <div className="absolute bottom-[25%] left-[12%] opacity-50 scale-75 rotate-[15deg]">
-              <CyberTesseract
-                style={{ animationDuration: "16s", animationDelay: "-5s" }}
-              />
-            </div>
-            <div className="absolute top-[40%] left-[8%] opacity-25 scale-40 -rotate-[25deg]">
-              <CyberTesseract
-                style={{ animationDuration: "12s", animationDelay: "-2s" }}
-              />
-            </div>
-            <div className="fixed top-1/3 right-1/3 w-[600px] h-[600px] bg-blue-500/5 rounded-full blur-[100px] -z-10 pointer-events-none"></div>
-          </>
-        );
-    }
-  };
+      }
+
+      // Sortowanie
+      switch (sortBy) {
+        case "popular":
+          filtered.sort((a, b) => (b.likes_count || 0) - (a.likes_count || 0));
+          break;
+        case "price_low":
+          filtered.sort((a, b) => (a.budget || 0) - (b.budget || 0));
+          break;
+        case "price_high":
+          filtered.sort((a, b) => (b.budget || 0) - (a.budget || 0));
+          break;
+        case "newest":
+        default:
+          filtered.sort(
+            (a, b) =>
+              new Date(b.created_at).getTime() -
+              new Date(a.created_at).getTime()
+          );
+      }
+
+      return filtered;
+    },
+    [searchQuery, selectedCity, selectedCategory, sortBy]
+  );
 
   // =====================================================
   // LOAD FEED WITH INFINITE SCROLL
@@ -324,7 +254,7 @@ export default function FeedPagePremium() {
       loadStories();
       loadTrending();
     }
-  }, [user?.id]);
+  }, [user?.id, activeFilter]);
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -347,33 +277,52 @@ export default function FeedPagePremium() {
     try {
       setLoading(true);
 
-      let currentUserId: string | undefined;
-      if (user?.id && user?.role) {
-        if (user.role === "worker") {
-          const { data } = await supabase
-            .from("workers")
-            .select("id")
-            .eq("profile_id", user.id)
-            .single();
-          currentUserId = data?.id;
-        } else if (user.role === "employer") {
-          const { data } = await supabase
-            .from("employers")
-            .select("id")
-            .eq("profile_id", user.id)
-            .single();
-          currentUserId = data?.id;
-        } else if (user.role === "accountant") {
-          const { data } = await supabase
-            .from("accountants")
-            .select("id")
-            .eq("profile_id", user.id)
-            .single();
-          currentUserId = data?.id;
-        }
+      // 🔥 FIXED: Always use profile_id (auth.uid()), not role-specific ID
+      // This ensures RLS policies work correctly with user_id = auth.uid()
+      const currentUserId = user?.id; // This is profile_id (auth.uid())
+
+      let data: Post[];
+
+      // Filtruj posty na podstawie activeFilter
+      if (activeFilter === "service_requests") {
+        // Zlecenia prywatne (service requests) - pobierz z telefonem autora
+        const { data: serviceRequests, error } = await supabaseAny
+          .from("posts")
+          .select(
+            `
+            *,
+            profiles!posts_profile_id_fkey (
+              phone
+            )
+          `
+          )
+          .not("request_category", "is", null)
+          .eq("is_active", true)
+          .order("created_at", { ascending: false })
+          .limit(20);
+
+        if (error) throw error;
+
+        // Mapuj phone z profiles do author_phone
+        data = (serviceRequests || []).map((post: any) => ({
+          ...post,
+          author_phone: post.profiles?.phone || null,
+        }));
+      } else if (activeFilter === "announcements") {
+        data = await getPosts({
+          limit: 20,
+          currentUserId,
+          type: "announcement",
+        });
+      } else if (activeFilter === "jobs") {
+        data = await getPosts({ limit: 20, currentUserId, type: "job_offer" });
+      } else if (activeFilter === "ads") {
+        data = await getPosts({ limit: 20, currentUserId, type: "ad" });
+      } else {
+        // Wszystkie posty
+        data = await getPosts({ limit: 20, currentUserId });
       }
 
-      const data = await getPosts({ limit: 20, currentUserId });
       setPosts(data);
     } catch (error) {
       console.error("[FEED] Error loading feed:", error);
@@ -385,44 +334,6 @@ export default function FeedPagePremium() {
   const loadMorePosts = async () => {
     // Infinite scroll logic
     setPage((prev) => prev + 1);
-  };
-
-  // Handle user search with debounce
-  const handleSearchInput = (value: string) => {
-    setSearchQuery(value);
-
-    // Clear previous timeout
-    if (searchTimeoutRef.current) {
-      clearTimeout(searchTimeoutRef.current);
-    }
-
-    // If empty, clear results
-    if (!value.trim()) {
-      setSearchResults([]);
-      setShowSearchResults(false);
-      setSelectedUser(null);
-      return;
-    }
-
-    // Debounce search (500ms)
-    searchTimeoutRef.current = setTimeout(async () => {
-      const results = await searchUsers(value);
-      setSearchResults(results);
-      setShowSearchResults(results.length > 0);
-    }, 500);
-  };
-
-  const handleSelectUser = (user: SearchResult) => {
-    setSelectedUser(user);
-    setSearchQuery(user.company_name || user.name);
-    setShowSearchResults(false);
-  };
-
-  const handleClearSearch = () => {
-    setSearchQuery("");
-    setSearchResults([]);
-    setShowSearchResults(false);
-    setSelectedUser(null);
   };
 
   const loadStories = async () => {
@@ -557,459 +468,445 @@ export default function FeedPagePremium() {
   }
 
   return (
-    <div
-      className={`min-h-screen relative overflow-hidden transition-colors duration-1000 ${getBackgroundStyle()}`}
-    >
-      {/* 3D Background Layer */}
-      <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden perspective-container">
-        {render3DBackground()}
-      </div>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-purple-50">
+      {/* ===== HEADER WITH GLASSMORPHISM ===== */}
+      <div className="sticky top-0 z-50 backdrop-blur-xl bg-white/80 border-b border-white/20 shadow-lg">
+        <div className="container mx-auto px-4 py-4">
+          <div className="flex items-center justify-between max-w-7xl mx-auto">
+            <div className="flex items-center gap-6">
+              <h1 className="text-3xl font-black bg-gradient-to-r from-amber-600 via-orange-500 to-red-500 bg-clip-text text-transparent">
+                Feed
+              </h1>
+            </div>
 
-      <div className="relative z-10">
-        {/* ===== PREMIUM HEADER ===== */}
-        <div className="sticky top-0 z-50 backdrop-blur-xl bg-white/90 border-b border-white/40 shadow-2xl">
-          <div className="container mx-auto px-6 py-5">
-            <div className="flex items-center justify-center gap-6 max-w-7xl mx-auto">
-              {/* Premium Search Bar with Animated Gradient Border */}
-              <div className="relative flex-1 max-w-2xl">
-                {/* Animated gradient border */}
-                <div className="absolute -inset-0.5 bg-gradient-to-r from-amber-500 via-orange-500 to-red-500 rounded-full opacity-75 blur-sm animate-pulse"></div>
-                <div
-                  className="absolute -inset-0.5 bg-gradient-to-r from-amber-500 via-orange-500 to-red-500 rounded-full opacity-50"
-                  style={{
-                    backgroundSize: "200% 200%",
-                    animation: "gradient 3s ease infinite",
-                  }}
-                ></div>
-
-                {/* Search input */}
-                <div className="relative flex items-center bg-white rounded-full shadow-xl">
-                  <Search className="absolute left-6 w-6 h-6 text-amber-500" />
-                  <input
-                    type="text"
-                    placeholder="Szukaj firmy po nazwie lub KVK..."
-                    value={searchQuery}
-                    onChange={(e) => handleSearchInput(e.target.value)}
-                    className="w-full pl-16 pr-14 py-4 bg-transparent border-none rounded-full text-lg font-medium text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-0"
-                  />
-                  {searchQuery && (
-                    <button
-                      onClick={handleClearSearch}
-                      className="absolute right-6 w-8 h-8 flex items-center justify-center hover:bg-gray-100 rounded-full transition-colors"
-                    >
-                      <X className="w-5 h-5 text-gray-400" />
-                    </button>
-                  )}
-                </div>
-
-                {/* Search Results Dropdown */}
-                {showSearchResults && searchResults.length > 0 && (
-                  <div className="absolute top-full mt-3 left-0 right-0 bg-white rounded-2xl shadow-2xl border border-gray-200 overflow-hidden z-50 max-h-[500px] overflow-y-auto">
-                    <div className="p-2">
-                      <div className="text-xs font-bold text-gray-400 uppercase tracking-wider px-4 py-2">
-                        Znalezione firmy ({searchResults.length})
-                      </div>
-                      {searchResults.map((result) => (
-                        <button
-                          key={result.id}
-                          onClick={() => handleSelectUser(result)}
-                          className="w-full flex items-center gap-4 p-4 hover:bg-gradient-to-r hover:from-amber-50 hover:to-orange-50 rounded-xl transition-all group"
-                        >
-                          {/* Avatar */}
-                          <div className="w-12 h-12 rounded-full bg-gradient-to-br from-amber-400 to-orange-600 flex items-center justify-center text-white font-bold text-xl shadow-lg">
-                            {result.name.charAt(0).toUpperCase()}
-                          </div>
-
-                          {/* User Info */}
-                          <div className="flex-1 text-left">
-                            <div className="font-bold text-gray-900 group-hover:text-orange-600 transition-colors">
-                              {result.company_name || result.name}
-                            </div>
-                            <div className="text-sm text-gray-500 flex items-center gap-3">
-                              {result.kvk_number && (
-                                <span className="flex items-center gap-1">
-                                  <Briefcase className="w-3.5 h-3.5" />
-                                  KVK: {result.kvk_number}
-                                </span>
-                              )}
-                              {result.post_count > 0 && (
-                                <span className="flex items-center gap-1 text-amber-600 font-medium">
-                                  <MessageSquare className="w-3.5 h-3.5" />
-                                  {result.post_count}{" "}
-                                  {result.post_count === 1 ? "post" : "posts"}
-                                </span>
-                              )}
-                            </div>
-                          </div>
-
-                          {/* Badge */}
-                          <div className="text-xs font-bold px-3 py-1.5 rounded-full bg-gradient-to-r from-amber-100 to-orange-100 text-orange-700">
-                            {result.type === "employer"
-                              ? "👔 Werkgever"
-                              : "📊 Accountant"}
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
+            {/* Search */}
+            <div className="flex items-center gap-4">
+              <div className="relative">
+                <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Zoeken..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-12 pr-4 py-3 w-80 bg-white/60 backdrop-blur-sm border border-white/40 rounded-full focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all"
+                />
               </div>
 
-              {/* Premium Create Post Button */}
               {canCreatePost && (
                 <button
                   onClick={() => setShowCreatePost(true)}
-                  className="relative group"
+                  className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-amber-600 to-orange-600 text-white rounded-full font-bold shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300"
                 >
-                  {/* Glow effect */}
-                  <div className="absolute -inset-1 bg-gradient-to-r from-amber-600 to-orange-600 rounded-full opacity-70 blur group-hover:opacity-100 transition duration-500"></div>
-
-                  {/* Button */}
-                  <div className="relative flex items-center gap-3 px-8 py-4 bg-gradient-to-r from-amber-600 via-orange-500 to-red-500 text-white rounded-full font-bold text-lg shadow-xl hover:shadow-2xl transform hover:scale-105 transition-all duration-300">
-                    <Plus className="w-6 h-6" />
-                    <span>Nowy Post</span>
-                  </div>
+                  <Plus className="w-5 h-5" />
+                  Nieuw Post
                 </button>
               )}
             </div>
           </div>
         </div>
 
-        {/* CSS Animation for gradient */}
-        <style>{`
-        @keyframes gradient {
-          0% { background-position: 0% 50%; }
-          50% { background-position: 100% 50%; }
-          100% { background-position: 0% 50%; }
-        }
-
-        /* Paint Roller Animation */
-        .paint-roller-wrapper {
-          height: 350px;
-          width: 350px;
-          transform: rotate(-45deg);
-          position: relative;
-        }
-
-        .paint-roller-container {
-          position: relative;
-          width: 100%;
-          height: 100%;
-        }
-
-        /* Wałek - porusza się w dół */
-        .paint-roller-roller {
-          height: 45px;
-          width: 150px;
-          border: 5px solid #040e15;
-          border-radius: 7px;
-          background: linear-gradient(to bottom, #fc8f2e 0%, #fc8f2e 80%, #e86f1a 80%);
-          position: absolute;
-          margin: auto;
-          left: 0;
-          right: 0;
-          top: 0;
-          animation: paint-roller-move 2s infinite;
-        }
-
-        /* Światło na wałku */
-        .paint-roller-roller::before {
-          position: absolute;
-          content: "";
-          background-color: rgba(255, 255, 255, 0.7);
-          height: 7px;
-          width: 75px;
-          top: 8px;
-          left: 8px;
-          border-radius: 10px;
-        }
-
-        /* Boczny cylinder */
-        .paint-roller-roller::after {
-          position: absolute;
-          content: "";
-          height: 40px;
-          width: 85px;
-          border: 7px solid #040e15;
-          border-left: none;
-          right: -20px;
-          top: 20px;
-          z-index: -1;
-          border-radius: 7px;
-        }
-
-        /* Uchwyt - jest WEWNĄTRZ rollera, więc porusza się razem */
-        .paint-roller-handle {
-          height: 30px;
-          width: 7px;
-          background-color: #040e15;
-          position: absolute;
-          top: 68px;
-          right: 65px;
-        }
-
-        .paint-roller-handle::after {
-          position: absolute;
-          content: "";
-          height: 75px;
-          width: 25px;
-          background-color: #040e15;
-          bottom: -75px;
-          right: -8px;
-          border-radius: 5px;
-        }
-
-        /* Ślad farby */
-        .paint-roller-paint {
-          background-color: #fc8f2e;
-          height: 0;
-          width: 130px;
-          position: absolute;
-          margin: auto;
-          left: 0;
-          right: 0;
-          top: 0;
-          z-index: -1;
-          animation: paint-stroke 2s infinite;
-        }
-
-        @keyframes paint-roller-move {
-          0%, 100% { top: 0; }
-          40% { top: 165px; }
-        }
-
-        @keyframes paint-stroke {
-          0%, 100% { height: 0; }
-          40% { height: 165px; }
-        }
-      `}</style>
-
-        {/* ===== STORIES CAROUSEL ===== */}
-        <div className="container mx-auto px-4 mt-6 max-w-7xl">
-          <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide">
-            {/* Add Story Button */}
-            {canCreatePost && (
-              <button className="flex-shrink-0 group">
-                <div className="relative">
-                  <div className="w-20 h-20 rounded-full bg-gradient-to-br from-amber-500 to-orange-600 p-0.5">
-                    <div className="w-full h-full rounded-full bg-white flex items-center justify-center">
-                      <Plus className="w-8 h-8 text-amber-600" />
-                    </div>
-                  </div>
-                  <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-amber-600 rounded-full border-2 border-white flex items-center justify-center">
-                    <Plus className="w-4 h-4 text-white" />
-                  </div>
-                </div>
-                <p className="text-xs text-center mt-2 font-medium text-gray-700">
-                  Jouw verhaal
-                </p>
+        {/* ===== FILTER TABS ===== */}
+        <div className="border-t border-white/20">
+          <div className="max-w-7xl mx-auto px-4">
+            <div className="flex gap-2 overflow-x-auto scrollbar-hide py-3">
+              <button
+                onClick={() => setActiveFilter("all")}
+                className={`px-6 py-2 rounded-full font-bold whitespace-nowrap transition-all ${
+                  activeFilter === "all"
+                    ? "bg-gradient-to-r from-amber-600 to-orange-600 text-white shadow-lg"
+                    : "bg-white/60 text-gray-700 hover:bg-white/80"
+                }`}
+              >
+                📋 Wszystko
               </button>
-            )}
-
-            {/* Stories */}
-            {stories.map((story) => (
-              <button key={story.id} className="flex-shrink-0 group">
-                <div
-                  className={`w-20 h-20 rounded-full p-0.5 ${
-                    story.is_seen
-                      ? "bg-gray-300"
-                      : "bg-gradient-to-br from-purple-500 via-pink-500 to-red-500"
-                  }`}
-                >
-                  <div className="w-full h-full rounded-full bg-gradient-to-br from-blue-400 to-purple-600 flex items-center justify-center text-white font-bold text-2xl">
-                    {story.user_name.charAt(0)}
-                  </div>
-                </div>
-                <p className="text-xs text-center mt-2 font-medium text-gray-700 truncate w-20">
-                  {story.user_name.split(" ")[0]}
-                </p>
+              <button
+                onClick={() => setActiveFilter("service_requests")}
+                className={`px-6 py-2 rounded-full font-bold whitespace-nowrap transition-all ${
+                  activeFilter === "service_requests"
+                    ? "bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg"
+                    : "bg-white/60 text-gray-700 hover:bg-white/80"
+                }`}
+              >
+                🏡 Zlecenia prywatne
               </button>
-            ))}
+              <button
+                onClick={() => setActiveFilter("announcements")}
+                className={`px-6 py-2 rounded-full font-bold whitespace-nowrap transition-all ${
+                  activeFilter === "announcements"
+                    ? "bg-gradient-to-r from-blue-600 to-cyan-600 text-white shadow-lg"
+                    : "bg-white/60 text-gray-700 hover:bg-white/80"
+                }`}
+              >
+                📢 Ogłoszenia
+              </button>
+              <button
+                onClick={() => setActiveFilter("jobs")}
+                className={`px-6 py-2 rounded-full font-bold whitespace-nowrap transition-all ${
+                  activeFilter === "jobs"
+                    ? "bg-gradient-to-r from-green-600 to-emerald-600 text-white shadow-lg"
+                    : "bg-white/60 text-gray-700 hover:bg-white/80"
+                }`}
+              >
+                💼 Praca
+              </button>
+              <button
+                onClick={() => setActiveFilter("ads")}
+                className={`px-6 py-2 rounded-full font-bold whitespace-nowrap transition-all ${
+                  activeFilter === "ads"
+                    ? "bg-gradient-to-r from-red-600 to-orange-600 text-white shadow-lg"
+                    : "bg-white/60 text-gray-700 hover:bg-white/80"
+                }`}
+              >
+                📣 Reklamy
+              </button>
+            </div>
           </div>
         </div>
 
-        {/* ===== MAIN LAYOUT WITH SIDEBAR ===== */}
-        <div className="container mx-auto px-4 mt-6 max-w-7xl">
-          <div className="flex gap-6">
-            {/* ===== LEFT SIDEBAR - Categories ===== */}
-            <aside className="hidden lg:block w-[280px] shrink-0">
-              <div className="sticky top-24 space-y-6">
-                <div className="bg-white/80 backdrop-blur-xl rounded-3xl p-6 shadow-xl border border-white/40">
-                  <h3 className="text-[10px] font-extrabold text-slate-400 uppercase tracking-[0.2em] mb-5 px-2">
-                    CATEGORIEËN
-                  </h3>
-                  <div className="space-y-3">
-                    <button
-                      onClick={() => setActiveCategory("all")}
-                      className={`w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl text-sm font-bold transition-all duration-300 border-l-[3px] ${
-                        activeCategory === "all"
-                          ? "bg-gradient-to-r from-slate-800/5 to-transparent text-slate-900 border-slate-800 shadow-sm"
-                          : "border-transparent text-slate-500 hover:text-slate-800 hover:bg-white/50"
-                      }`}
-                    >
-                      <LayoutGrid className="w-5 h-5" />
-                      <span>Alles</span>
-                    </button>
-
-                    <button
-                      onClick={() => setActiveCategory("announcement")}
-                      className={`w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl text-sm font-bold transition-all duration-300 border-l-[3px] ${
-                        activeCategory === "announcement"
-                          ? "bg-gradient-to-r from-orange-500/10 to-transparent text-orange-600 border-orange-500 shadow-sm"
-                          : "border-transparent text-slate-500 hover:text-slate-800 hover:bg-white/50"
-                      }`}
-                    >
-                      <Info className="w-5 h-5" />
-                      <span>Aankondigingen</span>
-                    </button>
-
-                    <button
-                      onClick={() => setActiveCategory("job_offer")}
-                      className={`w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl text-sm font-bold transition-all duration-300 border-l-[3px] ${
-                        activeCategory === "job_offer"
-                          ? "bg-gradient-to-r from-blue-500/10 to-transparent text-blue-600 border-blue-500 shadow-sm"
-                          : "border-transparent text-slate-500 hover:text-slate-800 hover:bg-white/50"
-                      }`}
-                    >
-                      <Briefcase className="w-5 h-5" />
-                      <span>Vacatures</span>
-                    </button>
-
-                    <button
-                      onClick={() => setActiveCategory("ad")}
-                      className={`w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl text-sm font-bold transition-all duration-300 border-l-[3px] ${
-                        activeCategory === "ad"
-                          ? "bg-gradient-to-r from-purple-500/10 to-transparent text-purple-600 border-purple-500 shadow-sm"
-                          : "border-transparent text-slate-500 hover:text-slate-800 hover:bg-white/50"
-                      }`}
-                    >
-                      <Megaphone className="w-5 h-5" />
-                      <span>Reclame</span>
-                    </button>
-                  </div>
+        {/* 🔥 NOWE: ZAAWANSOWANE FILTRY */}
+        <div className="border-t border-white/10 bg-gradient-to-b from-white/5 to-transparent">
+          <div className="max-w-7xl mx-auto px-4 py-4">
+            {/* Wyszukiwarka + przycisk filtrów */}
+            <div className="flex gap-3 mb-4">
+              <div className="flex-1 relative">
+                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5 flex items-center justify-center">
+                  <Search size={18} className="max-w-full max-h-full" />
                 </div>
+                <input
+                  type="text"
+                  placeholder="Szukaj ogłoszeń, lokalizacji, słów kluczowych..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-12 pr-4 py-3 bg-white/80 backdrop-blur-sm border-2 border-white/20 rounded-2xl text-gray-800 placeholder-gray-500 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
+                />
               </div>
-            </aside>
-
-            {/* ===== CENTER - Feed Posts ===== */}
-            <main className="flex-1 min-w-0">
-              {/* Selected User Filter Banner */}
-              {selectedUser && (
-                <div className="mb-6 bg-gradient-to-r from-amber-500 via-orange-500 to-red-500 rounded-2xl p-[2px] shadow-xl">
-                  <div className="bg-white rounded-2xl p-5 flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                      <div className="w-14 h-14 rounded-full bg-gradient-to-br from-amber-400 to-orange-600 flex items-center justify-center text-white font-bold text-2xl shadow-lg">
-                        {selectedUser.name.charAt(0).toUpperCase()}
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <span className="font-bold text-lg text-gray-900">
-                            {selectedUser.company_name || selectedUser.name}
-                          </span>
-                          <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-gradient-to-r from-amber-100 to-orange-100 text-orange-700">
-                            {selectedUser.type === "employer"
-                              ? "👔 Werkgever"
-                              : "📊 Accountant"}
-                          </span>
-                        </div>
-                        <div className="text-sm text-gray-500 flex items-center gap-3 mt-1">
-                          {selectedUser.kvk_number && (
-                            <span className="flex items-center gap-1">
-                              <Briefcase className="w-3.5 h-3.5" />
-                              KVK: {selectedUser.kvk_number}
-                            </span>
-                          )}
-                          <span className="flex items-center gap-1 text-amber-600 font-medium">
-                            <MessageSquare className="w-3.5 h-3.5" />
-                            {filteredPosts.length}{" "}
-                            {filteredPosts.length === 1 ? "post" : "posts"}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                    <button
-                      onClick={handleClearSearch}
-                      className="flex items-center gap-2 px-4 py-2.5 bg-gray-100 hover:bg-gray-200 rounded-xl text-sm font-bold text-gray-700 transition-colors"
-                    >
-                      <X className="w-4 h-4" />
-                      <span>Wyczyść filtr</span>
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {/* Create Post Card */}
-              {showCreatePost && canCreatePost && user && (
-                <div className="mb-6">
-                  <CreatePostCardPremium
-                    userId={user.id}
-                    userRole={user.role as "employer" | "accountant"}
-                    onPostCreated={() => {
-                      setShowCreatePost(false);
-                      loadFeed();
-                    }}
-                    onCancel={() => setShowCreatePost(false)}
-                  />
-                </div>
-              )}
-
-              {/* Posts Masonry */}
-              <div className="space-y-6">
-                {filteredPosts.length === 0 ? (
-                  <EmptyFeedState canCreatePost={canCreatePost} />
-                ) : (
-                  filteredPosts.map((post) => (
-                    <PostCardPremium
-                      key={post.id}
-                      post={post}
-                      onLike={() =>
-                        handleLike(post.id, post.user_has_liked || false)
-                      }
-                      onComment={loadFeed}
-                      onShare={loadFeed}
-                      onReactionChange={(reactionType) =>
-                        handleReactionChange(post.id, reactionType)
-                      }
-                      currentUserId={user?.id}
-                      currentUserRole={user?.role}
-                      onImageClick={setLightboxImage}
-                    />
-                  ))
-                )}
-              </div>
-
-              {/* Infinite Scroll Observer */}
-              <div
-                ref={observerTarget}
-                className="h-20 flex items-center justify-center"
+              <button
+                onClick={() => setShowFilters(!showFilters)}
+                className={`px-6 py-3 rounded-2xl font-bold flex items-center gap-2 transition-all relative ${
+                  showFilters
+                    ? "bg-blue-600 text-white shadow-lg"
+                    : "bg-white/80 text-gray-700 hover:bg-white"
+                }`}
               >
-                {loading && <LoadingSpinner />}
+                <Filter size={20} />
+                Filtry
+                {/* Licznik aktywnych filtrów */}
+                {(selectedCity !== "all" ||
+                  selectedCategory !== "all" ||
+                  searchQuery.trim()) && (
+                  <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold w-6 h-6 rounded-full flex items-center justify-center animate-pulse">
+                    {
+                      [
+                        selectedCity !== "all",
+                        selectedCategory !== "all",
+                        searchQuery.trim(),
+                      ].filter(Boolean).length
+                    }
+                  </span>
+                )}
+              </button>
+            </div>
+
+            {/* Panel filtrów (rozwijany) */}
+            {showFilters && (
+              <div className="bg-white/90 backdrop-blur-md rounded-2xl p-4 sm:p-6 shadow-2xl border border-white/20 space-y-4 animate-in slide-in-from-top duration-200 max-h-[70vh] overflow-y-auto overscroll-contain">
+                {/* Rząd 1: Miasto + Kategoria */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {/* Miasto */}
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-2">
+                      🏙️ Miasto
+                    </label>
+                    <select
+                      value={selectedCity}
+                      onChange={(e) => setSelectedCity(e.target.value)}
+                      className="w-full px-4 py-3 bg-white border-2 border-gray-200 rounded-xl text-gray-800 font-medium focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                    >
+                      <option value="all">🌍 Wszystkie miasta</option>
+                      {cities
+                        .filter((c) => c !== "all")
+                        .map((city) => (
+                          <option key={city} value={city}>
+                            {city}
+                          </option>
+                        ))}
+                    </select>
+                  </div>
+
+                  {/* Kategoria */}
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-2">
+                      📂 Kategoria
+                    </label>
+                    <select
+                      value={selectedCategory}
+                      onChange={(e) => setSelectedCategory(e.target.value)}
+                      className="w-full px-4 py-3 bg-white border-2 border-gray-200 rounded-xl text-gray-800 font-medium focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                    >
+                      <option value="all">📋 Wszystkie kategorie</option>
+                      {categories
+                        .filter((c) => c !== "all")
+                        .map((category) => (
+                          <option key={category} value={category}>
+                            {category}
+                          </option>
+                        ))}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Rząd 2: Sortowanie */}
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-2">
+                    🔄 Sortowanie
+                  </label>
+                  <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2">
+                    <button
+                      onClick={() => setSortBy("newest")}
+                      className={`px-3 sm:px-4 py-2.5 min-h-[44px] rounded-xl font-bold transition-all text-sm sm:text-base ${
+                        sortBy === "newest"
+                          ? "bg-blue-600 text-white shadow-lg"
+                          : "bg-white border-2 border-gray-200 text-gray-700 hover:border-blue-500"
+                      }`}
+                    >
+                      🕐 Najnowsze
+                    </button>
+                    <button
+                      onClick={() => setSortBy("popular")}
+                      className={`px-3 sm:px-4 py-2.5 min-h-[44px] rounded-xl font-bold transition-all text-sm sm:text-base ${
+                        sortBy === "popular"
+                          ? "bg-blue-600 text-white shadow-lg"
+                          : "bg-white border-2 border-gray-200 text-gray-700 hover:border-blue-500"
+                      }`}
+                    >
+                      ⭐ Popularne
+                    </button>
+                    <button
+                      onClick={() => setSortBy("price_low")}
+                      className={`px-3 sm:px-4 py-2.5 min-h-[44px] rounded-xl font-bold transition-all text-sm sm:text-base ${
+                        sortBy === "price_low"
+                          ? "bg-blue-600 text-white shadow-lg"
+                          : "bg-white border-2 border-gray-200 text-gray-700 hover:border-blue-500"
+                      }`}
+                    >
+                      💰 Cena: niższa
+                    </button>
+                    <button
+                      onClick={() => setSortBy("price_high")}
+                      className={`px-3 sm:px-4 py-2.5 min-h-[44px] rounded-xl font-bold transition-all text-sm sm:text-base ${
+                        sortBy === "price_high"
+                          ? "bg-blue-600 text-white shadow-lg"
+                          : "bg-white border-2 border-gray-200 text-gray-700 hover:border-blue-500"
+                      }`}
+                    >
+                      💎 Cena: wyższa
+                    </button>
+                  </div>
+                </div>
+
+                {/* Reset button */}
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 pt-4 border-t border-gray-200">
+                  <button
+                    onClick={() => {
+                      setSearchQuery("");
+                      setSelectedCity("all");
+                      setSelectedCategory("all");
+                      setSortBy("newest");
+                    }}
+                    className="text-sm text-gray-600 hover:text-gray-800 font-medium min-h-[44px] px-3 py-2"
+                  >
+                    🔄 Wyczyść filtry
+                  </button>
+                  <div className="text-sm text-gray-600 font-bold">
+                    📊 Znaleziono: {filterPosts(posts).length} ogłoszeń
+                  </div>
+                </div>
               </div>
-            </main>
+            )}
           </div>
         </div>
       </div>
 
-      {/* Image Lightbox Modal */}
-      {lightboxImage && (
-        <div
-          className="fixed inset-0 z-[9999] bg-black/95 backdrop-blur-sm flex items-center justify-center p-4"
-          onClick={() => setLightboxImage(null)}
-        >
-          <button
-            onClick={() => setLightboxImage(null)}
-            className="absolute top-6 right-6 w-12 h-12 bg-white/10 hover:bg-white/20 backdrop-blur-xl rounded-full flex items-center justify-center text-white transition-colors z-10"
-          >
-            <X className="w-6 h-6" />
-          </button>
-          <img
-            src={lightboxImage}
-            alt="Lightbox view"
-            className="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          />
+      {/* ===== STORIES CAROUSEL ===== */}
+      <div className="container mx-auto px-4 mt-6 max-w-7xl">
+        <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide">
+          {/* Add Story Button */}
+          {canCreatePost && (
+            <button className="flex-shrink-0 group">
+              <div className="relative">
+                <div className="w-20 h-20 rounded-full bg-gradient-to-br from-amber-500 to-orange-600 p-0.5">
+                  <div className="w-full h-full rounded-full bg-white flex items-center justify-center">
+                    <Plus className="w-8 h-8 text-amber-600" />
+                  </div>
+                </div>
+                <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-amber-600 rounded-full border-2 border-white flex items-center justify-center">
+                  <Plus className="w-4 h-4 text-white" />
+                </div>
+              </div>
+              <p className="text-xs text-center mt-2 font-medium text-gray-700">
+                Jouw verhaal
+              </p>
+            </button>
+          )}
+
+          {/* Stories */}
+          {stories.map((story) => (
+            <button key={story.id} className="flex-shrink-0 group">
+              <div
+                className={`w-20 h-20 rounded-full p-0.5 ${
+                  story.is_seen
+                    ? "bg-gray-300"
+                    : "bg-gradient-to-br from-purple-500 via-pink-500 to-red-500"
+                }`}
+              >
+                <div className="w-full h-full rounded-full bg-gradient-to-br from-blue-400 to-purple-600 flex items-center justify-center text-white font-bold text-2xl">
+                  {story.user_name.charAt(0)}
+                </div>
+              </div>
+              <p className="text-xs text-center mt-2 font-medium text-gray-700 truncate w-20">
+                {story.user_name.split(" ")[0]}
+              </p>
+            </button>
+          ))}
         </div>
-      )}
+      </div>
+
+      {/* ===== MAIN 3-COLUMN LAYOUT ===== */}
+      <div className="container mx-auto px-4 mt-6 max-w-7xl">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          {/* ===== LEFT SIDEBAR - Trending ===== */}
+          <aside className="hidden lg:block lg:col-span-3">
+            <div className="sticky top-24 space-y-6">
+              {/* Trending Widget */}
+              <div className="bg-white/80 backdrop-blur-xl rounded-3xl p-6 shadow-xl border border-white/40">
+                <div className="flex items-center gap-2 mb-4">
+                  <TrendingUp className="w-5 h-5 text-orange-600" />
+                  <h3 className="font-bold text-lg">🔥 Trending Nu</h3>
+                </div>
+
+                <div className="space-y-4">
+                  {trending.slice(0, 5).map((post, index) => (
+                    <div
+                      key={post.id}
+                      className="flex items-start gap-3 group cursor-pointer hover:bg-amber-50 p-2 rounded-xl transition-all"
+                    >
+                      <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center text-white font-bold text-sm">
+                        {index + 1}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-gray-900 line-clamp-2 group-hover:text-amber-600 transition-colors">
+                          {post.title || post.content.substring(0, 60)}
+                        </p>
+                        <p className="text-xs text-gray-500 mt-1">
+                          {post.likes_count} likes • {post.comments_count}{" "}
+                          reacties
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </aside>
+
+          {/* ===== CENTER - Feed Posts ===== */}
+          <main className="lg:col-span-6">
+            {/* Create Post Card */}
+            {showCreatePost && canCreatePost && user && (
+              <div className="mb-6" key="create-post-card-container">
+                <CreatePostCardPremium
+                  key={`create-post-${user.id}`}
+                  userId={user.id}
+                  userRole={user.role as "employer" | "accountant"}
+                  onPostCreated={() => {
+                    setShowCreatePost(false);
+                    loadFeed();
+                  }}
+                  onCancel={() => setShowCreatePost(false)}
+                />
+              </div>
+            )}
+
+            {/* Posts Masonry */}
+            <div className="space-y-6">
+              {filterPosts(posts).length === 0 ? (
+                <div className="text-center py-12">
+                  <div className="text-6xl mb-4">🔍</div>
+                  <h3 className="text-2xl font-bold text-gray-800 mb-2">
+                    Brak wyników
+                  </h3>
+                  <p className="text-gray-600 mb-6">
+                    Nie znaleziono ogłoszeń spełniających kryteria wyszukiwania
+                  </p>
+                  <button
+                    onClick={() => {
+                      setSearchQuery("");
+                      setSelectedCity("all");
+                      setSelectedCategory("all");
+                      setActiveFilter("all");
+                    }}
+                    className="bg-blue-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-blue-700 transition-all"
+                  >
+                    Wyczyść filtry
+                  </button>
+                </div>
+              ) : (
+                filterPosts(posts).map((post) => (
+                  <PostCardPremium
+                    key={post.id}
+                    post={post}
+                    onLike={() =>
+                      handleLike(post.id, post.user_has_liked || false)
+                    }
+                    onComment={loadFeed}
+                    onShare={loadFeed}
+                    onReactionChange={(reactionType) =>
+                      handleReactionChange(post.id, reactionType)
+                    }
+                    currentUserId={user?.id}
+                    currentUserRole={user?.role}
+                  />
+                ))
+              )}
+            </div>
+
+            {/* Infinite Scroll Observer */}
+            <div
+              ref={observerTarget}
+              className="h-20 flex items-center justify-center"
+            >
+              {loading && <LoadingSpinner />}
+            </div>
+          </main>
+
+          {/* ===== RIGHT SIDEBAR - Suggestions ===== */}
+          <aside className="hidden lg:block lg:col-span-3">
+            <div className="sticky top-24 space-y-6">
+              {/* Footer Links */}
+              <div className="text-xs text-gray-500 space-y-2 px-4">
+                <div className="flex flex-wrap gap-2">
+                  <a href="#" className="hover:text-amber-600">
+                    Over
+                  </a>
+                  <span>•</span>
+                  <a href="#" className="hover:text-amber-600">
+                    Help
+                  </a>
+                  <span>•</span>
+                  <a href="#" className="hover:text-amber-600">
+                    Privacy
+                  </a>
+                  <span>•</span>
+                  <a href="#" className="hover:text-amber-600">
+                    Voorwaarden
+                  </a>
+                </div>
+                <p className="text-gray-400">© 2025 ZZP Werkplaats</p>
+              </div>
+            </div>
+          </aside>
+        </div>
+      </div>
     </div>
   );
 }
@@ -1026,7 +923,6 @@ interface PostCardPremiumProps {
   onReactionChange: (reactionType: ReactionType | null) => void;
   currentUserId?: string;
   currentUserRole?: string;
-  onImageClick?: (imageUrl: string) => void;
 }
 
 export function PostCardPremium({
@@ -1037,7 +933,6 @@ export function PostCardPremium({
   onReactionChange,
   currentUserId,
   currentUserRole,
-  onImageClick,
 }: PostCardPremiumProps) {
   const [showComments, setShowComments] = useState(false);
   const [comments, setComments] = useState<PostComment[]>([]);
@@ -1046,23 +941,6 @@ export function PostCardPremium({
   const [isSubmittingComment, setIsSubmittingComment] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
   const [currentFolders, setCurrentFolders] = useState<SaveFolder[]>([]);
-  const [replyingTo, setReplyingTo] = useState<string | null>(null);
-  const [flyingEmojis, setFlyingEmojis] = useState<
-    {
-      id: number;
-      emoji: string;
-      xOffset: number;
-      scale: number;
-      duration: number;
-    }[]
-  >([]);
-
-  // 3D Tilt State (from Project 4)
-  const cardRef = useRef<HTMLDivElement>(null);
-  const [rotateX, setRotateX] = useState(0);
-  const [rotateY, setRotateY] = useState(0);
-  const [glowX, setGlowX] = useState(50);
-  const [glowY, setGlowY] = useState(50);
 
   // Load saved folders for this post
   useEffect(() => {
@@ -1104,8 +982,6 @@ export function PostCardPremium({
       try {
         const fetchedComments = await getPostComments(post.id);
         setComments(fetchedComments);
-        // Update local comment count with actual data from API
-        post.comments_count = fetchedComments.length;
       } catch (error) {
         console.error("Error loading comments:", error);
       } finally {
@@ -1113,85 +989,6 @@ export function PostCardPremium({
       }
     }
     setShowComments(!showComments);
-  };
-
-  // 3D Tilt Handlers (from Project 4)
-  const tiltSensitivity = post.type === "ad" ? 6 : 3;
-
-  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!cardRef.current) return;
-    const rect = cardRef.current.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    const centerX = rect.width / 2;
-    const centerY = rect.height / 2;
-
-    const rotateXValue = ((y - centerY) / centerY) * -tiltSensitivity;
-    const rotateYValue = ((x - centerX) / centerX) * tiltSensitivity;
-
-    setRotateX(rotateXValue);
-    setRotateY(rotateYValue);
-    setGlowX((x / rect.width) * 100);
-    setGlowY((y / rect.height) * 100);
-  };
-
-  const handleMouseLeaveCard = () => {
-    setRotateX(0);
-    setRotateY(0);
-  };
-
-  // Flying Emoji Explosion Animation
-  const triggerExplosion = (emoji: string) => {
-    const count = Math.floor(Math.random() * 6) + 6; // 6-12 particles
-    const newParticles = Array.from({ length: count }).map((_, i) => ({
-      id: Date.now() + i + Math.random(),
-      emoji,
-      xOffset: (Math.random() - 0.5) * 80, // Spread horizontally
-      scale: 0.5 + Math.random(), // Random scale 0.5-1.5
-      duration: 0.8 + Math.random() * 0.7, // Duration 0.8-1.5s
-    }));
-
-    setFlyingEmojis((prev) => [...prev, ...newParticles]);
-
-    // Cleanup after animation
-    setTimeout(() => {
-      setFlyingEmojis((prev) =>
-        prev.filter((p) => !newParticles.find((np) => np.id === p.id))
-      );
-    }, 1500);
-  };
-
-  // Handle Comment Like with Animation
-  const handleCommentLike = async (commentId: string) => {
-    try {
-      const comment = comments.find((c) => c.id === commentId);
-      if (!comment) return;
-
-      const isLiked = comment.user_has_liked;
-
-      // Optimistic update
-      setComments((prevComments) =>
-        prevComments.map((c) =>
-          c.id === commentId
-            ? {
-                ...c,
-                likes_count: isLiked ? c.likes_count - 1 : c.likes_count + 1,
-                user_has_liked: !isLiked,
-              }
-            : c
-        )
-      );
-
-      // Trigger animation on like
-      if (!isLiked) {
-        triggerExplosion("❤️");
-      }
-
-      // TODO: Add API call to like/unlike comment
-      // await likeComment(commentId);
-    } catch (error) {
-      console.error("Error liking comment:", error);
-    }
   };
 
   const handleSubmitComment = async (e: React.FormEvent) => {
@@ -1252,10 +1049,6 @@ export function PostCardPremium({
 
       const updatedComments = await getPostComments(post.id);
       setComments(updatedComments);
-
-      // Update local comment count
-      post.comments_count = updatedComments.length;
-
       onComment();
     } catch (error) {
       console.error("Error creating comment:", error);
@@ -1265,80 +1058,36 @@ export function PostCardPremium({
     }
   };
 
-  // Dynamic glow color based on post type
-  const getGlowColor = () => {
-    switch (post.type) {
-      case "announcement":
-        return "rgba(255, 126, 51, 0.15)";
-      case "job_offer":
-        return "rgba(14, 165, 233, 0.15)";
-      case "ad":
-        return "rgba(168, 85, 247, 0.2)";
-      default:
-        return "rgba(148, 163, 184, 0.1)";
-    }
-  };
-
   return (
-    <article
-      ref={cardRef}
-      onMouseMove={handleMouseMove}
-      onMouseLeave={handleMouseLeaveCard}
-      className="group bg-white/90 backdrop-blur-xl rounded-3xl shadow-xl border border-white/40 overflow-hidden hover:shadow-2xl transition-all duration-200 ease-out relative"
-      style={{
-        transform: `rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale(${
-          1 + Math.abs(rotateX) / 150
-        })`,
-        transformStyle: "preserve-3d",
-        perspective: "1200px",
-      }}
-    >
-      {/* Dynamic Glow Layer */}
-      <div
-        className="absolute inset-0 rounded-3xl pointer-events-none transition-opacity duration-500 z-0"
-        style={{
-          background: `radial-gradient(circle at ${glowX}% ${glowY}%, ${getGlowColor()} 0%, transparent 60%)`,
-          opacity: 1,
-        }}
-      />
+    <article className="group bg-white/90 backdrop-blur-xl rounded-3xl shadow-xl border border-white/40 overflow-hidden hover:shadow-2xl transition-all duration-500 transform hover:-translate-y-1">
       {/* Post Header */}
-      <div className="p-6 relative z-10">
+      <div className="p-6">
         <div className="flex items-start justify-between mb-4">
           <div className="flex items-center gap-4">
-            {/* Avatar with gradient ring - clickable */}
+            {/* Avatar with gradient ring */}
             <div className="relative">
-              <a
-                href={`/${post.author_type}/profile/${
-                  post.author_profile_id || post.author_id
-                }`}
-                className="block w-14 h-14 rounded-full bg-gradient-to-br from-amber-400 via-orange-500 to-red-500 p-0.5 hover:scale-110 transition-transform cursor-pointer"
-              >
+              <div className="w-14 h-14 rounded-full bg-gradient-to-br from-amber-400 via-orange-500 to-red-500 p-0.5">
                 {post.author_avatar ? (
                   <img
                     src={post.author_avatar}
                     alt={post.author_name || "User"}
-                    className="w-full h-full rounded-full object-cover"
+                    className="w-full h-full rounded-full object-cover bg-white"
                   />
                 ) : (
                   <div className="w-full h-full rounded-full bg-gradient-to-br from-blue-400 to-purple-600 flex items-center justify-center text-white font-bold text-xl">
                     {post.author_name?.charAt(0) || "U"}
                   </div>
                 )}
-              </a>
+              </div>
               {/* Online indicator */}
               <div className="absolute bottom-0 right-0 w-4 h-4 bg-green-500 border-2 border-white rounded-full"></div>
             </div>
 
             <div>
               <div className="flex items-center gap-2">
-                <a
-                  href={`/${post.author_type}/profile/${
-                    post.author_profile_id || post.author_id
-                  }`}
-                  className="font-bold text-gray-900 hover:text-amber-600 cursor-pointer transition-colors hover:underline"
-                >
+                <h3 className="font-bold text-gray-900 hover:text-amber-600 cursor-pointer transition-colors">
                   {post.author_name || "Onbekend"}
-                </a>
+                </h3>
                 {/* Verified badge */}
                 <Award className="w-4 h-4 text-blue-500" />
               </div>
@@ -1387,132 +1136,10 @@ export function PostCardPremium({
           </h2>
         )}
 
-        {/* Post Content - Premium Styled */}
-        <div className="premium-content-wrapper mb-4 relative group/content">
-          {/* Outer glow effect */}
-          <div className="absolute -inset-1 bg-gradient-to-r from-purple-600 via-violet-500 to-purple-600 rounded-2xl opacity-0 group-hover/content:opacity-30 blur-md transition-opacity duration-500"></div>
-
-          {/* Animated dots border */}
-          <div className="dots-border absolute inset-0 overflow-hidden rounded-2xl pointer-events-none opacity-0 group-hover/content:opacity-100 transition-opacity duration-300 z-10">
-            <div className="dots-rotating absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-8 bg-gradient-to-r from-transparent via-white to-transparent"></div>
-          </div>
-
-          {/* Gradient background overlay */}
-          <div
-            className="gradient-overlay absolute inset-0 rounded-2xl opacity-0 group-hover/content:opacity-100 transition-opacity duration-300 pointer-events-none"
-            style={{
-              background:
-                "radial-gradient(at 51% 89%, hsla(266, 45%, 74%, 0.15) 0px, transparent 50%), radial-gradient(at 100% 100%, hsla(266, 36%, 60%, 0.15) 0px, transparent 50%), radial-gradient(at 22% 91%, hsla(266, 36%, 60%, 0.15) 0px, transparent 50%)",
-            }}
-          ></div>
-
-          {/* Content container */}
-          <div className="relative bg-gradient-to-br from-slate-50 to-white rounded-2xl p-6 border-2 border-transparent group-hover/content:border-slate-200 transition-all duration-300 shadow-sm group-hover/content:shadow-2xl premium-content-box">
-            {/* Sparkle icon */}
-            <div className="absolute top-3 right-3 opacity-0 group-hover/content:opacity-100 transition-opacity duration-500">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-                viewBox="0 0 24 24"
-                className="w-5 h-5 sparkle-icon"
-              >
-                <path
-                  className="sparkle-path"
-                  strokeLinejoin="round"
-                  strokeLinecap="round"
-                  stroke="currentColor"
-                  fill="currentColor"
-                  d="M14.187 8.096L15 5.25L15.813 8.096C16.0231 8.83114 16.4171 9.50062 16.9577 10.0413C17.4984 10.5819 18.1679 10.9759 18.903 11.186L21.75 12L18.904 12.813C18.1689 13.0231 17.4994 13.4171 16.9587 13.9577C16.4181 14.4984 16.0241 15.1679 15.814 15.903L15 18.75L14.187 15.904C13.9769 15.1689 13.5829 14.4994 13.0423 13.9587C12.5016 13.4181 11.8321 13.0241 11.097 12.814L8.25 12L11.096 11.187C11.8311 10.9769 12.5006 10.5829 13.0413 10.0423C13.5819 9.50162 13.9759 8.83214 14.186 8.097L14.187 8.096Z"
-                />
-              </svg>
-            </div>
-
-            {/* Text content */}
-            <p className="premium-text text-gray-800 whitespace-pre-wrap leading-relaxed text-base font-medium relative z-10 group-hover/content:text-transparent group-hover/content:bg-clip-text group-hover/content:bg-gradient-to-r group-hover/content:from-gray-900 group-hover/content:via-purple-900 group-hover/content:to-gray-900 transition-all duration-500">
-              {post.content}
-            </p>
-          </div>
-        </div>
-
-        <style>{`
-          @keyframes rotate-dots {
-            to {
-              transform: translate(-50%, -50%) rotate(360deg);
-            }
-          }
-          
-          .dots-rotating {
-            animation: rotate-dots 3s linear infinite;
-            mask: linear-gradient(transparent 0%, white 120%);
-          }
-          
-          .premium-content-box::before {
-            content: "";
-            position: absolute;
-            inset: -2px;
-            background: linear-gradient(90deg, 
-              hsl(260, 97%, 61%), 
-              hsl(266, 45%, 74%), 
-              hsl(266, 36%, 60%), 
-              hsl(260, 97%, 61%)
-            );
-            background-size: 200% 100%;
-            border-radius: 1rem;
-            opacity: 0;
-            z-index: -1;
-            transition: opacity 0.3s ease;
-          }
-          
-          .group:hover .premium-content-box::before {
-            opacity: 0.5;
-            animation: gradient-shift 3s linear infinite;
-          }
-          
-          @keyframes gradient-shift {
-            0% { background-position: 0% 50%; }
-            50% { background-position: 100% 50%; }
-            100% { background-position: 0% 50%; }
-          }
-          
-          .premium-content-box::after {
-            content: "";
-            position: absolute;
-            inset: 0;
-            background: radial-gradient(
-              600px circle at var(--mouse-x, 50%) var(--mouse-y, 50%),
-              rgba(138, 43, 226, 0.1),
-              transparent 40%
-            );
-            border-radius: 1rem;
-            opacity: 0;
-            transition: opacity 0.3s ease;
-            pointer-events: none;
-          }
-          
-          .group:hover .premium-content-box::after {
-            opacity: 1;
-          }
-          
-          .sparkle-icon {
-            color: hsl(260, 97%, 61%);
-          }
-          
-          .sparkle-path {
-            transform-origin: center;
-            animation: sparkle-pulse 2s ease-in-out infinite;
-          }
-          
-          @keyframes sparkle-pulse {
-            0%, 100% {
-              transform: scale(1);
-              opacity: 0.7;
-            }
-            50% {
-              transform: scale(1.3);
-              opacity: 1;
-            }
-          }
-        `}</style>
+        {/* Post Content */}
+        <p className="text-gray-700 whitespace-pre-wrap mb-4 leading-relaxed">
+          {post.content}
+        </p>
 
         {/* Media Gallery with Modern Layout */}
         {post.media_urls && post.media_urls.length > 0 && (
@@ -1538,7 +1165,7 @@ export function PostCardPremium({
                 return (
                   <div
                     key={index}
-                    className={`relative bg-slate-100 group/media cursor-pointer overflow-hidden rounded-lg ${
+                    className={`relative bg-black group/media cursor-pointer overflow-hidden ${
                       post.media_urls!.length === 1
                         ? "aspect-[16/10]"
                         : post.media_urls!.length === 2
@@ -1549,18 +1176,14 @@ export function PostCardPremium({
                         ? "col-span-3"
                         : ""
                     }`}
-                    onClick={() =>
-                      mediaType === "image" &&
-                      onImageClick &&
-                      onImageClick(mediaUrl)
-                    }
                   >
                     {mediaType === "image" ? (
                       <>
                         <img
                           src={mediaUrl}
                           alt={`Media ${index + 1}`}
-                          className="w-full h-full object-contain group-hover/media:scale-105 transition-transform duration-500"
+                          className="w-full h-full object-cover group-hover/media:scale-110 transition-transform duration-500"
+                          onClick={() => window.open(mediaUrl, "_blank")}
                         />
                         {isLastAndMore && (
                           <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
@@ -1574,7 +1197,7 @@ export function PostCardPremium({
                       <video
                         src={mediaUrl}
                         controls
-                        className="w-full h-full object-contain"
+                        className="w-full h-full object-cover"
                         preload="metadata"
                       />
                     )}
@@ -1595,165 +1218,278 @@ export function PostCardPremium({
           </div>
         )}
 
-        {/* Job Offer Card - Modern Clean Design */}
-        {post.type === "job_offer" && (
-          <div className="job-details-modern mb-6">
-            {/* Main container - Clean white card */}
-            <div className="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm hover:shadow-md transition-shadow duration-300">
-              {/* Grid with job details - 2 columns elegant pills */}
-              <div className="grid grid-cols-2 gap-3 mb-6">
-                {/* Salary - First (most important) */}
-                {(post.job_salary_min || post.job_salary_max) && (
-                  <div className="col-span-2 bg-gradient-to-r from-blue-50 to-cyan-50 rounded-xl p-4 border border-blue-100">
-                    <div className="flex items-center gap-3">
-                      <div className="w-12 h-12 rounded-lg bg-white shadow-sm flex items-center justify-center">
-                        <span className="text-2xl">€</span>
-                      </div>
-                      <div>
-                        <div className="text-xs font-semibold text-gray-600 uppercase mb-0.5">
-                          UURTARIEF
-                        </div>
-                        <div className="text-xl font-black text-gray-900">
-                          €{post.job_salary_min || "?"}-€
-                          {post.job_salary_max || "?"} /uur
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Type */}
-                {post.job_category && (
-                  <div className="bg-slate-50 rounded-xl p-4 border border-slate-200">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-lg">📋</span>
-                      <div className="text-xs font-semibold text-gray-500 uppercase">
-                        TYPE
-                      </div>
-                    </div>
-                    <div className="text-sm font-bold text-gray-900">
-                      {post.job_category}
-                    </div>
-                  </div>
-                )}
-
-                {/* Location */}
-                <div className="bg-slate-50 rounded-xl p-4 border border-slate-200">
-                  <div className="flex items-center gap-2 mb-1">
-                    <MapPin className="w-4 h-4 text-blue-600" />
-                    <div className="text-xs font-semibold text-gray-500 uppercase">
-                      LOCATIE
-                    </div>
-                  </div>
-                  <div className="text-sm font-bold text-gray-900">
-                    {post.job_location || (
-                      <span className="text-gray-400">Niet opgegeven</span>
-                    )}
-                  </div>
-                </div>
-
-                {/* Hours per week */}
-                <div className="bg-slate-50 rounded-xl p-4 border border-slate-200">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="text-lg">⏰</span>
-                    <div className="text-xs font-semibold text-gray-500 uppercase">
-                      UREN/TYDZIEŃ
-                    </div>
-                  </div>
-                  <div className="text-sm font-bold text-gray-900">
-                    {post.job_hours_per_week || (
-                      <span className="text-gray-400">Niet opgegeven</span>
-                    )}
-                  </div>
-                </div>
-
-                {/* Start date */}
-                <div className="bg-slate-50 rounded-xl p-4 border border-slate-200">
-                  <div className="flex items-center gap-2 mb-1">
-                    <Calendar className="w-4 h-4 text-blue-600" />
-                    <div className="text-xs font-semibold text-gray-500 uppercase">
-                      POCZĄTEK
-                    </div>
-                  </div>
-                  <div className="text-sm font-bold text-gray-900">
-                    {post.job_start_date ? (
-                      new Date(post.job_start_date).toLocaleDateString("nl-NL")
-                    ) : (
-                      <span className="text-gray-400">Nie podano</span>
-                    )}
-                  </div>
-                </div>
+        {/* Service Request Card (Zlecenie Prywatne) */}
+        {post.type === "service_request" &&
+          (post.request_category || post.category) && (
+            <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-2xl p-5 space-y-4 mb-4 border border-purple-200">
+              <div className="flex items-center gap-2 text-purple-900 font-bold">
+                <span className="text-xl">🏡</span>
+                <span>Szczegóły Zlecenia</span>
               </div>
 
-              {/* Benefits Section - Modern Clean */}
-              {post.job_benefits && post.job_benefits.length > 0 && (
-                <div className="mb-6 bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl p-5 border border-green-100">
-                  <div className="flex items-center gap-2 mb-4">
-                    <span className="text-xl">🎁</span>
-                    <span className="text-sm font-bold text-gray-700 uppercase">
-                      VOORDELEN
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {/* Kategoria */}
+                <div className="flex items-center gap-2 text-sm text-gray-700 bg-white/60 rounded-lg px-3 py-2">
+                  <span className="font-semibold">🏷️ Kategoria:</span>
+                  <span className="capitalize">
+                    {(post.request_category || post.category) === "plumbing" &&
+                      "Hydraulika"}
+                    {(post.request_category || post.category) ===
+                      "electrical" && "Elektryka"}
+                    {(post.request_category || post.category) === "cleaning" &&
+                      "Sprzątanie"}
+                    {(post.request_category || post.category) === "moving" &&
+                      "Przeprowadzki"}
+                    {(post.request_category || post.category) === "repair" &&
+                      "Naprawa"}
+                    {(post.request_category || post.category) === "gardening" &&
+                      "Ogrodnictwo"}
+                    {(post.request_category || post.category) === "painting" &&
+                      "Malowanie"}
+                    {(post.request_category || post.category) === "other" &&
+                      "Inne"}
+                    {![
+                      "plumbing",
+                      "electrical",
+                      "cleaning",
+                      "moving",
+                      "repair",
+                      "gardening",
+                      "painting",
+                      "other",
+                    ].includes(post.request_category || post.category || "") &&
+                      (post.request_category || post.category)}
+                  </span>
+                </div>
+
+                {/* Lokalizacja */}
+                <div className="flex items-center gap-2 text-sm text-gray-700 bg-white/60 rounded-lg px-3 py-2">
+                  <span className="font-semibold">📍 Miasto:</span>
+                  {post.request_location || post.location ? (
+                    <span>{post.request_location || post.location}</span>
+                  ) : (
+                    <span className="text-gray-400 italic">Nie podano</span>
+                  )}
+                </div>
+
+                {/* Budżet */}
+                <div className="flex items-center gap-2 text-sm text-gray-700 bg-white/60 rounded-lg px-3 py-2">
+                  <span className="font-semibold">💰 Budżet:</span>
+                  {post.request_budget_min || post.request_budget_max ? (
+                    <span className="font-bold text-green-700">
+                      {post.request_budget_min && post.request_budget_max
+                        ? `€${post.request_budget_min} - €${post.request_budget_max}`
+                        : post.request_budget_min
+                        ? `od €${post.request_budget_min}`
+                        : `do €${post.request_budget_max}`}
+                    </span>
+                  ) : (
+                    <span className="text-gray-400 italic">Do negocjacji</span>
+                  )}
+                </div>
+
+                {/* Pilność */}
+                <div className="flex items-center gap-2 text-sm text-gray-700 bg-white/60 rounded-lg px-3 py-2">
+                  <span className="font-semibold">🔥 Pilność:</span>
+                  <span
+                    className={`px-2 py-0.5 rounded-full text-xs font-bold ${
+                      post.request_urgency === "urgent"
+                        ? "bg-red-100 text-red-700"
+                        : post.request_urgency === "high"
+                        ? "bg-orange-100 text-orange-700"
+                        : post.request_urgency === "normal"
+                        ? "bg-blue-100 text-blue-700"
+                        : "bg-gray-100 text-gray-700"
+                    }`}
+                  >
+                    {post.request_urgency === "urgent" && "⚡ Pilne!"}
+                    {post.request_urgency === "high" && "🔥 Wysoka"}
+                    {post.request_urgency === "normal" && "📋 Normalna"}
+                    {post.request_urgency === "low" && "⏰ Niska"}
+                    {!post.request_urgency && "📋 Normalna"}
+                  </span>
+                </div>
+
+                {/* Preferowana data */}
+                {post.request_preferred_date && (
+                  <div className="flex items-center gap-2 text-sm text-gray-700 bg-white/60 rounded-lg px-3 py-2 md:col-span-2">
+                    <span className="font-semibold">📅 Preferowana data:</span>
+                    <span className="font-semibold text-blue-700">
+                      {new Date(post.request_preferred_date).toLocaleDateString(
+                        "pl-PL",
+                        {
+                          year: "numeric",
+                          month: "long",
+                          day: "numeric",
+                        }
+                      )}
                     </span>
                   </div>
-                  <div className="flex flex-wrap gap-2">
-                    {post.job_benefits.map((benefit, idx) => (
-                      <div
-                        key={idx}
-                        className="bg-white px-4 py-2 rounded-lg border border-green-200 text-sm font-semibold text-gray-800 hover:border-green-400 hover:shadow-sm transition-all"
-                      >
-                        <span className="text-green-600 mr-1.5">✓</span>
-                        {benefit}
-                      </div>
-                    ))}
-                  </div>
+                )}
+
+                {/* Status */}
+                <div className="flex items-center gap-2 text-sm text-gray-700 bg-white/60 rounded-lg px-3 py-2">
+                  <span className="font-semibold">📊 Status:</span>
+                  <span
+                    className={`px-2 py-0.5 rounded-full text-xs font-bold ${
+                      post.request_status === "open"
+                        ? "bg-green-100 text-green-700"
+                        : post.request_status === "in_progress"
+                        ? "bg-blue-100 text-blue-700"
+                        : post.request_status === "completed"
+                        ? "bg-gray-100 text-gray-700"
+                        : "bg-red-100 text-red-700"
+                    }`}
+                  >
+                    {post.request_status === "open" && "🟢 Otwarte"}
+                    {post.request_status === "in_progress" && "🔵 W trakcie"}
+                    {post.request_status === "completed" && "✅ Zakończone"}
+                    {post.request_status === "cancelled" && "❌ Anulowane"}
+                    {!post.request_status && "🟢 Otwarte"}
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+
+        {/* Job Offer Card */}
+        {post.type === "job_offer" && (
+          <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl p-5 space-y-4 mb-4 border border-blue-200">
+            <div className="flex items-center gap-2 text-blue-900 font-bold">
+              <Briefcase className="w-5 h-5" />
+              <span>Vacature Details</span>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {(post.job_category || post.category) && (
+                <div className="flex items-center gap-2 text-sm text-gray-700 bg-white/60 rounded-lg px-3 py-2">
+                  <span className="font-semibold">Categorie:</span>
+                  <span>{post.job_category || post.category}</span>
                 </div>
               )}
 
-              {/* Contact Section - Modern Clean */}
-              {(post.job_contact_email || post.job_contact_phone) && (
-                <div className="bg-gradient-to-r from-blue-50 to-cyan-50 rounded-xl p-5 border border-blue-100">
-                  <div className="flex items-center gap-2 mb-4">
-                    <span className="text-xl">📞</span>
-                    <span className="text-sm font-bold text-gray-700 uppercase">
-                      KONTAKT
-                    </span>
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {post.job_contact_email && (
-                      <a
-                        href={`mailto:${post.job_contact_email}`}
-                        className="flex items-center gap-3 bg-white px-4 py-3 rounded-lg border border-blue-200 hover:border-blue-400 hover:shadow-sm transition-all group"
-                      >
-                        <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center group-hover:bg-blue-200 transition-colors">
-                          <Mail className="w-5 h-5 text-blue-600" />
-                        </div>
-                        <span className="text-sm font-semibold text-gray-800 truncate">
-                          {post.job_contact_email}
-                        </span>
-                      </a>
-                    )}
-                    {post.job_contact_phone && (
-                      <a
-                        href={`tel:${post.job_contact_phone}`}
-                        className="flex items-center gap-3 bg-white px-4 py-3 rounded-lg border border-blue-200 hover:border-blue-400 hover:shadow-sm transition-all group"
-                      >
-                        <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center group-hover:bg-blue-200 transition-colors">
-                          <Phone className="w-5 h-5 text-blue-600" />
-                        </div>
-                        <span className="text-sm font-semibold text-gray-800">
-                          {post.job_contact_phone}
-                        </span>
-                      </a>
-                    )}
-                  </div>
+              <div className="flex items-center gap-2 text-sm text-gray-700 bg-white/60 rounded-lg px-3 py-2">
+                <span className="font-semibold">💼 Type:</span>
+                {post.job_type ? (
+                  <span>
+                    {post.job_type === "full_time" && "Voltijd"}
+                    {post.job_type === "part_time" && "Deeltijd"}
+                    {post.job_type === "contract" && "Contract"}
+                    {post.job_type === "temporary" && "Tijdelijk"}
+                  </span>
+                ) : (
+                  <span className="text-gray-400 italic">
+                    Type pracy nie podany
+                  </span>
+                )}
+              </div>
+
+              <div className="flex items-center gap-2 text-sm text-gray-700 bg-white/60 rounded-lg px-3 py-2">
+                <MapPin className="w-4 h-4" />
+                {post.job_location || post.location ? (
+                  <span>{post.job_location || post.location}</span>
+                ) : (
+                  <span className="text-gray-400 italic">
+                    Lokalizacja nie podana
+                  </span>
+                )}
+              </div>
+
+              <div className="flex items-center gap-2 text-sm text-gray-700 bg-white/60 rounded-lg px-3 py-2">
+                <span className="font-semibold">⏰ Uren/week:</span>
+                {post.job_hours_per_week ? (
+                  <span>{post.job_hours_per_week}</span>
+                ) : (
+                  <span className="text-gray-400 italic">
+                    Godziny nie podane
+                  </span>
+                )}
+              </div>
+
+              <div className="flex items-center gap-2 text-sm text-gray-700 bg-white/60 rounded-lg px-3 py-2">
+                <span className="font-semibold">📅 Start:</span>
+                {post.job_start_date ? (
+                  <span>
+                    {new Date(post.job_start_date).toLocaleDateString("nl-NL")}
+                  </span>
+                ) : (
+                  <span className="text-gray-400 italic">
+                    Data rozpoczęcia nie podana
+                  </span>
+                )}
+              </div>
+
+              {(post.job_salary_min || post.job_salary_max) && (
+                <div className="flex items-center gap-2 text-sm text-gray-700 bg-white/60 rounded-lg px-3 py-2 col-span-full">
+                  <span className="font-semibold">💰 Salaris:</span>
+                  <span className="text-green-700 font-bold">
+                    €{post.job_salary_min || "?"} - €
+                    {post.job_salary_max || "?"} /uur
+                  </span>
                 </div>
               )}
             </div>
-          </div>
-        )}
 
-        {/* Apply Button for job offers */}
-        {post.type === "job_offer" && (
-          <div className="mb-4">
+            {/* Benefits */}
+            <div className="space-y-2">
+              <span className="text-sm font-semibold text-gray-700">
+                🎁 Voordelen:
+              </span>
+              {post.job_benefits && post.job_benefits.length > 0 ? (
+                <div className="flex flex-wrap gap-2">
+                  {post.job_benefits.map((benefit, idx) => (
+                    <span
+                      key={idx}
+                      className="px-3 py-1 bg-gradient-to-r from-green-100 to-emerald-100 text-green-800 text-xs font-bold rounded-full"
+                    >
+                      {benefit}
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <span className="text-gray-400 italic text-sm">
+                  Benefity nie podane
+                </span>
+              )}
+            </div>
+
+            {/* Contact Info */}
+            <div className="space-y-2 pt-2 border-t border-blue-200">
+              <span className="text-sm font-semibold text-gray-700">
+                📞 Contact:
+              </span>
+              <div className="flex flex-wrap gap-3">
+                {post.job_contact_email ? (
+                  <a
+                    href={`mailto:${post.job_contact_email}`}
+                    className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-800 bg-white/60 rounded-lg px-3 py-2"
+                  >
+                    <Mail className="w-4 h-4" />
+                    {post.job_contact_email}
+                  </a>
+                ) : (
+                  <span className="flex items-center gap-2 text-sm text-gray-400 italic bg-white/60 rounded-lg px-3 py-2">
+                    <Mail className="w-4 h-4" />
+                    Email nie podany
+                  </span>
+                )}
+                {post.job_contact_phone ? (
+                  <a
+                    href={`tel:${post.job_contact_phone}`}
+                    className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-800 bg-white/60 rounded-lg px-3 py-2"
+                  >
+                    <Phone className="w-4 h-4" />
+                    {post.job_contact_phone}
+                  </a>
+                ) : (
+                  <span className="flex items-center gap-2 text-sm text-gray-400 italic bg-white/60 rounded-lg px-3 py-2">
+                    <Phone className="w-4 h-4" />
+                    Telefon nie podany
+                  </span>
+                )}
+              </div>
+            </div>
+
             <button
               onClick={async () => {
                 if (!currentUserId) {
@@ -2082,126 +1818,137 @@ export function PostCardPremium({
 
       {/* Reaction Counts Display (NEW) */}
       {post.reactions && post.reactions.total > 0 && (
-        <div className="px-6 py-2 border-t border-gray-100 relative z-10">
+        <div className="px-6 py-2 border-t border-gray-100">
           <ReactionCountsDisplay reactions={post.reactions} />
         </div>
       )}
 
-      {/* Post Stats - Top Bar */}
-      {(post.likes_count > 0 ||
-        post.comments_count > 0 ||
-        post.shares_count > 0) && (
-        <div className="px-6 py-2 border-t border-gray-100/50 relative z-10">
-          <div className="flex items-center justify-between text-xs text-gray-500">
-            <div className="flex items-center gap-3">
-              {post.likes_count > 0 && (
-                <span>
-                  {post.likes_count}{" "}
-                  {post.likes_count === 1
-                    ? "persoon vindt dit leuk"
-                    : "personen vinden dit leuk"}
-                </span>
-              )}
-            </div>
-            <div className="flex items-center gap-3">
-              {post.comments_count > 0 && (
-                <span>
-                  {post.comments_count}{" "}
-                  {post.comments_count === 1 ? "reactie" : "reacties"}
-                </span>
-              )}
-              {post.shares_count > 0 && (
-                <span>{post.shares_count} keer gedeeld</span>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Post Actions Bar - Minimalist Design */}
-      <div className="px-6 py-3 border-t border-gray-100/50 relative z-10">
+      {/* Post Actions Bar */}
+      <div className="px-6 py-4 border-t border-gray-100 bg-gradient-to-r from-gray-50 to-white">
         <div className="flex items-center justify-between">
-          {/* Like Button with Emoji Picker */}
-          <div className="flex items-center gap-2">
-            <ReactionButton
-              likesCount={post.likes_count || 0}
-              userReaction={post.user_reaction}
-              onReactionChange={onReactionChange}
-            />
+          {/* Left Actions */}
+          <div className="flex items-center gap-6">
+            {/* For SERVICE REQUESTS - WhatsApp Button instead of likes/comments */}
+            {post.type === "service_request" &&
+            (post.request_category || post.category) ? (
+              post.author_phone ? (
+                <a
+                  href={`https://wa.me/${post.author_phone.replace(
+                    /\D/g,
+                    ""
+                  )}?text=${encodeURIComponent(
+                    `Cześć! Zainteresowało mnie Twoje zlecenie: ${
+                      post.title || post.content.substring(0, 50)
+                    }`
+                  )}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-green-500 to-green-600 text-white font-bold rounded-full hover:shadow-lg transform hover:scale-105 transition-all"
+                >
+                  <svg
+                    className="w-6 h-6"
+                    fill="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.890-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z" />
+                  </svg>
+                  Kontakt WhatsApp
+                </a>
+              ) : (
+                <div className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-500 rounded-full text-sm">
+                  <svg
+                    className="w-5 h-5"
+                    fill="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.890-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z" />
+                  </svg>
+                  Brak numeru telefonu
+                </div>
+              )
+            ) : (
+              <>
+                {/* Reaction Button (emoji picker) - only for non-service-requests */}
+                <ReactionButton
+                  likesCount={post.likes_count}
+                  userReaction={post.user_reaction}
+                  onReactionChange={onReactionChange}
+                />
+
+                {/* Comment Button - only for non-service-requests */}
+                <button
+                  onClick={handleShowComments}
+                  className="flex items-center gap-2 text-gray-600 hover:text-blue-600 transition-all transform hover:scale-110"
+                >
+                  <MessageSquare className="w-6 h-6" />
+                  <span className="font-bold">{post.comments_count}</span>
+                </button>
+              </>
+            )}
+
+            {/* Share Button - for all posts */}
+            <button
+              onClick={() => setShowShareModal(true)}
+              className="flex items-center gap-2 text-gray-600 hover:text-green-600 transition-all transform hover:scale-110"
+            >
+              <Share2 className="w-6 h-6" />
+              <span className="font-bold">{post.shares_count}</span>
+            </button>
           </div>
 
-          {/* Comment Button */}
-          <button
-            onClick={handleShowComments}
-            className="group flex items-center gap-2 px-3 py-2 transition-colors duration-200"
-          >
-            <MessageSquare className="w-5 h-5 text-gray-500 group-hover:text-gray-700 transition-colors" />
-            <span className="text-sm font-medium text-gray-600 group-hover:text-gray-900 transition-colors">
-              Reageer {post.comments_count > 0 && `(${post.comments_count})`}
-            </span>
-          </button>
-
-          {/* Share Button */}
-          <button
-            onClick={() => setShowShareModal(true)}
-            className="group flex items-center gap-2 px-3 py-2 transition-colors duration-200"
-          >
-            <Share2 className="w-5 h-5 text-gray-500 group-hover:text-gray-700 transition-colors" />
-            <span className="text-sm font-medium text-gray-600 group-hover:text-gray-900 transition-colors">
-              Delen
-            </span>
-          </button>
-
-          {/* Save Button */}
+          {/* Right Actions */}
           <SaveButton
             postId={post.id}
             currentFolders={currentFolders}
             onSave={async (folder) => {
-              if (!currentUserId) return;
+              if (!currentUserId || !currentUserRole) {
+                console.error("User ID or role not available");
+                return;
+              }
 
-              // Get actual user ID based on role
+              const { savePost } = await import("../src/services/feedService");
+              // Get user role-specific ID for savePost
+              const effectiveRole =
+                currentUserRole === "admin" ? "worker" : currentUserRole;
+
               let actualUserId = currentUserId;
               if (currentUserRole === "worker") {
-                const { data } = await supabaseAny
+                const { data: workerData } = await supabase
                   .from("workers")
                   .select("id")
                   .eq("profile_id", currentUserId)
                   .single();
-                if (data) actualUserId = data.id;
+                if (workerData) actualUserId = workerData.id;
               } else if (currentUserRole === "employer") {
-                const { data } = await supabaseAny
+                const { data: employerData } = await supabase
                   .from("employers")
                   .select("id")
                   .eq("profile_id", currentUserId)
                   .single();
-                if (data) actualUserId = data.id;
+                if (employerData) actualUserId = employerData.id;
               } else if (currentUserRole === "accountant") {
-                const { data } = await supabaseAny
+                const { data: accountantData } = await supabase
                   .from("accountants")
                   .select("id")
                   .eq("profile_id", currentUserId)
                   .single();
-                if (data) actualUserId = data.id;
+                if (accountantData) actualUserId = accountantData.id;
               }
 
-              await supabaseAny.from("post_saves").insert({
-                post_id: post.id,
-                profile_id: currentUserId,
-                user_id: actualUserId,
-                user_role: currentUserRole,
-                folder: folder,
-              });
-
+              await savePost(
+                post.id,
+                actualUserId,
+                effectiveRole as any,
+                currentUserId,
+                folder
+              );
               setCurrentFolders([...currentFolders, folder]);
             }}
             onUnsave={async (folder) => {
-              await supabaseAny
-                .from("post_saves")
-                .delete()
-                .eq("post_id", post.id)
-                .eq("profile_id", currentUserId)
-                .eq("folder", folder);
-
+              const { unsavePost } = await import(
+                "../src/services/feedService"
+              );
+              await unsavePost(post.id, folder);
               setCurrentFolders(currentFolders.filter((f) => f !== folder));
             }}
             userRole={currentUserRole}
@@ -2210,168 +1957,85 @@ export function PostCardPremium({
         </div>
       </div>
 
-      {/* Comments Section - Premium Style */}
+      {/* Comments Section */}
       {showComments && (
-        <div className="border-t border-slate-100/50 bg-white/20 backdrop-blur-xl rounded-b-[2.5rem] relative">
+        <div className="px-6 py-4 border-t border-gray-100 bg-gray-50/50">
           {loadingComments ? (
-            <div className="text-center py-8 text-slate-600">
-              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-amber-600"></div>
-              <p className="mt-2 text-sm">Reacties laden...</p>
+            <div className="text-center py-4 text-gray-600">
+              Reacties laden...
             </div>
           ) : (
             <>
               {/* Comments List */}
-              <div className="px-6 py-4 space-y-4 max-h-[400px] overflow-y-auto custom-scrollbar">
-                {comments.length === 0 ? (
-                  <p className="text-center text-slate-400 text-xs italic py-4">
-                    Nog geen reacties. Wees de eerste!
-                  </p>
-                ) : (
-                  comments.map((comment) => (
-                    <div key={comment.id} className="relative mt-4">
-                      <div className="flex gap-3 group/comment">
-                        {/* Avatar */}
-                        <img
-                          src={
-                            comment.user_avatar ||
-                            `https://ui-avatars.com/api/?name=${encodeURIComponent(
-                              comment.user_name || "User"
-                            )}&background=f59e0b&color=fff`
-                          }
-                          alt={comment.user_name}
-                          className="w-8 h-8 rounded-full border border-white shadow-sm object-cover flex-shrink-0"
-                        />
-
-                        <div className="flex-1 relative">
-                          {/* Comment Bubble */}
-                          <div className="bg-white/60 backdrop-blur-sm rounded-2xl rounded-tl-none px-4 py-2.5 border border-white/40 shadow-sm hover:shadow-md transition-shadow">
-                            <div className="flex justify-between items-baseline">
-                              <span className="font-bold text-xs text-slate-800">
-                                {comment.user_name}
-                              </span>
-                              <span className="text-[10px] text-slate-400">
-                                {formatDate(comment.created_at)}
-                              </span>
-                            </div>
-                            <p className="text-sm text-slate-700 leading-relaxed mt-0.5">
-                              {comment.content}
-                            </p>
-                          </div>
-
-                          {/* Action Buttons */}
-                          <div className="flex items-center gap-4 mt-1.5 ml-2 relative z-20">
-                            <button
-                              onClick={() => handleCommentLike(comment.id)}
-                              className={`text-xs font-bold flex items-center gap-1 transition-colors ${
-                                comment.user_has_liked
-                                  ? "text-rose-500"
-                                  : "text-slate-400 hover:text-rose-500"
-                              }`}
-                            >
-                              <Heart
-                                className={`w-3 h-3 transition-transform ${
-                                  comment.user_has_liked
-                                    ? "fill-current animate-heart-pop"
-                                    : ""
-                                }`}
-                              />
-                              {comment.likes_count > 0 && (
-                                <span>{comment.likes_count}</span>
-                              )}
-                            </button>
-                            <button
-                              onClick={() => setReplyingTo(comment.id)}
-                              className="text-xs font-bold text-slate-400 hover:text-blue-500 transition-colors"
-                            >
-                              Reageer
-                            </button>
-                          </div>
-
-                          {/* FLYING EMOJI CONTAINER */}
-                          <div className="absolute bottom-full left-1/2 -translate-x-1/2 pointer-events-none w-20 h-0 overflow-visible z-50">
-                            {flyingEmojis.map((p) => (
-                              <div
-                                key={p.id}
-                                className="absolute bottom-0 left-1/2 text-2xl animate-fly-up opacity-80"
-                                style={
-                                  {
-                                    "--tw-translate-x": `${p.xOffset}px`,
-                                    animationDuration: `${p.duration}s`,
-                                    fontSize: `${p.scale * 1.5}rem`,
-                                  } as React.CSSProperties
-                                }
-                              >
-                                {p.emoji}
-                              </div>
-                            ))}
-                          </div>
-                        </div>
+              <div className="space-y-4 mb-4 max-h-96 overflow-y-auto">
+                {comments.map((comment) => (
+                  <div
+                    key={comment.id}
+                    className="flex items-start gap-3 group/comment"
+                  >
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-purple-600 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
+                      {comment.user_name?.charAt(0) || "U"}
+                    </div>
+                    <div className="flex-1">
+                      <div className="bg-white rounded-2xl px-4 py-3 shadow-sm border border-gray-100">
+                        <p className="text-sm font-bold text-gray-900">
+                          {comment.user_name}
+                        </p>
+                        <p className="text-sm text-gray-700 mt-1">
+                          {comment.content}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-4 mt-2 px-4">
+                        <span className="text-xs text-gray-500">
+                          {formatDate(comment.created_at)}
+                        </span>
+                        <button className="text-xs text-gray-600 hover:text-red-600 font-semibold transition-colors">
+                          Vind ik leuk ({comment.likes_count})
+                        </button>
+                        <button className="text-xs text-gray-600 hover:text-blue-600 font-semibold transition-colors">
+                          Reageren
+                        </button>
                       </div>
                     </div>
-                  ))
-                )}
+                  </div>
+                ))}
               </div>
 
               {/* Comment Input */}
-              <div className="p-4 bg-white/40 backdrop-blur-md border-t border-white/50 rounded-b-[2.5rem] relative z-20">
-                {replyingTo && (
-                  <div className="flex items-center justify-between text-xs text-slate-500 mb-2 px-2">
-                    <span className="flex items-center gap-1">
-                      <ChevronRight className="w-3 h-3" />
-                      Antwoord op{" "}
-                      <strong>
-                        {comments.find((c) => c.id === replyingTo)?.user_name}
-                      </strong>
-                    </span>
-                    <button
-                      onClick={() => setReplyingTo(null)}
-                      className="text-rose-500 hover:underline"
-                    >
-                      Annuleer
-                    </button>
-                  </div>
-                )}
-
-                {currentUserId && currentUserRole ? (
-                  <form onSubmit={handleSubmitComment}>
-                    <div className="flex gap-3 items-end">
-                      <img
-                        src={`https://ui-avatars.com/api/?name=U&background=f59e0b&color=fff`}
-                        className="w-8 h-8 rounded-xl object-cover border border-white shadow-sm"
-                        alt="me"
-                      />
-                      <div className="flex-1 relative">
-                        <input
-                          type="text"
+              {currentUserId && currentUserRole && (
+                <form onSubmit={handleSubmitComment} className="mt-4">
+                  <div className="flex items-start gap-3">
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-amber-400 to-orange-600 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
+                      U
+                    </div>
+                    <div className="flex-1">
+                      <div className="relative">
+                        <textarea
                           value={commentText}
                           onChange={(e) => setCommentText(e.target.value)}
-                          onKeyDown={(e) =>
-                            e.key === "Enter" && handleSubmitComment(e as any)
-                          }
-                          placeholder={
-                            replyingTo
-                              ? "Schrijf een antwoord..."
-                              : "Schrijf een reactie..."
-                          }
+                          placeholder="Schrijf een reactie..."
+                          rows={2}
+                          className="w-full px-4 py-3 pr-12 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-amber-500 focus:border-transparent resize-none bg-white"
                           disabled={isSubmittingComment}
-                          className="w-full pl-4 pr-10 py-2.5 bg-white/80 border border-white/60 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-slate-200 shadow-inner placeholder-slate-400 transition-all disabled:opacity-50"
                         />
                         <button
                           type="submit"
                           disabled={!commentText.trim() || isSubmittingComment}
-                          className="absolute right-1.5 top-1.5 p-1.5 bg-gradient-to-r from-slate-800 to-slate-900 text-white rounded-lg hover:shadow-lg disabled:opacity-30 disabled:shadow-none transition-all hover:scale-105"
+                          className="absolute right-2 bottom-2 p-2 bg-gradient-to-r from-amber-500 to-orange-600 text-white rounded-full hover:shadow-lg transform hover:scale-110 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
                         >
-                          <Send className="w-3 h-3" />
+                          <Send className="w-4 h-4" />
                         </button>
                       </div>
                     </div>
-                  </form>
-                ) : (
-                  <div className="text-sm text-slate-500 text-center py-3 bg-slate-100 rounded-2xl">
-                    Log in om te reageren
                   </div>
-                )}
-              </div>
+                </form>
+              )}
+
+              {!currentUserId && (
+                <div className="text-sm text-gray-500 text-center py-3 bg-gray-100 rounded-2xl">
+                  Log in om te reageren
+                </div>
+              )}
             </>
           )}
         </div>
@@ -2406,7 +2070,7 @@ function CreatePostCardPremium({
   onPostCreated,
   onCancel,
 }: CreatePostCardPremiumProps) {
-  const [postType, setPostType] = useState<PostType>("announcement");
+  const [postType, setPostType] = useState<PostType>("job_offer");
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -2424,6 +2088,62 @@ function CreatePostCardPremium({
   const [enhancedFormData, setEnhancedFormData] = useState<Record<string, any>>(
     {}
   );
+
+  // 🔥 Memoized progress calculation to prevent re-renders
+  const fieldCompletion = useMemo(() => {
+    if (postType === "job_offer") {
+      const required = ["job_type", "job_location"];
+      const recommended = [
+        "job_hours_per_week",
+        "job_contact_email",
+        "job_benefits",
+      ];
+      const total = required.length + recommended.length;
+      const filled = [...required, ...recommended].filter(
+        (field) =>
+          enhancedFormData[field] &&
+          (Array.isArray(enhancedFormData[field])
+            ? enhancedFormData[field].length > 0
+            : true)
+      ).length;
+      return {
+        filled,
+        total,
+        percentage: Math.round((filled / total) * 100),
+      };
+    }
+    if (postType === "ad") {
+      const required = ["ad_type"];
+      const recommended = ["ad_budget", "ad_cta_text", "ad_website"];
+      const total = required.length + recommended.length;
+      const filled = [...required, ...recommended].filter(
+        (field) => enhancedFormData[field]
+      ).length;
+      return {
+        filled,
+        total,
+        percentage: Math.round((filled / total) * 100),
+      };
+    }
+    if (postType === "announcement") {
+      const required = ["announcement_category", "announcement_priority"];
+      const recommended = ["announcement_tags", "announcement_expires_at"];
+      const total = required.length + recommended.length;
+      const filled = [...required, ...recommended].filter(
+        (field) =>
+          enhancedFormData[field] &&
+          (Array.isArray(enhancedFormData[field])
+            ? enhancedFormData[field].length > 0
+            : true)
+      ).length;
+      return {
+        filled,
+        total,
+        percentage: Math.round((filled / total) * 100),
+      };
+    }
+    return { filled: 0, total: 0, percentage: 0 };
+  }, [postType, enhancedFormData]);
 
   const handleFormChange = (field: string, value: any) => {
     setEnhancedFormData((prev) => ({
@@ -2532,6 +2252,24 @@ function CreatePostCardPremium({
         ...enhancedFormData, // Add all enhanced fields
       };
 
+      // 🔥 ALWAYS sync job_* fields to generic fields (CRITICAL FOR FILTERS)
+      // This must run BEFORE postType check, because JobOfferForm might be shown
+      // even if user didn't explicitly click "job_offer" button
+      if (postData.job_location && !postData.location) {
+        postData.location = postData.job_location;
+      }
+      if (postData.job_category && !postData.category) {
+        postData.category = postData.job_category;
+      }
+      if (
+        (postData.job_salary_min || postData.job_salary_max) &&
+        !postData.budget
+      ) {
+        const min = postData.job_salary_min || 0;
+        const max = postData.job_salary_max || min;
+        postData.budget = (min + max) / 2;
+      }
+
       // Legacy job_offer fields (keep for backward compatibility)
       if (postType === "job_offer") {
         postData.job_category = jobCategory || undefined;
@@ -2636,15 +2374,72 @@ function CreatePostCardPremium({
         </div>
 
         {/* Progress Bar */}
-        <ProgressBar postType={postType} formData={enhancedFormData} />
+        {postType && (
+          <div className="bg-gradient-to-r from-blue-50 via-indigo-50 to-purple-50 rounded-2xl p-6 border-2 border-blue-200">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <span className="text-2xl">📊</span>
+                <span className="text-sm font-bold text-gray-700">
+                  Postęp wypełnienia formularza
+                </span>
+              </div>
+              <span className="text-lg font-black text-gray-900">
+                {fieldCompletion.filled}/{fieldCompletion.total} pól
+              </span>
+            </div>
+            <div className="relative w-full h-4 bg-gray-200 rounded-full overflow-hidden">
+              <div
+                className={`h-full transition-all duration-500 ease-out ${
+                  fieldCompletion.percentage < 40
+                    ? "bg-gradient-to-r from-red-400 to-red-600"
+                    : fieldCompletion.percentage < 70
+                    ? "bg-gradient-to-r from-yellow-400 to-orange-500"
+                    : "bg-gradient-to-r from-green-400 to-emerald-600"
+                }`}
+                style={{ width: `${fieldCompletion.percentage}%` }}
+              >
+                <div className="w-full h-full bg-white/20 animate-pulse" />
+              </div>
+            </div>
+            <div className="mt-2 flex items-center justify-between text-xs">
+              <span
+                className={`font-bold ${
+                  fieldCompletion.percentage < 40
+                    ? "text-red-600"
+                    : fieldCompletion.percentage < 70
+                    ? "text-orange-600"
+                    : "text-green-600"
+                }`}
+              >
+                {fieldCompletion.percentage}% ukończone
+              </span>
+              <span className="text-gray-600">
+                {(() => {
+                  if (fieldCompletion.percentage < 40)
+                    return "⚠️ Wypełnij wymagane pola";
+                  if (fieldCompletion.percentage < 70)
+                    return "📈 Dobra robota! Dodaj więcej szczegółów";
+                  if (fieldCompletion.percentage < 100)
+                    return "🎯 Prawie gotowe!";
+                  return "✅ Wszystkie pola wypełnione!";
+                })()}
+              </span>
+            </div>
+          </div>
+        )}
 
         {/* Enhanced Forms Based on Post Type */}
         {postType === "ad" && (
-          <AdForm formData={enhancedFormData} onChange={handleFormChange} />
+          <AdForm
+            key="ad-form"
+            formData={enhancedFormData}
+            onChange={handleFormChange}
+          />
         )}
 
         {postType === "announcement" && (
           <AnnouncementForm
+            key="announcement-form"
             formData={enhancedFormData}
             onChange={handleFormChange}
           />
@@ -2652,6 +2447,7 @@ function CreatePostCardPremium({
 
         {postType === "job_offer" && (
           <JobOfferForm
+            key="job-offer-form"
             formData={enhancedFormData}
             onChange={handleFormChange}
           />
@@ -2749,122 +2545,6 @@ function CreatePostCardPremium({
 // =====================================================
 // UTILITY COMPONENTS
 // =====================================================
-
-// Progress Bar Component (extracted to prevent removeChild errors)
-function ProgressBar({
-  postType,
-  formData,
-}: {
-  postType: PostType;
-  formData: Record<string, any>;
-}) {
-  const getFieldCompletion = () => {
-    if (postType === "job_offer") {
-      const required = ["job_type", "job_location"];
-      const recommended = [
-        "job_hours_per_week",
-        "job_contact_email",
-        "job_benefits",
-      ];
-      const total = required.length + recommended.length;
-      const filled = [...required, ...recommended].filter(
-        (field) =>
-          formData[field] &&
-          (Array.isArray(formData[field]) ? formData[field].length > 0 : true)
-      ).length;
-      return {
-        filled,
-        total,
-        percentage: Math.round((filled / total) * 100),
-      };
-    }
-    if (postType === "ad") {
-      const required = ["ad_type"];
-      const recommended = ["ad_budget", "ad_cta_text", "ad_website"];
-      const total = required.length + recommended.length;
-      const filled = [...required, ...recommended].filter(
-        (field) => formData[field]
-      ).length;
-      return {
-        filled,
-        total,
-        percentage: Math.round((filled / total) * 100),
-      };
-    }
-    if (postType === "announcement") {
-      const required = ["announcement_category", "announcement_priority"];
-      const recommended = ["announcement_tags", "announcement_expires_at"];
-      const total = required.length + recommended.length;
-      const filled = [...required, ...recommended].filter(
-        (field) =>
-          formData[field] &&
-          (Array.isArray(formData[field]) ? formData[field].length > 0 : true)
-      ).length;
-      return {
-        filled,
-        total,
-        percentage: Math.round((filled / total) * 100),
-      };
-    }
-    return { filled: 0, total: 0, percentage: 0 };
-  };
-
-  const { filled, total, percentage } = getFieldCompletion();
-
-  if (!postType) return null;
-
-  return (
-    <div className="bg-gradient-to-r from-blue-50 via-indigo-50 to-purple-50 rounded-2xl p-6 border-2 border-blue-200">
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-2">
-          <span className="text-2xl">📊</span>
-          <span className="text-sm font-bold text-gray-700">
-            Postęp wypełnienia formularza
-          </span>
-        </div>
-        <span className="text-lg font-black text-gray-900">
-          {filled}/{total} pól
-        </span>
-      </div>
-      <div className="relative w-full h-4 bg-gray-200 rounded-full overflow-hidden">
-        <div
-          className={`h-full transition-all duration-500 ease-out ${
-            percentage < 40
-              ? "bg-gradient-to-r from-red-400 to-red-600"
-              : percentage < 70
-              ? "bg-gradient-to-r from-yellow-400 to-orange-500"
-              : "bg-gradient-to-r from-green-400 to-emerald-600"
-          }`}
-          style={{ width: `${percentage}%` }}
-        >
-          <div className="w-full h-full bg-white/20 animate-pulse" />
-        </div>
-      </div>
-      <div className="mt-2 flex items-center justify-between text-xs">
-        <span
-          className={`font-bold ${
-            percentage < 40
-              ? "text-red-600"
-              : percentage < 70
-              ? "text-orange-600"
-              : "text-green-600"
-          }`}
-        >
-          {percentage}% ukończone
-        </span>
-        <span className="text-gray-600">
-          {percentage < 40
-            ? "⚠️ Wypełnij wymagane pola"
-            : percentage < 70
-            ? "📈 Dobra robota! Dodaj więcej szczegółów"
-            : percentage < 100
-            ? "🎯 Prawie gotowe!"
-            : "✅ Wszystkie pola wypełnione!"}
-        </span>
-      </div>
-    </div>
-  );
-}
 
 function FeedSkeleton() {
   return (

@@ -54,8 +54,8 @@ export const RegisterSelectPage = () => {
           </p>
         </div>
 
-        {/* Account Type Selection Cards */}
-        <div className="grid md:grid-cols-2 gap-6 mb-8">
+        {/* Account Type Selection Cards - Updated to 3-column grid for 5 cards */}
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
           {/* Employer Card */}
           <div className="bg-gradient-glass backdrop-blur-md border border-accent-cyber/20 rounded-2xl shadow-3d p-6 hover:border-accent-cyber/50 transition-all hover:scale-105">
             <div className="flex items-start gap-4 mb-4">
@@ -205,6 +205,58 @@ export const RegisterSelectPage = () => {
             >
               Registreer als Boekhouder
             </Link>
+          </div>
+
+          {/* Regular User Card - NEW */}
+          <div className="bg-gradient-glass backdrop-blur-md border border-purple-500/20 rounded-2xl shadow-3d p-6 hover:border-purple-500/50 transition-all hover:scale-105">
+            <div className="flex items-start gap-4 mb-4">
+              <div className="flex-shrink-0 w-12 h-12 bg-purple-500/20 rounded-xl flex items-center justify-center">
+                <svg
+                  className="w-6 h-6 text-purple-400"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                  />
+                </svg>
+              </div>
+              <div className="flex-1">
+                <h3 className="text-xl font-bold text-white mb-2">
+                  🔍 Particulier / Opdrachtgever
+                </h3>
+                <p className="text-sm text-neutral-300 mb-4">
+                  Zoek een vakman voor uw klus - gratis registratie
+                </p>
+                <ul className="space-y-2 text-sm text-neutral-400 mb-4">
+                  <li className="flex items-center gap-2">
+                    <span className="text-purple-400">✓</span>3 gratis
+                    serviceverzoeken per maand
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <span className="text-purple-400">✓</span>
+                    Ontvang offertes van vakmannen
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <span className="text-purple-400">✓</span>
+                    Direct contact met professionals
+                  </li>
+                </ul>
+              </div>
+            </div>
+            <Link
+              to="/register/regular-user"
+              className="block w-full text-center bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 font-medium py-3 px-4 rounded-xl transition border border-purple-500/30 hover:border-purple-500"
+            >
+              Registreer als Particulier
+            </Link>
+            <p className="text-xs text-neutral-500 mt-3 text-center">
+              💡 Gratis account met 3 serviceverzoeken per maand
+            </p>
           </div>
 
           {/* Cleaning Company Card */}

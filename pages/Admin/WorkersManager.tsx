@@ -352,7 +352,95 @@ export const WorkersManager = () => {
 
         {/* Workers Table */}
         <div className="bg-white/10 backdrop-blur-md rounded-2xl border border-white/20 overflow-hidden">
-          <div className="overflow-x-auto">
+          {/* Mobile Card View */}
+          <div className="md:hidden divide-y divide-white/10">
+            {filteredWorkers.length === 0 ? (
+              <div className="px-6 py-16 text-center">
+                <div className="text-6xl mb-4">🔍</div>
+                <p className="text-xl text-gray-400">
+                  Brak pracowników spełniających kryteria
+                </p>
+              </div>
+            ) : (
+              filteredWorkers.map((worker) => (
+                <div
+                  key={worker.id}
+                  className="p-4 hover:bg-white/5 transition-colors"
+                  onClick={() => navigate(`/profile/worker/${worker.id}`)}
+                >
+                  <div className="flex items-start gap-3">
+                    <img
+                      src={worker.avatarUrl}
+                      alt={worker.firstName}
+                      className="w-12 h-12 rounded-full flex-shrink-0"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2">
+                        <h3 className="font-semibold text-white truncate">
+                          {worker.firstName} {worker.lastName}
+                        </h3>
+                        {worker.isVerified ? (
+                          <span className="text-green-400 text-xs flex items-center gap-1">✓ Zweryfikowany</span>
+                        ) : (
+                          <span className="text-yellow-400 text-xs">⚠️ Do weryfikacji</span>
+                        )}
+                      </div>
+                      <p className="text-sm text-gray-400">{worker.location}</p>
+                      <div className="flex flex-wrap items-center gap-2 mt-2">
+                        <span className="text-xs text-gray-300 bg-white/10 px-2 py-1 rounded-full">
+                          {worker.category}
+                        </span>
+                        <span className={`text-xs px-2 py-1 rounded-full ${
+                          worker.level === Level.Senior
+                            ? "bg-purple-500/20 text-purple-300"
+                            : worker.level === Level.Regular
+                            ? "bg-blue-500/20 text-blue-300"
+                            : "bg-green-500/20 text-green-300"
+                        }`}>
+                          {worker.level}
+                        </span>
+                        {worker.hasVca && (
+                          <span className="text-xs text-green-400 bg-green-500/10 px-2 py-1 rounded-full">VCA ✓</span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 mt-3">
+                        <Link
+                          to={`/profile/worker/${worker.id}`}
+                          onClick={(e) => e.stopPropagation()}
+                          className="text-blue-400 text-sm min-h-[44px] flex items-center px-3 py-2 bg-blue-500/10 rounded-lg"
+                        >
+                          👁️ Profil
+                        </Link>
+                        {!worker.isVerified && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleVerifyWorker(worker);
+                            }}
+                            className="px-3 py-2 min-h-[44px] bg-green-500/20 text-green-300 rounded-lg text-sm"
+                          >
+                            🔍 Weryfikuj
+                          </button>
+                        )}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteWorker(worker);
+                          }}
+                          className="px-3 py-2 min-h-[44px] bg-red-500/20 text-red-300 rounded-lg text-sm ml-auto"
+                        >
+                          🗑️
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+          
+          {/* Desktop Table View */}
+          <div className="hidden md:block overflow-x-auto scrollable-table-container scroll-right">
             <table className="w-full">
               <thead>
                 <tr className="bg-white/5 border-b border-white/10">

@@ -2,7 +2,9 @@ import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../../contexts/AuthContext";
+import { useIsMobile } from "../../src/hooks/useIsMobile";
 import { SupportTicketModal } from "../../src/components/SupportTicketModal";
+import { AccountantSettingsPanel } from "../../components/settings/AccountantSettingsPanel";
 import { geocodeAddress } from "../../services/geocoding";
 import { getAccountantReviews } from "../../src/services/accountantReviewService";
 import {
@@ -18,6 +20,7 @@ import {
 import { supabase } from "../../src/lib/supabase";
 import { DashboardHeader } from "../../components/DashboardComponents";
 import { ProjectCommunicationManager } from "../../components/ProjectCommunicationManager";
+import { UpcomingEventsCard } from "../../components/UpcomingEventsCard";
 import FeedPage from "../../pages/FeedPage_PREMIUM";
 import AvailabilityCalendar from "../../src/components/common/AvailabilityCalendar";
 import DateBlocker from "../../src/components/common/DateBlocker";
@@ -30,6 +33,13 @@ import {
   TabPanel,
   type UnifiedTab,
 } from "../../components/UnifiedDashboardTabs";
+import { DashboardSidebar } from "../../components/DashboardSidebar";
+import { NavigationDrawer } from "../../components/NavigationDrawer";
+import { QuickActionsCard } from "../../components/QuickActionsCard";
+import {
+  ProfileNavigationDrawer,
+  type ProfileSubTab,
+} from "../../components/ProfileNavigationDrawer";
 import type { WeeklyAvailability, UnavailableDate } from "../../types";
 import {
   FileText,
@@ -47,6 +57,9 @@ import {
 } from "../../components/icons";
 import MyPosts from "./MyPosts";
 import SavedActivity from "./SavedActivity";
+import { MyProfilePreview } from "../../components/profile/MyProfilePreview";
+import AccountantSubscriptionPage from "./AccountantSubscriptionPage";
+// NOTE: Kilometers, Appointments and I18nProvider removed - they are only in /faktury module
 
 // ===================================================================
 // TYPESCRIPT INTERFACES - MESSENGER
@@ -171,9 +184,17 @@ export default function AccountantDashboard() {
   const { t } = useTranslation();
   const { user } = useAuth();
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
 
   // Unified tabs state
   const { activeTab, setActiveTab } = useUnifiedTabs("overview");
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
+  // Profile sub-navigation state (drugi poziom menu dla tabu Profile)
+  const [profileSubTab, setProfileSubTab] = useState<
+    "overview" | "edit" | "availability" | "team" | "stats"
+  >("overview");
+  const [isProfileSidebarOpen, setIsProfileSidebarOpen] = useState(false);
 
   const [accountant, setAccountant] = useState<Accountant | null>(null);
   const [loading, setLoading] = useState(true);
@@ -237,6 +258,27 @@ export default function AccountantDashboard() {
     latitude: null as number | null,
     longitude: null as number | null,
   });
+
+  // Settings state for AccountantSettingsPanel
+  const [notificationSettings, setNotificationSettings] = useState({
+    email_enabled: true,
+    sms_enabled: false,
+    push_enabled: true,
+    client_alerts: true,
+    message_alerts: true,
+    review_alerts: true,
+    form_submission_alerts: true,
+  });
+
+  const [privacySettings, setPrivacySettings] = useState({
+    profile_visibility: "public" as "public" | "contacts" | "private",
+    show_email: true,
+    show_phone: true,
+    show_address: false,
+    allow_messages: true,
+  });
+
+  const [settingsSaving, setSettingsSaving] = useState(false);
 
   useEffect(() => {
     if (user?.id) {
@@ -649,6 +691,8 @@ export default function AccountantDashboard() {
         languages: data.languages || ["Nederlands"],
         website: data.website || "",
         years_experience: data.years_experience || 0,
+        latitude: data.latitude || null,
+        longitude: data.longitude || null,
       });
     } catch (error) {
       console.error("Error loading accountant:", error);
@@ -877,246 +921,309 @@ export default function AccountantDashboard() {
     setShowSupportModal(true);
   };
 
-  const renderTopTabs = () => (
-    <div className="border-b border-gray-200 bg-white">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <UnifiedDashboardTabs
-          activeTab={activeTab}
-          onTabChange={setActiveTab}
-          role="accountant"
-          unreadMessages={unreadCount}
-        />
-      </div>
-    </div>
-  );
+  // Settings handlers for AccountantSettingsPanel
+  const handleNotificationSettingsSave = async () => {
+    setSettingsSaving(true);
+    try {
+      // TODO: Save to database when notification_settings table exists
+      console.log("✅ Notification settings saved:", notificationSettings);
+      alert("Ustawienia powiadomień zapisane!");
+    } catch (error) {
+      console.error("❌ Error saving notification settings:", error);
+      alert("Błąd podczas zapisywania ustawień powiadomień");
+    } finally {
+      setSettingsSaving(false);
+    }
+  };
+
+  const handlePrivacySettingsSave = async () => {
+    setSettingsSaving(true);
+    try {
+      // TODO: Save to database when privacy_settings table exists
+      console.log("✅ Privacy settings saved:", privacySettings);
+      alert("Ustawienia prywatności zapisane!");
+    } catch (error) {
+      console.error("❌ Error saving privacy settings:", error);
+      alert("Błąd podczas zapisywania ustawień prywatności");
+    } finally {
+      setSettingsSaving(false);
+    }
+  };
+
+  const handleAccountantDataSave = async (data: {
+    full_name: string;
+    company_name: string;
+    email: string;
+    phone: string;
+    kvk_number: string;
+    btw_number: string;
+    license_number: string;
+    city: string;
+    address: string;
+    postal_code: string;
+    country: string;
+    bio: string;
+    specializations: string[];
+    languages: string[];
+    website: string;
+    years_experience: number;
+  }) => {
+    if (!accountant) return;
+    setSettingsSaving(true);
+
+    try {
+      // Auto-geocode address if provided
+      let updateData = {
+        ...data,
+        latitude: null as number | null,
+        longitude: null as number | null,
+      };
+
+      if (data.address && data.city) {
+        const geocoded = await geocodeAddress(
+          data.address,
+          data.city,
+          data.postal_code,
+          data.country
+        );
+        if (geocoded) {
+          updateData.latitude = geocoded.latitude;
+          updateData.longitude = geocoded.longitude;
+        }
+      }
+
+      const { error } = await supabase
+        .from("accountants")
+        .update({
+          full_name: updateData.full_name,
+          company_name: updateData.company_name,
+          email: updateData.email,
+          phone: updateData.phone,
+          kvk_number: updateData.kvk_number,
+          btw_number: updateData.btw_number,
+          license_number: updateData.license_number,
+          city: updateData.city,
+          address: updateData.address,
+          postal_code: updateData.postal_code,
+          country: updateData.country,
+          bio: updateData.bio,
+          specializations: updateData.specializations,
+          languages: updateData.languages,
+          website: updateData.website,
+          years_experience: updateData.years_experience,
+          latitude: updateData.latitude,
+          longitude: updateData.longitude,
+        })
+        .eq("id", accountant.id);
+
+      if (error) throw error;
+
+      setAccountant({ ...accountant, ...updateData });
+      setEditForm({ ...editForm, ...data });
+      console.log("✅ Accountant data saved");
+      alert("Dane księgowego zapisane!");
+    } catch (error) {
+      console.error("❌ Error saving accountant data:", error);
+      alert("Błąd podczas zapisywania danych");
+    } finally {
+      setSettingsSaving(false);
+    }
+  };
+
+  // Desktop sidebar state
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+
+  // renderTopTabs removed - using DashboardSidebar instead
 
   const renderOverview = () => (
     <div className="space-y-6">
       {/* Stats Cards - 4 karty (usunięto "Zgłoszenia") */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div className="bg-gradient-to-br from-blue-100 to-blue-50 rounded-xl shadow-md border border-blue-200 p-6">
+      <div
+        className={`grid ${
+          isMobile ? "grid-cols-2" : "grid-cols-1 md:grid-cols-4"
+        } gap-3 md:gap-6`}
+      >
+        <div className="bg-gradient-to-br from-blue-100 to-blue-50 rounded-xl shadow-md border border-blue-200 p-4 md:p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-blue-600 mb-1">Aktywni klienci</p>
-              <p className="text-3xl font-bold text-blue-900">
+              <p
+                className={`text-blue-600 mb-1 ${
+                  isMobile ? "text-xs" : "text-sm"
+                }`}
+              >
+                Aktywni klienci
+              </p>
+              <p
+                className={`font-bold text-blue-900 ${
+                  isMobile ? "text-xl" : "text-3xl"
+                }`}
+              >
                 {accountant?.total_clients || 0}
               </p>
             </div>
-            <Users className="w-10 h-10 text-blue-500" />
+            <Users className={isMobile ? "w-6 h-6" : "w-10 h-10"} />
           </div>
         </div>
-        <div className="bg-gradient-to-br from-yellow-100 to-yellow-50 rounded-xl shadow-md border border-yellow-200 p-6">
+        <div className="bg-gradient-to-br from-yellow-100 to-yellow-50 rounded-xl shadow-md border border-yellow-200 p-4 md:p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-yellow-600 mb-1">Ocena</p>
-              <p className="text-3xl font-bold text-yellow-900">
+              <p
+                className={`text-yellow-600 mb-1 ${
+                  isMobile ? "text-xs" : "text-sm"
+                }`}
+              >
+                Ocena
+              </p>
+              <p
+                className={`font-bold text-yellow-900 ${
+                  isMobile ? "text-xl" : "text-3xl"
+                }`}
+              >
                 {accountant?.rating
                   ? `${accountant.rating.toFixed(1)} ⭐`
                   : "0.0 ⭐"}
               </p>
             </div>
-            <Star className="w-10 h-10 text-yellow-500" />
+            <Star className={isMobile ? "w-6 h-6" : "w-10 h-10"} />
           </div>
         </div>
-        <div className="bg-gradient-to-br from-green-100 to-green-50 rounded-xl shadow-md border border-green-200 p-6">
+        <div className="bg-gradient-to-br from-green-100 to-green-50 rounded-xl shadow-md border border-green-200 p-4 md:p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-green-600 mb-1">
-                Wyświetlenia profilu
+              <p
+                className={`text-green-600 mb-1 ${
+                  isMobile ? "text-xs" : "text-sm"
+                }`}
+              >
+                {isMobile ? "Wyświetlenia" : "Wyświetlenia profilu"}
               </p>
-              <p className="text-3xl font-bold text-green-900">
+              <p
+                className={`font-bold text-green-900 ${
+                  isMobile ? "text-xl" : "text-3xl"
+                }`}
+              >
                 {accountant?.profile_views || 0}
               </p>
             </div>
-            <Eye className="w-10 h-10 text-green-500" />
+            <Eye className={isMobile ? "w-6 h-6" : "w-10 h-10"} />
           </div>
         </div>
-        <div className="bg-gradient-to-br from-purple-100 to-purple-50 rounded-xl shadow-md border border-purple-200 p-6">
+        <div className="bg-gradient-to-br from-purple-100 to-purple-50 rounded-xl shadow-md border border-purple-200 p-4 md:p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-purple-600 mb-1">Wiadomości</p>
-              <p className="text-3xl font-bold text-purple-900">
+              <p
+                className={`text-purple-600 mb-1 ${
+                  isMobile ? "text-xs" : "text-sm"
+                }`}
+              >
+                Wiadomości
+              </p>
+              <p
+                className={`font-bold text-purple-900 ${
+                  isMobile ? "text-xl" : "text-3xl"
+                }`}
+              >
                 {unreadCount || 0}
               </p>
             </div>
-            <Bell className="w-10 h-10 text-purple-500" />
+            <Bell className={isMobile ? "w-6 h-6" : "w-10 h-10"} />
           </div>
         </div>
       </div>
 
-      {/* Szybkie działania Card */}
-      <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6 mb-6">
-        <h2 className="text-xl font-bold text-gray-900 mb-4">
-          ⚡ Szybkie działania
-        </h2>
+      {/* Szybkie działania Card - Premium Glass Style */}
+      <QuickActionsCard
+        role="accountant"
+        isMobile={isMobile}
+        onSubscription={handleViewSubscription}
+      />
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          <Link
-            to="/employers"
-            className="w-full px-4 py-3 bg-orange-600 text-white rounded-lg font-medium hover:bg-orange-700 flex items-center justify-center gap-2"
-          >
-            <svg
-              className="w-5 h-5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-              />
-            </svg>
-            Szukaj pracodawców
-          </Link>
-
-          <Link
-            to="/cleaning-companies"
-            className="w-full px-4 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 flex items-center justify-center gap-2"
-          >
-            <svg
-              className="w-5 h-5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
-              />
-            </svg>
-            Szukaj firm sprzątających
-          </Link>
-
-          <Link
-            to="/workers"
-            className="w-full px-4 py-3 bg-cyan-600 text-white rounded-lg font-medium hover:bg-cyan-700 flex items-center justify-center gap-2"
-          >
-            <svg
-              className="w-5 h-5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-              />
-            </svg>
-            Szukaj pracowników
-          </Link>
-
-          <Link
-            to="/faktury"
-            className="w-full px-4 py-3 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 flex items-center justify-center gap-2"
-          >
-            <svg
-              className="w-5 h-5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-              />
-            </svg>
-            Faktury & BTW
-          </Link>
-
-          <button
-            onClick={handleViewSubscription}
-            className="w-full px-4 py-3 bg-purple-600 text-white rounded-lg font-medium hover:bg-purple-700 flex items-center justify-center gap-2"
-          >
-            <svg
-              className="w-5 h-5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"
-              />
-            </svg>
-            Subskrypcja
-          </button>
-
-          <button
-            onClick={handleContactSupport}
-            className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg font-medium text-gray-700 hover:bg-gray-50 flex items-center justify-center gap-2"
-          >
-            <svg
-              className="w-5 h-5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-5 0a4 4 0 11-8 0 4 4 0 018 0z"
-              />
-            </svg>
-            Wsparcie
-          </button>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div
+        className={`grid ${
+          isMobile ? "grid-cols-1" : "grid-cols-1 md:grid-cols-3"
+        } gap-4 md:gap-6`}
+      >
         <div
-          onClick={() => setInnerTab("submissions")}
-          className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-lg shadow-lg p-6 text-white cursor-pointer hover:shadow-xl"
+          onClick={() => setActiveTab("submissions")}
+          className={`bg-gradient-to-br from-orange-500 to-orange-600 rounded-lg shadow-lg text-white cursor-pointer hover:shadow-xl ${
+            isMobile ? "p-4" : "p-6"
+          }`}
         >
-          <FileText className="w-8 h-8 mb-4" />
-          <h3 className="text-xl font-bold mb-2">Zgłoszenia</h3>
-          <p className="text-orange-100">Nowe zgłoszenia od klientów</p>
+          <FileText className={isMobile ? "w-6 h-6 mb-2" : "w-8 h-8 mb-4"} />
+          <h3 className={`font-bold mb-2 ${isMobile ? "text-lg" : "text-xl"}`}>
+            Zgłoszenia
+          </h3>
+          <p className={`text-orange-100 ${isMobile ? "text-sm" : ""}`}>
+            Nowe zgłoszenia od klientów
+          </p>
         </div>
 
         <div
           onClick={() => setActiveTab("services")}
-          className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg shadow-lg p-6 text-white cursor-pointer hover:shadow-xl"
+          className={`bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg shadow-lg text-white cursor-pointer hover:shadow-xl ${
+            isMobile ? "p-4" : "p-6"
+          }`}
         >
-          <Briefcase className="w-8 h-8 mb-4" />
-          <h3 className="text-xl font-bold mb-2">Usługi</h3>
-          <p className="text-purple-100">Zarządzaj ofertą księgową</p>
+          <Briefcase className={isMobile ? "w-6 h-6 mb-2" : "w-8 h-8 mb-4"} />
+          <h3 className={`font-bold mb-2 ${isMobile ? "text-lg" : "text-xl"}`}>
+            Usługi
+          </h3>
+          <p className={`text-purple-100 ${isMobile ? "text-sm" : ""}`}>
+            Zarządzaj ofertą księgową
+          </p>
         </div>
 
         <div
-          onClick={() => setInnerTab("forms")}
-          className="bg-gradient-to-br from-green-500 to-green-600 rounded-lg shadow-lg p-6 text-white cursor-pointer hover:shadow-xl"
+          onClick={() => setActiveTab("forms")}
+          className={`bg-gradient-to-br from-green-500 to-green-600 rounded-lg shadow-lg text-white cursor-pointer hover:shadow-xl ${
+            isMobile ? "p-4" : "p-6"
+          }`}
         >
-          <ClipboardList className="w-8 h-8 mb-4" />
-          <h3 className="text-xl font-bold mb-2">Formularze</h3>
-          <p className="text-green-100">Szablony dla klientów</p>
+          <ClipboardList
+            className={isMobile ? "w-6 h-6 mb-2" : "w-8 h-8 mb-4"}
+          />
+          <h3 className={`font-bold mb-2 ${isMobile ? "text-lg" : "text-xl"}`}>
+            Formularze
+          </h3>
+          <p className={`text-green-100 ${isMobile ? "text-sm" : ""}`}>
+            Szablony dla klientów
+          </p>
         </div>
       </div>
 
       {/* Profil + Ostatnie wiadomości */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div
+        className={`grid ${
+          isMobile ? "grid-cols-1" : "grid-cols-1 lg:grid-cols-2"
+        } gap-4 md:gap-6`}
+      >
         {/* Zdjęcie profilowe + dane */}
-        <div className="bg-white rounded-lg shadow p-6">
-          <h3 className="text-lg font-semibold mb-4">📸 Profil księgowy</h3>
+        <div
+          className={`bg-white rounded-lg shadow ${isMobile ? "p-4" : "p-6"}`}
+        >
+          <h3
+            className={`font-semibold mb-4 ${
+              isMobile ? "text-base" : "text-lg"
+            }`}
+          >
+            📸 Profil księgowy
+          </h3>
 
           {/* Avatar Section */}
-          <div className="flex gap-4 mb-6">
+          <div
+            className={`flex gap-4 mb-6 ${
+              isMobile ? "flex-col items-center" : ""
+            }`}
+          >
             <div className="flex flex-col items-center gap-3">
               {accountant?.avatar_url ? (
                 <>
                   <img
                     src={accountant.avatar_url}
                     alt="Avatar księgowego"
-                    className="w-24 h-24 rounded-full object-cover border-4 border-blue-100 shadow-lg"
+                    className={`rounded-full object-cover border-4 border-blue-100 shadow-lg ${
+                      isMobile ? "w-20 h-20" : "w-24 h-24"
+                    }`}
                     onError={(e) => {
                       console.error(
                         "❌ Avatar failed to load:",
@@ -1130,21 +1237,35 @@ export default function AccountantDashboard() {
                     }}
                   />
                   <div
-                    className="w-24 h-24 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full items-center justify-center text-white font-bold text-4xl shadow-lg border-4 border-blue-100"
+                    className={`bg-gradient-to-br from-blue-500 to-blue-600 rounded-full items-center justify-center text-white font-bold shadow-lg border-4 border-blue-100 ${
+                      isMobile ? "w-20 h-20 text-3xl" : "w-24 h-24 text-4xl"
+                    }`}
                     style={{ display: "none" }}
                   >
                     {accountant?.company_name?.[0]?.toUpperCase() || "K"}
                   </div>
                 </>
               ) : (
-                <div className="w-24 h-24 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white font-bold text-4xl shadow-lg flex-shrink-0">
+                <div
+                  className={`bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white font-bold shadow-lg flex-shrink-0 ${
+                    isMobile ? "w-20 h-20 text-3xl" : "w-24 h-24 text-4xl"
+                  }`}
+                >
                   {accountant?.company_name?.[0]?.toUpperCase() || "K"}
                 </div>
               )}
 
               {/* Upload/Remove buttons */}
-              <div className="flex flex-col gap-2 w-full">
-                <label className="text-xs bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg cursor-pointer text-center transition-colors">
+              <div
+                className={`flex gap-2 ${
+                  isMobile ? "flex-row w-full" : "flex-col w-full"
+                }`}
+              >
+                <label
+                  className={`bg-blue-600 hover:bg-blue-700 text-white rounded-lg cursor-pointer text-center transition-colors ${
+                    isMobile ? "flex-1 text-xs px-2 py-2" : "text-xs px-3 py-2"
+                  }`}
+                >
                   Zmień
                   <input
                     type="file"
@@ -1156,7 +1277,11 @@ export default function AccountantDashboard() {
                 {accountant?.avatar_url && (
                   <button
                     onClick={handleRemoveAvatar}
-                    className="text-xs bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded-lg transition-colors"
+                    className={`bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors ${
+                      isMobile
+                        ? "flex-1 text-xs px-2 py-2"
+                        : "text-xs px-3 py-2"
+                    }`}
                   >
                     Usuń
                   </button>
@@ -1164,22 +1289,46 @@ export default function AccountantDashboard() {
               </div>
             </div>
 
-            <div className="flex-1">
-              <h4 className="font-bold text-xl mb-1">
+            <div className={`flex-1 ${isMobile ? "text-center" : ""}`}>
+              <h4
+                className={`font-bold mb-1 ${isMobile ? "text-lg" : "text-xl"}`}
+              >
                 {accountant?.company_name || "Księgowość"}
               </h4>
-              <p className="text-sm text-gray-600 mb-2">{accountant?.email}</p>
-              <div className="flex gap-2 mb-3">
-                <span className="px-2 py-1 bg-green-100 text-green-700 text-xs font-medium rounded-full flex items-center gap-1">
+              <p
+                className={`text-gray-600 mb-2 ${
+                  isMobile ? "text-xs" : "text-sm"
+                }`}
+              >
+                {accountant?.email}
+              </p>
+              <div
+                className={`flex gap-2 mb-3 ${
+                  isMobile ? "justify-center" : ""
+                }`}
+              >
+                <span
+                  className={`bg-green-100 text-green-700 font-medium rounded-full flex items-center gap-1 ${
+                    isMobile ? "px-2 py-1 text-xs" : "px-2 py-1 text-xs"
+                  }`}
+                >
                   ✓ Aktywny
                 </span>
-                <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs font-medium rounded-full flex items-center gap-1">
+                <span
+                  className={`bg-blue-100 text-blue-700 font-medium rounded-full flex items-center gap-1 ${
+                    isMobile ? "px-2 py-1 text-xs" : "px-2 py-1 text-xs"
+                  }`}
+                >
                   ✓ Zweryfikowany
                 </span>
               </div>
 
               {accountant?.bio && (
-                <p className="text-sm text-gray-600 italic mb-3">
+                <p
+                  className={`text-gray-600 italic mb-3 ${
+                    isMobile ? "text-xs" : "text-sm"
+                  }`}
+                >
                   "{accountant.bio}"
                 </p>
               )}
@@ -1202,34 +1351,54 @@ export default function AccountantDashboard() {
           )}
 
           {/* Contact info */}
-          <div className="space-y-2 mb-4 bg-gray-50 rounded-lg p-4">
-            <div className="flex items-center gap-2 text-sm">
-              <User className="w-4 h-4 text-gray-400" />
+          <div
+            className={`space-y-2 mb-4 bg-gray-50 rounded-lg ${
+              isMobile ? "p-3" : "p-4"
+            }`}
+          >
+            <div
+              className={`flex items-center gap-2 ${
+                isMobile ? "text-xs" : "text-sm"
+              }`}
+            >
+              <User className={isMobile ? "w-3 h-3" : "w-4 h-4"} />
               <span className="text-gray-600">
                 Email: {accountant?.email || "Nie podano"}
               </span>
             </div>
             {accountant?.phone && (
-              <div className="flex items-center gap-2 text-sm">
+              <div
+                className={`flex items-center gap-2 ${
+                  isMobile ? "text-xs" : "text-sm"
+                }`}
+              >
                 <span className="text-gray-400">📱</span>
                 <span className="text-gray-600">Tel: {accountant.phone}</span>
               </div>
             )}
-            <div className="flex items-center gap-2 text-sm">
-              <MapPin className="w-4 h-4 text-gray-400" />
+            <div
+              className={`flex items-center gap-2 ${
+                isMobile ? "text-xs" : "text-sm"
+              }`}
+            >
+              <MapPin className={isMobile ? "w-3 h-3" : "w-4 h-4"} />
               <span className="text-gray-600">
                 {accountant?.city || "Rotterdam"},{" "}
                 {accountant?.country || "Nederland"}
               </span>
             </div>
             {accountant?.website && (
-              <div className="flex items-center gap-2 text-sm">
+              <div
+                className={`flex items-center gap-2 ${
+                  isMobile ? "text-xs" : "text-sm"
+                }`}
+              >
                 <span className="text-gray-400">🌐</span>
                 <a
                   href={accountant.website}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-blue-600 hover:underline"
+                  className="text-blue-600 hover:underline break-all"
                 >
                   {accountant.website}
                 </a>
@@ -1237,7 +1406,11 @@ export default function AccountantDashboard() {
             )}
             {accountant?.years_experience &&
               accountant.years_experience > 0 && (
-                <div className="flex items-center gap-2 text-sm">
+                <div
+                  className={`flex items-center gap-2 ${
+                    isMobile ? "text-xs" : "text-sm"
+                  }`}
+                >
                   <span className="text-gray-400">📊</span>
                   <span className="text-gray-600">
                     Doświadczenie: {accountant.years_experience} lat
@@ -1250,14 +1423,20 @@ export default function AccountantDashboard() {
           {accountant?.specializations &&
             accountant.specializations.length > 0 && (
               <div className="mb-4">
-                <h5 className="text-sm font-semibold text-gray-700 mb-2">
+                <h5
+                  className={`font-semibold text-gray-700 mb-2 ${
+                    isMobile ? "text-xs" : "text-sm"
+                  }`}
+                >
                   Specjalizacje:
                 </h5>
                 <div className="flex flex-wrap gap-2">
                   {accountant.specializations.map((spec, idx) => (
                     <span
                       key={idx}
-                      className="px-3 py-1 bg-blue-100 text-blue-700 text-xs font-medium rounded-full"
+                      className={`bg-blue-100 text-blue-700 font-medium rounded-full ${
+                        isMobile ? "px-2 py-1 text-xs" : "px-3 py-1 text-xs"
+                      }`}
                     >
                       {spec}
                     </span>
@@ -1269,14 +1448,20 @@ export default function AccountantDashboard() {
           {/* Languages */}
           {accountant?.languages && accountant.languages.length > 0 && (
             <div className="mb-4">
-              <h5 className="text-sm font-semibold text-gray-700 mb-2">
+              <h5
+                className={`font-semibold text-gray-700 mb-2 ${
+                  isMobile ? "text-xs" : "text-sm"
+                }`}
+              >
                 Języki:
               </h5>
               <div className="flex flex-wrap gap-2">
                 {accountant.languages.map((lang, idx) => (
                   <span
                     key={idx}
-                    className="px-3 py-1 bg-green-100 text-green-700 text-xs font-medium rounded-full"
+                    className={`bg-green-100 text-green-700 font-medium rounded-full ${
+                      isMobile ? "px-2 py-1 text-xs" : "px-3 py-1 text-xs"
+                    }`}
                   >
                     {lang}
                   </span>
@@ -1320,19 +1505,37 @@ export default function AccountantDashboard() {
         </div>
 
         {/* Ostatnie wiadomości */}
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-center justify-between mb-4">
+        <div
+          className={`bg-white rounded-lg shadow ${isMobile ? "p-4" : "p-6"}`}
+        >
+          <div
+            className={`flex items-center justify-between mb-4 ${
+              isMobile ? "flex-col gap-2" : ""
+            }`}
+          >
             <div className="flex items-center gap-2">
-              <h3 className="text-lg font-semibold">📬 Ostatnie wiadomości</h3>
+              <h3
+                className={`font-semibold ${
+                  isMobile ? "text-base" : "text-lg"
+                }`}
+              >
+                📬 Ostatnie wiadomości
+              </h3>
               {unreadCount > 0 && (
-                <span className="bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">
+                <span
+                  className={`bg-red-500 text-white font-bold rounded-full ${
+                    isMobile ? "text-xs px-2 py-1" : "text-xs px-2 py-1"
+                  }`}
+                >
                   {unreadCount} nowe
                 </span>
               )}
             </div>
             <button
               onClick={() => setActiveTab("messages")}
-              className="text-blue-600 hover:text-blue-700 text-sm font-medium"
+              className={`text-blue-600 hover:text-blue-700 font-medium ${
+                isMobile ? "text-xs" : "text-sm"
+              }`}
             >
               Zobacz wszystkie →
             </button>
@@ -1340,11 +1543,13 @@ export default function AccountantDashboard() {
 
           {messages.length === 0 ? (
             <div className="text-center py-8 text-gray-500">
-              <div className="text-4xl mb-2">📭</div>
-              <p>Brak wiadomości</p>
+              <div className={isMobile ? "text-3xl mb-2" : "text-4xl mb-2"}>
+                📭
+              </div>
+              <p className={isMobile ? "text-sm" : ""}>Brak wiadomości</p>
             </div>
           ) : (
-            <div className="space-y-3">
+            <div className={isMobile ? "space-y-2" : "space-y-3"}>
               {messages.slice(0, 3).map((msg: any) => (
                 <button
                   key={msg.id}
@@ -1353,14 +1558,18 @@ export default function AccountantDashboard() {
                     setActiveTab("messages");
                     if (!msg.is_read) handleMarkAsRead(msg.id);
                   }}
-                  className="w-full text-left flex items-start gap-3 p-3 hover:bg-gray-50 rounded-lg cursor-pointer transition-colors"
+                  className={`w-full text-left flex items-start gap-3 hover:bg-gray-50 rounded-lg cursor-pointer transition-colors ${
+                    isMobile ? "p-2" : "p-3"
+                  }`}
                 >
                   {/* Avatar */}
                   {msg.sender_profile?.avatar_url ? (
                     <img
                       src={msg.sender_profile.avatar_url}
                       alt={msg.sender_profile.full_name || "Avatar"}
-                      className="w-10 h-10 rounded-full object-cover flex-shrink-0"
+                      className={`rounded-full object-cover flex-shrink-0 ${
+                        isMobile ? "w-8 h-8" : "w-10 h-10"
+                      }`}
                       onError={(e) => {
                         // Fallback to initials if image fails
                         (e.target as HTMLImageElement).style.display = "none";
@@ -1372,7 +1581,9 @@ export default function AccountantDashboard() {
                     />
                   ) : null}
                   <div
-                    className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center font-bold text-blue-600 flex-shrink-0"
+                    className={`bg-blue-100 rounded-full flex items-center justify-center font-bold text-blue-600 flex-shrink-0 ${
+                      isMobile ? "w-8 h-8 text-sm" : "w-10 h-10"
+                    }`}
                     style={{
                       display: msg.sender_profile?.avatar_url ? "none" : "flex",
                     }}
@@ -1381,27 +1592,47 @@ export default function AccountantDashboard() {
                   </div>
 
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between mb-1">
+                    <div
+                      className={`flex items-center justify-between mb-1 ${
+                        isMobile ? "flex-col items-start gap-1" : ""
+                      }`}
+                    >
                       <p
-                        className={`font-medium text-sm ${
+                        className={`font-medium ${
                           msg.is_read ? "text-gray-700" : "text-blue-700"
-                        }`}
+                        } ${isMobile ? "text-xs" : "text-sm"}`}
                       >
                         {msg.sender_profile?.full_name || "Nieznany nadawca"}
                       </p>
-                      <span className="text-xs text-gray-400">
+                      <span
+                        className={`text-gray-400 ${
+                          isMobile ? "text-xs" : "text-xs"
+                        }`}
+                      >
                         {new Date(msg.created_at).toLocaleDateString("pl-PL")}
                       </span>
                     </div>
-                    <p className="text-sm text-gray-600 mb-1">
+                    <p
+                      className={`text-gray-600 mb-1 ${
+                        isMobile ? "text-xs" : "text-sm"
+                      }`}
+                    >
                       {msg.subject || "Brak tematu"}
                     </p>
-                    <p className="text-xs text-gray-500 truncate">
+                    <p
+                      className={`text-gray-500 truncate ${
+                        isMobile ? "text-xs" : "text-xs"
+                      }`}
+                    >
                       {msg.content}
                     </p>
                   </div>
                   {!msg.is_read && (
-                    <div className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0 mt-2"></div>
+                    <div
+                      className={`bg-blue-500 rounded-full flex-shrink-0 mt-2 ${
+                        isMobile ? "w-1.5 h-1.5" : "w-2 h-2"
+                      }`}
+                    ></div>
                   )}
                 </button>
               ))}
@@ -1411,68 +1642,42 @@ export default function AccountantDashboard() {
       </div>
 
       {/* Nadchodzące spotkania + Opinie */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Kalendarz spotkań */}
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold">📅 Nadchodzące spotkania</h3>
-            <span className="px-3 py-1 bg-blue-100 text-blue-700 text-sm font-medium rounded-full">
-              3 dziś
-            </span>
-          </div>
-          <div className="space-y-3">
-            <div className="border-l-4 border-blue-500 pl-4 py-3 bg-blue-50 rounded-r">
-              <div className="flex items-center justify-between mb-1">
-                <p className="font-medium">Konsultacja VAT</p>
-                <span className="text-xs bg-blue-600 text-white px-2 py-1 rounded font-medium">
-                  14:00
-                </span>
-              </div>
-              <p className="text-sm text-gray-600">Jan Kowalski</p>
-              <p className="text-xs text-gray-500 mt-1 flex items-center gap-1">
-                <span>📹</span> Online (Zoom)
-              </p>
-            </div>
-            <div className="border-l-4 border-green-500 pl-4 py-3 hover:bg-gray-50 rounded-r cursor-pointer transition-colors">
-              <div className="flex items-center justify-between mb-1">
-                <p className="font-medium">Rozliczenie roczne</p>
-                <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded">
-                  Jutro 10:00
-                </span>
-              </div>
-              <p className="text-sm text-gray-600">Anna Smits</p>
-              <p className="text-xs text-gray-500 mt-1 flex items-center gap-1">
-                <MapPin className="w-3 h-3" /> Biuro, Rotterdam
-              </p>
-            </div>
-            <div className="border-l-4 border-purple-500 pl-4 py-3 hover:bg-gray-50 rounded-r cursor-pointer transition-colors">
-              <div className="flex items-center justify-between mb-1">
-                <p className="font-medium">Założenie firmy</p>
-                <span className="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded">
-                  Pt 16:00
-                </span>
-              </div>
-              <p className="text-sm text-gray-600">Maria Janssen</p>
-              <p className="text-xs text-gray-500 mt-1 flex items-center gap-1">
-                <span>📹</span> Online (Teams)
-              </p>
-            </div>
-          </div>
-          <button className="mt-4 w-full px-4 py-2 border border-blue-600 text-blue-600 rounded-lg hover:bg-blue-50 transition-colors font-medium">
-            + Dodaj spotkanie
-          </button>
-        </div>
+      <div
+        className={`grid ${
+          isMobile ? "grid-cols-1" : "grid-cols-1 lg:grid-cols-2"
+        } gap-4 md:gap-6`}
+      >
+        {/* Kalendarz spotkań - REAL DATA from calendar_events */}
+        <UpcomingEventsCard maxEvents={5} showAddButton={true} />
 
         {/* Ostatnie opinie */}
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold">⭐ Ostatnie opinie</h3>
+        <div
+          className={`bg-white rounded-lg shadow ${isMobile ? "p-4" : "p-6"}`}
+        >
+          <div
+            className={`flex items-center justify-between mb-4 ${
+              isMobile ? "flex-col gap-2" : ""
+            }`}
+          >
+            <h3
+              className={`font-semibold ${isMobile ? "text-base" : "text-lg"}`}
+            >
+              ⭐ Ostatnie opinie
+            </h3>
             {accountant && (
               <div className="flex items-center gap-2">
-                <span className="text-2xl font-bold text-yellow-600">
+                <span
+                  className={`font-bold text-yellow-600 ${
+                    isMobile ? "text-xl" : "text-2xl"
+                  }`}
+                >
                   {accountant.rating?.toFixed(1) || "0.0"}
                 </span>
-                <span className="text-sm text-gray-500">
+                <span
+                  className={`text-gray-500 ${
+                    isMobile ? "text-xs" : "text-sm"
+                  }`}
+                >
                   ({accountant.rating_count || 0})
                 </span>
               </div>
@@ -1480,52 +1685,84 @@ export default function AccountantDashboard() {
           </div>
 
           {reviewsLoading ? (
-            <div className="text-center py-8 text-gray-500">
+            <div
+              className={`text-center py-8 text-gray-500 ${
+                isMobile ? "text-sm" : ""
+              }`}
+            >
               <p>Ładowanie opinii...</p>
             </div>
           ) : reviews.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
+            <div
+              className={`text-center py-8 text-gray-500 ${
+                isMobile ? "text-sm" : ""
+              }`}
+            >
               <p>Brak opinii</p>
-              <p className="text-sm mt-2">
+              <p className={`mt-2 ${isMobile ? "text-xs" : "text-sm"}`}>
                 Opinie pojawią się tutaj gdy klienci je wystawią
               </p>
             </div>
           ) : (
-            <div className="space-y-4">
+            <div className={isMobile ? "space-y-3" : "space-y-4"}>
               {reviews.slice(0, 2).map((review: any) => (
                 <div
                   key={review.id}
-                  className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow"
+                  className={`border border-gray-200 rounded-lg hover:shadow-md transition-shadow ${
+                    isMobile ? "p-3" : "p-4"
+                  }`}
                 >
-                  <div className="flex items-center justify-between mb-2">
+                  <div
+                    className={`flex items-center justify-between mb-2 ${
+                      isMobile ? "flex-col items-start gap-2" : ""
+                    }`}
+                  >
                     <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center font-bold text-blue-600 text-sm">
+                      <div
+                        className={`bg-blue-100 rounded-full flex items-center justify-center font-bold text-blue-600 ${
+                          isMobile ? "w-6 h-6 text-xs" : "w-8 h-8 text-sm"
+                        }`}
+                      >
                         {(review.reviewer_name || "?")[0].toUpperCase()}
                       </div>
                       <div>
-                        <p className="font-medium text-sm">
+                        <p
+                          className={`font-medium ${
+                            isMobile ? "text-xs" : "text-sm"
+                          }`}
+                        >
                           {review.reviewer_name || "Pracodawca"}
                         </p>
                         <div className="flex">
                           {[1, 2, 3, 4, 5].map((i) => (
                             <Star
                               key={i}
-                              className={`w-3 h-3 ${
+                              className={`${
                                 i <= review.rating
                                   ? "text-yellow-400 fill-current"
                                   : "text-gray-300"
-                              }`}
+                              } ${isMobile ? "w-3 h-3" : "w-3 h-3"}`}
                             />
                           ))}
                         </div>
                       </div>
                     </div>
-                    <span className="text-xs text-gray-400">
+                    <span
+                      className={`text-gray-400 ${
+                        isMobile ? "text-xs self-start" : "text-xs"
+                      }`}
+                    >
                       {new Date(review.created_at).toLocaleDateString("pl-PL")}
                     </span>
                   </div>
                   {review.comment && (
-                    <p className="text-sm text-gray-600">"{review.comment}"</p>
+                    <p
+                      className={`text-gray-600 ${
+                        isMobile ? "text-xs" : "text-sm"
+                      }`}
+                    >
+                      "{review.comment}"
+                    </p>
                   )}
                 </div>
               ))}
@@ -1533,7 +1770,9 @@ export default function AccountantDashboard() {
           )}
           <button
             onClick={() => setActiveTab("reviews")}
-            className="mt-4 w-full text-blue-600 hover:text-blue-700 font-medium text-sm"
+            className={`mt-4 w-full text-blue-600 hover:text-blue-700 font-medium ${
+              isMobile ? "text-xs" : "text-sm"
+            }`}
           >
             Zobacz wszystkie opinie →
           </button>
@@ -1541,42 +1780,92 @@ export default function AccountantDashboard() {
       </div>
 
       {/* DOSTĘPNOŚĆ + ZARZĄDZANIE DATAMI */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div
+        className={`grid ${
+          isMobile ? "grid-cols-1" : "grid-cols-1 lg:grid-cols-2"
+        } gap-4 md:gap-6`}
+      >
         {/* Kalendarz dostępności */}
-        <div className="bg-white rounded-lg shadow p-6">
-          <h3 className="text-lg font-semibold mb-2">📅 Twoja dostępność</h3>
-          <p className="text-sm text-gray-600 mb-4">
+        <div
+          className={`bg-white rounded-lg shadow ${isMobile ? "p-4" : "p-6"}`}
+        >
+          <h3
+            className={`font-semibold mb-2 ${
+              isMobile ? "text-base" : "text-lg"
+            }`}
+          >
+            📅 Twoja dostępność
+          </h3>
+          <p
+            className={`text-gray-600 mb-4 ${isMobile ? "text-xs" : "text-sm"}`}
+          >
             Zaznacz dni kiedy możesz przyjmować klientów
           </p>
 
-          <div className="bg-blue-50 p-6 rounded-lg">
+          <div className={`bg-blue-50 rounded-lg ${isMobile ? "p-4" : "p-6"}`}>
             <AvailabilityCalendar
               availability={availability}
               onChange={handleAvailabilityChange}
               editable={true}
             />
-            <p className="text-xs text-gray-500 mt-4 text-center">
+            <p
+              className={`text-gray-500 mt-4 text-center ${
+                isMobile ? "text-xs" : "text-xs"
+              }`}
+            >
               Kliknij na dzień aby zmienić dostępność. Zmiany są zapisywane
               automatycznie.
             </p>
           </div>
 
           {/* Quick Stats */}
-          <div className="mt-4 grid grid-cols-2 gap-4">
-            <div className="bg-white border border-gray-200 rounded-lg p-4">
-              <p className="text-sm text-gray-600">Dostępne dni</p>
-              <p className="text-2xl font-bold text-blue-600">
+          <div
+            className={`mt-4 grid grid-cols-2 ${isMobile ? "gap-2" : "gap-4"}`}
+          >
+            <div
+              className={`bg-white border border-gray-200 rounded-lg ${
+                isMobile ? "p-3" : "p-4"
+              }`}
+            >
+              <p
+                className={`text-gray-600 ${isMobile ? "text-xs" : "text-sm"}`}
+              >
+                Dostępne dni
+              </p>
+              <p
+                className={`font-bold text-blue-600 ${
+                  isMobile ? "text-xl" : "text-2xl"
+                }`}
+              >
                 {Object.values(availability).filter(Boolean).length}
               </p>
             </div>
-            <div className="bg-white border border-gray-200 rounded-lg p-4">
-              <p className="text-sm text-gray-600">Preferowane</p>
-              <p className="text-2xl font-bold text-gray-700">5 dni/tydzień</p>
+            <div
+              className={`bg-white border border-gray-200 rounded-lg ${
+                isMobile ? "p-3" : "p-4"
+              }`}
+            >
+              <p
+                className={`text-gray-600 ${isMobile ? "text-xs" : "text-sm"}`}
+              >
+                Preferowane
+              </p>
+              <p
+                className={`font-bold text-gray-700 ${
+                  isMobile ? "text-xl" : "text-2xl"
+                }`}
+              >
+                5 dni/tydzień
+              </p>
             </div>
           </div>
 
-          <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-            <p className="text-sm text-blue-800">
+          <div
+            className={`mt-4 bg-blue-50 border border-blue-200 rounded-lg ${
+              isMobile ? "p-2" : "p-3"
+            }`}
+          >
+            <p className={`text-blue-800 ${isMobile ? "text-xs" : "text-sm"}`}>
               <strong>Wskazówka:</strong> Klienci widzą Twoją dostępność przy
               rezerwacji konsultacji.
             </p>
@@ -1621,19 +1910,37 @@ export default function AccountantDashboard() {
   // MESSENGER UI - WHATSAPP-STYLE 2-PANEL LAYOUT
   // ===================================================================
   const renderMessages = () => (
-    <div className="max-w-7xl mx-auto">
+    <div className={isMobile ? "px-2" : "max-w-7xl mx-auto"}>
       <div
-        className="bg-white rounded-2xl shadow-xl overflow-hidden"
-        style={{ height: "700px" }}
+        className={`bg-white rounded-2xl shadow-xl overflow-hidden ${
+          isMobile ? "h-screen" : ""
+        }`}
+        style={isMobile ? {} : { height: "700px" }}
       >
-        <div className="flex h-full">
+        <div className={`flex h-full ${isMobile ? "flex-col" : ""}`}>
           {/* ============================================ */}
           {/* LEFT PANEL: CONVERSATION LIST */}
           {/* ============================================ */}
-          <div className="w-1/3 border-r border-gray-200 flex flex-col bg-gray-50">
+          <div
+            className={`border-gray-200 flex flex-col bg-gray-50 ${
+              isMobile
+                ? selectedConversation
+                  ? "hidden"
+                  : "w-full h-full"
+                : "w-1/3 border-r"
+            }`}
+          >
             {/* Header */}
-            <div className="p-5 border-b border-gray-200 bg-gradient-to-r from-blue-600 to-purple-600">
-              <h3 className="font-bold text-xl text-white mb-3 flex items-center gap-2">
+            <div
+              className={`border-b border-gray-200 bg-gradient-to-r from-blue-600 to-purple-600 ${
+                isMobile ? "p-3" : "p-5"
+              }`}
+            >
+              <h3
+                className={`font-bold text-white mb-3 flex items-center gap-2 ${
+                  isMobile ? "text-lg" : "text-xl"
+                }`}
+              >
                 <span>💬</span> Wiadomości
               </h3>
 
@@ -1644,9 +1951,17 @@ export default function AccountantDashboard() {
                   placeholder="🔍 Szukaj konwersacji..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full px-4 py-2 pl-10 rounded-lg border-0 focus:ring-2 focus:ring-white/50 text-sm"
+                  className={`w-full rounded-lg border-0 focus:ring-2 focus:ring-white/50 ${
+                    isMobile
+                      ? "px-3 py-2 pl-9 text-xs"
+                      : "px-4 py-2 pl-10 text-sm"
+                  }`}
                 />
-                <span className="absolute left-3 top-2.5 text-gray-400">
+                <span
+                  className={`absolute text-gray-400 ${
+                    isMobile ? "left-2.5 top-2" : "left-3 top-2.5"
+                  }`}
+                >
                   🔍
                 </span>
               </div>
@@ -1664,28 +1979,46 @@ export default function AccountantDashboard() {
                   <div
                     key={conversation.partnerId}
                     onClick={() => handleSelectConversation(conversation)}
-                    className={`p-4 border-b border-gray-200 cursor-pointer transition-all duration-200 hover:bg-blue-50 ${
+                    className={`border-b border-gray-200 cursor-pointer transition-all duration-200 hover:bg-blue-50 ${
+                      isMobile ? "p-3" : "p-4"
+                    } ${
                       selectedConversation?.partnerId === conversation.partnerId
                         ? "bg-blue-100 border-l-4 border-l-blue-600"
                         : "hover:border-l-4 hover:border-l-blue-300"
                     }`}
                   >
-                    <div className="flex items-start gap-3">
+                    <div
+                      className={`flex items-start ${
+                        isMobile ? "gap-2" : "gap-3"
+                      }`}
+                    >
                       {/* Avatar */}
                       <div className="relative flex-shrink-0">
                         {conversation.partnerAvatar ? (
                           <img
                             src={conversation.partnerAvatar}
                             alt={conversation.partnerName}
-                            className="w-12 h-12 rounded-full object-cover border-2 border-white shadow-md"
+                            className={`rounded-full object-cover border-2 border-white shadow-md ${
+                              isMobile ? "w-10 h-10" : "w-12 h-12"
+                            }`}
                           />
                         ) : (
-                          <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-lg shadow-md">
+                          <div
+                            className={`rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold shadow-md ${
+                              isMobile
+                                ? "w-10 h-10 text-base"
+                                : "w-12 h-12 text-lg"
+                            }`}
+                          >
                             {conversation.partnerName.charAt(0).toUpperCase()}
                           </div>
                         )}
                         {conversation.isOnline && (
-                          <span className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-green-500 border-2 border-white rounded-full"></span>
+                          <span
+                            className={`absolute bottom-0 right-0 bg-green-500 border-2 border-white rounded-full ${
+                              isMobile ? "w-3 h-3" : "w-3.5 h-3.5"
+                            }`}
+                          ></span>
                         )}
                       </div>
 
@@ -1693,26 +2026,40 @@ export default function AccountantDashboard() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between mb-1">
                           <p
-                            className={`font-semibold text-sm truncate ${
+                            className={`font-semibold truncate ${
                               conversation.unreadCount > 0
                                 ? "text-blue-700"
                                 : "text-gray-900"
-                            }`}
+                            } ${isMobile ? "text-xs" : "text-sm"}`}
                           >
                             {conversation.partnerName}
                           </p>
                           {conversation.unreadCount > 0 && (
-                            <span className="bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full ml-2 flex-shrink-0">
+                            <span
+                              className={`bg-red-500 text-white font-bold rounded-full ml-2 flex-shrink-0 ${
+                                isMobile
+                                  ? "text-xs px-1.5 py-0.5"
+                                  : "text-xs px-2 py-0.5"
+                              }`}
+                            >
                               {conversation.unreadCount}
                             </span>
                           )}
                         </div>
 
-                        <p className="text-xs text-gray-600 truncate mb-1">
+                        <p
+                          className={`text-gray-600 truncate mb-1 ${
+                            isMobile ? "text-xs" : "text-xs"
+                          }`}
+                        >
                           {conversation.lastMessage.content}
                         </p>
 
-                        <p className="text-xs text-gray-400">
+                        <p
+                          className={`text-gray-400 ${
+                            isMobile ? "text-xs" : "text-xs"
+                          }`}
+                        >
                           {formatRelativeTime(
                             conversation.lastMessage.created_at
                           )}
@@ -1737,34 +2084,72 @@ export default function AccountantDashboard() {
           {/* ============================================ */}
           {/* RIGHT PANEL: CHAT WINDOW */}
           {/* ============================================ */}
-          <div className="w-2/3 flex flex-col bg-white">
+          <div
+            className={`flex flex-col bg-white ${
+              isMobile
+                ? selectedConversation
+                  ? "w-full h-full"
+                  : "hidden"
+                : "w-2/3"
+            }`}
+          >
             {selectedConversation ? (
               <>
                 {/* Chat Header */}
-                <div className="p-5 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-white shadow-sm">
+                <div
+                  className={`border-b border-gray-200 bg-gradient-to-r from-gray-50 to-white shadow-sm ${
+                    isMobile ? "p-3" : "p-5"
+                  }`}
+                >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
+                      {isMobile && (
+                        <button
+                          onClick={() => setSelectedConversation(null)}
+                          className="p-1 hover:bg-gray-200 rounded-lg mr-2"
+                        >
+                          ← Powrót
+                        </button>
+                      )}
                       {selectedConversation.partnerAvatar ? (
                         <img
                           src={selectedConversation.partnerAvatar}
                           alt={selectedConversation.partnerName}
-                          className="w-10 h-10 rounded-full object-cover border-2 border-blue-500"
+                          className={`rounded-full object-cover border-2 border-blue-500 ${
+                            isMobile ? "w-8 h-8" : "w-10 h-10"
+                          }`}
                         />
                       ) : (
-                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold shadow-lg">
+                        <div
+                          className={`rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold shadow-lg ${
+                            isMobile ? "w-8 h-8 text-sm" : "w-10 h-10"
+                          }`}
+                        >
                           {selectedConversation.partnerName
                             .charAt(0)
                             .toUpperCase()}
                         </div>
                       )}
                       <div>
-                        <h4 className="font-bold text-gray-900">
+                        <h4
+                          className={`font-bold text-gray-900 ${
+                            isMobile ? "text-sm" : ""
+                          }`}
+                        >
                           {selectedConversation.partnerName}
                         </h4>
-                        <p className="text-xs text-gray-500">
+                        <p
+                          className={`text-gray-500 ${
+                            isMobile ? "text-xs" : "text-xs"
+                          }`}
+                        >
                           {selectedConversation.isOnline ? (
                             <span className="text-green-600 flex items-center gap-1">
-                              <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+                              <span
+                                className={`bg-green-500 rounded-full ${
+                                  isMobile ? "w-1.5 h-1.5" : "w-2 h-2"
+                                }`}
+                              ></span>
                               Online
                             </span>
                           ) : (
@@ -1774,19 +2159,25 @@ export default function AccountantDashboard() {
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2">
-                      <button
-                        className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                        title="Więcej opcji"
-                      >
-                        <span className="text-gray-600">⋮</span>
-                      </button>
-                    </div>
+                    {!isMobile && (
+                      <div className="flex items-center gap-2">
+                        <button
+                          className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                          title="Więcej opcji"
+                        >
+                          <span className="text-gray-600">⋮</span>
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
 
                 {/* Messages Area */}
-                <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-gray-50">
+                <div
+                  className={`flex-1 overflow-y-auto space-y-4 bg-gray-50 ${
+                    isMobile ? "p-3" : "p-6"
+                  }`}
+                >
                   {selectedConversation.messages
                     .sort(
                       (a, b) =>
@@ -1814,10 +2205,18 @@ export default function AccountantDashboard() {
                                 <img
                                   src={selectedConversation.partnerAvatar}
                                   alt={selectedConversation.partnerName}
-                                  className="w-8 h-8 rounded-full object-cover"
+                                  className={`rounded-full object-cover ${
+                                    isMobile ? "w-6 h-6" : "w-8 h-8"
+                                  }`}
                                 />
                               ) : (
-                                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-gray-400 to-gray-600 flex items-center justify-center text-white text-xs font-bold">
+                                <div
+                                  className={`rounded-full bg-gradient-to-br from-gray-400 to-gray-600 flex items-center justify-center text-white font-bold ${
+                                    isMobile
+                                      ? "w-6 h-6 text-xs"
+                                      : "w-8 h-8 text-xs"
+                                  }`}
+                                >
                                   {selectedConversation.partnerName
                                     .charAt(0)
                                     .toUpperCase()}
@@ -1827,23 +2226,29 @@ export default function AccountantDashboard() {
                           )}
 
                           {!isOwnMessage && !showAvatar && (
-                            <div className="w-8"></div>
+                            <div className={isMobile ? "w-6" : "w-8"}></div>
                           )}
 
                           {/* Message Bubble */}
                           <div
-                            className={`max-w-[70%] ${
-                              isOwnMessage ? "order-first" : ""
-                            }`}
+                            className={`${
+                              isMobile ? "max-w-[80%]" : "max-w-[70%]"
+                            } ${isOwnMessage ? "order-first" : ""}`}
                           >
                             <div
-                              className={`p-3 rounded-2xl shadow-md ${
+                              className={`rounded-2xl shadow-md ${
+                                isMobile ? "p-2" : "p-3"
+                              } ${
                                 isOwnMessage
                                   ? "bg-gradient-to-br from-blue-600 to-blue-700 text-white rounded-br-sm"
                                   : "bg-white text-gray-900 border border-gray-200 rounded-bl-sm"
                               }`}
                             >
-                              <p className="text-sm leading-relaxed break-words">
+                              <p
+                                className={`leading-relaxed break-words ${
+                                  isMobile ? "text-xs" : "text-sm"
+                                }`}
+                              >
                                 {msg.content}
                               </p>
 
@@ -1854,7 +2259,9 @@ export default function AccountantDashboard() {
                                     {msg.attachments.map((att, i) => (
                                       <div
                                         key={i}
-                                        className={`text-xs px-2 py-1 rounded ${
+                                        className={`px-2 py-1 rounded ${
+                                          isMobile ? "text-xs" : "text-xs"
+                                        } ${
                                           isOwnMessage
                                             ? "bg-blue-800/30"
                                             : "bg-gray-100"
@@ -1907,10 +2314,18 @@ export default function AccountantDashboard() {
                 </div>
 
                 {/* Input Area */}
-                <div className="p-4 border-t border-gray-200 bg-white">
+                <div
+                  className={`border-t border-gray-200 bg-white ${
+                    isMobile ? "p-2" : "p-4"
+                  }`}
+                >
                   {/* Emoji Picker */}
                   {showEmojiPicker && (
-                    <div className="mb-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                    <div
+                      className={`mb-3 bg-gray-50 rounded-lg border border-gray-200 ${
+                        isMobile ? "p-2" : "p-3"
+                      }`}
+                    >
                       <div className="flex flex-wrap gap-2">
                         {[
                           "😀",
@@ -1933,7 +2348,9 @@ export default function AccountantDashboard() {
                           <button
                             key={emoji}
                             onClick={() => addEmojiToMessage(emoji)}
-                            className="text-2xl hover:scale-125 transition-transform"
+                            className={`hover:scale-125 transition-transform ${
+                              isMobile ? "text-xl" : "text-2xl"
+                            }`}
                           >
                             {emoji}
                           </button>
@@ -1942,29 +2359,37 @@ export default function AccountantDashboard() {
                     </div>
                   )}
 
-                  <div className="flex items-center gap-3">
+                  <div
+                    className={`flex items-center ${
+                      isMobile ? "gap-1" : "gap-3"
+                    }`}
+                  >
                     {/* Emoji Button */}
-                    <button
-                      onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                      className="p-2 hover:bg-gray-100 rounded-lg transition-colors text-2xl"
-                      title="Dodaj emoji"
-                    >
-                      😊
-                    </button>
+                    {!isMobile && (
+                      <button
+                        onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                        className="p-2 hover:bg-gray-100 rounded-lg transition-colors text-2xl"
+                        title="Dodaj emoji"
+                      >
+                        😊
+                      </button>
+                    )}
 
                     {/* File Upload */}
-                    <label
-                      className="p-2 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer"
-                      title="Załącz plik"
-                    >
-                      <input
-                        type="file"
-                        onChange={handleFileUpload}
-                        className="hidden"
-                        accept="image/*,.pdf,.doc,.docx"
-                      />
-                      <span className="text-xl">📎</span>
-                    </label>
+                    {!isMobile && (
+                      <label
+                        className="p-2 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer"
+                        title="Załącz plik"
+                      >
+                        <input
+                          type="file"
+                          onChange={handleFileUpload}
+                          className="hidden"
+                          accept="image/*,.pdf,.doc,.docx"
+                        />
+                        <span className="text-xl">📎</span>
+                      </label>
+                    )}
 
                     {/* Message Input */}
                     <input
@@ -1978,7 +2403,9 @@ export default function AccountantDashboard() {
                         }
                       }}
                       placeholder="Napisz wiadomość..."
-                      className="flex-1 px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className={`flex-1 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                        isMobile ? "px-3 py-2 text-sm" : "px-4 py-3"
+                      }`}
                       disabled={uploadingFile}
                     />
 
@@ -1986,28 +2413,46 @@ export default function AccountantDashboard() {
                     <button
                       onClick={handleSendMessage}
                       disabled={!messageInput.trim() || uploadingFile}
-                      className={`px-6 py-3 rounded-xl font-medium transition-all shadow-lg ${
+                      className={`rounded-xl font-medium transition-all shadow-lg ${
+                        isMobile ? "px-3 py-2 text-xs" : "px-6 py-3"
+                      } ${
                         messageInput.trim() && !uploadingFile
                           ? "bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:from-blue-700 hover:to-purple-700 hover:shadow-xl"
                           : "bg-gray-200 text-gray-400 cursor-not-allowed"
                       }`}
                     >
-                      {uploadingFile ? "📤" : "📨"} Wyślij
+                      {uploadingFile ? "📤" : "📨"} {isMobile ? "" : "Wyślij"}
                     </button>
                   </div>
 
-                  <p className="text-xs text-gray-400 mt-2 text-center">
-                    Enter = wyślij • Shift+Enter = nowa linia
-                  </p>
+                  {!isMobile && (
+                    <p className="text-xs text-gray-400 mt-2 text-center">
+                      Enter = wyślij • Shift+Enter = nowa linia
+                    </p>
+                  )}
                 </div>
               </>
             ) : (
               /* Empty State */
               <div className="flex flex-col items-center justify-center h-full text-gray-400 bg-gray-50">
-                <div className="text-8xl mb-6">💬</div>
-                <p className="text-xl font-medium mb-2">Wybierz konwersację</p>
-                <p className="text-sm text-center max-w-xs">
-                  Kliknij na konwersację po lewej stronie, aby rozpocząć czat
+                <div className={isMobile ? "text-6xl mb-4" : "text-8xl mb-6"}>
+                  💬
+                </div>
+                <p
+                  className={`font-medium mb-2 ${
+                    isMobile ? "text-lg" : "text-xl"
+                  }`}
+                >
+                  Wybierz konwersację
+                </p>
+                <p
+                  className={`text-center max-w-xs ${
+                    isMobile ? "text-xs px-4" : "text-sm"
+                  }`}
+                >
+                  Kliknij na konwersację{" "}
+                  {isMobile ? "powyżej" : "po lewej stronie"}, aby rozpocząć
+                  czat
                 </p>
               </div>
             )}
@@ -2576,901 +3021,1183 @@ export default function AccountantDashboard() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 relative overflow-hidden">
       {/* 3D Background Layer */}
-      <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden perspective-container">
-        <Animated3DProfileBackground role="accountant" opacity={0.25} />
-        <TypewriterAnimation opacity={0.2} />
-      </div>
+      {!isMobile && (
+        <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden perspective-container">
+          <Animated3DProfileBackground role="accountant" opacity={0.25} />
+          <TypewriterAnimation opacity={0.2} />
+        </div>
+      )}
 
-      <div className="relative z-10">
-        <DashboardHeader
-          title={`Dashboard - ${
-            accountant.company_name || accountant.full_name
-          }`}
-          subtitle="Panel księgowego - zarządzaj klientami i usługami"
-          icon="📊"
-        >
-          <button
-            onClick={() => setIsCommunicationOpen(!isCommunicationOpen)}
-            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors"
-          >
-            <span>💬</span>
-            Komunikacja
-          </button>
-        </DashboardHeader>
-
-        {/* Communication Panel */}
-        {isCommunicationOpen && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 z-50">
-            <div className="absolute right-0 top-0 h-full w-full max-w-4xl bg-white shadow-xl">
-              <div className="flex items-center justify-between p-4 border-b">
-                <h3 className="text-lg font-semibold">
-                  Komunikacja Projektowa
-                </h3>
-                <button
-                  onClick={() => setIsCommunicationOpen(false)}
-                  className="text-gray-500 hover:text-gray-700"
-                >
-                  <span className="sr-only">Zamknij</span>✕
-                </button>
-              </div>
-              <div className="h-full overflow-auto">
-                <ProjectCommunicationManager userRole="accountant" />
-              </div>
-            </div>
-          </div>
+      {/* Main Layout: Sidebar + Content */}
+      <div className="flex h-screen relative z-10">
+        {/* Desktop Sidebar */}
+        {!isMobile && (
+          <DashboardSidebar
+            activeTab={activeTab}
+            onTabChange={setActiveTab}
+            title="📊 Księgowy"
+            subtitle="Panel zarządzania"
+            unreadMessages={unreadCount}
+            onSupportClick={handleContactSupport}
+          />
         )}
 
-        {/* MODAL: Edit Profile */}
-        {isEditingProfile && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-              <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
-                <h2 className="text-xl font-bold">Edytuj profil księgowy</h2>
+        {/* Mobile Navigation Drawer */}
+        {isMobile && (
+          <DashboardSidebar
+            activeTab={activeTab}
+            onTabChange={setActiveTab}
+            title="📊 Księgowy"
+            subtitle="Panel zarządzania"
+            unreadMessages={unreadCount}
+            isMobile={true}
+            isMobileMenuOpen={isSidebarOpen}
+            onMobileMenuToggle={() => setIsSidebarOpen(false)}
+            onSupportClick={handleContactSupport}
+          />
+        )}
+
+        {/* Main Content Area */}
+        <div className="flex-1 flex flex-col overflow-hidden">
+          {/* Mobile Header with Hamburger */}
+          {isMobile && (
+            <div className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white sticky top-0 z-40 shadow-lg flex-shrink-0">
+              <div className="flex items-center justify-between px-4 py-3">
+                <div className="flex items-center gap-3">
+                  <h1 className="text-lg font-bold">📊 Księgowy</h1>
+                </div>
                 <button
-                  onClick={() => setIsEditingProfile(false)}
-                  className="text-gray-500 hover:text-gray-700 text-2xl"
+                  onClick={() => setIsSidebarOpen(true)}
+                  className="p-2 hover:bg-white/20 rounded-lg transition-colors"
+                  aria-label="Otwórz menu"
                 >
-                  ✕
+                  <svg
+                    className="w-6 h-6"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M4 6h16M4 12h16M4 18h16"
+                    />
+                  </svg>
                 </button>
               </div>
+            </div>
+          )}
 
-              <div className="p-6 space-y-6">
-                {/* SEKCJA: Dane osobowe */}
-                <div className="border-b border-gray-200 pb-4">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                    Dane osobowe
+          {/* Desktop Header */}
+          {!isMobile && (
+            <DashboardHeader
+              title={`Dashboard - ${
+                accountant.company_name || accountant.full_name
+              }`}
+              subtitle="Panel księgowego - zarządzaj klientami i usługami"
+              icon="📊"
+            >
+              <button
+                onClick={() => setIsCommunicationOpen(!isCommunicationOpen)}
+                className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors px-4 py-2"
+              >
+                <span>💬</span>
+                Komunikacja
+              </button>
+            </DashboardHeader>
+          )}
+
+          {/* Communication Panel */}
+          {isCommunicationOpen && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 z-50">
+              <div
+                className={`absolute right-0 top-0 h-full bg-white shadow-xl ${
+                  isMobile ? "w-full" : "w-full max-w-4xl"
+                }`}
+              >
+                <div
+                  className={`flex items-center justify-between border-b ${
+                    isMobile ? "p-3" : "p-4"
+                  }`}
+                >
+                  <h3
+                    className={`font-semibold ${
+                      isMobile ? "text-base" : "text-lg"
+                    }`}
+                  >
+                    Komunikacja {isMobile ? "" : "Projektowa"}
                   </h3>
+                  <button
+                    onClick={() => setIsCommunicationOpen(false)}
+                    className="text-gray-500 hover:text-gray-700"
+                  >
+                    <span className="sr-only">Zamknij</span>✕
+                  </button>
+                </div>
+                <div className="h-full overflow-auto">
+                  <ProjectCommunicationManager userRole="accountant" />
+                </div>
+              </div>
+            </div>
+          )}
 
-                  {/* Full Name */}
-                  <div className="mb-4">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Imię i nazwisko <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      value={editForm.full_name}
-                      onChange={(e) =>
-                        setEditForm({ ...editForm, full_name: e.target.value })
-                      }
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder="Jan Kowalski"
-                    />
-                  </div>
-
-                  {/* Company Name */}
-                  <div className="mb-4">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Nazwa firmy
-                    </label>
-                    <input
-                      type="text"
-                      value={editForm.company_name}
-                      onChange={(e) =>
-                        setEditForm({
-                          ...editForm,
-                          company_name: e.target.value,
-                        })
-                      }
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder="Np. Biuro Rachunkowe ABC"
-                    />
-                  </div>
-
-                  {/* Years Experience */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Lata doświadczenia
-                    </label>
-                    <input
-                      type="number"
-                      min="0"
-                      max="50"
-                      value={editForm.years_experience}
-                      onChange={(e) =>
-                        setEditForm({
-                          ...editForm,
-                          years_experience: parseInt(e.target.value) || 0,
-                        })
-                      }
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder="5"
-                    />
-                  </div>
+          {/* MODAL: Edit Profile */}
+          {isEditingProfile && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+              <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+                <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+                  <h2 className="text-xl font-bold">Edytuj profil księgowy</h2>
+                  <button
+                    onClick={() => setIsEditingProfile(false)}
+                    className="text-gray-500 hover:text-gray-700 text-2xl"
+                  >
+                    ✕
+                  </button>
                 </div>
 
-                {/* SEKCJA: Dane kontaktowe */}
-                <div className="border-b border-gray-200 pb-4">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                    Dane kontaktowe
-                  </h3>
+                <div className="p-6 space-y-6">
+                  {/* SEKCJA: Dane osobowe */}
+                  <div className="border-b border-gray-200 pb-4">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                      Dane osobowe
+                    </h3>
 
-                  {/* Email */}
-                  <div className="mb-4">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Email kontaktowy <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="email"
-                      value={editForm.email}
-                      onChange={(e) =>
-                        setEditForm({ ...editForm, email: e.target.value })
-                      }
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder="kontakt@biuro.pl"
-                    />
-                  </div>
-
-                  {/* Phone */}
-                  <div className="mb-4">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Telefon
-                    </label>
-                    <input
-                      type="tel"
-                      value={editForm.phone}
-                      onChange={(e) =>
-                        setEditForm({ ...editForm, phone: e.target.value })
-                      }
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder="+31 6 12345678"
-                    />
-                  </div>
-
-                  {/* Website */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Strona internetowa
-                    </label>
-                    <input
-                      type="url"
-                      value={editForm.website}
-                      onChange={(e) =>
-                        setEditForm({ ...editForm, website: e.target.value })
-                      }
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder="https://www.twoje-biuro.nl"
-                    />
-                  </div>
-                </div>
-
-                {/* SEKCJA: Licencje i certyfikaty */}
-                <div className="border-b border-gray-200 pb-4">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                    Licencje i certyfikaty
-                  </h3>
-
-                  {/* KVK Number */}
-                  <div className="mb-4">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Numer KVK (Kamer van Koophandel)
-                    </label>
-                    <input
-                      type="text"
-                      value={editForm.kvk_number}
-                      onChange={(e) =>
-                        setEditForm({ ...editForm, kvk_number: e.target.value })
-                      }
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder="12345678"
-                    />
-                  </div>
-
-                  {/* BTW Number */}
-                  <div className="mb-4">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Numer BTW/VAT
-                    </label>
-                    <input
-                      type="text"
-                      value={editForm.btw_number}
-                      onChange={(e) =>
-                        setEditForm({ ...editForm, btw_number: e.target.value })
-                      }
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder="NL123456789B01"
-                    />
-                  </div>
-
-                  {/* License Number */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Numer licencji księgowego
-                    </label>
-                    <input
-                      type="text"
-                      value={editForm.license_number}
-                      onChange={(e) =>
-                        setEditForm({
-                          ...editForm,
-                          license_number: e.target.value,
-                        })
-                      }
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder="AA-12345"
-                    />
-                  </div>
-                </div>
-
-                {/* SEKCJA: Adres */}
-                <div className="border-b border-gray-200 pb-4">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                    Adres biura
-                  </h3>
-
-                  {/* Address */}
-                  <div className="mb-4">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Ulica i numer
-                    </label>
-                    <input
-                      type="text"
-                      value={editForm.address}
-                      onChange={(e) =>
-                        setEditForm({ ...editForm, address: e.target.value })
-                      }
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder="Coolsingel 42"
-                    />
-                  </div>
-
-                  {/* City + Postal Code (row) */}
-                  <div className="grid grid-cols-2 gap-4 mb-4">
-                    <div>
+                    {/* Full Name */}
+                    <div className="mb-4">
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Kod pocztowy
+                        Imię i nazwisko <span className="text-red-500">*</span>
                       </label>
                       <input
                         type="text"
-                        value={editForm.postal_code}
+                        value={editForm.full_name}
                         onChange={(e) =>
                           setEditForm({
                             ...editForm,
-                            postal_code: e.target.value,
+                            full_name: e.target.value,
                           })
                         }
                         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        placeholder="3011 AD"
+                        placeholder="Jan Kowalski"
                       />
                     </div>
 
-                    <div>
+                    {/* Company Name */}
+                    <div className="mb-4">
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Miasto
+                        Nazwa firmy
                       </label>
                       <input
                         type="text"
-                        value={editForm.city}
+                        value={editForm.company_name}
                         onChange={(e) =>
-                          setEditForm({ ...editForm, city: e.target.value })
+                          setEditForm({
+                            ...editForm,
+                            company_name: e.target.value,
+                          })
                         }
                         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        placeholder="Rotterdam"
+                        placeholder="Np. Biuro Rachunkowe ABC"
+                      />
+                    </div>
+
+                    {/* Years Experience */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Lata doświadczenia
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        max="50"
+                        value={editForm.years_experience}
+                        onChange={(e) =>
+                          setEditForm({
+                            ...editForm,
+                            years_experience: parseInt(e.target.value) || 0,
+                          })
+                        }
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="5"
                       />
                     </div>
                   </div>
 
-                  {/* Country */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Kraj
-                    </label>
-                    <select
-                      value={editForm.country}
-                      onChange={(e) =>
-                        setEditForm({ ...editForm, country: e.target.value })
-                      }
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    >
-                      <option value="Nederland">Nederland</option>
-                      <option value="België">België</option>
-                      <option value="Polska">Polska</option>
-                      <option value="Duitsland">Duitsland</option>
-                    </select>
+                  {/* SEKCJA: Dane kontaktowe */}
+                  <div className="border-b border-gray-200 pb-4">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                      Dane kontaktowe
+                    </h3>
+
+                    {/* Email */}
+                    <div className="mb-4">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Email kontaktowy <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="email"
+                        value={editForm.email}
+                        onChange={(e) =>
+                          setEditForm({ ...editForm, email: e.target.value })
+                        }
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="kontakt@biuro.pl"
+                      />
+                    </div>
+
+                    {/* Phone */}
+                    <div className="mb-4">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Telefon
+                      </label>
+                      <input
+                        type="tel"
+                        value={editForm.phone}
+                        onChange={(e) =>
+                          setEditForm({ ...editForm, phone: e.target.value })
+                        }
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="+31 6 12345678"
+                      />
+                    </div>
+
+                    {/* Website */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Strona internetowa
+                      </label>
+                      <input
+                        type="url"
+                        value={editForm.website}
+                        onChange={(e) =>
+                          setEditForm({ ...editForm, website: e.target.value })
+                        }
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="https://www.twoje-biuro.nl"
+                      />
+                    </div>
                   </div>
-                </div>
 
-                {/* SEKCJA: Specjalizacje */}
-                <div className="border-b border-gray-200 pb-4">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                    Specjalizacje
-                  </h3>
+                  {/* SEKCJA: Licencje i certyfikaty */}
+                  <div className="border-b border-gray-200 pb-4">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                      Licencje i certyfikaty
+                    </h3>
 
-                  <div className="space-y-2">
-                    {[
-                      "BTW",
-                      "Salarisadministratie",
-                      "Jaarrekening",
-                      "Belastingaangifte",
-                      "ZZP begeleiding",
-                      "Bedrijfsadministratie",
-                    ].map((spec) => (
-                      <label
-                        key={spec}
-                        className="flex items-center gap-2 cursor-pointer"
-                      >
+                    {/* KVK Number */}
+                    <div className="mb-4">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Numer KVK (Kamer van Koophandel)
+                      </label>
+                      <input
+                        type="text"
+                        value={editForm.kvk_number}
+                        onChange={(e) =>
+                          setEditForm({
+                            ...editForm,
+                            kvk_number: e.target.value,
+                          })
+                        }
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="12345678"
+                      />
+                    </div>
+
+                    {/* BTW Number */}
+                    <div className="mb-4">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Numer BTW/VAT
+                      </label>
+                      <input
+                        type="text"
+                        value={editForm.btw_number}
+                        onChange={(e) =>
+                          setEditForm({
+                            ...editForm,
+                            btw_number: e.target.value,
+                          })
+                        }
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="NL123456789B01"
+                      />
+                    </div>
+
+                    {/* License Number */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Numer licencji księgowego
+                      </label>
+                      <input
+                        type="text"
+                        value={editForm.license_number}
+                        onChange={(e) =>
+                          setEditForm({
+                            ...editForm,
+                            license_number: e.target.value,
+                          })
+                        }
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="AA-12345"
+                      />
+                    </div>
+                  </div>
+
+                  {/* SEKCJA: Adres */}
+                  <div className="border-b border-gray-200 pb-4">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                      Adres biura
+                    </h3>
+
+                    {/* Address */}
+                    <div className="mb-4">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Ulica i numer
+                      </label>
+                      <input
+                        type="text"
+                        value={editForm.address}
+                        onChange={(e) =>
+                          setEditForm({ ...editForm, address: e.target.value })
+                        }
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="Coolsingel 42"
+                      />
+                    </div>
+
+                    {/* City + Postal Code (row) */}
+                    <div className="grid grid-cols-2 gap-4 mb-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Kod pocztowy
+                        </label>
                         <input
-                          type="checkbox"
-                          checked={editForm.specializations.includes(spec)}
-                          onChange={(e) => {
-                            if (e.target.checked) {
-                              setEditForm({
-                                ...editForm,
-                                specializations: [
-                                  ...editForm.specializations,
-                                  spec,
-                                ],
-                              });
-                            } else {
-                              setEditForm({
-                                ...editForm,
-                                specializations:
-                                  editForm.specializations.filter(
-                                    (s) => s !== spec
+                          type="text"
+                          value={editForm.postal_code}
+                          onChange={(e) =>
+                            setEditForm({
+                              ...editForm,
+                              postal_code: e.target.value,
+                            })
+                          }
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          placeholder="3011 AD"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Miasto
+                        </label>
+                        <input
+                          type="text"
+                          value={editForm.city}
+                          onChange={(e) =>
+                            setEditForm({ ...editForm, city: e.target.value })
+                          }
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          placeholder="Rotterdam"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Country */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Kraj
+                      </label>
+                      <select
+                        value={editForm.country}
+                        onChange={(e) =>
+                          setEditForm({ ...editForm, country: e.target.value })
+                        }
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      >
+                        <option value="Nederland">Nederland</option>
+                        <option value="België">België</option>
+                        <option value="Polska">Polska</option>
+                        <option value="Duitsland">Duitsland</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* SEKCJA: Specjalizacje */}
+                  <div className="border-b border-gray-200 pb-4">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                      Specjalizacje
+                    </h3>
+
+                    <div className="space-y-2">
+                      {[
+                        "BTW",
+                        "Salarisadministratie",
+                        "Jaarrekening",
+                        "Belastingaangifte",
+                        "ZZP begeleiding",
+                        "Bedrijfsadministratie",
+                      ].map((spec) => (
+                        <label
+                          key={spec}
+                          className="flex items-center gap-2 cursor-pointer"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={editForm.specializations.includes(spec)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setEditForm({
+                                  ...editForm,
+                                  specializations: [
+                                    ...editForm.specializations,
+                                    spec,
+                                  ],
+                                });
+                              } else {
+                                setEditForm({
+                                  ...editForm,
+                                  specializations:
+                                    editForm.specializations.filter(
+                                      (s) => s !== spec
+                                    ),
+                                });
+                              }
+                            }}
+                            className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
+                          />
+                          <span className="text-sm text-gray-700">{spec}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* SEKCJA: Języki */}
+                  <div className="border-b border-gray-200 pb-4">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                      Języki
+                    </h3>
+
+                    <div className="space-y-2">
+                      {[
+                        "Nederlands",
+                        "English",
+                        "Polski",
+                        "Deutsch",
+                        "Français",
+                      ].map((lang) => (
+                        <label
+                          key={lang}
+                          className="flex items-center gap-2 cursor-pointer"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={editForm.languages.includes(lang)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setEditForm({
+                                  ...editForm,
+                                  languages: [...editForm.languages, lang],
+                                });
+                              } else {
+                                setEditForm({
+                                  ...editForm,
+                                  languages: editForm.languages.filter(
+                                    (l) => l !== lang
                                   ),
-                              });
-                            }
-                          }}
-                          className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
-                        />
-                        <span className="text-sm text-gray-700">{spec}</span>
-                      </label>
-                    ))}
+                                });
+                              }
+                            }}
+                            className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
+                          />
+                          <span className="text-sm text-gray-700">{lang}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* SEKCJA: O mnie */}
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                      O mnie / Biurze
+                    </h3>
+
+                    <textarea
+                      value={editForm.bio}
+                      onChange={(e) =>
+                        setEditForm({ ...editForm, bio: e.target.value })
+                      }
+                      rows={5}
+                      maxLength={1000}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                      placeholder="Krótki opis Twoich usług księgowych, doświadczenia, specjalizacji..."
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      {editForm.bio.length}/1000 znaków
+                    </p>
+                  </div>
+
+                  {/* Info box */}
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <p className="text-sm text-blue-800">
+                      <strong>Wskazówka:</strong> Kompletny profil zwiększa
+                      zaufanie klientów i poprawia widoczność w wyszukiwarkach.
+                    </p>
                   </div>
                 </div>
 
-                {/* SEKCJA: Języki */}
-                <div className="border-b border-gray-200 pb-4">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                    Języki
-                  </h3>
-
-                  <div className="space-y-2">
-                    {[
-                      "Nederlands",
-                      "English",
-                      "Polski",
-                      "Deutsch",
-                      "Français",
-                    ].map((lang) => (
-                      <label
-                        key={lang}
-                        className="flex items-center gap-2 cursor-pointer"
-                      >
-                        <input
-                          type="checkbox"
-                          checked={editForm.languages.includes(lang)}
-                          onChange={(e) => {
-                            if (e.target.checked) {
-                              setEditForm({
-                                ...editForm,
-                                languages: [...editForm.languages, lang],
-                              });
-                            } else {
-                              setEditForm({
-                                ...editForm,
-                                languages: editForm.languages.filter(
-                                  (l) => l !== lang
-                                ),
-                              });
-                            }
-                          }}
-                          className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
-                        />
-                        <span className="text-sm text-gray-700">{lang}</span>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-
-                {/* SEKCJA: O mnie */}
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                    O mnie / Biurze
-                  </h3>
-
-                  <textarea
-                    value={editForm.bio}
-                    onChange={(e) =>
-                      setEditForm({ ...editForm, bio: e.target.value })
-                    }
-                    rows={5}
-                    maxLength={1000}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
-                    placeholder="Krótki opis Twoich usług księgowych, doświadczenia, specjalizacji..."
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    {editForm.bio.length}/1000 znaków
-                  </p>
-                </div>
-
-                {/* Info box */}
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                  <p className="text-sm text-blue-800">
-                    <strong>Wskazówka:</strong> Kompletny profil zwiększa
-                    zaufanie klientów i poprawia widoczność w wyszukiwarkach.
-                  </p>
-                </div>
-              </div>
-
-              {/* Footer buttons */}
-              <div className="sticky bottom-0 bg-gray-50 border-t border-gray-200 px-6 py-4 flex gap-3">
-                <button
-                  onClick={() => setIsEditingProfile(false)}
-                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors font-medium"
-                >
-                  Anuluj
-                </button>
-                <button
-                  onClick={handleSaveProfile}
-                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
-                >
-                  Zapisz zmiany
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {renderTopTabs()}
-
-        <main className="max-w-7xl mx-auto p-6">
-          <TabPanel isActive={activeTab === "profile"}>
-            {/* Overview content merged into profile */}
-            {renderOverview()}
-
-            {/* Profile editing section */}
-            <div className="mt-8">
-              <div className="bg-white rounded-lg shadow p-6">
-                <h2 className="text-2xl font-bold text-gray-900 mb-6">
-                  ⚙️ Ustawienia profilu
-                </h2>
-                <div className="text-center py-8">
+                {/* Footer buttons */}
+                <div className="sticky bottom-0 bg-gray-50 border-t border-gray-200 px-6 py-4 flex gap-3">
                   <button
-                    onClick={() => setIsEditingProfile(true)}
-                    className="bg-blue-600 text-white px-8 py-3 rounded-lg hover:bg-blue-700 font-medium"
+                    onClick={() => setIsEditingProfile(false)}
+                    className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors font-medium"
                   >
-                    📝 Edytuj profil księgowego
+                    Anuluj
+                  </button>
+                  <button
+                    onClick={handleSaveProfile}
+                    className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                  >
+                    Zapisz zmiany
                   </button>
                 </div>
               </div>
             </div>
-          </TabPanel>
+          )}
 
-          <TabPanel isActive={activeTab === "messages"}>
-            {renderMessages()}
-          </TabPanel>
+          {/* Main scrollable content */}
+          <main
+            className={`flex-1 overflow-y-auto ${isMobile ? "p-3" : "p-6"}`}
+          >
+            <TabPanel isActive={activeTab === "profile"}>
+              {/* Profile Navigation Drawer - DRUGI HAMBURGER */}
+              <ProfileNavigationDrawer
+                isOpen={isProfileSidebarOpen}
+                onClose={() => setIsProfileSidebarOpen(false)}
+                activeSubTab={profileSubTab}
+                onSubTabChange={(tab) => {
+                  setProfileSubTab(tab);
+                  setIsProfileSidebarOpen(false);
+                }}
+                role="accountant"
+                userName={
+                  accountant?.company_name ||
+                  accountant?.full_name ||
+                  "Księgowy"
+                }
+                userAvatar={accountant?.avatar_url}
+              />
 
-          <TabPanel isActive={activeTab === "reviews"}>
-            <div className="max-w-7xl mx-auto">
-              {/* My Reviews - Full System */}
-              <div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
-                {/* Gradient Header with Stats */}
-                <div className="bg-gradient-to-r from-indigo-600 to-purple-600 p-6">
-                  <h2 className="text-2xl font-bold text-white mb-6">
-                    ⭐ Wszystkie opinie
-                  </h2>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    {/* Total Reviews */}
-                    <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4">
-                      <p className="text-white/80 text-sm mb-1">
-                        Łącznie opinii
-                      </p>
-                      <p className="text-white text-2xl font-bold">
-                        {reviews.length}
-                      </p>
-                    </div>
-                    {/* Average Rating */}
-                    <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4">
-                      <p className="text-white/80 text-sm mb-1">
-                        Średnia ocena
-                      </p>
-                      <p className="text-white text-2xl font-bold">
-                        {reviews.length > 0
-                          ? (
-                              reviews.reduce((sum, r) => sum + r.rating, 0) /
-                              reviews.length
-                            ).toFixed(1)
-                          : accountant?.rating?.toFixed(1) || "0.0"}
-                        <span className="text-lg ml-1">⭐</span>
-                      </p>
-                    </div>
-                    {/* Positive Reviews */}
-                    <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4">
-                      <p className="text-white/80 text-sm mb-1">
-                        Pozytywne (4-5⭐)
-                      </p>
-                      <p className="text-white text-2xl font-bold">
-                        {reviews.filter((r) => r.rating >= 4).length}
-                      </p>
-                    </div>
+              {/* Profile Sub-Header with Second Hamburger (Mobile) */}
+              {isMobile && (
+                <div className="bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-lg mb-4 shadow-lg">
+                  <div className="flex items-center justify-between px-4 py-3">
+                    <button
+                      onClick={() => setIsProfileSidebarOpen(true)}
+                      className="p-2 hover:bg-white/20 rounded-lg transition-colors"
+                      aria-label="Otwórz menu profilu"
+                    >
+                      <svg
+                        className="w-6 h-6"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M4 6h16M4 12h16M4 18h16"
+                        />
+                      </svg>
+                    </button>
+                    <h2 className="text-lg font-bold">
+                      {profileSubTab === "overview" && "📊 Przegląd"}
+                      {profileSubTab === "edit" && "✏️ Edytuj Profil"}
+                      {profileSubTab === "availability" && "📅 Dostępność"}
+                      {profileSubTab === "team" && "👥 Drużyna"}
+                      {profileSubTab === "stats" && "📈 Statystyki"}
+                    </h2>
+                    <div className="w-10"></div>
                   </div>
                 </div>
+              )}
 
-                {/* Rating Breakdown */}
-                <div className="p-6 border-b border-gray-200">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                    Rozkład ocen
-                  </h3>
-                  <div className="space-y-2">
-                    {[5, 4, 3, 2, 1].map((stars) => {
-                      const count = reviews.filter(
-                        (r) => r.rating === stars
-                      ).length;
-                      const percentage =
-                        reviews.length > 0 ? (count / reviews.length) * 100 : 0;
-                      return (
-                        <div key={stars} className="flex items-center gap-3">
-                          <span className="text-sm text-gray-600 w-12">
-                            {stars} ⭐
-                          </span>
-                          <div className="flex-1 bg-gray-200 rounded-full h-2.5">
-                            <div
-                              className="bg-gradient-to-r from-indigo-600 to-purple-600 h-2.5 rounded-full transition-all duration-300"
-                              style={{ width: `${percentage}%` }}
-                            ></div>
-                          </div>
-                          <span className="text-sm text-gray-600 w-16 text-right">
-                            {count} ({percentage.toFixed(0)}%)
-                          </span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
+              {/* Profile Content based on profileSubTab */}
+              {profileSubTab === "overview" && (
+                <>
+                  {/* Overview content merged into profile */}
+                  {renderOverview()}
+                </>
+              )}
 
-                {/* Filters and Sorting */}
-                <div className="p-6 border-b border-gray-200">
-                  <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
-                    {/* Filter Buttons */}
-                    <div className="flex flex-wrap gap-2">
+              {profileSubTab === "edit" && (
+                <div className={isMobile ? "mt-0" : "mt-8"}>
+                  <div
+                    className={`bg-white rounded-lg shadow ${
+                      isMobile ? "p-4" : "p-6"
+                    }`}
+                  >
+                    <h2
+                      className={`font-bold text-gray-900 mb-6 ${
+                        isMobile ? "text-xl" : "text-2xl"
+                      }`}
+                    >
+                      ⚙️ Ustawienia profilu
+                    </h2>
+                    <div
+                      className={`text-center ${isMobile ? "py-4" : "py-8"}`}
+                    >
                       <button
-                        onClick={() => setReviewFilter("all")}
-                        className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                          reviewFilter === "all"
-                            ? "bg-indigo-600 text-white"
-                            : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                        onClick={() => setIsEditingProfile(true)}
+                        className={`bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium ${
+                          isMobile ? "px-6 py-2 text-sm" : "px-8 py-3"
                         }`}
                       >
-                        Wszystkie
+                        📝 Edytuj profil księgowego
                       </button>
-                      {[5, 4, 3, 2, 1].map((stars) => (
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {profileSubTab === "availability" && (
+                <div className={isMobile ? "mt-0" : "mt-8"}>
+                  <div
+                    className={`bg-white rounded-lg shadow ${
+                      isMobile ? "p-4" : "p-6"
+                    }`}
+                  >
+                    <h2
+                      className={`font-bold text-gray-900 mb-6 ${
+                        isMobile ? "text-xl" : "text-2xl"
+                      }`}
+                    >
+                      📅 Dostępność i Kalendarz
+                    </h2>
+                    <AvailabilityCalendar
+                      availability={availability}
+                      onChange={setAvailability}
+                      editable={true}
+                    />
+                    <DateBlocker
+                      blockedDates={blockedDates}
+                      onBlock={handleBlockDate}
+                      onUnblock={handleUnblockDate}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {profileSubTab === "team" && (
+                <div className={isMobile ? "mt-0" : "mt-8"}>{renderTeam()}</div>
+              )}
+
+              {profileSubTab === "stats" && (
+                <div className={isMobile ? "mt-0" : "mt-8"}>
+                  <div
+                    className={`bg-white rounded-lg shadow ${
+                      isMobile ? "p-4" : "p-6"
+                    }`}
+                  >
+                    <h2
+                      className={`font-bold text-gray-900 mb-6 ${
+                        isMobile ? "text-xl" : "text-2xl"
+                      }`}
+                    >
+                      📈 Statystyki
+                    </h2>
+                    <div
+                      className={`text-center ${
+                        isMobile ? "py-4" : "py-8"
+                      } text-gray-400`}
+                    >
+                      <p>Statystyki w przygotowaniu</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </TabPanel>
+
+            <TabPanel isActive={activeTab === "messages"}>
+              {renderMessages()}
+            </TabPanel>
+
+            <TabPanel isActive={activeTab === "reviews"}>
+              <div className={isMobile ? "px-2" : "max-w-7xl mx-auto"}>
+                {/* My Reviews - Full System */}
+                <div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
+                  {/* Gradient Header with Stats */}
+                  <div
+                    className={`bg-gradient-to-r from-indigo-600 to-purple-600 ${
+                      isMobile ? "p-4" : "p-6"
+                    }`}
+                  >
+                    <h2
+                      className={`font-bold text-white mb-6 ${
+                        isMobile ? "text-xl" : "text-2xl"
+                      }`}
+                    >
+                      ⭐ Wszystkie opinie
+                    </h2>
+                    <div
+                      className={`grid gap-4 ${
+                        isMobile ? "grid-cols-1" : "grid-cols-1 md:grid-cols-3"
+                      }`}
+                    >
+                      {/* Total Reviews */}
+                      <div
+                        className={`bg-white/10 backdrop-blur-sm rounded-lg ${
+                          isMobile ? "p-3" : "p-4"
+                        }`}
+                      >
+                        <p
+                          className={`text-white/80 mb-1 ${
+                            isMobile ? "text-xs" : "text-sm"
+                          }`}
+                        >
+                          Łącznie opinii
+                        </p>
+                        <p
+                          className={`text-white font-bold ${
+                            isMobile ? "text-xl" : "text-2xl"
+                          }`}
+                        >
+                          {reviews.length}
+                        </p>
+                      </div>
+                      {/* Average Rating */}
+                      <div
+                        className={`bg-white/10 backdrop-blur-sm rounded-lg ${
+                          isMobile ? "p-3" : "p-4"
+                        }`}
+                      >
+                        <p
+                          className={`text-white/80 mb-1 ${
+                            isMobile ? "text-xs" : "text-sm"
+                          }`}
+                        >
+                          Średnia ocena
+                        </p>
+                        <p
+                          className={`text-white font-bold ${
+                            isMobile ? "text-xl" : "text-2xl"
+                          }`}
+                        >
+                          {reviews.length > 0
+                            ? (
+                                reviews.reduce((sum, r) => sum + r.rating, 0) /
+                                reviews.length
+                              ).toFixed(1)
+                            : accountant?.rating?.toFixed(1) || "0.0"}
+                          <span
+                            className={
+                              isMobile ? "text-base ml-1" : "text-lg ml-1"
+                            }
+                          >
+                            ⭐
+                          </span>
+                        </p>
+                      </div>
+                      {/* Positive Reviews */}
+                      <div
+                        className={`bg-white/10 backdrop-blur-sm rounded-lg ${
+                          isMobile ? "p-3" : "p-4"
+                        }`}
+                      >
+                        <p
+                          className={`text-white/80 mb-1 ${
+                            isMobile ? "text-xs" : "text-sm"
+                          }`}
+                        >
+                          Pozytywne (4-5⭐)
+                        </p>
+                        <p
+                          className={`text-white font-bold ${
+                            isMobile ? "text-xl" : "text-2xl"
+                          }`}
+                        >
+                          {reviews.filter((r) => r.rating >= 4).length}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Rating Breakdown */}
+                  <div
+                    className={`border-b border-gray-200 ${
+                      isMobile ? "p-4" : "p-6"
+                    }`}
+                  >
+                    <h3
+                      className={`font-semibold text-gray-900 mb-4 ${
+                        isMobile ? "text-base" : "text-lg"
+                      }`}
+                    >
+                      Rozkład ocen
+                    </h3>
+                    <div className="space-y-2">
+                      {[5, 4, 3, 2, 1].map((stars) => {
+                        const count = reviews.filter(
+                          (r) => r.rating === stars
+                        ).length;
+                        const percentage =
+                          reviews.length > 0
+                            ? (count / reviews.length) * 100
+                            : 0;
+                        return (
+                          <div key={stars} className="flex items-center gap-3">
+                            <span className="text-sm text-gray-600 w-12">
+                              {stars} ⭐
+                            </span>
+                            <div className="flex-1 bg-gray-200 rounded-full h-2.5">
+                              <div
+                                className="bg-gradient-to-r from-indigo-600 to-purple-600 h-2.5 rounded-full transition-all duration-300"
+                                style={{ width: `${percentage}%` }}
+                              ></div>
+                            </div>
+                            <span className="text-sm text-gray-600 w-16 text-right">
+                              {count} ({percentage.toFixed(0)}%)
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Filters and Sorting */}
+                  <div className="p-6 border-b border-gray-200">
+                    <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
+                      {/* Filter Buttons */}
+                      <div className="flex flex-wrap gap-2">
                         <button
-                          key={stars}
-                          onClick={() =>
-                            setReviewFilter(stars as 1 | 2 | 3 | 4 | 5)
-                          }
+                          onClick={() => setReviewFilter("all")}
                           className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                            reviewFilter === stars
+                            reviewFilter === "all"
                               ? "bg-indigo-600 text-white"
                               : "bg-gray-100 text-gray-700 hover:bg-gray-200"
                           }`}
                         >
-                          {stars}⭐
+                          Wszystkie
                         </button>
-                      ))}
-                    </div>
-
-                    {/* Sort Dropdown */}
-                    <select
-                      value={reviewSort}
-                      onChange={(e) =>
-                        setReviewSort(
-                          e.target.value as
-                            | "newest"
-                            | "oldest"
-                            | "highest"
-                            | "lowest"
-                        )
-                      }
-                      className="px-4 py-2 border border-gray-300 rounded-lg bg-white text-gray-700 font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                    >
-                      <option value="newest">Najnowsze</option>
-                      <option value="oldest">Najstarsze</option>
-                      <option value="highest">Najwyższe oceny</option>
-                      <option value="lowest">Najniższe oceny</option>
-                    </select>
-                  </div>
-                </div>
-
-                {/* Reviews List */}
-                <div className="p-6">
-                  {reviewsLoading ? (
-                    <div className="text-center py-12">
-                      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto mb-4"></div>
-                      <p className="text-gray-500">Ładowanie opinii...</p>
-                    </div>
-                  ) : reviews.length === 0 ? (
-                    <div className="text-center py-12">
-                      <div className="text-6xl mb-4">📝</div>
-                      <p className="text-gray-500 text-lg mb-2">Brak opinii</p>
-                      <p className="text-sm text-gray-400">
-                        Twoi klienci będą mogli wystawiać opinie po zakończeniu
-                        współpracy
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="space-y-6">
-                      {(() => {
-                        // Filter reviews
-                        let filteredReviews = reviews;
-                        if (reviewFilter !== "all") {
-                          filteredReviews = reviews.filter(
-                            (r) => r.rating === reviewFilter
-                          );
-                        }
-
-                        // Sort reviews
-                        const sortedReviews = [...filteredReviews].sort(
-                          (a, b) => {
-                            switch (reviewSort) {
-                              case "newest":
-                                return (
-                                  new Date(b.created_at || 0).getTime() -
-                                  new Date(a.created_at || 0).getTime()
-                                );
-                              case "oldest":
-                                return (
-                                  new Date(a.created_at || 0).getTime() -
-                                  new Date(b.created_at || 0).getTime()
-                                );
-                              case "highest":
-                                return b.rating - a.rating;
-                              case "lowest":
-                                return a.rating - b.rating;
-                              default:
-                                return 0;
+                        {[5, 4, 3, 2, 1].map((stars) => (
+                          <button
+                            key={stars}
+                            onClick={() =>
+                              setReviewFilter(stars as 1 | 2 | 3 | 4 | 5)
                             }
+                            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                              reviewFilter === stars
+                                ? "bg-indigo-600 text-white"
+                                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                            }`}
+                          >
+                            {stars}⭐
+                          </button>
+                        ))}
+                      </div>
+
+                      {/* Sort Dropdown */}
+                      <select
+                        value={reviewSort}
+                        onChange={(e) =>
+                          setReviewSort(
+                            e.target.value as
+                              | "newest"
+                              | "oldest"
+                              | "highest"
+                              | "lowest"
+                          )
+                        }
+                        className="px-4 py-2 border border-gray-300 rounded-lg bg-white text-gray-700 font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      >
+                        <option value="newest">Najnowsze</option>
+                        <option value="oldest">Najstarsze</option>
+                        <option value="highest">Najwyższe oceny</option>
+                        <option value="lowest">Najniższe oceny</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Reviews List */}
+                  <div className="p-6">
+                    {reviewsLoading ? (
+                      <div className="text-center py-12">
+                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto mb-4"></div>
+                        <p className="text-gray-500">Ładowanie opinii...</p>
+                      </div>
+                    ) : reviews.length === 0 ? (
+                      <div className="text-center py-12">
+                        <div className="text-6xl mb-4">📝</div>
+                        <p className="text-gray-500 text-lg mb-2">
+                          Brak opinii
+                        </p>
+                        <p className="text-sm text-gray-400">
+                          Twoi klienci będą mogli wystawiać opinie po
+                          zakończeniu współpracy
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="space-y-6">
+                        {(() => {
+                          // Filter reviews
+                          let filteredReviews = reviews;
+                          if (reviewFilter !== "all") {
+                            filteredReviews = reviews.filter(
+                              (r) => r.rating === reviewFilter
+                            );
                           }
-                        );
 
-                        // Pagination
-                        const displayedReviews = showAllReviews
-                          ? sortedReviews
-                          : sortedReviews.slice(0, 5);
+                          // Sort reviews
+                          const sortedReviews = [...filteredReviews].sort(
+                            (a, b) => {
+                              switch (reviewSort) {
+                                case "newest":
+                                  return (
+                                    new Date(b.created_at || 0).getTime() -
+                                    new Date(a.created_at || 0).getTime()
+                                  );
+                                case "oldest":
+                                  return (
+                                    new Date(a.created_at || 0).getTime() -
+                                    new Date(b.created_at || 0).getTime()
+                                  );
+                                case "highest":
+                                  return b.rating - a.rating;
+                                case "lowest":
+                                  return a.rating - b.rating;
+                                default:
+                                  return 0;
+                              }
+                            }
+                          );
 
-                        return (
-                          <>
-                            {displayedReviews.map((review) => (
-                              <div
-                                key={review.id}
-                                className="border border-gray-200 rounded-xl p-6 hover:shadow-md transition-shadow"
-                              >
-                                {/* Review Header */}
-                                <div className="flex items-start gap-4 mb-4">
-                                  {/* Reviewer Avatar */}
-                                  <div className="flex-shrink-0">
-                                    {(review as any).workers?.workers_profile
-                                      ?.avatar_url ||
-                                    (review as any).profiles?.avatar_url ||
-                                    (review as any).cleaning_companies
-                                      ?.avatar_url ||
-                                    (review as any).employers?.logo_url ? (
-                                      <img
-                                        src={
-                                          (review as any).workers
-                                            ?.workers_profile?.avatar_url ||
-                                          (review as any).profiles
-                                            ?.avatar_url ||
-                                          (review as any).cleaning_companies
-                                            ?.avatar_url ||
-                                          (review as any).employers?.logo_url
-                                        }
-                                        alt="Reviewer"
-                                        className="w-12 h-12 rounded-full object-cover border-2 border-indigo-200"
-                                      />
-                                    ) : (
-                                      <div className="w-12 h-12 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-white font-bold text-lg">
-                                        {((review as any).workers
+                          // Pagination
+                          const displayedReviews = showAllReviews
+                            ? sortedReviews
+                            : sortedReviews.slice(0, 5);
+
+                          return (
+                            <>
+                              {displayedReviews.map((review) => (
+                                <div
+                                  key={review.id}
+                                  className="border border-gray-200 rounded-xl p-6 hover:shadow-md transition-shadow"
+                                >
+                                  {/* Review Header */}
+                                  <div className="flex items-start gap-4 mb-4">
+                                    {/* Reviewer Avatar */}
+                                    <div className="flex-shrink-0">
+                                      {(review as any).workers?.workers_profile
+                                        ?.avatar_url ||
+                                      (review as any).profiles?.avatar_url ||
+                                      (review as any).cleaning_companies
+                                        ?.avatar_url ||
+                                      (review as any).employers?.logo_url ? (
+                                        <img
+                                          src={
+                                            (review as any).workers
+                                              ?.workers_profile?.avatar_url ||
+                                            (review as any).profiles
+                                              ?.avatar_url ||
+                                            (review as any).cleaning_companies
+                                              ?.avatar_url ||
+                                            (review as any).employers?.logo_url
+                                          }
+                                          alt="Reviewer"
+                                          className="w-12 h-12 rounded-full object-cover border-2 border-indigo-200"
+                                        />
+                                      ) : (
+                                        <div className="w-12 h-12 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-white font-bold text-lg">
+                                          {((review as any).workers
+                                            ?.workers_profile?.full_name ||
+                                            (review as any).profiles
+                                              ?.full_name ||
+                                            (review as any).cleaning_companies
+                                              ?.company_name ||
+                                            (review as any).employers
+                                              ?.company_name ||
+                                            "K")?.[0]?.toUpperCase() || "K"}
+                                        </div>
+                                      )}
+                                    </div>
+
+                                    {/* Reviewer Info and Rating */}
+                                    <div className="flex-1 min-w-0">
+                                      <h4 className="font-semibold text-gray-900 text-lg">
+                                        {(review as any).workers
                                           ?.workers_profile?.full_name ||
                                           (review as any).profiles?.full_name ||
                                           (review as any).cleaning_companies
                                             ?.company_name ||
                                           (review as any).employers
                                             ?.company_name ||
-                                          "K")?.[0]?.toUpperCase() || "K"}
+                                          "Anonimowy klient"}
+                                      </h4>
+                                      <div className="flex items-center gap-3 mt-2">
+                                        <div className="flex items-center">
+                                          {Array.from({ length: 5 }, (_, i) => (
+                                            <span
+                                              key={i}
+                                              className={`text-xl ${
+                                                i < review.rating
+                                                  ? "text-yellow-400"
+                                                  : "text-gray-300"
+                                              }`}
+                                            >
+                                              ⭐
+                                            </span>
+                                          ))}
+                                        </div>
+                                        <span className="text-sm text-gray-600 font-medium">
+                                          {review.rating}/5
+                                        </span>
                                       </div>
-                                    )}
+                                    </div>
+
+                                    {/* Date */}
+                                    <div className="text-right">
+                                      <p className="text-sm text-gray-500">
+                                        {review.created_at
+                                          ? new Date(
+                                              review.created_at
+                                            ).toLocaleDateString("pl-PL", {
+                                              year: "numeric",
+                                              month: "long",
+                                              day: "numeric",
+                                            })
+                                          : "N/A"}
+                                      </p>
+                                    </div>
                                   </div>
 
-                                  {/* Reviewer Info and Rating */}
-                                  <div className="flex-1 min-w-0">
-                                    <h4 className="font-semibold text-gray-900 text-lg">
-                                      {(review as any).workers?.workers_profile
-                                        ?.full_name ||
-                                        (review as any).profiles?.full_name ||
-                                        (review as any).cleaning_companies
-                                          ?.company_name ||
-                                        (review as any).employers
-                                          ?.company_name ||
-                                        "Anonimowy klient"}
-                                    </h4>
-                                    <div className="flex items-center gap-3 mt-2">
-                                      <div className="flex items-center">
+                                  {/* Detailed Ratings (4 mini cards) */}
+                                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+                                    {/* Quality Rating */}
+                                    <div className="border-l-4 border-indigo-500 bg-indigo-50 rounded-lg p-3">
+                                      <p className="text-xs text-indigo-700 font-medium mb-1">
+                                        Jakość usług
+                                      </p>
+                                      <div className="flex items-center gap-1">
                                         {Array.from({ length: 5 }, (_, i) => (
                                           <span
                                             key={i}
-                                            className={`text-xl ${
+                                            className={`text-sm ${
                                               i < review.rating
-                                                ? "text-yellow-400"
-                                                : "text-gray-300"
+                                                ? "text-indigo-600"
+                                                : "text-indigo-200"
                                             }`}
                                           >
                                             ⭐
                                           </span>
                                         ))}
                                       </div>
-                                      <span className="text-sm text-gray-600 font-medium">
-                                        {review.rating}/5
-                                      </span>
+                                    </div>
+
+                                    {/* Communication Rating */}
+                                    <div className="border-l-4 border-green-500 bg-green-50 rounded-lg p-3">
+                                      <p className="text-xs text-green-700 font-medium mb-1">
+                                        Komunikacja
+                                      </p>
+                                      <div className="flex items-center gap-1">
+                                        {Array.from({ length: 5 }, (_, i) => (
+                                          <span
+                                            key={i}
+                                            className={`text-sm ${
+                                              i < review.rating
+                                                ? "text-green-600"
+                                                : "text-green-200"
+                                            }`}
+                                          >
+                                            ⭐
+                                          </span>
+                                        ))}
+                                      </div>
+                                    </div>
+
+                                    {/* Punctuality Rating */}
+                                    <div className="border-l-4 border-orange-500 bg-orange-50 rounded-lg p-3">
+                                      <p className="text-xs text-orange-700 font-medium mb-1">
+                                        Terminowość
+                                      </p>
+                                      <div className="flex items-center gap-1">
+                                        {Array.from({ length: 5 }, (_, i) => (
+                                          <span
+                                            key={i}
+                                            className={`text-sm ${
+                                              i < review.rating
+                                                ? "text-orange-600"
+                                                : "text-orange-200"
+                                            }`}
+                                          >
+                                            ⭐
+                                          </span>
+                                        ))}
+                                      </div>
+                                    </div>
+
+                                    {/* Professionalism Rating */}
+                                    <div className="border-l-4 border-blue-500 bg-blue-50 rounded-lg p-3">
+                                      <p className="text-xs text-blue-700 font-medium mb-1">
+                                        Profesjonalizm
+                                      </p>
+                                      <div className="flex items-center gap-1">
+                                        {Array.from({ length: 5 }, (_, i) => (
+                                          <span
+                                            key={i}
+                                            className={`text-sm ${
+                                              i < review.rating
+                                                ? "text-blue-600"
+                                                : "text-blue-200"
+                                            }`}
+                                          >
+                                            ⭐
+                                          </span>
+                                        ))}
+                                      </div>
                                     </div>
                                   </div>
 
-                                  {/* Date */}
-                                  <div className="text-right">
-                                    <p className="text-sm text-gray-500">
-                                      {review.created_at
-                                        ? new Date(
-                                            review.created_at
-                                          ).toLocaleDateString("pl-PL", {
-                                            year: "numeric",
-                                            month: "long",
-                                            day: "numeric",
-                                          })
-                                        : "N/A"}
-                                    </p>
-                                  </div>
+                                  {/* Review Comment */}
+                                  {review.comment && (
+                                    <div className="mb-4">
+                                      <p className="text-gray-700 leading-relaxed">
+                                        {review.comment}
+                                      </p>
+                                    </div>
+                                  )}
                                 </div>
+                              ))}
 
-                                {/* Detailed Ratings (4 mini cards) */}
-                                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
-                                  {/* Quality Rating */}
-                                  <div className="border-l-4 border-indigo-500 bg-indigo-50 rounded-lg p-3">
-                                    <p className="text-xs text-indigo-700 font-medium mb-1">
-                                      Jakość usług
-                                    </p>
-                                    <div className="flex items-center gap-1">
-                                      {Array.from({ length: 5 }, (_, i) => (
-                                        <span
-                                          key={i}
-                                          className={`text-sm ${
-                                            i < review.rating
-                                              ? "text-indigo-600"
-                                              : "text-indigo-200"
-                                          }`}
-                                        >
-                                          ⭐
-                                        </span>
-                                      ))}
-                                    </div>
-                                  </div>
-
-                                  {/* Communication Rating */}
-                                  <div className="border-l-4 border-green-500 bg-green-50 rounded-lg p-3">
-                                    <p className="text-xs text-green-700 font-medium mb-1">
-                                      Komunikacja
-                                    </p>
-                                    <div className="flex items-center gap-1">
-                                      {Array.from({ length: 5 }, (_, i) => (
-                                        <span
-                                          key={i}
-                                          className={`text-sm ${
-                                            i < review.rating
-                                              ? "text-green-600"
-                                              : "text-green-200"
-                                          }`}
-                                        >
-                                          ⭐
-                                        </span>
-                                      ))}
-                                    </div>
-                                  </div>
-
-                                  {/* Punctuality Rating */}
-                                  <div className="border-l-4 border-orange-500 bg-orange-50 rounded-lg p-3">
-                                    <p className="text-xs text-orange-700 font-medium mb-1">
-                                      Terminowość
-                                    </p>
-                                    <div className="flex items-center gap-1">
-                                      {Array.from({ length: 5 }, (_, i) => (
-                                        <span
-                                          key={i}
-                                          className={`text-sm ${
-                                            i < review.rating
-                                              ? "text-orange-600"
-                                              : "text-orange-200"
-                                          }`}
-                                        >
-                                          ⭐
-                                        </span>
-                                      ))}
-                                    </div>
-                                  </div>
-
-                                  {/* Professionalism Rating */}
-                                  <div className="border-l-4 border-blue-500 bg-blue-50 rounded-lg p-3">
-                                    <p className="text-xs text-blue-700 font-medium mb-1">
-                                      Profesjonalizm
-                                    </p>
-                                    <div className="flex items-center gap-1">
-                                      {Array.from({ length: 5 }, (_, i) => (
-                                        <span
-                                          key={i}
-                                          className={`text-sm ${
-                                            i < review.rating
-                                              ? "text-blue-600"
-                                              : "text-blue-200"
-                                          }`}
-                                        >
-                                          ⭐
-                                        </span>
-                                      ))}
-                                    </div>
-                                  </div>
+                              {/* Show More Button */}
+                              {sortedReviews.length > 5 && (
+                                <div className="text-center pt-4">
+                                  <button
+                                    onClick={() =>
+                                      setShowAllReviews(!showAllReviews)
+                                    }
+                                    className="px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg font-medium hover:from-indigo-700 hover:to-purple-700 transition-all"
+                                  >
+                                    {showAllReviews
+                                      ? "Pokaż mniej"
+                                      : `Pokaż wszystkie (${sortedReviews.length})`}
+                                  </button>
                                 </div>
+                              )}
+                            </>
+                          );
+                        })()}
+                      </div>
+                    )}
+                  </div>
 
-                                {/* Review Comment */}
-                                {review.comment && (
-                                  <div className="mb-4">
-                                    <p className="text-gray-700 leading-relaxed">
-                                      {review.comment}
-                                    </p>
-                                  </div>
-                                )}
-                              </div>
-                            ))}
-
-                            {/* Show More Button */}
-                            {sortedReviews.length > 5 && (
-                              <div className="text-center pt-4">
-                                <button
-                                  onClick={() =>
-                                    setShowAllReviews(!showAllReviews)
-                                  }
-                                  className="px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg font-medium hover:from-indigo-700 hover:to-purple-700 transition-all"
-                                >
-                                  {showAllReviews
-                                    ? "Pokaż mniej"
-                                    : `Pokaż wszystkie (${sortedReviews.length})`}
-                                </button>
-                              </div>
-                            )}
-                          </>
-                        );
-                      })()}
-                    </div>
-                  )}
-                </div>
-
-                {/* Export Section */}
-                {reviews.length > 0 && (
-                  <div className="p-6 bg-gray-50 border-t border-gray-200">
-                    <h3 className="text-sm font-semibold text-gray-700 mb-3">
-                      Eksportuj opinie
-                    </h3>
-                    <div className="flex flex-col sm:flex-row gap-3">
-                      <button
-                        onClick={() => {
-                          const htmlContent = `
+                  {/* Export Section */}
+                  {reviews.length > 0 && (
+                    <div className="p-6 bg-gray-50 border-t border-gray-200">
+                      <h3 className="text-sm font-semibold text-gray-700 mb-3">
+                        Eksportuj opinie
+                      </h3>
+                      <div className="flex flex-col sm:flex-row gap-3">
+                        <button
+                          onClick={() => {
+                            const htmlContent = `
                             <!DOCTYPE html>
                             <html>
                             <head>
@@ -3516,101 +4243,138 @@ export default function AccountantDashboard() {
                             </body>
                             </html>
                           `;
-                          const blob = new Blob([htmlContent], {
-                            type: "text/html",
-                          });
-                          const url = URL.createObjectURL(blob);
-                          const a = document.createElement("a");
-                          a.href = url;
-                          a.download = `opinie-${Date.now()}.html`;
-                          a.click();
-                          URL.revokeObjectURL(url);
-                        }}
-                        className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 transition-colors flex items-center justify-center gap-2"
-                      >
-                        📄 Pobierz PDF (HTML)
-                      </button>
-                      <button
-                        onClick={() => {
-                          const csvContent = [
-                            ["Klient", "Ocena", "Komentarz", "Data"].join(","),
-                            ...reviews.map((r) =>
-                              [
-                                r.worker?.full_name || "Anonim",
-                                r.rating,
-                                `"${(r.comment || "").replace(/"/g, '""')}"`,
-                                r.created_at
-                                  ? new Date(r.created_at).toLocaleDateString(
-                                      "pl-PL"
-                                    )
-                                  : "N/A",
-                              ].join(",")
-                            ),
-                          ].join("\n");
-                          const blob = new Blob([csvContent], {
-                            type: "text/csv;charset=utf-8;",
-                          });
-                          const url = URL.createObjectURL(blob);
-                          const a = document.createElement("a");
-                          a.href = url;
-                          a.download = `opinie-${Date.now()}.csv`;
-                          a.click();
-                          URL.revokeObjectURL(url);
-                        }}
-                        className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition-colors flex items-center justify-center gap-2"
-                      >
-                        📊 Pobierz CSV
-                      </button>
+                            const blob = new Blob([htmlContent], {
+                              type: "text/html",
+                            });
+                            const url = URL.createObjectURL(blob);
+                            const a = document.createElement("a");
+                            a.href = url;
+                            a.download = `opinie-${Date.now()}.html`;
+                            a.click();
+                            URL.revokeObjectURL(url);
+                          }}
+                          className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 transition-colors flex items-center justify-center gap-2"
+                        >
+                          📄 Pobierz PDF (HTML)
+                        </button>
+                        <button
+                          onClick={() => {
+                            const csvContent = [
+                              ["Klient", "Ocena", "Komentarz", "Data"].join(
+                                ","
+                              ),
+                              ...reviews.map((r) =>
+                                [
+                                  r.worker?.full_name || "Anonim",
+                                  r.rating,
+                                  `"${(r.comment || "").replace(/"/g, '""')}"`,
+                                  r.created_at
+                                    ? new Date(r.created_at).toLocaleDateString(
+                                        "pl-PL"
+                                      )
+                                    : "N/A",
+                                ].join(",")
+                              ),
+                            ].join("\n");
+                            const blob = new Blob([csvContent], {
+                              type: "text/csv;charset=utf-8;",
+                            });
+                            const url = URL.createObjectURL(blob);
+                            const a = document.createElement("a");
+                            a.href = url;
+                            a.download = `opinie-${Date.now()}.csv`;
+                            a.click();
+                            URL.revokeObjectURL(url);
+                          }}
+                          className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition-colors flex items-center justify-center gap-2"
+                        >
+                          📊 Pobierz CSV
+                        </button>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-2">
+                        💡 PDF (HTML) - otwórz w przeglądarce i zapisz jako PDF
+                        | CSV - importuj do Excel/Sheets
+                      </p>
                     </div>
-                    <p className="text-xs text-gray-500 mt-2">
-                      💡 PDF (HTML) - otwórz w przeglądarce i zapisz jako PDF |
-                      CSV - importuj do Excel/Sheets
-                    </p>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
-            </div>
-          </TabPanel>
+            </TabPanel>
 
-          {/* Tablica Tab */}
-          <TabPanel isActive={activeTab === "tablica"}>
-            <FeedPage />
-          </TabPanel>
+            {/* Tablica Tab */}
+            <TabPanel isActive={activeTab === "tablica"}>
+              <FeedPage key="accountant-feed-page" />
+            </TabPanel>
 
-          <TabPanel isActive={activeTab === "services"}>
-            <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-2xl font-bold mb-6">💼 Usługi</h2>
-              <div className="text-center text-gray-400 py-12">
-                <p>Brak usług</p>
+            <TabPanel isActive={activeTab === "services"}>
+              <div className="bg-white rounded-lg shadow p-6">
+                <h2 className="text-2xl font-bold mb-6">💼 Usługi</h2>
+                <div className="text-center text-gray-400 py-12">
+                  <p>Brak usług</p>
+                </div>
               </div>
-            </div>
-          </TabPanel>
+            </TabPanel>
 
-          <TabPanel isActive={activeTab === "submissions"}>
-            {renderSubmissions()}
-          </TabPanel>
+            <TabPanel isActive={activeTab === "submissions"}>
+              {renderSubmissions()}
+            </TabPanel>
 
-          <TabPanel isActive={activeTab === "forms"}>{renderForms()}</TabPanel>
+            <TabPanel isActive={activeTab === "forms"}>
+              {renderForms()}
+            </TabPanel>
 
-          <TabPanel isActive={activeTab === "team"}>{renderTeam()}</TabPanel>
+            <TabPanel isActive={activeTab === "team"}>{renderTeam()}</TabPanel>
 
-          {/* My Posts Tab */}
-          <TabPanel isActive={activeTab === "my_posts"}>
-            <MyPosts />
-          </TabPanel>
+            {/* My Posts Tab */}
+            <TabPanel isActive={activeTab === "my_posts"}>
+              <MyPosts />
+            </TabPanel>
 
-          {/* Saved Activity Tab */}
-          <TabPanel isActive={activeTab === "saved_activity"}>
-            <SavedActivity />
-          </TabPanel>
-        </main>
+            {/* Saved Activity Tab */}
+            <TabPanel isActive={activeTab === "saved_activity"}>
+              <SavedActivity />
+            </TabPanel>
 
-        {/* Support Ticket Modal */}
-        <SupportTicketModal
-          isOpen={showSupportModal}
-          onClose={() => setShowSupportModal(false)}
-        />
+            {/* My Profile Preview Tab */}
+            <TabPanel isActive={activeTab === "my_profile"}>
+              <MyProfilePreview role="accountant" />
+            </TabPanel>
+
+            {/* Subscription Tab */}
+            <TabPanel isActive={activeTab === "subscription"}>
+              <AccountantSubscriptionPage />
+            </TabPanel>
+
+            {/* Settings Tab */}
+            <TabPanel isActive={activeTab === "settings"}>
+              <AccountantSettingsPanel
+                accountantProfile={accountant}
+                notificationSettings={notificationSettings}
+                privacySettings={privacySettings}
+                saving={settingsSaving}
+                onAvatarUpload={handleAvatarUpload}
+                onCoverImageUpload={handleCoverImageUploadSuccess}
+                onNotificationSettingsChange={setNotificationSettings}
+                onNotificationSettingsSave={handleNotificationSettingsSave}
+                onPrivacySettingsChange={setPrivacySettings}
+                onPrivacySettingsSave={handlePrivacySettingsSave}
+                onAccountantDataSave={handleAccountantDataSave}
+                isMobile={isMobile}
+              />
+            </TabPanel>
+
+            {/* NOTE: Kilometers and Calendar tabs removed - they are only in /faktury module */}
+          </main>
+
+          {/* Support Ticket Modal */}
+          <SupportTicketModal
+            isOpen={showSupportModal}
+            onClose={() => setShowSupportModal(false)}
+          />
+        </div>
+        {/* End of flex-1 content area */}
       </div>
+      {/* End of flex container */}
     </div>
   );
 }

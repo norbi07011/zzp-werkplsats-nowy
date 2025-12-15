@@ -83,13 +83,14 @@ export const SubscriptionsManager: React.FC = () => {
   const loadSubscriptions = async () => {
     try {
       setLoading(true);
+      console.log("[SubscriptionsManager] Starting to load subscriptions...");
 
       // Fetch all subscriptions from different tables
       const [
-        { data: workers },
-        { data: employers },
-        { data: cleaningCompanies },
-        { data: accountants },
+        { data: workers, error: workersError },
+        { data: employers, error: employersError },
+        { data: cleaningCompanies, error: cleaningError },
+        { data: accountants, error: accountantsError },
       ] = await Promise.all([
         // Workers
         supabase.from("workers").select(`
@@ -113,7 +114,7 @@ export const SubscriptionsManager: React.FC = () => {
             subscription_tier,
             subscription_status,
             subscription_start_date,
-            stripe_customer_id,
+            created_at,
             profiles!employers_profile_id_fkey(email)
           `),
         // Cleaning Companies
@@ -137,6 +138,34 @@ export const SubscriptionsManager: React.FC = () => {
             profiles!accountants_profile_id_fkey(email)
           `),
       ]);
+
+      // Log results
+      console.log("[SubscriptionsManager] Query results:", {
+        workers: workers?.length || 0,
+        workersError: workersError?.message,
+        employers: employers?.length || 0,
+        employersError: employersError?.message,
+        cleaningCompanies: cleaningCompanies?.length || 0,
+        cleaningError: cleaningError?.message,
+        accountants: accountants?.length || 0,
+        accountantsError: accountantsError?.message,
+      });
+
+      // If there are errors, log them
+      if (workersError)
+        console.error("[SubscriptionsManager] Workers error:", workersError);
+      if (employersError)
+        console.error(
+          "[SubscriptionsManager] Employers error:",
+          employersError
+        );
+      if (cleaningError)
+        console.error("[SubscriptionsManager] Cleaning error:", cleaningError);
+      if (accountantsError)
+        console.error(
+          "[SubscriptionsManager] Accountants error:",
+          accountantsError
+        );
 
       // Transform workers
       const workerSubs: Subscription[] = (workers || []).map((w: any) => ({
@@ -169,13 +198,10 @@ export const SubscriptionsManager: React.FC = () => {
         subscription_status: e.subscription_status || "active",
         monthly_fee:
           e.subscription_tier === "premium"
-            ? 149
-            : e.subscription_tier === "pro"
-            ? 99
-            : 49,
-        subscription_start_date: e.subscription_start_date,
-        stripe_customer_id: e.stripe_customer_id,
-        created_at: e.subscription_start_date,
+            ? 25 // Premium €25
+            : 13, // Basic €13
+        subscription_start_date: e.subscription_start_date || e.created_at,
+        created_at: e.subscription_start_date || e.created_at,
       }));
 
       // Transform cleaning companies
@@ -229,6 +255,15 @@ export const SubscriptionsManager: React.FC = () => {
         ...cleaningSubs,
         ...accountantSubs,
       ];
+
+      console.log("[SubscriptionsManager] All subscriptions loaded:", {
+        total: allSubs.length,
+        workers: workerSubs.length,
+        employers: employerSubs.length,
+        cleaning: cleaningSubs.length,
+        accountants: accountantSubs.length,
+        data: allSubs,
+      });
 
       setSubscriptions(allSubs);
 

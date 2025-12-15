@@ -9,6 +9,7 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
+import { useIsMobile } from "../../src/hooks/useIsMobile";
 import { SupportTicketModal } from "../../src/components/SupportTicketModal";
 import { supabase } from "@/lib/supabase";
 import {
@@ -28,16 +29,26 @@ import {
   TabPanel,
   type UnifiedTab,
 } from "../../components/UnifiedDashboardTabs";
+import { DashboardSidebar } from "../../components/DashboardSidebar";
+import { NavigationDrawer } from "../../components/NavigationDrawer";
+import { QuickActionsCard } from "../../components/QuickActionsCard";
 import employerService, {
   type EmployerStats,
   type SearchHistoryItem,
   type SavedWorker,
 } from "../../services/employerService";
 import { getEmployerReviews } from "../../src/services/employerReviewService";
-import type { Database } from "../../src/lib/database.types";
+import type { Database } from "../../src/types/database.types";
 import MyPosts from "./MyPosts";
 import SavedActivity from "./SavedActivity";
 import FeedPage from "../FeedPage_PREMIUM";
+// NOTE: EmployerTeamPage removed - now accessed via /employer/team separate route
+import { UpcomingEventsCard } from "../../components/UpcomingEventsCard";
+import { GlowButton } from "../../components/ui/GlowButton";
+import { MyProfilePreview } from "../../components/profile/MyProfilePreview";
+import { EmployerSettingsPanel } from "../../components/settings/EmployerSettingsPanel";
+import { EmployerSubscriptionPage } from "./EmployerSubscriptionPage";
+// NOTE: Kilometers, Appointments and I18nProvider removed - they are only in /faktury module
 
 type Employer = Database["public"]["Tables"]["employers"]["Row"];
 
@@ -174,10 +185,12 @@ const getConversationPartner = (
 export const EmployerDashboard = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
   const { activeTab, setActiveTab } = useUnifiedTabs("overview");
 
   // State
   const [loading, setLoading] = useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [employerId, setEmployerId] = useState<string | null>(null);
   const [employerProfile, setEmployerProfile] = useState<Employer | null>(null);
@@ -208,6 +221,30 @@ export const EmployerDashboard = () => {
 
   // Communication UI state
   const [showCommunicationPanel, setShowCommunicationPanel] = useState(false);
+
+  // Settings state
+  const [settingsSaving, setSettingsSaving] = useState(false);
+  const [notificationSettings, setNotificationSettings] = useState({
+    email_enabled: true,
+    sms_enabled: false,
+    push_enabled: true,
+    application_alerts: true,
+    message_alerts: true,
+    review_alerts: true,
+  });
+  const [privacySettings, setPrivacySettings] = useState<{
+    profile_visibility: "public" | "contacts" | "private";
+    show_email: boolean;
+    show_phone: boolean;
+    show_address: boolean;
+    allow_messages: boolean;
+  }>({
+    profile_visibility: "public",
+    show_email: true,
+    show_phone: true,
+    show_address: true,
+    allow_messages: true,
+  });
 
   // =====================================================
   // DATA LOADING
@@ -676,6 +713,95 @@ export const EmployerDashboard = () => {
   };
 
   // =====================================================
+  // COMPANY DATA & SETTINGS HANDLERS
+  // =====================================================
+
+  const handleCompanyDataSave = async (data: {
+    company_name: string;
+    kvk_number: string;
+    btw_number: string;
+    website: string;
+    description: string;
+    industry: string;
+    company_size: string;
+    company_type: string;
+    address: string;
+    city: string;
+    postal_code: string;
+    country: string;
+    contact_person: string;
+    contact_phone: string;
+    contact_email: string;
+  }) => {
+    if (!employerProfile) return;
+
+    setSettingsSaving(true);
+    try {
+      const { error } = await supabase
+        .from("employers")
+        .update({
+          company_name: data.company_name,
+          kvk_number: data.kvk_number,
+          btw_number: data.btw_number,
+          website: data.website,
+          description: data.description,
+          industry: data.industry,
+          company_size: data.company_size,
+          company_type: data.company_type,
+          address: data.address,
+          city: data.city,
+          postal_code: data.postal_code,
+          country: data.country,
+          contact_person: data.contact_person,
+          contact_phone: data.contact_phone,
+          contact_email: data.contact_email,
+        } as any)
+        .eq("id", employerProfile.id);
+
+      if (error) throw error;
+
+      setEmployerProfile({
+        ...employerProfile,
+        company_name: data.company_name,
+        kvk_number: data.kvk_number,
+        btw_number: data.btw_number,
+        website: data.website,
+        description: data.description,
+        industry: data.industry,
+        company_size: data.company_size,
+        company_type: data.company_type,
+        address: data.address,
+        city: data.city,
+        postal_code: data.postal_code,
+        country: data.country,
+        contact_person: data.contact_person,
+        contact_phone: data.contact_phone,
+        contact_email: data.contact_email,
+      } as any);
+
+      console.log("✅ Company data saved");
+    } catch (error) {
+      console.error("❌ Error saving company data:", error);
+      alert("Błąd podczas zapisywania danych firmy");
+    } finally {
+      setSettingsSaving(false);
+    }
+  };
+
+  const handleNotificationSettingsSave = async () => {
+    // TODO: Save to database when notification_settings column is added
+    console.log(
+      "✅ Notification settings saved (local only):",
+      notificationSettings
+    );
+  };
+
+  const handlePrivacySettingsSave = async () => {
+    // TODO: Save to database when privacy_settings column is added
+    console.log("✅ Privacy settings saved (local only):", privacySettings);
+  };
+
+  // =====================================================
   // ICON COMPONENT
   // =====================================================
 
@@ -833,114 +959,49 @@ export const EmployerDashboard = () => {
         <SpinningNumbers opacity={0.15} />
       </div>
 
-      <div className="relative z-10">
-        <PageContainer>
-          {/* Modern Header with Avatar */}
-          <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-700 p-8 text-white shadow-2xl">
-            <div className="absolute inset-0 bg-black/10"></div>
-            <div className="relative flex items-center justify-between">
-              <div className="flex items-center gap-6">
-                {/* Employer Logo/Avatar */}
-                <div className="flex-shrink-0">
-                  {employerProfile?.logo_url ? (
-                    <img
-                      src={employerProfile.logo_url}
-                      alt={employerProfile.company_name || "Pracodawca"}
-                      className="w-20 h-20 rounded-full object-cover border-4 border-white/30 shadow-lg"
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).style.display = "none";
-                        const fallback = (e.target as HTMLImageElement)
-                          .nextElementSibling as HTMLElement;
-                        if (fallback) fallback.style.display = "flex";
-                      }}
-                    />
-                  ) : null}
-                  <div
-                    className="w-20 h-20 bg-gradient-to-br from-white/20 to-white/10 backdrop-blur-sm rounded-full flex items-center justify-center text-white font-bold text-3xl border-4 border-white/30 shadow-lg"
-                    style={{
-                      display: employerProfile?.logo_url ? "none" : "flex",
-                    }}
-                  >
-                    {employerProfile?.company_name?.[0]?.toUpperCase() || "🏢"}
-                  </div>
-                </div>
-
-                {/* Header Text */}
-                <div>
-                  <h1 className="text-4xl font-bold tracking-tight mb-2">
-                    <span className="mr-2">🏢</span>
-                    {employerProfile?.company_name || "Panel pracodawcy"}
-                  </h1>
-                  <p className="text-blue-100 text-lg">
-                    Witamy ponownie, {user?.fullName || "Pracodawco"}! Zarządzaj
-                    swoimi pracownikami i projektami
-                  </p>
-                </div>
-              </div>
-
-              {/* Action Buttons */}
-              <div className="flex gap-4">
-                <button
-                  onClick={() => {
-                    console.log(
-                      "Communication button clicked! Current state:",
-                      showCommunicationPanel
-                    );
-                    setShowCommunicationPanel(!showCommunicationPanel);
-                  }}
-                  className="px-6 py-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl hover:from-blue-600 hover:to-blue-700 transition-all duration-300 transform hover:scale-105 font-medium shadow-lg flex items-center gap-2"
-                >
-                  🏗️ Komunikacja Projektowa
-                </button>
-                <Link
-                  to="/employer/profile"
-                  className="px-8 py-4 bg-gradient-to-r from-emerald-500 to-green-600 text-white rounded-2xl hover:from-emerald-600 hover:to-green-700 transition-all duration-300 transform hover:scale-105 font-bold text-lg shadow-xl"
-                >
-                  ⚙️ Mój profil
-                </Link>
-              </div>
-            </div>
-
-            {/* Decorative elements */}
-            <div className="absolute -top-10 -right-10 w-40 h-40 bg-white/10 rounded-full blur-xl"></div>
-            <div className="absolute -bottom-10 -left-10 w-40 h-40 bg-purple-400/20 rounded-full blur-xl"></div>
-          </div>
-
-          {/* Unified Dashboard Tabs */}
-          <UnifiedDashboardTabs
+      {/* Main Layout: Sidebar + Content */}
+      <div className="flex h-screen relative z-10">
+        {/* Desktop Sidebar */}
+        {!isMobile && (
+          <DashboardSidebar
             activeTab={activeTab}
             onTabChange={setActiveTab}
-            role="employer"
+            title="🏢 Pracodawca"
+            subtitle="Panel zarządzania"
             unreadMessages={unreadCount}
+            onSupportClick={() => setShowSupportModal(true)}
           />
+        )}
 
-          {/* Tab Panels */}
-          <TabPanel isActive={activeTab === "profile"}>
-            {/* Modern Stats Cards (from overview) */}
-            <StatsGrid columns={4}>
-              {statsCards.map((stat, idx) => (
-                <StatCard
-                  key={idx}
-                  title={stat.label}
-                  value={stat.value}
-                  color={getStatColor(stat.icon)}
-                  icon={getIconSvg(stat.icon)}
-                />
-              ))}
-            </StatsGrid>
+        {/* Mobile Navigation Drawer */}
+        {isMobile && (
+          <DashboardSidebar
+            activeTab={activeTab}
+            onTabChange={setActiveTab}
+            title="🏢 Pracodawca"
+            subtitle="Panel zarządzania"
+            unreadMessages={unreadCount}
+            isMobile={true}
+            isMobileMenuOpen={isSidebarOpen}
+            onMobileMenuToggle={() => setIsSidebarOpen(false)}
+            onSupportClick={() => setShowSupportModal(true)}
+          />
+        )}
 
-            {/* Quick Actions - PRZED gridem, full width */}
-            <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6 mb-6">
-              <h2 className="text-xl font-bold text-gray-900 mb-4">
-                ⚡ Szybkie działania
-              </h2>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        {/* Main Content Area */}
+        <div className="flex-1 flex flex-col overflow-hidden">
+          {/* Mobile Header with Hamburger */}
+          {isMobile && (
+            <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white sticky top-0 z-40 shadow-lg flex-shrink-0">
+              <div className="flex items-center justify-between px-4 py-3">
+                <h1 className="text-lg font-bold">🏢 Pracodawca</h1>
                 <button
-                  onClick={handleQuickSearch}
-                  className="w-full px-4 py-3 bg-orange-600 text-white rounded-lg font-medium hover:bg-orange-700 flex items-center justify-center gap-2"
+                  onClick={() => setIsSidebarOpen(true)}
+                  className="p-2 hover:bg-white/20 rounded-lg transition-colors"
+                  aria-label="Otwórz menu"
                 >
                   <svg
-                    className="w-5 h-5"
+                    className="w-6 h-6"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -949,709 +1010,734 @@ export const EmployerDashboard = () => {
                       strokeLinecap="round"
                       strokeLinejoin="round"
                       strokeWidth={2}
-                      d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                      d="M4 6h16M4 12h16M4 18h16"
                     />
                   </svg>
-                  Szukaj pracowników
-                </button>
-
-                <Link
-                  to="/cleaning-companies"
-                  className="w-full px-4 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 flex items-center justify-center gap-2"
-                >
-                  <svg
-                    className="w-5 h-5"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
-                    />
-                  </svg>
-                  Firmy sprzątające
-                </Link>
-
-                <Link
-                  to="/accountants"
-                  className="w-full px-4 py-3 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 flex items-center justify-center gap-2"
-                >
-                  <svg
-                    className="w-5 h-5"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"
-                    />
-                  </svg>
-                  Księgowi
-                </Link>
-
-                <Link
-                  to="/faktury"
-                  className="w-full px-4 py-3 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 flex items-center justify-center gap-2"
-                >
-                  <svg
-                    className="w-5 h-5"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                    />
-                  </svg>
-                  Faktury & BTW
-                </Link>
-
-                <button
-                  onClick={() => {
-                    console.log("Subskrypcja clicked");
-                  }}
-                  className="w-full px-4 py-3 bg-purple-600 text-white rounded-lg font-medium hover:bg-purple-700 flex items-center justify-center gap-2"
-                >
-                  <svg
-                    className="w-5 h-5"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"
-                    />
-                  </svg>
-                  Subskrypcja
-                </button>
-
-                <button
-                  onClick={() => setShowSupportModal(true)}
-                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg font-medium text-gray-700 hover:bg-gray-50 flex items-center justify-center gap-2"
-                >
-                  <svg
-                    className="w-5 h-5"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-5 0a4 4 0 11-8 0 4 4 0 018 0z"
-                    />
-                  </svg>
-                  Wsparcie
                 </button>
               </div>
             </div>
+          )}
 
-            {/* GŁÓWNY GRID 2+1 */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* Recent Search History */}
-              <div className="lg:col-span-2">
-                <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6 mb-6">
-                  <div className="flex items-center justify-between mb-6">
-                    <h2 className="text-xl font-bold text-gray-900">
-                      Ostatnie wyszukiwania
-                    </h2>
-                    <Link
-                      to="/employer/search"
-                      className="text-sm text-orange-600 hover:text-orange-700 font-medium"
-                    >
-                      Nowe wyszukiwanie →
-                    </Link>
-                  </div>
-
-                  {searchHistory.length === 0 ? (
-                    <div className="text-center py-8">
-                      <p className="text-gray-500">Brak historii wyszukiwań</p>
-                      <button
-                        onClick={handleQuickSearch}
-                        className="mt-4 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700"
+          {/* Main scrollable content */}
+          <main className="flex-1 overflow-y-auto">
+            <PageContainer>
+              {/* Modern Header with Avatar */}
+              <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-700 p-8 text-white shadow-2xl">
+                <div className="absolute inset-0 bg-black/10"></div>
+                <div className="relative flex items-center justify-between">
+                  <div className="flex items-center gap-6">
+                    {/* Employer Logo/Avatar */}
+                    <div className="flex-shrink-0">
+                      {employerProfile?.logo_url ? (
+                        <img
+                          src={employerProfile.logo_url}
+                          alt={employerProfile.company_name || "Pracodawca"}
+                          className="w-20 h-20 rounded-full object-cover border-4 border-white/30 shadow-lg"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).style.display =
+                              "none";
+                            const fallback = (e.target as HTMLImageElement)
+                              .nextElementSibling as HTMLElement;
+                            if (fallback) fallback.style.display = "flex";
+                          }}
+                        />
+                      ) : null}
+                      <div
+                        className="w-20 h-20 bg-gradient-to-br from-white/20 to-white/10 backdrop-blur-sm rounded-full flex items-center justify-center text-white font-bold text-3xl border-4 border-white/30 shadow-lg"
+                        style={{
+                          display: employerProfile?.logo_url ? "none" : "flex",
+                        }}
                       >
-                        Rozpocznij pierwsze wyszukiwanie
-                      </button>
+                        {employerProfile?.company_name?.[0]?.toUpperCase() ||
+                          "🏢"}
+                      </div>
                     </div>
-                  ) : (
-                    <div className="space-y-4">
-                      {searchHistory.map((search) => (
-                        <div
-                          key={search.id}
-                          className="border-b border-gray-100 pb-4 last:border-0 last:pb-0"
-                        >
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <p className="font-medium text-gray-900">
-                                {search.category}
-                              </p>
-                              <p className="text-sm text-gray-600">
-                                {search.level && `Poziom: ${search.level} • `}
-                                {search.results_count} wyników
-                              </p>
-                            </div>
-                            <div className="text-right">
-                              <p className="text-sm text-gray-500">
-                                {search.search_date
-                                  ? new Date(
-                                      search.search_date
-                                    ).toLocaleDateString("pl-PL")
-                                  : "N/A"}
-                              </p>
-                              <button
-                                onClick={() => handleRepeatSearch(search.id)}
-                                className="text-sm text-orange-600 hover:text-orange-700 font-medium mt-1"
-                              >
-                                Powtórz
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
 
-                {/* Saved Workers */}
-                <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6 mb-6">
-                  <div className="flex items-center justify-between mb-6">
-                    <h2 className="text-xl font-bold text-gray-900">
-                      Zapisani pracownicy
-                    </h2>
-                    <Link
-                      to="/employer/search"
-                      className="text-sm text-orange-600 hover:text-orange-700 font-medium"
-                    >
-                      Zobacz wszystkich →
-                    </Link>
-                  </div>
-
-                  {savedWorkers.length === 0 ? (
-                    <div className="text-center py-8">
-                      <p className="text-gray-500">
-                        Brak zapisanych pracowników
+                    {/* Header Text */}
+                    <div>
+                      <h1 className="text-4xl font-bold tracking-tight mb-2">
+                        <span className="mr-2">🏢</span>
+                        {employerProfile?.company_name || "Panel pracodawcy"}
+                      </h1>
+                      <p className="text-blue-100 text-lg">
+                        Witamy ponownie, {user?.fullName || "Pracodawco"}!
+                        Zarządzaj swoimi pracownikami i projektami
                       </p>
-                      <p className="text-sm text-gray-400 mt-2">
-                        Zapisz pracowników podczas wyszukiwania, aby szybko do
-                        nich wrócić
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      {savedWorkers.map((savedWorker) => (
-                        <div
-                          key={savedWorker.id}
-                          className="border border-gray-200 rounded-lg p-4 hover:border-orange-500 transition-colors relative group"
-                        >
-                          <div className="flex items-start gap-3 mb-3">
-                            <img
-                              src={
-                                savedWorker.worker.profile.avatar_url ||
-                                `https://ui-avatars.com/api/?name=${encodeURIComponent(
-                                  savedWorker.worker.profile.full_name || "User"
-                                )}&background=f97316&color=fff`
-                              }
-                              alt={
-                                savedWorker.worker.profile.full_name || "Worker"
-                              }
-                              className="w-12 h-12 rounded-full object-cover"
-                            />
-                            <div className="flex-1 min-w-0">
-                              <p className="font-medium text-gray-900 truncate">
-                                {savedWorker.worker.profile.full_name ||
-                                  "Nieznany"}
-                              </p>
-                              <p className="text-sm text-gray-600">
-                                {savedWorker.worker.specialization}
-                              </p>
-                            </div>
-                            <button
-                              onClick={() =>
-                                handleRemoveSavedWorker(savedWorker.id)
-                              }
-                              className="opacity-0 group-hover:opacity-100 text-red-500 hover:text-red-700 transition-opacity"
-                              title="Usuń"
-                            >
-                              <svg
-                                className="w-5 h-5"
-                                fill="none"
-                                stroke="currentColor"
-                                viewBox="0 0 24 24"
-                              >
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  strokeWidth={2}
-                                  d="M6 18L18 6M6 6l12 12"
-                                />
-                              </svg>
-                            </button>
-                          </div>
-                          <div className="flex items-center justify-between mb-3">
-                            <span className="text-sm font-medium text-gray-900">
-                              €{savedWorker.worker.hourly_rate}/h
-                            </span>
-                            <div className="flex items-center">
-                              <svg
-                                className="w-4 h-4 text-yellow-400"
-                                fill="currentColor"
-                                viewBox="0 0 20 20"
-                              >
-                                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                              </svg>
-                              <span className="ml-1 text-sm text-gray-600">
-                                {savedWorker.worker.rating
-                                  ? savedWorker.worker.rating.toFixed(1)
-                                  : "N/A"}
-                              </span>
-                            </div>
-                          </div>
-                          <button className="w-full px-3 py-2 bg-orange-600 text-white rounded-lg text-sm font-medium hover:bg-orange-700">
-                            Kontakt
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                {/* My Reviews - Full System */}
-                <div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
-                  {/* Gradient Header with Stats */}
-                  <div className="bg-gradient-to-r from-purple-600 to-pink-600 p-6">
-                    <h2 className="text-2xl font-bold text-white mb-6">
-                      Moje opinie
-                    </h2>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      {/* Total Reviews */}
-                      <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4">
-                        <p className="text-white/80 text-sm mb-1">
-                          Łącznie opinii
-                        </p>
-                        <p className="text-white text-2xl font-bold">
-                          {reviews.length}
-                        </p>
-                      </div>
-                      {/* Average Rating */}
-                      <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4">
-                        <p className="text-white/80 text-sm mb-1">
-                          Średnia ocena
-                        </p>
-                        <p className="text-white text-2xl font-bold">
-                          {reviews.length > 0
-                            ? (
-                                reviews.reduce((sum, r) => sum + r.rating, 0) /
-                                reviews.length
-                              ).toFixed(1)
-                            : "0.0"}
-                          <span className="text-lg ml-1">⭐</span>
-                        </p>
-                      </div>
-                      {/* Positive Reviews */}
-                      <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4">
-                        <p className="text-white/80 text-sm mb-1">
-                          Pozytywne (4-5⭐)
-                        </p>
-                        <p className="text-white text-2xl font-bold">
-                          {reviews.filter((r) => r.rating >= 4).length}
-                        </p>
-                      </div>
                     </div>
                   </div>
 
-                  {/* Rating Breakdown */}
-                  <div className="p-6 border-b border-gray-200">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                      Rozkład ocen
-                    </h3>
-                    <div className="space-y-2">
-                      {[5, 4, 3, 2, 1].map((stars) => {
-                        const count = reviews.filter(
-                          (r) => r.rating === stars
-                        ).length;
-                        const percentage =
-                          reviews.length > 0
-                            ? (count / reviews.length) * 100
-                            : 0;
-                        return (
-                          <div key={stars} className="flex items-center gap-3">
-                            <span className="text-sm text-gray-600 w-12">
-                              {stars} ⭐
-                            </span>
-                            <div className="flex-1 bg-gray-200 rounded-full h-2.5">
-                              <div
-                                className="bg-gradient-to-r from-purple-600 to-pink-600 h-2.5 rounded-full transition-all duration-300"
-                                style={{ width: `${percentage}%` }}
-                              ></div>
-                            </div>
-                            <span className="text-sm text-gray-600 w-16 text-right">
-                              {count} ({percentage.toFixed(0)}%)
-                            </span>
-                          </div>
+                  {/* Action Buttons */}
+                  <div className="flex gap-4">
+                    <button
+                      onClick={() => {
+                        console.log(
+                          "Communication button clicked! Current state:",
+                          showCommunicationPanel
                         );
-                      })}
-                    </div>
+                        setShowCommunicationPanel(!showCommunicationPanel);
+                      }}
+                      className="px-6 py-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl hover:from-blue-600 hover:to-blue-700 transition-all duration-300 transform hover:scale-105 font-medium shadow-lg flex items-center gap-2"
+                    >
+                      🏗️ Komunikacja Projektowa
+                    </button>
                   </div>
+                </div>
 
-                  {/* Filters and Sorting */}
-                  <div className="p-6 border-b border-gray-200">
-                    <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
-                      {/* Filter Buttons */}
-                      <div className="flex flex-wrap gap-2">
-                        <button
-                          onClick={() => setReviewFilter("all")}
-                          className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                            reviewFilter === "all"
-                              ? "bg-purple-600 text-white"
-                              : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                          }`}
+                {/* Decorative elements */}
+                <div className="absolute -top-10 -right-10 w-40 h-40 bg-white/10 rounded-full blur-xl"></div>
+                <div className="absolute -bottom-10 -left-10 w-40 h-40 bg-purple-400/20 rounded-full blur-xl"></div>
+              </div>
+
+              {/* Tab Panels */}
+              <TabPanel isActive={activeTab === "profile"}>
+                {/* Modern Stats Cards (from overview) */}
+                <StatsGrid columns={4}>
+                  {statsCards.map((stat, idx) => (
+                    <StatCard
+                      key={idx}
+                      title={stat.label}
+                      value={stat.value}
+                      color={getStatColor(stat.icon)}
+                      icon={getIconSvg(stat.icon)}
+                    />
+                  ))}
+                </StatsGrid>
+
+                {/* Quick Actions - Premium Glass Style */}
+                <QuickActionsCard
+                  role="employer"
+                  isMobile={isMobile}
+                  onSubscription={() => console.log("Subskrypcja clicked")}
+                  onQuickSearch={handleQuickSearch}
+                />
+
+                {/* GŁÓWNY GRID 2+1 */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                  {/* Recent Search History */}
+                  <div className="lg:col-span-2">
+                    <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6 mb-6">
+                      <div className="flex items-center justify-between mb-6">
+                        <h2 className="text-xl font-bold text-gray-900">
+                          Ostatnie wyszukiwania
+                        </h2>
+                        <Link
+                          to="/employer/search"
+                          className="text-sm text-orange-600 hover:text-orange-700 font-medium"
                         >
-                          Wszystkie
-                        </button>
-                        {[5, 4, 3, 2, 1].map((stars) => (
+                          Nowe wyszukiwanie →
+                        </Link>
+                      </div>
+
+                      {searchHistory.length === 0 ? (
+                        <div className="text-center py-8">
+                          <p className="text-gray-500">
+                            Brak historii wyszukiwań
+                          </p>
                           <button
-                            key={stars}
-                            onClick={() =>
-                              setReviewFilter(stars as 1 | 2 | 3 | 4 | 5)
-                            }
-                            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                              reviewFilter === stars
-                                ? "bg-purple-600 text-white"
-                                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                            }`}
+                            onClick={handleQuickSearch}
+                            className="mt-4 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700"
                           >
-                            {stars}⭐
+                            Rozpocznij pierwsze wyszukiwanie
                           </button>
-                        ))}
-                      </div>
-
-                      {/* Sort Dropdown */}
-                      <select
-                        value={reviewSort}
-                        onChange={(e) =>
-                          setReviewSort(
-                            e.target.value as
-                              | "newest"
-                              | "oldest"
-                              | "highest"
-                              | "lowest"
-                          )
-                        }
-                        className="px-4 py-2 border border-gray-300 rounded-lg bg-white text-gray-700 font-medium focus:outline-none focus:ring-2 focus:ring-purple-500"
-                      >
-                        <option value="newest">Najnowsze</option>
-                        <option value="oldest">Najstarsze</option>
-                        <option value="highest">Najwyższe oceny</option>
-                        <option value="lowest">Najniższe oceny</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  {/* Reviews List */}
-                  <div className="p-6">
-                    {reviews.length === 0 ? (
-                      <div className="text-center py-12">
-                        <div className="text-6xl mb-4">📝</div>
-                        <p className="text-gray-500 text-lg mb-2">
-                          Brak wystawionych opinii
-                        </p>
-                        <p className="text-sm text-gray-400">
-                          Wystawiaj opinie pracownikom po zakończeniu współpracy
-                        </p>
-                      </div>
-                    ) : (
-                      <div className="space-y-6">
-                        {(() => {
-                          // Filter reviews
-                          let filteredReviews = reviews;
-                          if (reviewFilter !== "all") {
-                            filteredReviews = reviews.filter(
-                              (r) => r.rating === reviewFilter
-                            );
-                          }
-
-                          // Sort reviews
-                          const sortedReviews = [...filteredReviews].sort(
-                            (a, b) => {
-                              switch (reviewSort) {
-                                case "newest":
-                                  return (
-                                    new Date(b.created_at || 0).getTime() -
-                                    new Date(a.created_at || 0).getTime()
-                                  );
-                                case "oldest":
-                                  return (
-                                    new Date(a.created_at || 0).getTime() -
-                                    new Date(b.created_at || 0).getTime()
-                                  );
-                                case "highest":
-                                  return b.rating - a.rating;
-                                case "lowest":
-                                  return a.rating - b.rating;
-                                default:
-                                  return 0;
-                              }
-                            }
-                          );
-
-                          // Pagination
-                          const displayedReviews = showAllReviews
-                            ? sortedReviews
-                            : sortedReviews.slice(0, 5);
-
-                          return (
-                            <>
-                              {displayedReviews.map((review) => (
-                                <div
-                                  key={review.id}
-                                  className="border border-gray-200 rounded-xl p-6 hover:shadow-md transition-shadow"
-                                >
-                                  {/* Review Header */}
-                                  <div className="flex items-start gap-4 mb-4">
-                                    {/* Reviewer Avatar */}
-                                    <div className="flex-shrink-0">
-                                      {(review as any).workers?.workers_profile
-                                        ?.avatar_url ||
-                                      (review as any).profiles?.avatar_url ||
-                                      (review as any).cleaning_companies
-                                        ?.avatar_url ||
-                                      (review as any).accountants
-                                        ?.avatar_url ? (
-                                        <img
-                                          src={
-                                            (review as any).workers
-                                              ?.workers_profile?.avatar_url ||
-                                            (review as any).profiles
-                                              ?.avatar_url ||
-                                            (review as any).cleaning_companies
-                                              ?.avatar_url ||
-                                            (review as any).accountants
-                                              ?.avatar_url
-                                          }
-                                          alt="Reviewer"
-                                          className="w-12 h-12 rounded-full object-cover border-2 border-purple-200"
-                                        />
-                                      ) : (
-                                        <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white font-bold text-lg">
-                                          {((review as any).workers
-                                            ?.workers_profile?.full_name ||
-                                            (review as any).profiles
-                                              ?.full_name ||
-                                            (review as any).cleaning_companies
-                                              ?.company_name ||
-                                            (review as any).accountants
-                                              ?.company_name ||
-                                            "U")?.[0]?.toUpperCase() || "U"}
-                                        </div>
-                                      )}
-                                    </div>
-
-                                    {/* Reviewer Info and Rating */}
-                                    <div className="flex-1 min-w-0">
-                                      <h4 className="font-semibold text-gray-900 text-lg">
-                                        {(review as any).workers
-                                          ?.workers_profile?.full_name ||
-                                          (review as any).profiles?.full_name ||
-                                          (review as any).cleaning_companies
-                                            ?.company_name ||
-                                          (review as any).accountants
-                                            ?.company_name ||
-                                          "Użytkownik"}
-                                      </h4>
-                                      <p className="text-sm text-gray-600 mb-2">
-                                        {(review as any).worker_id
-                                          ? "Pracownik"
-                                          : (review as any).cleaning_company_id
-                                          ? "Firma sprzątająca"
-                                          : (review as any).accountant_id
-                                          ? "Księgowy"
-                                          : "Recenzent"}
-                                      </p>
-                                      <div className="flex items-center gap-3">
-                                        <div className="flex items-center">
-                                          {Array.from({ length: 5 }, (_, i) => (
-                                            <span
-                                              key={i}
-                                              className={`text-xl ${
-                                                i < review.rating
-                                                  ? "text-yellow-400"
-                                                  : "text-gray-300"
-                                              }`}
-                                            >
-                                              ⭐
-                                            </span>
-                                          ))}
-                                        </div>
-                                        <span className="text-sm text-gray-600 font-medium">
-                                          {review.rating}/5
-                                        </span>
-                                      </div>
-                                    </div>
-
-                                    {/* Date */}
-                                    <div className="text-right">
-                                      <p className="text-sm text-gray-500">
-                                        {review.created_at
-                                          ? new Date(
-                                              review.created_at
-                                            ).toLocaleDateString("pl-PL", {
-                                              year: "numeric",
-                                              month: "long",
-                                              day: "numeric",
-                                            })
-                                          : "N/A"}
-                                      </p>
-                                      {review.status === "pending" && (
-                                        <span className="inline-block mt-2 px-2 py-1 bg-yellow-100 text-yellow-800 text-xs rounded font-medium">
-                                          Oczekuje
-                                        </span>
-                                      )}
-                                    </div>
-                                  </div>
-
-                                  {/* Detailed Ratings (4 mini cards) */}
-                                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
-                                    {/* Quality Rating */}
-                                    <div className="border-l-4 border-purple-500 bg-purple-50 rounded-lg p-3">
-                                      <p className="text-xs text-purple-700 font-medium mb-1">
-                                        Jakość pracy
-                                      </p>
-                                      <div className="flex items-center gap-1">
-                                        {Array.from({ length: 5 }, (_, i) => (
-                                          <span
-                                            key={i}
-                                            className={`text-sm ${
-                                              i < review.rating
-                                                ? "text-purple-600"
-                                                : "text-purple-200"
-                                            }`}
-                                          >
-                                            ⭐
-                                          </span>
-                                        ))}
-                                      </div>
-                                    </div>
-
-                                    {/* Communication Rating */}
-                                    <div className="border-l-4 border-green-500 bg-green-50 rounded-lg p-3">
-                                      <p className="text-xs text-green-700 font-medium mb-1">
-                                        Komunikacja
-                                      </p>
-                                      <div className="flex items-center gap-1">
-                                        {Array.from({ length: 5 }, (_, i) => (
-                                          <span
-                                            key={i}
-                                            className={`text-sm ${
-                                              i < review.rating
-                                                ? "text-green-600"
-                                                : "text-green-200"
-                                            }`}
-                                          >
-                                            ⭐
-                                          </span>
-                                        ))}
-                                      </div>
-                                    </div>
-
-                                    {/* Punctuality Rating */}
-                                    <div className="border-l-4 border-orange-500 bg-orange-50 rounded-lg p-3">
-                                      <p className="text-xs text-orange-700 font-medium mb-1">
-                                        Terminowość
-                                      </p>
-                                      <div className="flex items-center gap-1">
-                                        {Array.from({ length: 5 }, (_, i) => (
-                                          <span
-                                            key={i}
-                                            className={`text-sm ${
-                                              i < review.rating
-                                                ? "text-orange-600"
-                                                : "text-orange-200"
-                                            }`}
-                                          >
-                                            ⭐
-                                          </span>
-                                        ))}
-                                      </div>
-                                    </div>
-
-                                    {/* Professionalism Rating */}
-                                    <div className="border-l-4 border-blue-500 bg-blue-50 rounded-lg p-3">
-                                      <p className="text-xs text-blue-700 font-medium mb-1">
-                                        Profesjonalizm
-                                      </p>
-                                      <div className="flex items-center gap-1">
-                                        {Array.from({ length: 5 }, (_, i) => (
-                                          <span
-                                            key={i}
-                                            className={`text-sm ${
-                                              i < review.rating
-                                                ? "text-blue-600"
-                                                : "text-blue-200"
-                                            }`}
-                                          >
-                                            ⭐
-                                          </span>
-                                        ))}
-                                      </div>
-                                    </div>
-                                  </div>
-
-                                  {/* Review Comment */}
-                                  {review.comment && (
-                                    <div className="mb-4">
-                                      <p className="text-gray-700 leading-relaxed">
-                                        {review.comment}
-                                      </p>
-                                    </div>
-                                  )}
+                        </div>
+                      ) : (
+                        <div className="space-y-4">
+                          {searchHistory.map((search) => (
+                            <div
+                              key={search.id}
+                              className="border-b border-gray-100 pb-4 last:border-0 last:pb-0"
+                            >
+                              <div className="flex items-center justify-between">
+                                <div>
+                                  <p className="font-medium text-gray-900">
+                                    {search.category}
+                                  </p>
+                                  <p className="text-sm text-gray-600">
+                                    {search.level &&
+                                      `Poziom: ${search.level} • `}
+                                    {search.results_count} wyników
+                                  </p>
                                 </div>
-                              ))}
-
-                              {/* Show More Button */}
-                              {sortedReviews.length > 5 && (
-                                <div className="text-center pt-4">
+                                <div className="text-right">
+                                  <p className="text-sm text-gray-500">
+                                    {search.search_date
+                                      ? new Date(
+                                          search.search_date
+                                        ).toLocaleDateString("pl-PL")
+                                      : "N/A"}
+                                  </p>
                                   <button
                                     onClick={() =>
-                                      setShowAllReviews(!showAllReviews)
+                                      handleRepeatSearch(search.id)
                                     }
-                                    className="px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg font-medium hover:from-purple-700 hover:to-pink-700 transition-all"
+                                    className="text-sm text-orange-600 hover:text-orange-700 font-medium mt-1"
                                   >
-                                    {showAllReviews
-                                      ? "Pokaż mniej"
-                                      : `Pokaż wszystkie (${sortedReviews.length})`}
+                                    Powtórz
                                   </button>
                                 </div>
-                              )}
-                            </>
-                          );
-                        })()}
-                      </div>
-                    )}
-                  </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
 
-                  {/* Export Section */}
-                  {reviews.length > 0 && (
-                    <div className="p-6 bg-gray-50 border-t border-gray-200">
-                      <h3 className="text-sm font-semibold text-gray-700 mb-3">
-                        Eksportuj opinie
-                      </h3>
-                      <div className="flex flex-col sm:flex-row gap-3">
-                        <button
-                          onClick={() => {
-                            const htmlContent = `
+                    {/* Saved Workers */}
+                    <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6 mb-6">
+                      <div className="flex items-center justify-between mb-6">
+                        <h2 className="text-xl font-bold text-gray-900">
+                          Zapisani pracownicy
+                        </h2>
+                        <Link
+                          to="/employer/search"
+                          className="text-sm text-orange-600 hover:text-orange-700 font-medium"
+                        >
+                          Zobacz wszystkich →
+                        </Link>
+                      </div>
+
+                      {savedWorkers.length === 0 ? (
+                        <div className="text-center py-8">
+                          <p className="text-gray-500">
+                            Brak zapisanych pracowników
+                          </p>
+                          <p className="text-sm text-gray-400 mt-2">
+                            Zapisz pracowników podczas wyszukiwania, aby szybko
+                            do nich wrócić
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          {savedWorkers.map((savedWorker) => (
+                            <div
+                              key={savedWorker.id}
+                              className="border border-gray-200 rounded-lg p-4 hover:border-orange-500 transition-colors relative group"
+                            >
+                              <div className="flex items-start gap-3 mb-3">
+                                <img
+                                  src={
+                                    savedWorker.worker.profile.avatar_url ||
+                                    `https://ui-avatars.com/api/?name=${encodeURIComponent(
+                                      savedWorker.worker.profile.full_name ||
+                                        "User"
+                                    )}&background=f97316&color=fff`
+                                  }
+                                  alt={
+                                    savedWorker.worker.profile.full_name ||
+                                    "Worker"
+                                  }
+                                  className="w-12 h-12 rounded-full object-cover"
+                                />
+                                <div className="flex-1 min-w-0">
+                                  <p className="font-medium text-gray-900 truncate">
+                                    {savedWorker.worker.profile.full_name ||
+                                      "Nieznany"}
+                                  </p>
+                                  <p className="text-sm text-gray-600">
+                                    {savedWorker.worker.specialization}
+                                  </p>
+                                </div>
+                                <button
+                                  onClick={() =>
+                                    handleRemoveSavedWorker(savedWorker.id)
+                                  }
+                                  className="opacity-0 group-hover:opacity-100 text-red-500 hover:text-red-700 transition-opacity"
+                                  title="Usuń"
+                                >
+                                  <svg
+                                    className="w-5 h-5"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                  >
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth={2}
+                                      d="M6 18L18 6M6 6l12 12"
+                                    />
+                                  </svg>
+                                </button>
+                              </div>
+                              <div className="flex items-center justify-between mb-3">
+                                <span className="text-sm font-medium text-gray-900">
+                                  €{savedWorker.worker.hourly_rate}/h
+                                </span>
+                                <div className="flex items-center">
+                                  <svg
+                                    className="w-4 h-4 text-yellow-400"
+                                    fill="currentColor"
+                                    viewBox="0 0 20 20"
+                                  >
+                                    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                                  </svg>
+                                  <span className="ml-1 text-sm text-gray-600">
+                                    {savedWorker.worker.rating
+                                      ? savedWorker.worker.rating.toFixed(1)
+                                      : "N/A"}
+                                  </span>
+                                </div>
+                              </div>
+                              <GlowButton variant="primary" size="sm" fullWidth>
+                                Kontakt
+                              </GlowButton>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* My Reviews - Full System */}
+                    <div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
+                      {/* Gradient Header with Stats */}
+                      <div className="bg-gradient-to-r from-purple-600 to-pink-600 p-6">
+                        <h2 className="text-2xl font-bold text-white mb-6">
+                          Moje opinie
+                        </h2>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                          {/* Total Reviews */}
+                          <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4">
+                            <p className="text-white/80 text-sm mb-1">
+                              Łącznie opinii
+                            </p>
+                            <p className="text-white text-2xl font-bold">
+                              {reviews.length}
+                            </p>
+                          </div>
+                          {/* Average Rating */}
+                          <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4">
+                            <p className="text-white/80 text-sm mb-1">
+                              Średnia ocena
+                            </p>
+                            <p className="text-white text-2xl font-bold">
+                              {reviews.length > 0
+                                ? (
+                                    reviews.reduce(
+                                      (sum, r) => sum + r.rating,
+                                      0
+                                    ) / reviews.length
+                                  ).toFixed(1)
+                                : "0.0"}
+                              <span className="text-lg ml-1">⭐</span>
+                            </p>
+                          </div>
+                          {/* Positive Reviews */}
+                          <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4">
+                            <p className="text-white/80 text-sm mb-1">
+                              Pozytywne (4-5⭐)
+                            </p>
+                            <p className="text-white text-2xl font-bold">
+                              {reviews.filter((r) => r.rating >= 4).length}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Rating Breakdown */}
+                      <div className="p-6 border-b border-gray-200">
+                        <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                          Rozkład ocen
+                        </h3>
+                        <div className="space-y-2">
+                          {[5, 4, 3, 2, 1].map((stars) => {
+                            const count = reviews.filter(
+                              (r) => r.rating === stars
+                            ).length;
+                            const percentage =
+                              reviews.length > 0
+                                ? (count / reviews.length) * 100
+                                : 0;
+                            return (
+                              <div
+                                key={stars}
+                                className="flex items-center gap-3"
+                              >
+                                <span className="text-sm text-gray-600 w-12">
+                                  {stars} ⭐
+                                </span>
+                                <div className="flex-1 bg-gray-200 rounded-full h-2.5">
+                                  <div
+                                    className="bg-gradient-to-r from-purple-600 to-pink-600 h-2.5 rounded-full transition-all duration-300"
+                                    style={{ width: `${percentage}%` }}
+                                  ></div>
+                                </div>
+                                <span className="text-sm text-gray-600 w-16 text-right">
+                                  {count} ({percentage.toFixed(0)}%)
+                                </span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Filters and Sorting */}
+                      <div className="p-6 border-b border-gray-200">
+                        <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
+                          {/* Filter Buttons */}
+                          <div className="flex flex-wrap gap-2">
+                            <button
+                              onClick={() => setReviewFilter("all")}
+                              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                                reviewFilter === "all"
+                                  ? "bg-purple-600 text-white"
+                                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                              }`}
+                            >
+                              Wszystkie
+                            </button>
+                            {[5, 4, 3, 2, 1].map((stars) => (
+                              <button
+                                key={stars}
+                                onClick={() =>
+                                  setReviewFilter(stars as 1 | 2 | 3 | 4 | 5)
+                                }
+                                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                                  reviewFilter === stars
+                                    ? "bg-purple-600 text-white"
+                                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                                }`}
+                              >
+                                {stars}⭐
+                              </button>
+                            ))}
+                          </div>
+
+                          {/* Sort Dropdown */}
+                          <select
+                            value={reviewSort}
+                            onChange={(e) =>
+                              setReviewSort(
+                                e.target.value as
+                                  | "newest"
+                                  | "oldest"
+                                  | "highest"
+                                  | "lowest"
+                              )
+                            }
+                            className="px-4 py-2 border border-gray-300 rounded-lg bg-white text-gray-700 font-medium focus:outline-none focus:ring-2 focus:ring-purple-500"
+                          >
+                            <option value="newest">Najnowsze</option>
+                            <option value="oldest">Najstarsze</option>
+                            <option value="highest">Najwyższe oceny</option>
+                            <option value="lowest">Najniższe oceny</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      {/* Reviews List */}
+                      <div className="p-6">
+                        {reviews.length === 0 ? (
+                          <div className="text-center py-12">
+                            <div className="text-6xl mb-4">📝</div>
+                            <p className="text-gray-500 text-lg mb-2">
+                              Brak wystawionych opinii
+                            </p>
+                            <p className="text-sm text-gray-400">
+                              Wystawiaj opinie pracownikom po zakończeniu
+                              współpracy
+                            </p>
+                          </div>
+                        ) : (
+                          <div className="space-y-6">
+                            {(() => {
+                              // Filter reviews
+                              let filteredReviews = reviews;
+                              if (reviewFilter !== "all") {
+                                filteredReviews = reviews.filter(
+                                  (r) => r.rating === reviewFilter
+                                );
+                              }
+
+                              // Sort reviews
+                              const sortedReviews = [...filteredReviews].sort(
+                                (a, b) => {
+                                  switch (reviewSort) {
+                                    case "newest":
+                                      return (
+                                        new Date(b.created_at || 0).getTime() -
+                                        new Date(a.created_at || 0).getTime()
+                                      );
+                                    case "oldest":
+                                      return (
+                                        new Date(a.created_at || 0).getTime() -
+                                        new Date(b.created_at || 0).getTime()
+                                      );
+                                    case "highest":
+                                      return b.rating - a.rating;
+                                    case "lowest":
+                                      return a.rating - b.rating;
+                                    default:
+                                      return 0;
+                                  }
+                                }
+                              );
+
+                              // Pagination
+                              const displayedReviews = showAllReviews
+                                ? sortedReviews
+                                : sortedReviews.slice(0, 5);
+
+                              return (
+                                <>
+                                  {displayedReviews.map((review) => (
+                                    <div
+                                      key={review.id}
+                                      className="border border-gray-200 rounded-xl p-6 hover:shadow-md transition-shadow"
+                                    >
+                                      {/* Review Header */}
+                                      <div className="flex items-start gap-4 mb-4">
+                                        {/* Reviewer Avatar */}
+                                        <div className="flex-shrink-0">
+                                          {(review as any).workers
+                                            ?.workers_profile?.avatar_url ||
+                                          (review as any).profiles
+                                            ?.avatar_url ||
+                                          (review as any).cleaning_companies
+                                            ?.avatar_url ||
+                                          (review as any).accountants
+                                            ?.avatar_url ? (
+                                            <img
+                                              src={
+                                                (review as any).workers
+                                                  ?.workers_profile
+                                                  ?.avatar_url ||
+                                                (review as any).profiles
+                                                  ?.avatar_url ||
+                                                (review as any)
+                                                  .cleaning_companies
+                                                  ?.avatar_url ||
+                                                (review as any).accountants
+                                                  ?.avatar_url
+                                              }
+                                              alt="Reviewer"
+                                              className="w-12 h-12 rounded-full object-cover border-2 border-purple-200"
+                                            />
+                                          ) : (
+                                            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white font-bold text-lg">
+                                              {((review as any).workers
+                                                ?.workers_profile?.full_name ||
+                                                (review as any).profiles
+                                                  ?.full_name ||
+                                                (review as any)
+                                                  .cleaning_companies
+                                                  ?.company_name ||
+                                                (review as any).accountants
+                                                  ?.company_name ||
+                                                "U")?.[0]?.toUpperCase() || "U"}
+                                            </div>
+                                          )}
+                                        </div>
+
+                                        {/* Reviewer Info and Rating */}
+                                        <div className="flex-1 min-w-0">
+                                          <h4 className="font-semibold text-gray-900 text-lg">
+                                            {(review as any).workers
+                                              ?.workers_profile?.full_name ||
+                                              (review as any).profiles
+                                                ?.full_name ||
+                                              (review as any).cleaning_companies
+                                                ?.company_name ||
+                                              (review as any).accountants
+                                                ?.company_name ||
+                                              "Użytkownik"}
+                                          </h4>
+                                          <p className="text-sm text-gray-600 mb-2">
+                                            {(review as any).worker_id
+                                              ? "Pracownik"
+                                              : (review as any)
+                                                  .cleaning_company_id
+                                              ? "Firma sprzątająca"
+                                              : (review as any).accountant_id
+                                              ? "Księgowy"
+                                              : "Recenzent"}
+                                          </p>
+                                          <div className="flex items-center gap-3">
+                                            <div className="flex items-center">
+                                              {Array.from(
+                                                { length: 5 },
+                                                (_, i) => (
+                                                  <span
+                                                    key={i}
+                                                    className={`text-xl ${
+                                                      i < review.rating
+                                                        ? "text-yellow-400"
+                                                        : "text-gray-300"
+                                                    }`}
+                                                  >
+                                                    ⭐
+                                                  </span>
+                                                )
+                                              )}
+                                            </div>
+                                            <span className="text-sm text-gray-600 font-medium">
+                                              {review.rating}/5
+                                            </span>
+                                          </div>
+                                        </div>
+
+                                        {/* Date */}
+                                        <div className="text-right">
+                                          <p className="text-sm text-gray-500">
+                                            {review.created_at
+                                              ? new Date(
+                                                  review.created_at
+                                                ).toLocaleDateString("pl-PL", {
+                                                  year: "numeric",
+                                                  month: "long",
+                                                  day: "numeric",
+                                                })
+                                              : "N/A"}
+                                          </p>
+                                          {review.status === "pending" && (
+                                            <span className="inline-block mt-2 px-2 py-1 bg-yellow-100 text-yellow-800 text-xs rounded font-medium">
+                                              Oczekuje
+                                            </span>
+                                          )}
+                                        </div>
+                                      </div>
+
+                                      {/* Detailed Ratings (4 mini cards) */}
+                                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+                                        {/* Quality Rating */}
+                                        <div className="border-l-4 border-purple-500 bg-purple-50 rounded-lg p-3">
+                                          <p className="text-xs text-purple-700 font-medium mb-1">
+                                            Jakość pracy
+                                          </p>
+                                          <div className="flex items-center gap-1">
+                                            {Array.from(
+                                              { length: 5 },
+                                              (_, i) => (
+                                                <span
+                                                  key={i}
+                                                  className={`text-sm ${
+                                                    i < review.rating
+                                                      ? "text-purple-600"
+                                                      : "text-purple-200"
+                                                  }`}
+                                                >
+                                                  ⭐
+                                                </span>
+                                              )
+                                            )}
+                                          </div>
+                                        </div>
+
+                                        {/* Communication Rating */}
+                                        <div className="border-l-4 border-green-500 bg-green-50 rounded-lg p-3">
+                                          <p className="text-xs text-green-700 font-medium mb-1">
+                                            Komunikacja
+                                          </p>
+                                          <div className="flex items-center gap-1">
+                                            {Array.from(
+                                              { length: 5 },
+                                              (_, i) => (
+                                                <span
+                                                  key={i}
+                                                  className={`text-sm ${
+                                                    i < review.rating
+                                                      ? "text-green-600"
+                                                      : "text-green-200"
+                                                  }`}
+                                                >
+                                                  ⭐
+                                                </span>
+                                              )
+                                            )}
+                                          </div>
+                                        </div>
+
+                                        {/* Punctuality Rating */}
+                                        <div className="border-l-4 border-orange-500 bg-orange-50 rounded-lg p-3">
+                                          <p className="text-xs text-orange-700 font-medium mb-1">
+                                            Terminowość
+                                          </p>
+                                          <div className="flex items-center gap-1">
+                                            {Array.from(
+                                              { length: 5 },
+                                              (_, i) => (
+                                                <span
+                                                  key={i}
+                                                  className={`text-sm ${
+                                                    i < review.rating
+                                                      ? "text-orange-600"
+                                                      : "text-orange-200"
+                                                  }`}
+                                                >
+                                                  ⭐
+                                                </span>
+                                              )
+                                            )}
+                                          </div>
+                                        </div>
+
+                                        {/* Professionalism Rating */}
+                                        <div className="border-l-4 border-blue-500 bg-blue-50 rounded-lg p-3">
+                                          <p className="text-xs text-blue-700 font-medium mb-1">
+                                            Profesjonalizm
+                                          </p>
+                                          <div className="flex items-center gap-1">
+                                            {Array.from(
+                                              { length: 5 },
+                                              (_, i) => (
+                                                <span
+                                                  key={i}
+                                                  className={`text-sm ${
+                                                    i < review.rating
+                                                      ? "text-blue-600"
+                                                      : "text-blue-200"
+                                                  }`}
+                                                >
+                                                  ⭐
+                                                </span>
+                                              )
+                                            )}
+                                          </div>
+                                        </div>
+                                      </div>
+
+                                      {/* Review Comment */}
+                                      {review.comment && (
+                                        <div className="mb-4">
+                                          <p className="text-gray-700 leading-relaxed">
+                                            {review.comment}
+                                          </p>
+                                        </div>
+                                      )}
+                                    </div>
+                                  ))}
+
+                                  {/* Show More Button */}
+                                  {sortedReviews.length > 5 && (
+                                    <div className="text-center pt-4">
+                                      <button
+                                        onClick={() =>
+                                          setShowAllReviews(!showAllReviews)
+                                        }
+                                        className="px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg font-medium hover:from-purple-700 hover:to-pink-700 transition-all"
+                                      >
+                                        {showAllReviews
+                                          ? "Pokaż mniej"
+                                          : `Pokaż wszystkie (${sortedReviews.length})`}
+                                      </button>
+                                    </div>
+                                  )}
+                                </>
+                              );
+                            })()}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Export Section */}
+                      {reviews.length > 0 && (
+                        <div className="p-6 bg-gray-50 border-t border-gray-200">
+                          <h3 className="text-sm font-semibold text-gray-700 mb-3">
+                            Eksportuj opinie
+                          </h3>
+                          <div className="flex flex-col sm:flex-row gap-3">
+                            <button
+                              onClick={() => {
+                                const htmlContent = `
                               <!DOCTYPE html>
                               <html>
                               <head>
@@ -1696,574 +1782,603 @@ export const EmployerDashboard = () => {
                               </body>
                               </html>
                             `;
-                            const blob = new Blob([htmlContent], {
-                              type: "text/html",
-                            });
-                            const url = URL.createObjectURL(blob);
-                            const a = document.createElement("a");
-                            a.href = url;
-                            a.download = `opinie-${Date.now()}.html`;
-                            a.click();
-                            URL.revokeObjectURL(url);
-                          }}
-                          className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg font-medium hover:bg-purple-700 transition-colors flex items-center justify-center gap-2"
-                        >
-                          📄 Pobierz PDF (HTML)
-                        </button>
-                        <button
-                          onClick={() => {
-                            const csvContent = [
-                              ["Pracownik", "Ocena", "Komentarz", "Data"].join(
-                                ","
-                              ),
-                              ...reviews.map((r) =>
-                                [
-                                  r.worker?.profile?.full_name || "Nieznany",
-                                  r.rating,
-                                  `"${(r.comment || "").replace(/"/g, '""')}"`,
-                                  r.created_at
-                                    ? new Date(r.created_at).toLocaleDateString(
-                                        "pl-PL"
-                                      )
-                                    : "N/A",
-                                ].join(",")
-                              ),
-                            ].join("\n");
-                            const blob = new Blob([csvContent], {
-                              type: "text/csv;charset=utf-8;",
-                            });
-                            const url = URL.createObjectURL(blob);
-                            const a = document.createElement("a");
-                            a.href = url;
-                            a.download = `opinie-${Date.now()}.csv`;
-                            a.click();
-                            URL.revokeObjectURL(url);
-                          }}
-                          className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition-colors flex items-center justify-center gap-2"
-                        >
-                          📊 Pobierz CSV
-                        </button>
-                      </div>
-                      <p className="text-xs text-gray-500 mt-2">
-                        💡 PDF (HTML) - otwórz w przeglądarce i zapisz jako PDF
-                        | CSV - importuj do Excel/Sheets
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Sidebar */}
-              <div className="lg:col-span-1">
-                {/* Employer Profile Card */}
-                <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6 mb-6">
-                  <div className="flex flex-col items-center">
-                    {/* Avatar with fallback */}
-                    <div className="relative mb-4">
-                      {employerProfile?.logo_url ? (
-                        <img
-                          src={employerProfile.logo_url}
-                          alt={employerProfile.company_name || "Pracodawca"}
-                          className="w-24 h-24 rounded-full object-cover border-4 border-orange-100"
-                          onError={(e) => {
-                            (e.target as HTMLImageElement).style.display =
-                              "none";
-                            const fallback = (e.target as HTMLImageElement)
-                              .nextElementSibling as HTMLElement;
-                            if (fallback) fallback.style.display = "flex";
-                          }}
-                        />
-                      ) : null}
-                      <div
-                        className="w-24 h-24 bg-gradient-to-br from-orange-500 to-orange-600 rounded-full flex items-center justify-center text-white font-bold text-4xl border-4 border-orange-100"
-                        style={{
-                          display: employerProfile?.logo_url ? "none" : "flex",
-                        }}
-                      >
-                        {employerProfile?.company_name?.[0]?.toUpperCase() ||
-                          "P"}
-                      </div>
-                    </div>
-
-                    {/* Logo Upload Button */}
-                    <label className="mb-3 w-full bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-lg font-medium cursor-pointer text-center transition-colors">
-                      📷 Zmień logo
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={handleLogoUpload}
-                        className="hidden"
-                      />
-                    </label>
-
-                    {/* Company Info */}
-                    <h3 className="text-lg font-bold text-gray-900 text-center mb-1">
-                      {employerProfile?.company_name || "Firma"}
-                    </h3>
-
-                    {employerProfile?.contact_email && (
-                      <p className="text-sm text-gray-600 mb-2">
-                        {employerProfile.contact_email}
-                      </p>
-                    )}
-
-                    {employerProfile?.contact_phone && (
-                      <p className="text-sm text-gray-600 mb-4">
-                        {employerProfile.contact_phone}
-                      </p>
-                    )}
-
-                    {/* Edit Profile Button */}
-                    <Link
-                      to="/employer/profile"
-                      className="w-full px-4 py-2 border-2 border-orange-500 text-orange-600 rounded-lg font-medium hover:bg-orange-50 transition-colors text-center"
-                    >
-                      Edytuj profil
-                    </Link>
-                  </div>
-                </div>
-
-                {/* Cover Image Upload Section */}
-                {employerProfile && (
-                  <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6 mb-6">
-                    <h3 className="text-lg font-semibold text-gray-800 mb-3">
-                      🖼️ Zdjęcie w tle profilu
-                    </h3>
-                    <CoverImageUploader
-                      currentCoverUrl={(employerProfile as any).cover_image_url}
-                      onUploadSuccess={handleCoverImageUploadSuccess}
-                      profileType="employer"
-                      profileId={employerProfile.id}
-                    />
-                  </div>
-                )}
-              </div>
-            </div>
-          </TabPanel>
-
-          {/* Reviews Tab */}
-          <TabPanel isActive={activeTab === "reviews"}>
-            <div className="max-w-7xl mx-auto">
-              {/* My Reviews - Full System */}
-              <div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
-                {/* Gradient Header with Stats */}
-                <div className="bg-gradient-to-r from-purple-600 to-pink-600 p-6">
-                  <h2 className="text-2xl font-bold text-white mb-6">
-                    Moje opinie
-                  </h2>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    {/* Total Reviews */}
-                    <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4">
-                      <p className="text-white/80 text-sm mb-1">
-                        Łącznie opinii
-                      </p>
-                      <p className="text-white text-2xl font-bold">
-                        {reviews.length}
-                      </p>
-                    </div>
-                    {/* Average Rating */}
-                    <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4">
-                      <p className="text-white/80 text-sm mb-1">
-                        Średnia ocena
-                      </p>
-                      <p className="text-white text-2xl font-bold">
-                        {reviews.length > 0
-                          ? (
-                              reviews.reduce((sum, r) => sum + r.rating, 0) /
-                              reviews.length
-                            ).toFixed(1)
-                          : "0.0"}
-                        <span className="text-lg ml-1">⭐</span>
-                      </p>
-                    </div>
-                    {/* Positive Reviews */}
-                    <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4">
-                      <p className="text-white/80 text-sm mb-1">
-                        Pozytywne (4-5⭐)
-                      </p>
-                      <p className="text-white text-2xl font-bold">
-                        {reviews.filter((r) => r.rating >= 4).length}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Rating Breakdown */}
-                <div className="p-6 border-b border-gray-200">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                    Rozkład ocen
-                  </h3>
-                  <div className="space-y-2">
-                    {[5, 4, 3, 2, 1].map((stars) => {
-                      const count = reviews.filter(
-                        (r) => r.rating === stars
-                      ).length;
-                      const percentage =
-                        reviews.length > 0 ? (count / reviews.length) * 100 : 0;
-                      return (
-                        <div key={stars} className="flex items-center gap-3">
-                          <span className="text-sm text-gray-600 w-12">
-                            {stars} ⭐
-                          </span>
-                          <div className="flex-1 bg-gray-200 rounded-full h-2.5">
-                            <div
-                              className="bg-gradient-to-r from-purple-600 to-pink-600 h-2.5 rounded-full transition-all duration-300"
-                              style={{ width: `${percentage}%` }}
-                            ></div>
-                          </div>
-                          <span className="text-sm text-gray-600 w-16 text-right">
-                            {count} ({percentage.toFixed(0)}%)
-                          </span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* Filters and Sorting */}
-                <div className="p-6 border-b border-gray-200">
-                  <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
-                    {/* Filter Buttons */}
-                    <div className="flex flex-wrap gap-2">
-                      <button
-                        onClick={() => setReviewFilter("all")}
-                        className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                          reviewFilter === "all"
-                            ? "bg-purple-600 text-white"
-                            : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                        }`}
-                      >
-                        Wszystkie
-                      </button>
-                      {[5, 4, 3, 2, 1].map((stars) => (
-                        <button
-                          key={stars}
-                          onClick={() =>
-                            setReviewFilter(stars as 1 | 2 | 3 | 4 | 5)
-                          }
-                          className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                            reviewFilter === stars
-                              ? "bg-purple-600 text-white"
-                              : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                          }`}
-                        >
-                          {stars}⭐
-                        </button>
-                      ))}
-                    </div>
-
-                    {/* Sort Dropdown */}
-                    <select
-                      value={reviewSort}
-                      onChange={(e) =>
-                        setReviewSort(
-                          e.target.value as
-                            | "newest"
-                            | "oldest"
-                            | "highest"
-                            | "lowest"
-                        )
-                      }
-                      className="px-4 py-2 border border-gray-300 rounded-lg bg-white text-gray-700 font-medium focus:outline-none focus:ring-2 focus:ring-purple-500"
-                    >
-                      <option value="newest">Najnowsze</option>
-                      <option value="oldest">Najstarsze</option>
-                      <option value="highest">Najwyższe oceny</option>
-                      <option value="lowest">Najniższe oceny</option>
-                    </select>
-                  </div>
-                </div>
-
-                {/* Reviews List */}
-                <div className="p-6">
-                  {reviews.length === 0 ? (
-                    <div className="text-center py-12">
-                      <div className="text-6xl mb-4">📝</div>
-                      <p className="text-gray-500 text-lg mb-2">
-                        Brak wystawionych opinii
-                      </p>
-                      <p className="text-sm text-gray-400">
-                        Wystawiaj opinie pracownikom po zakończeniu współpracy
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="space-y-6">
-                      {(() => {
-                        // Filter reviews
-                        let filteredReviews = reviews;
-                        if (reviewFilter !== "all") {
-                          filteredReviews = reviews.filter(
-                            (r) => r.rating === reviewFilter
-                          );
-                        }
-
-                        // Sort reviews
-                        const sortedReviews = [...filteredReviews].sort(
-                          (a, b) => {
-                            switch (reviewSort) {
-                              case "newest":
-                                return (
-                                  new Date(b.created_at || 0).getTime() -
-                                  new Date(a.created_at || 0).getTime()
-                                );
-                              case "oldest":
-                                return (
-                                  new Date(a.created_at || 0).getTime() -
-                                  new Date(b.created_at || 0).getTime()
-                                );
-                              case "highest":
-                                return b.rating - a.rating;
-                              case "lowest":
-                                return a.rating - b.rating;
-                              default:
-                                return 0;
-                            }
-                          }
-                        );
-
-                        // Pagination
-                        const displayedReviews = showAllReviews
-                          ? sortedReviews
-                          : sortedReviews.slice(0, 5);
-
-                        return (
-                          <>
-                            {displayedReviews.map((review) => (
-                              <div
-                                key={review.id}
-                                className="border border-gray-200 rounded-xl p-6 hover:shadow-md transition-shadow"
-                              >
-                                {/* Review Header */}
-                                <div className="flex items-start gap-4 mb-4">
-                                  {/* Reviewer Avatar */}
-                                  <div className="flex-shrink-0">
-                                    {(review as any).workers?.workers_profile
-                                      ?.avatar_url ||
-                                    (review as any).profiles?.avatar_url ||
-                                    (review as any).cleaning_companies
-                                      ?.avatar_url ||
-                                    (review as any).accountants?.avatar_url ? (
-                                      <img
-                                        src={
-                                          (review as any).workers
-                                            ?.workers_profile?.avatar_url ||
-                                          (review as any).profiles
-                                            ?.avatar_url ||
-                                          (review as any).cleaning_companies
-                                            ?.avatar_url ||
-                                          (review as any).accountants
-                                            ?.avatar_url
-                                        }
-                                        alt="Reviewer"
-                                        className="w-12 h-12 rounded-full object-cover border-2 border-purple-200"
-                                      />
-                                    ) : (
-                                      <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white font-bold text-lg">
-                                        {((review as any).workers
-                                          ?.workers_profile?.full_name ||
-                                          (review as any).profiles?.full_name ||
-                                          (review as any).cleaning_companies
-                                            ?.company_name ||
-                                          (review as any).accountants
-                                            ?.company_name ||
-                                          "U")?.[0]?.toUpperCase() || "U"}
-                                      </div>
-                                    )}
-                                  </div>
-
-                                  {/* Reviewer Info and Rating */}
-                                  <div className="flex-1 min-w-0">
-                                    <h4 className="font-semibold text-gray-900 text-lg">
-                                      {(review as any).workers?.workers_profile
-                                        ?.full_name ||
-                                        (review as any).profiles?.full_name ||
-                                        (review as any).cleaning_companies
-                                          ?.company_name ||
-                                        (review as any).accountants
-                                          ?.company_name ||
-                                        "Użytkownik"}
-                                    </h4>
-                                    <p className="text-sm text-gray-600 mb-2">
-                                      {(review as any).worker_id
-                                        ? "Pracownik"
-                                        : (review as any).cleaning_company_id
-                                        ? "Firma sprzątająca"
-                                        : (review as any).accountant_id
-                                        ? "Księgowy"
-                                        : "Recenzent"}
-                                    </p>
-                                    <div className="flex items-center gap-3">
-                                      <div className="flex items-center">
-                                        {Array.from({ length: 5 }, (_, i) => (
-                                          <span
-                                            key={i}
-                                            className={`text-xl ${
-                                              i < review.rating
-                                                ? "text-yellow-400"
-                                                : "text-gray-300"
-                                            }`}
-                                          >
-                                            ⭐
-                                          </span>
-                                        ))}
-                                      </div>
-                                      <span className="text-sm text-gray-600 font-medium">
-                                        {review.rating}/5
-                                      </span>
-                                    </div>
-                                  </div>
-
-                                  {/* Date */}
-                                  <div className="text-right">
-                                    <p className="text-sm text-gray-500">
-                                      {review.created_at
+                                const blob = new Blob([htmlContent], {
+                                  type: "text/html",
+                                });
+                                const url = URL.createObjectURL(blob);
+                                const a = document.createElement("a");
+                                a.href = url;
+                                a.download = `opinie-${Date.now()}.html`;
+                                a.click();
+                                URL.revokeObjectURL(url);
+                              }}
+                              className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg font-medium hover:bg-purple-700 transition-colors flex items-center justify-center gap-2"
+                            >
+                              📄 Pobierz PDF (HTML)
+                            </button>
+                            <button
+                              onClick={() => {
+                                const csvContent = [
+                                  [
+                                    "Pracownik",
+                                    "Ocena",
+                                    "Komentarz",
+                                    "Data",
+                                  ].join(","),
+                                  ...reviews.map((r) =>
+                                    [
+                                      r.worker?.profile?.full_name ||
+                                        "Nieznany",
+                                      r.rating,
+                                      `"${(r.comment || "").replace(
+                                        /"/g,
+                                        '""'
+                                      )}"`,
+                                      r.created_at
                                         ? new Date(
-                                            review.created_at
-                                          ).toLocaleDateString("pl-PL", {
-                                            year: "numeric",
-                                            month: "long",
-                                            day: "numeric",
-                                          })
-                                        : "N/A"}
-                                    </p>
-                                    {review.status === "pending" && (
-                                      <span className="inline-block mt-2 px-2 py-1 bg-yellow-100 text-yellow-800 text-xs rounded font-medium">
-                                        Oczekuje
-                                      </span>
+                                            r.created_at
+                                          ).toLocaleDateString("pl-PL")
+                                        : "N/A",
+                                    ].join(",")
+                                  ),
+                                ].join("\n");
+                                const blob = new Blob([csvContent], {
+                                  type: "text/csv;charset=utf-8;",
+                                });
+                                const url = URL.createObjectURL(blob);
+                                const a = document.createElement("a");
+                                a.href = url;
+                                a.download = `opinie-${Date.now()}.csv`;
+                                a.click();
+                                URL.revokeObjectURL(url);
+                              }}
+                              className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition-colors flex items-center justify-center gap-2"
+                            >
+                              📊 Pobierz CSV
+                            </button>
+                          </div>
+                          <p className="text-xs text-gray-500 mt-2">
+                            💡 PDF (HTML) - otwórz w przeglądarce i zapisz jako
+                            PDF | CSV - importuj do Excel/Sheets
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Sidebar */}
+                  <div className="lg:col-span-1">
+                    {/* Upcoming Events Widget */}
+                    <UpcomingEventsCard />
+
+                    {/* Employer Profile Card */}
+                    <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6 mb-6">
+                      <div className="flex flex-col items-center">
+                        {/* Avatar with fallback */}
+                        <div className="relative mb-4">
+                          {employerProfile?.logo_url ? (
+                            <img
+                              src={employerProfile.logo_url}
+                              alt={employerProfile.company_name || "Pracodawca"}
+                              className="w-24 h-24 rounded-full object-cover border-4 border-orange-100"
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).style.display =
+                                  "none";
+                                const fallback = (e.target as HTMLImageElement)
+                                  .nextElementSibling as HTMLElement;
+                                if (fallback) fallback.style.display = "flex";
+                              }}
+                            />
+                          ) : null}
+                          <div
+                            className="w-24 h-24 bg-gradient-to-br from-orange-500 to-orange-600 rounded-full flex items-center justify-center text-white font-bold text-4xl border-4 border-orange-100"
+                            style={{
+                              display: employerProfile?.logo_url
+                                ? "none"
+                                : "flex",
+                            }}
+                          >
+                            {employerProfile?.company_name?.[0]?.toUpperCase() ||
+                              "P"}
+                          </div>
+                        </div>
+
+                        {/* Logo Upload Button */}
+                        <label className="mb-3 w-full bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-lg font-medium cursor-pointer text-center transition-colors">
+                          📷 Zmień logo
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={handleLogoUpload}
+                            className="hidden"
+                          />
+                        </label>
+
+                        {/* Company Info */}
+                        <h3 className="text-lg font-bold text-gray-900 text-center mb-1">
+                          {employerProfile?.company_name || "Firma"}
+                        </h3>
+
+                        {employerProfile?.contact_email && (
+                          <p className="text-sm text-gray-600 mb-2">
+                            {employerProfile.contact_email}
+                          </p>
+                        )}
+
+                        {employerProfile?.contact_phone && (
+                          <p className="text-sm text-gray-600 mb-4">
+                            {employerProfile.contact_phone}
+                          </p>
+                        )}
+
+                        {/* Edit Profile Button */}
+                        <Link
+                          to="/employer/profile"
+                          className="w-full px-4 py-2 border-2 border-orange-500 text-orange-600 rounded-lg font-medium hover:bg-orange-50 transition-colors text-center"
+                        >
+                          Edytuj profil
+                        </Link>
+                      </div>
+                    </div>
+
+                    {/* Cover Image Upload Section */}
+                    {employerProfile && (
+                      <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6 mb-6">
+                        <h3 className="text-lg font-semibold text-gray-800 mb-3">
+                          🖼️ Zdjęcie w tle profilu
+                        </h3>
+                        <CoverImageUploader
+                          currentCoverUrl={
+                            (employerProfile as any).cover_image_url
+                          }
+                          onUploadSuccess={handleCoverImageUploadSuccess}
+                          profileType="employer"
+                          profileId={employerProfile.id}
+                        />
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </TabPanel>
+
+              {/* Reviews Tab */}
+              <TabPanel isActive={activeTab === "reviews"}>
+                <div className="max-w-7xl mx-auto">
+                  {/* My Reviews - Full System */}
+                  <div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
+                    {/* Gradient Header with Stats */}
+                    <div className="bg-gradient-to-r from-purple-600 to-pink-600 p-6">
+                      <h2 className="text-2xl font-bold text-white mb-6">
+                        Moje opinie
+                      </h2>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        {/* Total Reviews */}
+                        <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4">
+                          <p className="text-white/80 text-sm mb-1">
+                            Łącznie opinii
+                          </p>
+                          <p className="text-white text-2xl font-bold">
+                            {reviews.length}
+                          </p>
+                        </div>
+                        {/* Average Rating */}
+                        <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4">
+                          <p className="text-white/80 text-sm mb-1">
+                            Średnia ocena
+                          </p>
+                          <p className="text-white text-2xl font-bold">
+                            {reviews.length > 0
+                              ? (
+                                  reviews.reduce(
+                                    (sum, r) => sum + r.rating,
+                                    0
+                                  ) / reviews.length
+                                ).toFixed(1)
+                              : "0.0"}
+                            <span className="text-lg ml-1">⭐</span>
+                          </p>
+                        </div>
+                        {/* Positive Reviews */}
+                        <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4">
+                          <p className="text-white/80 text-sm mb-1">
+                            Pozytywne (4-5⭐)
+                          </p>
+                          <p className="text-white text-2xl font-bold">
+                            {reviews.filter((r) => r.rating >= 4).length}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Rating Breakdown */}
+                    <div className="p-6 border-b border-gray-200">
+                      <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                        Rozkład ocen
+                      </h3>
+                      <div className="space-y-2">
+                        {[5, 4, 3, 2, 1].map((stars) => {
+                          const count = reviews.filter(
+                            (r) => r.rating === stars
+                          ).length;
+                          const percentage =
+                            reviews.length > 0
+                              ? (count / reviews.length) * 100
+                              : 0;
+                          return (
+                            <div
+                              key={stars}
+                              className="flex items-center gap-3"
+                            >
+                              <span className="text-sm text-gray-600 w-12">
+                                {stars} ⭐
+                              </span>
+                              <div className="flex-1 bg-gray-200 rounded-full h-2.5">
+                                <div
+                                  className="bg-gradient-to-r from-purple-600 to-pink-600 h-2.5 rounded-full transition-all duration-300"
+                                  style={{ width: `${percentage}%` }}
+                                ></div>
+                              </div>
+                              <span className="text-sm text-gray-600 w-16 text-right">
+                                {count} ({percentage.toFixed(0)}%)
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Filters and Sorting */}
+                    <div className="p-6 border-b border-gray-200">
+                      <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
+                        {/* Filter Buttons */}
+                        <div className="flex flex-wrap gap-2">
+                          <button
+                            onClick={() => setReviewFilter("all")}
+                            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                              reviewFilter === "all"
+                                ? "bg-purple-600 text-white"
+                                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                            }`}
+                          >
+                            Wszystkie
+                          </button>
+                          {[5, 4, 3, 2, 1].map((stars) => (
+                            <button
+                              key={stars}
+                              onClick={() =>
+                                setReviewFilter(stars as 1 | 2 | 3 | 4 | 5)
+                              }
+                              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                                reviewFilter === stars
+                                  ? "bg-purple-600 text-white"
+                                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                              }`}
+                            >
+                              {stars}⭐
+                            </button>
+                          ))}
+                        </div>
+
+                        {/* Sort Dropdown */}
+                        <select
+                          value={reviewSort}
+                          onChange={(e) =>
+                            setReviewSort(
+                              e.target.value as
+                                | "newest"
+                                | "oldest"
+                                | "highest"
+                                | "lowest"
+                            )
+                          }
+                          className="px-4 py-2 border border-gray-300 rounded-lg bg-white text-gray-700 font-medium focus:outline-none focus:ring-2 focus:ring-purple-500"
+                        >
+                          <option value="newest">Najnowsze</option>
+                          <option value="oldest">Najstarsze</option>
+                          <option value="highest">Najwyższe oceny</option>
+                          <option value="lowest">Najniższe oceny</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* Reviews List */}
+                    <div className="p-6">
+                      {reviews.length === 0 ? (
+                        <div className="text-center py-12">
+                          <div className="text-6xl mb-4">📝</div>
+                          <p className="text-gray-500 text-lg mb-2">
+                            Brak wystawionych opinii
+                          </p>
+                          <p className="text-sm text-gray-400">
+                            Wystawiaj opinie pracownikom po zakończeniu
+                            współpracy
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="space-y-6">
+                          {(() => {
+                            // Filter reviews
+                            let filteredReviews = reviews;
+                            if (reviewFilter !== "all") {
+                              filteredReviews = reviews.filter(
+                                (r) => r.rating === reviewFilter
+                              );
+                            }
+
+                            // Sort reviews
+                            const sortedReviews = [...filteredReviews].sort(
+                              (a, b) => {
+                                switch (reviewSort) {
+                                  case "newest":
+                                    return (
+                                      new Date(b.created_at || 0).getTime() -
+                                      new Date(a.created_at || 0).getTime()
+                                    );
+                                  case "oldest":
+                                    return (
+                                      new Date(a.created_at || 0).getTime() -
+                                      new Date(b.created_at || 0).getTime()
+                                    );
+                                  case "highest":
+                                    return b.rating - a.rating;
+                                  case "lowest":
+                                    return a.rating - b.rating;
+                                  default:
+                                    return 0;
+                                }
+                              }
+                            );
+
+                            // Pagination
+                            const displayedReviews = showAllReviews
+                              ? sortedReviews
+                              : sortedReviews.slice(0, 5);
+
+                            return (
+                              <>
+                                {displayedReviews.map((review) => (
+                                  <div
+                                    key={review.id}
+                                    className="border border-gray-200 rounded-xl p-6 hover:shadow-md transition-shadow"
+                                  >
+                                    {/* Review Header */}
+                                    <div className="flex items-start gap-4 mb-4">
+                                      {/* Reviewer Avatar */}
+                                      <div className="flex-shrink-0">
+                                        {(review as any).workers
+                                          ?.workers_profile?.avatar_url ||
+                                        (review as any).profiles?.avatar_url ||
+                                        (review as any).cleaning_companies
+                                          ?.avatar_url ||
+                                        (review as any).accountants
+                                          ?.avatar_url ? (
+                                          <img
+                                            src={
+                                              (review as any).workers
+                                                ?.workers_profile?.avatar_url ||
+                                              (review as any).profiles
+                                                ?.avatar_url ||
+                                              (review as any).cleaning_companies
+                                                ?.avatar_url ||
+                                              (review as any).accountants
+                                                ?.avatar_url
+                                            }
+                                            alt="Reviewer"
+                                            className="w-12 h-12 rounded-full object-cover border-2 border-purple-200"
+                                          />
+                                        ) : (
+                                          <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white font-bold text-lg">
+                                            {((review as any).workers
+                                              ?.workers_profile?.full_name ||
+                                              (review as any).profiles
+                                                ?.full_name ||
+                                              (review as any).cleaning_companies
+                                                ?.company_name ||
+                                              (review as any).accountants
+                                                ?.company_name ||
+                                              "U")?.[0]?.toUpperCase() || "U"}
+                                          </div>
+                                        )}
+                                      </div>
+
+                                      {/* Reviewer Info and Rating */}
+                                      <div className="flex-1 min-w-0">
+                                        <h4 className="font-semibold text-gray-900 text-lg">
+                                          {(review as any).workers
+                                            ?.workers_profile?.full_name ||
+                                            (review as any).profiles
+                                              ?.full_name ||
+                                            (review as any).cleaning_companies
+                                              ?.company_name ||
+                                            (review as any).accountants
+                                              ?.company_name ||
+                                            "Użytkownik"}
+                                        </h4>
+                                        <p className="text-sm text-gray-600 mb-2">
+                                          {(review as any).worker_id
+                                            ? "Pracownik"
+                                            : (review as any)
+                                                .cleaning_company_id
+                                            ? "Firma sprzątająca"
+                                            : (review as any).accountant_id
+                                            ? "Księgowy"
+                                            : "Recenzent"}
+                                        </p>
+                                        <div className="flex items-center gap-3">
+                                          <div className="flex items-center">
+                                            {Array.from(
+                                              { length: 5 },
+                                              (_, i) => (
+                                                <span
+                                                  key={i}
+                                                  className={`text-xl ${
+                                                    i < review.rating
+                                                      ? "text-yellow-400"
+                                                      : "text-gray-300"
+                                                  }`}
+                                                >
+                                                  ⭐
+                                                </span>
+                                              )
+                                            )}
+                                          </div>
+                                          <span className="text-sm text-gray-600 font-medium">
+                                            {review.rating}/5
+                                          </span>
+                                        </div>
+                                      </div>
+
+                                      {/* Date */}
+                                      <div className="text-right">
+                                        <p className="text-sm text-gray-500">
+                                          {review.created_at
+                                            ? new Date(
+                                                review.created_at
+                                              ).toLocaleDateString("pl-PL", {
+                                                year: "numeric",
+                                                month: "long",
+                                                day: "numeric",
+                                              })
+                                            : "N/A"}
+                                        </p>
+                                        {review.status === "pending" && (
+                                          <span className="inline-block mt-2 px-2 py-1 bg-yellow-100 text-yellow-800 text-xs rounded font-medium">
+                                            Oczekuje
+                                          </span>
+                                        )}
+                                      </div>
+                                    </div>
+
+                                    {/* Detailed Ratings (4 mini cards) */}
+                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+                                      {/* Quality Rating */}
+                                      <div className="border-l-4 border-purple-500 bg-purple-50 rounded-lg p-3">
+                                        <p className="text-xs text-purple-700 font-medium mb-1">
+                                          Jakość pracy
+                                        </p>
+                                        <div className="flex items-center gap-1">
+                                          {Array.from({ length: 5 }, (_, i) => (
+                                            <span
+                                              key={i}
+                                              className={`text-sm ${
+                                                i < review.rating
+                                                  ? "text-purple-600"
+                                                  : "text-purple-200"
+                                              }`}
+                                            >
+                                              ⭐
+                                            </span>
+                                          ))}
+                                        </div>
+                                      </div>
+
+                                      {/* Communication Rating */}
+                                      <div className="border-l-4 border-green-500 bg-green-50 rounded-lg p-3">
+                                        <p className="text-xs text-green-700 font-medium mb-1">
+                                          Komunikacja
+                                        </p>
+                                        <div className="flex items-center gap-1">
+                                          {Array.from({ length: 5 }, (_, i) => (
+                                            <span
+                                              key={i}
+                                              className={`text-sm ${
+                                                i < review.rating
+                                                  ? "text-green-600"
+                                                  : "text-green-200"
+                                              }`}
+                                            >
+                                              ⭐
+                                            </span>
+                                          ))}
+                                        </div>
+                                      </div>
+
+                                      {/* Punctuality Rating */}
+                                      <div className="border-l-4 border-orange-500 bg-orange-50 rounded-lg p-3">
+                                        <p className="text-xs text-orange-700 font-medium mb-1">
+                                          Terminowość
+                                        </p>
+                                        <div className="flex items-center gap-1">
+                                          {Array.from({ length: 5 }, (_, i) => (
+                                            <span
+                                              key={i}
+                                              className={`text-sm ${
+                                                i < review.rating
+                                                  ? "text-orange-600"
+                                                  : "text-orange-200"
+                                              }`}
+                                            >
+                                              ⭐
+                                            </span>
+                                          ))}
+                                        </div>
+                                      </div>
+
+                                      {/* Professionalism Rating */}
+                                      <div className="border-l-4 border-blue-500 bg-blue-50 rounded-lg p-3">
+                                        <p className="text-xs text-blue-700 font-medium mb-1">
+                                          Profesjonalizm
+                                        </p>
+                                        <div className="flex items-center gap-1">
+                                          {Array.from({ length: 5 }, (_, i) => (
+                                            <span
+                                              key={i}
+                                              className={`text-sm ${
+                                                i < review.rating
+                                                  ? "text-blue-600"
+                                                  : "text-blue-200"
+                                              }`}
+                                            >
+                                              ⭐
+                                            </span>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    </div>
+
+                                    {/* Review Comment */}
+                                    {review.comment && (
+                                      <div className="mb-4">
+                                        <p className="text-gray-700 leading-relaxed">
+                                          {review.comment}
+                                        </p>
+                                      </div>
                                     )}
                                   </div>
-                                </div>
+                                ))}
 
-                                {/* Detailed Ratings (4 mini cards) */}
-                                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
-                                  {/* Quality Rating */}
-                                  <div className="border-l-4 border-purple-500 bg-purple-50 rounded-lg p-3">
-                                    <p className="text-xs text-purple-700 font-medium mb-1">
-                                      Jakość pracy
-                                    </p>
-                                    <div className="flex items-center gap-1">
-                                      {Array.from({ length: 5 }, (_, i) => (
-                                        <span
-                                          key={i}
-                                          className={`text-sm ${
-                                            i < review.rating
-                                              ? "text-purple-600"
-                                              : "text-purple-200"
-                                          }`}
-                                        >
-                                          ⭐
-                                        </span>
-                                      ))}
-                                    </div>
-                                  </div>
-
-                                  {/* Communication Rating */}
-                                  <div className="border-l-4 border-green-500 bg-green-50 rounded-lg p-3">
-                                    <p className="text-xs text-green-700 font-medium mb-1">
-                                      Komunikacja
-                                    </p>
-                                    <div className="flex items-center gap-1">
-                                      {Array.from({ length: 5 }, (_, i) => (
-                                        <span
-                                          key={i}
-                                          className={`text-sm ${
-                                            i < review.rating
-                                              ? "text-green-600"
-                                              : "text-green-200"
-                                          }`}
-                                        >
-                                          ⭐
-                                        </span>
-                                      ))}
-                                    </div>
-                                  </div>
-
-                                  {/* Punctuality Rating */}
-                                  <div className="border-l-4 border-orange-500 bg-orange-50 rounded-lg p-3">
-                                    <p className="text-xs text-orange-700 font-medium mb-1">
-                                      Terminowość
-                                    </p>
-                                    <div className="flex items-center gap-1">
-                                      {Array.from({ length: 5 }, (_, i) => (
-                                        <span
-                                          key={i}
-                                          className={`text-sm ${
-                                            i < review.rating
-                                              ? "text-orange-600"
-                                              : "text-orange-200"
-                                          }`}
-                                        >
-                                          ⭐
-                                        </span>
-                                      ))}
-                                    </div>
-                                  </div>
-
-                                  {/* Professionalism Rating */}
-                                  <div className="border-l-4 border-blue-500 bg-blue-50 rounded-lg p-3">
-                                    <p className="text-xs text-blue-700 font-medium mb-1">
-                                      Profesjonalizm
-                                    </p>
-                                    <div className="flex items-center gap-1">
-                                      {Array.from({ length: 5 }, (_, i) => (
-                                        <span
-                                          key={i}
-                                          className={`text-sm ${
-                                            i < review.rating
-                                              ? "text-blue-600"
-                                              : "text-blue-200"
-                                          }`}
-                                        >
-                                          ⭐
-                                        </span>
-                                      ))}
-                                    </div>
-                                  </div>
-                                </div>
-
-                                {/* Review Comment */}
-                                {review.comment && (
-                                  <div className="mb-4">
-                                    <p className="text-gray-700 leading-relaxed">
-                                      {review.comment}
-                                    </p>
+                                {/* Show More Button */}
+                                {sortedReviews.length > 5 && (
+                                  <div className="text-center pt-4">
+                                    <button
+                                      onClick={() =>
+                                        setShowAllReviews(!showAllReviews)
+                                      }
+                                      className="px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg font-medium hover:from-purple-700 hover:to-pink-700 transition-all"
+                                    >
+                                      {showAllReviews
+                                        ? "Pokaż mniej"
+                                        : `Pokaż wszystkie (${sortedReviews.length})`}
+                                    </button>
                                   </div>
                                 )}
-                              </div>
-                            ))}
-
-                            {/* Show More Button */}
-                            {sortedReviews.length > 5 && (
-                              <div className="text-center pt-4">
-                                <button
-                                  onClick={() =>
-                                    setShowAllReviews(!showAllReviews)
-                                  }
-                                  className="px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg font-medium hover:from-purple-700 hover:to-pink-700 transition-all"
-                                >
-                                  {showAllReviews
-                                    ? "Pokaż mniej"
-                                    : `Pokaż wszystkie (${sortedReviews.length})`}
-                                </button>
-                              </div>
-                            )}
-                          </>
-                        );
-                      })()}
+                              </>
+                            );
+                          })()}
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
 
-                {/* Export Section */}
-                {reviews.length > 0 && (
-                  <div className="p-6 bg-gray-50 border-t border-gray-200">
-                    <h3 className="text-sm font-semibold text-gray-700 mb-3">
-                      Eksportuj opinie
-                    </h3>
-                    <div className="flex flex-col sm:flex-row gap-3">
-                      <button
-                        onClick={() => {
-                          const htmlContent = `
+                    {/* Export Section */}
+                    {reviews.length > 0 && (
+                      <div className="p-6 bg-gray-50 border-t border-gray-200">
+                        <h3 className="text-sm font-semibold text-gray-700 mb-3">
+                          Eksportuj opinie
+                        </h3>
+                        <div className="flex flex-col sm:flex-row gap-3">
+                          <button
+                            onClick={() => {
+                              const htmlContent = `
                             <!DOCTYPE html>
                             <html>
                             <head>
@@ -2306,541 +2421,621 @@ export const EmployerDashboard = () => {
                             </body>
                             </html>
                           `;
-                          const blob = new Blob([htmlContent], {
-                            type: "text/html",
-                          });
-                          const url = URL.createObjectURL(blob);
-                          const a = document.createElement("a");
-                          a.href = url;
-                          a.download = `opinie-${Date.now()}.html`;
-                          a.click();
-                          URL.revokeObjectURL(url);
-                        }}
-                        className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg font-medium hover:bg-purple-700 transition-colors flex items-center justify-center gap-2"
-                      >
-                        📄 Pobierz PDF (HTML)
-                      </button>
-                      <button
-                        onClick={() => {
-                          const csvContent = [
-                            ["Pracownik", "Ocena", "Komentarz", "Data"].join(
-                              ","
-                            ),
-                            ...reviews.map((r) =>
-                              [
-                                r.worker?.profile?.full_name || "Nieznany",
-                                r.rating,
-                                `"${(r.comment || "").replace(/"/g, '""')}"`,
-                                r.created_at
-                                  ? new Date(r.created_at).toLocaleDateString(
-                                      "pl-PL"
-                                    )
-                                  : "N/A",
-                              ].join(",")
-                            ),
-                          ].join("\n");
-                          const blob = new Blob([csvContent], {
-                            type: "text/csv;charset=utf-8;",
-                          });
-                          const url = URL.createObjectURL(blob);
-                          const a = document.createElement("a");
-                          a.href = url;
-                          a.download = `opinie-${Date.now()}.csv`;
-                          a.click();
-                          URL.revokeObjectURL(url);
-                        }}
-                        className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition-colors flex items-center justify-center gap-2"
-                      >
-                        📊 Pobierz CSV
-                      </button>
-                    </div>
-                    <p className="text-xs text-gray-500 mt-2">
-                      💡 PDF (HTML) - otwórz w przeglądarce i zapisz jako PDF |
-                      CSV - importuj do Excel/Sheets
-                    </p>
-                  </div>
-                )}
-              </div>
-            </div>
-          </TabPanel>
-
-          {/* Messages Tab */}
-          <TabPanel isActive={activeTab === "messages"}>
-            {/* 💬 NOWOCZESNY MESSENGER UI - FULL REDESIGN */}
-            <div className="max-w-7xl mx-auto">
-              <div
-                className="bg-white rounded-2xl shadow-xl overflow-hidden"
-                style={{ height: "700px" }}
-              >
-                <div className="flex h-full">
-                  {/* ============================================ */}
-                  {/* LEFT PANEL: CONVERSATION LIST */}
-                  {/* ============================================ */}
-                  <div className="w-1/3 border-r border-gray-200 flex flex-col bg-gray-50">
-                    {/* Header */}
-                    <div className="p-5 border-b border-gray-200 bg-gradient-to-r from-blue-600 to-purple-600">
-                      <h3 className="font-bold text-xl text-white mb-3 flex items-center gap-2">
-                        <span>💬</span> Wiadomości
-                      </h3>
-
-                      {/* Search */}
-                      <div className="relative">
-                        <input
-                          type="text"
-                          placeholder="🔍 Szukaj konwersacji..."
-                          value={searchQuery}
-                          onChange={(e) => setSearchQuery(e.target.value)}
-                          className="w-full px-4 py-2 pl-10 rounded-lg border-0 focus:ring-2 focus:ring-white/50 text-sm"
-                        />
-                        <span className="absolute left-3 top-2.5 text-gray-400">
-                          🔍
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Conversation List */}
-                    <div className="flex-1 overflow-y-auto">
-                      {conversations
-                        .filter((conv) =>
-                          conv.partnerName
-                            .toLowerCase()
-                            .includes(searchQuery.toLowerCase())
-                        )
-                        .map((conversation) => (
-                          <div
-                            key={conversation.partnerId}
-                            onClick={() =>
-                              handleSelectConversation(conversation)
-                            }
-                            className={`p-4 border-b border-gray-200 cursor-pointer transition-all duration-200 hover:bg-blue-50 ${
-                              selectedConversation?.partnerId ===
-                              conversation.partnerId
-                                ? "bg-blue-100 border-l-4 border-l-blue-600"
-                                : "hover:border-l-4 hover:border-l-blue-300"
-                            }`}
+                              const blob = new Blob([htmlContent], {
+                                type: "text/html",
+                              });
+                              const url = URL.createObjectURL(blob);
+                              const a = document.createElement("a");
+                              a.href = url;
+                              a.download = `opinie-${Date.now()}.html`;
+                              a.click();
+                              URL.revokeObjectURL(url);
+                            }}
+                            className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg font-medium hover:bg-purple-700 transition-colors flex items-center justify-center gap-2"
                           >
-                            <div className="flex items-start gap-3">
-                              {/* Avatar */}
-                              <div className="relative flex-shrink-0">
-                                {conversation.partnerAvatar ? (
-                                  <img
-                                    src={conversation.partnerAvatar}
-                                    alt={conversation.partnerName}
-                                    className="w-12 h-12 rounded-full object-cover border-2 border-white shadow-md"
-                                  />
-                                ) : (
-                                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-lg shadow-md">
-                                    {conversation.partnerName
-                                      .charAt(0)
-                                      .toUpperCase()}
-                                  </div>
-                                )}
-                                {conversation.isOnline && (
-                                  <span className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-green-500 border-2 border-white rounded-full"></span>
-                                )}
-                              </div>
-
-                              {/* Content */}
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center justify-between mb-1">
-                                  <p
-                                    className={`font-semibold text-sm truncate ${
-                                      conversation.unreadCount > 0
-                                        ? "text-blue-700"
-                                        : "text-gray-900"
-                                    }`}
-                                  >
-                                    {conversation.partnerName}
-                                  </p>
-                                  {conversation.unreadCount > 0 && (
-                                    <span className="bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full ml-2 flex-shrink-0">
-                                      {conversation.unreadCount}
-                                    </span>
-                                  )}
-                                </div>
-
-                                <p className="text-xs text-gray-600 truncate mb-1">
-                                  {conversation.lastMessage.content}
-                                </p>
-
-                                <p className="text-xs text-gray-400">
-                                  {formatRelativeTime(
-                                    conversation.lastMessage.created_at
-                                  )}
-                                </p>
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-
-                      {conversations.length === 0 && (
-                        <div className="flex flex-col items-center justify-center h-full text-gray-400 p-8">
-                          <div className="text-6xl mb-4">💬</div>
-                          <p className="text-center font-medium">
-                            Brak konwersacji
-                          </p>
-                          <p className="text-xs text-center mt-2">
-                            Twoje wiadomości pojawią się tutaj
-                          </p>
+                            📄 Pobierz PDF (HTML)
+                          </button>
+                          <button
+                            onClick={() => {
+                              const csvContent = [
+                                [
+                                  "Pracownik",
+                                  "Ocena",
+                                  "Komentarz",
+                                  "Data",
+                                ].join(","),
+                                ...reviews.map((r) =>
+                                  [
+                                    r.worker?.profile?.full_name || "Nieznany",
+                                    r.rating,
+                                    `"${(r.comment || "").replace(
+                                      /"/g,
+                                      '""'
+                                    )}"`,
+                                    r.created_at
+                                      ? new Date(
+                                          r.created_at
+                                        ).toLocaleDateString("pl-PL")
+                                      : "N/A",
+                                  ].join(",")
+                                ),
+                              ].join("\n");
+                              const blob = new Blob([csvContent], {
+                                type: "text/csv;charset=utf-8;",
+                              });
+                              const url = URL.createObjectURL(blob);
+                              const a = document.createElement("a");
+                              a.href = url;
+                              a.download = `opinie-${Date.now()}.csv`;
+                              a.click();
+                              URL.revokeObjectURL(url);
+                            }}
+                            className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition-colors flex items-center justify-center gap-2"
+                          >
+                            📊 Pobierz CSV
+                          </button>
                         </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* ============================================ */}
-                  {/* RIGHT PANEL: CHAT WINDOW */}
-                  {/* ============================================ */}
-                  <div className="w-2/3 flex flex-col bg-white">
-                    {selectedConversation ? (
-                      <>
-                        {/* Chat Header */}
-                        <div className="p-5 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-white shadow-sm">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                              {selectedConversation.partnerAvatar ? (
-                                <img
-                                  src={selectedConversation.partnerAvatar}
-                                  alt={selectedConversation.partnerName}
-                                  className="w-10 h-10 rounded-full object-cover border-2 border-blue-500"
-                                />
-                              ) : (
-                                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold shadow-lg">
-                                  {selectedConversation.partnerName
-                                    .charAt(0)
-                                    .toUpperCase()}
-                                </div>
-                              )}
-                              <div>
-                                <h4 className="font-bold text-gray-900">
-                                  {selectedConversation.partnerName}
-                                </h4>
-                                <p className="text-xs text-gray-500">
-                                  {selectedConversation.isOnline ? (
-                                    <span className="text-green-600 flex items-center gap-1">
-                                      <span className="w-2 h-2 bg-green-500 rounded-full"></span>
-                                      Online
-                                    </span>
-                                  ) : (
-                                    "Offline"
-                                  )}
-                                </p>
-                              </div>
-                            </div>
-
-                            <div className="flex items-center gap-2">
-                              <button
-                                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                                title="Więcej opcji"
-                              >
-                                <span className="text-gray-600">⋮</span>
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Messages Area */}
-                        <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-gray-50">
-                          {selectedConversation.messages
-                            .sort(
-                              (a, b) =>
-                                new Date(a.created_at).getTime() -
-                                new Date(b.created_at).getTime()
-                            )
-                            .map((msg, index) => {
-                              const isOwnMessage = msg.sender_id === user?.id;
-                              const showAvatar =
-                                index === 0 ||
-                                selectedConversation.messages[index - 1]
-                                  ?.sender_id !== msg.sender_id;
-
-                              return (
-                                <div
-                                  key={msg.id}
-                                  className={`flex ${
-                                    isOwnMessage
-                                      ? "justify-end"
-                                      : "justify-start"
-                                  } gap-2`}
-                                >
-                                  {/* Avatar (for received messages) */}
-                                  {!isOwnMessage && showAvatar && (
-                                    <div className="flex-shrink-0">
-                                      {selectedConversation.partnerAvatar ? (
-                                        <img
-                                          src={
-                                            selectedConversation.partnerAvatar
-                                          }
-                                          alt={selectedConversation.partnerName}
-                                          className="w-8 h-8 rounded-full object-cover"
-                                        />
-                                      ) : (
-                                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-gray-400 to-gray-600 flex items-center justify-center text-white text-xs font-bold">
-                                          {selectedConversation.partnerName
-                                            .charAt(0)
-                                            .toUpperCase()}
-                                        </div>
-                                      )}
-                                    </div>
-                                  )}
-
-                                  {!isOwnMessage && !showAvatar && (
-                                    <div className="w-8"></div>
-                                  )}
-
-                                  {/* Message Bubble */}
-                                  <div
-                                    className={`max-w-[70%] ${
-                                      isOwnMessage ? "order-first" : ""
-                                    }`}
-                                  >
-                                    <div
-                                      className={`p-3 rounded-2xl shadow-md ${
-                                        isOwnMessage
-                                          ? "bg-gradient-to-br from-blue-600 to-blue-700 text-white rounded-br-sm"
-                                          : "bg-white text-gray-900 border border-gray-200 rounded-bl-sm"
-                                      }`}
-                                    >
-                                      <p className="text-sm leading-relaxed break-words">
-                                        {msg.content}
-                                      </p>
-
-                                      {/* Attachments */}
-                                      {msg.attachments &&
-                                        msg.attachments.length > 0 && (
-                                          <div className="mt-2 space-y-1">
-                                            {msg.attachments.map((att, i) => (
-                                              <div
-                                                key={i}
-                                                className={`text-xs px-2 py-1 rounded ${
-                                                  isOwnMessage
-                                                    ? "bg-blue-800/30"
-                                                    : "bg-gray-100"
-                                                }`}
-                                              >
-                                                📎 {att}
-                                              </div>
-                                            ))}
-                                          </div>
-                                        )}
-
-                                      <div className="flex items-center justify-end gap-2 mt-1">
-                                        <p
-                                          className={`text-xs ${
-                                            isOwnMessage
-                                              ? "text-blue-200"
-                                              : "text-gray-400"
-                                          }`}
-                                        >
-                                          {new Date(
-                                            msg.created_at
-                                          ).toLocaleTimeString("pl-PL", {
-                                            hour: "2-digit",
-                                            minute: "2-digit",
-                                          })}
-                                        </p>
-                                        {isOwnMessage && msg.is_read && (
-                                          <span
-                                            className="text-blue-200"
-                                            title="Przeczytane"
-                                          >
-                                            ✓✓
-                                          </span>
-                                        )}
-                                        {isOwnMessage && !msg.is_read && (
-                                          <span
-                                            className="text-blue-300"
-                                            title="Dostarczone"
-                                          >
-                                            ✓
-                                          </span>
-                                        )}
-                                      </div>
-                                    </div>
-                                  </div>
-                                </div>
-                              );
-                            })}
-                        </div>
-
-                        {/* Input Area */}
-                        <div className="p-4 border-t border-gray-200 bg-white">
-                          {/* Emoji Picker */}
-                          {showEmojiPicker && (
-                            <div className="mb-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
-                              <div className="flex flex-wrap gap-2">
-                                {[
-                                  "😀",
-                                  "😂",
-                                  "😍",
-                                  "🥰",
-                                  "😎",
-                                  "🤔",
-                                  "👍",
-                                  "👏",
-                                  "🙌",
-                                  "❤️",
-                                  "🔥",
-                                  "✨",
-                                  "🎉",
-                                  "💯",
-                                  "👌",
-                                  "🤝",
-                                ].map((emoji) => (
-                                  <button
-                                    key={emoji}
-                                    onClick={() => addEmojiToMessage(emoji)}
-                                    className="text-2xl hover:scale-125 transition-transform"
-                                  >
-                                    {emoji}
-                                  </button>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-
-                          <div className="flex items-center gap-3">
-                            {/* Emoji Button */}
-                            <button
-                              onClick={() =>
-                                setShowEmojiPicker(!showEmojiPicker)
-                              }
-                              className="p-2 hover:bg-gray-100 rounded-lg transition-colors text-2xl"
-                              title="Dodaj emoji"
-                            >
-                              😊
-                            </button>
-
-                            {/* File Upload */}
-                            <label
-                              className="p-2 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer"
-                              title="Załącz plik"
-                            >
-                              <input
-                                type="file"
-                                onChange={handleFileUpload}
-                                className="hidden"
-                                accept="image/*,.pdf,.doc,.docx"
-                              />
-                              <span className="text-xl">📎</span>
-                            </label>
-
-                            {/* Message Input */}
-                            <input
-                              type="text"
-                              value={messageInput}
-                              onChange={(e) => setMessageInput(e.target.value)}
-                              onKeyPress={(e) => {
-                                if (e.key === "Enter" && !e.shiftKey) {
-                                  e.preventDefault();
-                                  handleSendMessage();
-                                }
-                              }}
-                              placeholder="Napisz wiadomość..."
-                              className="flex-1 px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                              disabled={uploadingFile}
-                            />
-
-                            {/* Send Button */}
-                            <button
-                              onClick={handleSendMessage}
-                              disabled={!messageInput.trim() || uploadingFile}
-                              className={`px-6 py-3 rounded-xl font-medium transition-all shadow-lg ${
-                                messageInput.trim() && !uploadingFile
-                                  ? "bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:from-blue-700 hover:to-purple-700 hover:shadow-xl"
-                                  : "bg-gray-200 text-gray-400 cursor-not-allowed"
-                              }`}
-                            >
-                              {uploadingFile ? "📤" : "📨"} Wyślij
-                            </button>
-                          </div>
-
-                          <p className="text-xs text-gray-400 mt-2 text-center">
-                            Enter = wyślij • Shift+Enter = nowa linia
-                          </p>
-                        </div>
-                      </>
-                    ) : (
-                      /* Empty State */
-                      <div className="flex flex-col items-center justify-center h-full text-gray-400 bg-gray-50">
-                        <div className="text-8xl mb-6">💬</div>
-                        <p className="text-xl font-medium mb-2">
-                          Wybierz konwersację
-                        </p>
-                        <p className="text-sm text-center max-w-xs">
-                          Kliknij na konwersację po lewej stronie, aby rozpocząć
-                          czat
+                        <p className="text-xs text-gray-500 mt-2">
+                          💡 PDF (HTML) - otwórz w przeglądarce i zapisz jako
+                          PDF | CSV - importuj do Excel/Sheets
                         </p>
                       </div>
                     )}
                   </div>
                 </div>
-              </div>
-            </div>
-          </TabPanel>
+              </TabPanel>
 
-          {/* Communication Panel */}
-          {showCommunicationPanel && (
-            <div className="mt-8 bg-white rounded-lg shadow-lg border-2 border-blue-200">
-              <div className="p-6 border-b border-gray-200">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h2 className="text-2xl font-bold text-gray-900">
-                      🏗️ Komunikacja Projektowa
-                    </h2>
-                    <p className="text-gray-600">
-                      Zarządzaj komunikacją w projektach budowlanych
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => setShowCommunicationPanel(false)}
-                    className="text-gray-500 hover:text-gray-700"
+              {/* Messages Tab */}
+              <TabPanel isActive={activeTab === "messages"}>
+                {/* 💬 NOWOCZESNY MESSENGER UI - FULL REDESIGN */}
+                <div className="max-w-7xl mx-auto">
+                  <div
+                    className="bg-white rounded-2xl shadow-xl overflow-hidden"
+                    style={{ height: "700px" }}
                   >
-                    <svg
-                      className="w-6 h-6"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M6 18L18 6M6 6l12 12"
-                      />
-                    </svg>
-                  </button>
+                    <div className="flex h-full">
+                      {/* ============================================ */}
+                      {/* LEFT PANEL: CONVERSATION LIST */}
+                      {/* ============================================ */}
+                      <div className="w-1/3 border-r border-gray-200 flex flex-col bg-gray-50">
+                        {/* Header */}
+                        <div className="p-5 border-b border-gray-200 bg-gradient-to-r from-blue-600 to-purple-600">
+                          <h3 className="font-bold text-xl text-white mb-3 flex items-center gap-2">
+                            <span>💬</span> Wiadomości
+                          </h3>
+
+                          {/* Search */}
+                          <div className="relative">
+                            <input
+                              type="text"
+                              placeholder="🔍 Szukaj konwersacji..."
+                              value={searchQuery}
+                              onChange={(e) => setSearchQuery(e.target.value)}
+                              className="w-full px-4 py-2 pl-10 rounded-lg border-0 focus:ring-2 focus:ring-white/50 text-sm"
+                            />
+                            <span className="absolute left-3 top-2.5 text-gray-400">
+                              🔍
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Conversation List */}
+                        <div className="flex-1 overflow-y-auto">
+                          {conversations
+                            .filter((conv) =>
+                              conv.partnerName
+                                .toLowerCase()
+                                .includes(searchQuery.toLowerCase())
+                            )
+                            .map((conversation) => (
+                              <div
+                                key={conversation.partnerId}
+                                onClick={() =>
+                                  handleSelectConversation(conversation)
+                                }
+                                className={`p-4 border-b border-gray-200 cursor-pointer transition-all duration-200 hover:bg-blue-50 ${
+                                  selectedConversation?.partnerId ===
+                                  conversation.partnerId
+                                    ? "bg-blue-100 border-l-4 border-l-blue-600"
+                                    : "hover:border-l-4 hover:border-l-blue-300"
+                                }`}
+                              >
+                                <div className="flex items-start gap-3">
+                                  {/* Avatar */}
+                                  <div className="relative flex-shrink-0">
+                                    {conversation.partnerAvatar ? (
+                                      <img
+                                        src={conversation.partnerAvatar}
+                                        alt={conversation.partnerName}
+                                        className="w-12 h-12 rounded-full object-cover border-2 border-white shadow-md"
+                                      />
+                                    ) : (
+                                      <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-lg shadow-md">
+                                        {conversation.partnerName
+                                          .charAt(0)
+                                          .toUpperCase()}
+                                      </div>
+                                    )}
+                                    {conversation.isOnline && (
+                                      <span className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-green-500 border-2 border-white rounded-full"></span>
+                                    )}
+                                  </div>
+
+                                  {/* Content */}
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center justify-between mb-1">
+                                      <p
+                                        className={`font-semibold text-sm truncate ${
+                                          conversation.unreadCount > 0
+                                            ? "text-blue-700"
+                                            : "text-gray-900"
+                                        }`}
+                                      >
+                                        {conversation.partnerName}
+                                      </p>
+                                      {conversation.unreadCount > 0 && (
+                                        <span className="bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full ml-2 flex-shrink-0">
+                                          {conversation.unreadCount}
+                                        </span>
+                                      )}
+                                    </div>
+
+                                    <p className="text-xs text-gray-600 truncate mb-1">
+                                      {conversation.lastMessage.content}
+                                    </p>
+
+                                    <p className="text-xs text-gray-400">
+                                      {formatRelativeTime(
+                                        conversation.lastMessage.created_at
+                                      )}
+                                    </p>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+
+                          {conversations.length === 0 && (
+                            <div className="flex flex-col items-center justify-center h-full text-gray-400 p-8">
+                              <div className="text-6xl mb-4">💬</div>
+                              <p className="text-center font-medium">
+                                Brak konwersacji
+                              </p>
+                              <p className="text-xs text-center mt-2">
+                                Twoje wiadomości pojawią się tutaj
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* ============================================ */}
+                      {/* RIGHT PANEL: CHAT WINDOW */}
+                      {/* ============================================ */}
+                      <div className="w-2/3 flex flex-col bg-white">
+                        {selectedConversation ? (
+                          <>
+                            {/* Chat Header */}
+                            <div className="p-5 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-white shadow-sm">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                  {selectedConversation.partnerAvatar ? (
+                                    <img
+                                      src={selectedConversation.partnerAvatar}
+                                      alt={selectedConversation.partnerName}
+                                      className="w-10 h-10 rounded-full object-cover border-2 border-blue-500"
+                                    />
+                                  ) : (
+                                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold shadow-lg">
+                                      {selectedConversation.partnerName
+                                        .charAt(0)
+                                        .toUpperCase()}
+                                    </div>
+                                  )}
+                                  <div>
+                                    <h4 className="font-bold text-gray-900">
+                                      {selectedConversation.partnerName}
+                                    </h4>
+                                    <p className="text-xs text-gray-500">
+                                      {selectedConversation.isOnline ? (
+                                        <span className="text-green-600 flex items-center gap-1">
+                                          <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+                                          Online
+                                        </span>
+                                      ) : (
+                                        "Offline"
+                                      )}
+                                    </p>
+                                  </div>
+                                </div>
+
+                                <div className="flex items-center gap-2">
+                                  <button
+                                    className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                                    title="Więcej opcji"
+                                  >
+                                    <span className="text-gray-600">⋮</span>
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Messages Area */}
+                            <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-gray-50">
+                              {selectedConversation.messages
+                                .sort(
+                                  (a, b) =>
+                                    new Date(a.created_at).getTime() -
+                                    new Date(b.created_at).getTime()
+                                )
+                                .map((msg, index) => {
+                                  const isOwnMessage =
+                                    msg.sender_id === user?.id;
+                                  const showAvatar =
+                                    index === 0 ||
+                                    selectedConversation.messages[index - 1]
+                                      ?.sender_id !== msg.sender_id;
+
+                                  return (
+                                    <div
+                                      key={msg.id}
+                                      className={`flex ${
+                                        isOwnMessage
+                                          ? "justify-end"
+                                          : "justify-start"
+                                      } gap-2`}
+                                    >
+                                      {/* Avatar (for received messages) */}
+                                      {!isOwnMessage && showAvatar && (
+                                        <div className="flex-shrink-0">
+                                          {selectedConversation.partnerAvatar ? (
+                                            <img
+                                              src={
+                                                selectedConversation.partnerAvatar
+                                              }
+                                              alt={
+                                                selectedConversation.partnerName
+                                              }
+                                              className="w-8 h-8 rounded-full object-cover"
+                                            />
+                                          ) : (
+                                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-gray-400 to-gray-600 flex items-center justify-center text-white text-xs font-bold">
+                                              {selectedConversation.partnerName
+                                                .charAt(0)
+                                                .toUpperCase()}
+                                            </div>
+                                          )}
+                                        </div>
+                                      )}
+
+                                      {!isOwnMessage && !showAvatar && (
+                                        <div className="w-8"></div>
+                                      )}
+
+                                      {/* Message Bubble */}
+                                      <div
+                                        className={`max-w-[70%] ${
+                                          isOwnMessage ? "order-first" : ""
+                                        }`}
+                                      >
+                                        <div
+                                          className={`p-3 rounded-2xl shadow-md ${
+                                            isOwnMessage
+                                              ? "bg-gradient-to-br from-blue-600 to-blue-700 text-white rounded-br-sm"
+                                              : "bg-white text-gray-900 border border-gray-200 rounded-bl-sm"
+                                          }`}
+                                        >
+                                          <p className="text-sm leading-relaxed break-words">
+                                            {msg.content}
+                                          </p>
+
+                                          {/* Attachments */}
+                                          {msg.attachments &&
+                                            msg.attachments.length > 0 && (
+                                              <div className="mt-2 space-y-1">
+                                                {msg.attachments.map(
+                                                  (att, i) => (
+                                                    <div
+                                                      key={i}
+                                                      className={`text-xs px-2 py-1 rounded ${
+                                                        isOwnMessage
+                                                          ? "bg-blue-800/30"
+                                                          : "bg-gray-100"
+                                                      }`}
+                                                    >
+                                                      📎 {att}
+                                                    </div>
+                                                  )
+                                                )}
+                                              </div>
+                                            )}
+
+                                          <div className="flex items-center justify-end gap-2 mt-1">
+                                            <p
+                                              className={`text-xs ${
+                                                isOwnMessage
+                                                  ? "text-blue-200"
+                                                  : "text-gray-400"
+                                              }`}
+                                            >
+                                              {new Date(
+                                                msg.created_at
+                                              ).toLocaleTimeString("pl-PL", {
+                                                hour: "2-digit",
+                                                minute: "2-digit",
+                                              })}
+                                            </p>
+                                            {isOwnMessage && msg.is_read && (
+                                              <span
+                                                className="text-blue-200"
+                                                title="Przeczytane"
+                                              >
+                                                ✓✓
+                                              </span>
+                                            )}
+                                            {isOwnMessage && !msg.is_read && (
+                                              <span
+                                                className="text-blue-300"
+                                                title="Dostarczone"
+                                              >
+                                                ✓
+                                              </span>
+                                            )}
+                                          </div>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                            </div>
+
+                            {/* Input Area */}
+                            <div className="p-4 border-t border-gray-200 bg-white">
+                              {/* Emoji Picker */}
+                              {showEmojiPicker && (
+                                <div className="mb-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                                  <div className="flex flex-wrap gap-2">
+                                    {[
+                                      "😀",
+                                      "😂",
+                                      "😍",
+                                      "🥰",
+                                      "😎",
+                                      "🤔",
+                                      "👍",
+                                      "👏",
+                                      "🙌",
+                                      "❤️",
+                                      "🔥",
+                                      "✨",
+                                      "🎉",
+                                      "💯",
+                                      "👌",
+                                      "🤝",
+                                    ].map((emoji) => (
+                                      <button
+                                        key={emoji}
+                                        onClick={() => addEmojiToMessage(emoji)}
+                                        className="text-2xl hover:scale-125 transition-transform"
+                                      >
+                                        {emoji}
+                                      </button>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+
+                              <div className="flex items-center gap-3">
+                                {/* Emoji Button */}
+                                <button
+                                  onClick={() =>
+                                    setShowEmojiPicker(!showEmojiPicker)
+                                  }
+                                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors text-2xl"
+                                  title="Dodaj emoji"
+                                >
+                                  😊
+                                </button>
+
+                                {/* File Upload */}
+                                <label
+                                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer"
+                                  title="Załącz plik"
+                                >
+                                  <input
+                                    type="file"
+                                    onChange={handleFileUpload}
+                                    className="hidden"
+                                    accept="image/*,.pdf,.doc,.docx"
+                                  />
+                                  <span className="text-xl">📎</span>
+                                </label>
+
+                                {/* Message Input */}
+                                <input
+                                  type="text"
+                                  value={messageInput}
+                                  onChange={(e) =>
+                                    setMessageInput(e.target.value)
+                                  }
+                                  onKeyPress={(e) => {
+                                    if (e.key === "Enter" && !e.shiftKey) {
+                                      e.preventDefault();
+                                      handleSendMessage();
+                                    }
+                                  }}
+                                  placeholder="Napisz wiadomość..."
+                                  className="flex-1 px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                  disabled={uploadingFile}
+                                />
+
+                                {/* Send Button */}
+                                <button
+                                  onClick={handleSendMessage}
+                                  disabled={
+                                    !messageInput.trim() || uploadingFile
+                                  }
+                                  className={`px-6 py-3 rounded-xl font-medium transition-all shadow-lg ${
+                                    messageInput.trim() && !uploadingFile
+                                      ? "bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:from-blue-700 hover:to-purple-700 hover:shadow-xl"
+                                      : "bg-gray-200 text-gray-400 cursor-not-allowed"
+                                  }`}
+                                >
+                                  {uploadingFile ? "📤" : "📨"} Wyślij
+                                </button>
+                              </div>
+
+                              <p className="text-xs text-gray-400 mt-2 text-center">
+                                Enter = wyślij • Shift+Enter = nowa linia
+                              </p>
+                            </div>
+                          </>
+                        ) : (
+                          /* Empty State */
+                          <div className="flex flex-col items-center justify-center h-full text-gray-400 bg-gray-50">
+                            <div className="text-8xl mb-6">💬</div>
+                            <p className="text-xl font-medium mb-2">
+                              Wybierz konwersację
+                            </p>
+                            <p className="text-sm text-center max-w-xs">
+                              Kliknij na konwersację po lewej stronie, aby
+                              rozpocząć czat
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
                 </div>
-              </div>
-              <div className="p-6">
-                <ProjectCommunicationManager
-                  userRole="employer"
-                  allowCreateProjects={true}
+              </TabPanel>
+
+              {/* Communication Panel */}
+              {showCommunicationPanel && (
+                <div className="mt-8 bg-white rounded-lg shadow-lg border-2 border-blue-200">
+                  <div className="p-6 border-b border-gray-200">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h2 className="text-2xl font-bold text-gray-900">
+                          🏗️ Komunikacja Projektowa
+                        </h2>
+                        <p className="text-gray-600">
+                          Zarządzaj komunikacją w projektach budowlanych
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => setShowCommunicationPanel(false)}
+                        className="text-gray-500 hover:text-gray-700"
+                      >
+                        <svg
+                          className="w-6 h-6"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M6 18L18 6M6 6l12 12"
+                          />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                  <div className="p-6">
+                    <ProjectCommunicationManager
+                      userRole="employer"
+                      allowCreateProjects={true}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Support Ticket Modal */}
+              <SupportTicketModal
+                isOpen={showSupportModal}
+                onClose={() => setShowSupportModal(false)}
+              />
+
+              {/* Tablica Tab */}
+              <TabPanel isActive={activeTab === "tablica"}>
+                <FeedPage />
+              </TabPanel>
+
+              {/* My Posts Tab */}
+              <TabPanel isActive={activeTab === "my_posts"}>
+                <MyPosts />
+              </TabPanel>
+
+              {/* Saved Activity Tab */}
+              <TabPanel isActive={activeTab === "saved_activity"}>
+                <SavedActivity />
+              </TabPanel>
+
+              {/* Subscription Tab */}
+              <TabPanel isActive={activeTab === "subscription"}>
+                <EmployerSubscriptionPage />
+              </TabPanel>
+
+              {/* My Profile Preview Tab */}
+              <TabPanel isActive={activeTab === "my_profile"}>
+                <MyProfilePreview role="employer" />
+              </TabPanel>
+
+              {/* Settings Tab */}
+              <TabPanel isActive={activeTab === "settings"}>
+                <EmployerSettingsPanel
+                  employerProfile={
+                    employerProfile
+                      ? {
+                          id: employerProfile.id,
+                          profile_id: employerProfile.profile_id,
+                          company_name: employerProfile.company_name || "",
+                          kvk_number: employerProfile.kvk_number || undefined,
+                          btw_number: employerProfile.btw_number || undefined,
+                          logo_url: employerProfile.logo_url || undefined,
+                          cover_image_url:
+                            (employerProfile as any).cover_image_url ||
+                            undefined,
+                          website: employerProfile.website || undefined,
+                          description: employerProfile.description || undefined,
+                          industry: employerProfile.industry || undefined,
+                          company_size:
+                            employerProfile.company_size || undefined,
+                          company_type:
+                            (employerProfile as any).company_type || undefined,
+                          address: employerProfile.address || undefined,
+                          city: employerProfile.city || undefined,
+                          postal_code: employerProfile.postal_code || undefined,
+                          country: employerProfile.country || undefined,
+                          contact_person:
+                            employerProfile.contact_person || undefined,
+                          contact_phone:
+                            employerProfile.contact_phone || undefined,
+                          contact_email:
+                            employerProfile.contact_email || undefined,
+                          verified: employerProfile.verified || undefined,
+                        }
+                      : null
+                  }
+                  notificationSettings={notificationSettings}
+                  privacySettings={privacySettings}
+                  saving={settingsSaving}
+                  onLogoUpload={handleLogoUpload}
+                  onCoverImageUpload={handleCoverImageUploadSuccess}
+                  onNotificationSettingsChange={setNotificationSettings}
+                  onNotificationSettingsSave={handleNotificationSettingsSave}
+                  onPrivacySettingsChange={setPrivacySettings}
+                  onPrivacySettingsSave={handlePrivacySettingsSave}
+                  onCompanyDataSave={handleCompanyDataSave}
+                  isMobile={isMobile}
                 />
-              </div>
-            </div>
-          )}
+              </TabPanel>
 
-          {/* Support Ticket Modal */}
-          <SupportTicketModal
-            isOpen={showSupportModal}
-            onClose={() => setShowSupportModal(false)}
-          />
-
-          {/* Tablica Tab */}
-          <TabPanel isActive={activeTab === "tablica"}>
-            <FeedPage />
-          </TabPanel>
-
-          {/* My Posts Tab */}
-          <TabPanel isActive={activeTab === "my_posts"}>
-            <MyPosts />
-          </TabPanel>
-
-          {/* Saved Activity Tab */}
-          <TabPanel isActive={activeTab === "saved_activity"}>
-            <SavedActivity />
-          </TabPanel>
-        </PageContainer>
+              {/* NOTE: Team tab removed - now accessible via /employer/team separate page */}
+              {/* NOTE: Kilometers and Calendar tabs removed - they are only in /faktury module */}
+            </PageContainer>
+          </main>
+        </div>
       </div>
     </div>
   );

@@ -38,8 +38,17 @@ import { useAuth } from "../../contexts/AuthContext";
 import { ReviewAccountantModal } from "../../src/components/employer/ReviewAccountantModal";
 import { PostCardPremium } from "../FeedPage_PREMIUM";
 
-export default function AccountantProfilePage() {
-  const { id } = useParams<{ id: string }>();
+interface AccountantProfilePageProps {
+  accountantId?: string;
+  embedded?: boolean;
+}
+
+export default function AccountantProfilePage({
+  accountantId: propId,
+  embedded = false,
+}: AccountantProfilePageProps) {
+  const { id: urlId } = useParams<{ id: string }>();
+  const id = propId || urlId;
   const navigate = useNavigate();
   const { user: authUser } = useAuth();
   const [accountant, setAccountant] = useState<Accountant | null>(null);
@@ -144,8 +153,8 @@ export default function AccountantProfilePage() {
       ] = await Promise.all([
         getAccountantServices(actualAccountantId),
         getAccountantReviews(actualAccountantId),
-        getUnavailableDates(actualAccountantId),
-        getAvailability(actualAccountantId),
+        getUnavailableDates(accountantData.profile_id),
+        getAvailability(accountantData.profile_id),
         getPosts({ author_id: actualAccountantId, author_type: "accountant" }),
       ]);
 

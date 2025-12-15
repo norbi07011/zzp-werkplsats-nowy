@@ -612,3 +612,446 @@
     transform: scale(1.05) rotate(270deg);
   }
 }
+
+/* ========================================
+   GLOW BUTTON STYLES - Global Animation
+   ======================================== */
+
+@keyframes glow-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+@keyframes glow-pulse {
+  0%,
+  100% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+/* Base glow button style - applies to buttons with specific bg colors */
+button[class*="bg-blue-"],
+button[class*="bg-green-"],
+button[class*="bg-purple-"],
+button[class*="bg-orange-"],
+button[class*="bg-indigo-"],
+button[class*="bg-cyan-"],
+button[class*="bg-teal-"],
+button[class*="bg-emerald-"],
+button[class*="bg-violet-"],
+button[class*="bg-pink-"],
+button[class*="bg-rose-"],
+a[class*="bg-blue-"],
+a[class*="bg-green-"],
+a[class*="bg-purple-"],
+a[class*="bg-orange-"] {
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s ease-out;
+}
+
+/* Glow border effect on hover */
+button[class*="bg-blue-"]::before,
+button[class*="bg-green-"]::before,
+button[class*="bg-purple-"]::before,
+button[class*="bg-orange-"]::before,
+button[class*="bg-indigo-"]::before,
+button[class*="bg-cyan-"]::before,
+button[class*="bg-teal-"]::before,
+button[class*="bg-emerald-"]::before,
+button[class*="bg-violet-"]::before,
+button[class*="bg-pink-"]::before,
+button[class*="bg-rose-"]::before,
+a[class*="bg-blue-"]::before,
+a[class*="bg-green-"]::before,
+a[class*="bg-purple-"]::before,
+a[class*="bg-orange-"]::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  padding: 2px;
+  border-radius: inherit;
+  background: linear-gradient(
+    90deg,
+    rgba(79, 255, 93, 0.8) 0%,
+    rgba(57, 123, 255, 0.8) 25%,
+    rgba(168, 85, 247, 0.8) 50%,
+    rgba(57, 123, 255, 0.8) 75%,
+    rgba(79, 255, 93, 0.8) 100%
+  );
+  background-size: 300% 100%;
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  opacity: 0;
+  transition: opacity 0.3s ease-out;
+  z-index: 0;
+}
+
+button[class*="bg-blue-"]:hover::before,
+button[class*="bg-green-"]:hover::before,
+button[class*="bg-purple-"]:hover::before,
+button[class*="bg-orange-"]:hover::before,
+button[class*="bg-indigo-"]:hover::before,
+button[class*="bg-cyan-"]:hover::before,
+button[class*="bg-teal-"]:hover::before,
+button[class*="bg-emerald-"]:hover::before,
+button[class*="bg-violet-"]:hover::before,
+button[class*="bg-pink-"]:hover::before,
+button[class*="bg-rose-"]:hover::before,
+a[class*="bg-blue-"]:hover::before,
+a[class*="bg-green-"]:hover::before,
+a[class*="bg-purple-"]:hover::before,
+a[class*="bg-orange-"]:hover::before {
+  opacity: 1;
+  animation: glow-shimmer 2s linear infinite;
+}
+
+/* Glow shadow effect on hover */
+button[class*="bg-blue-"]::after,
+button[class*="bg-green-"]::after,
+button[class*="bg-purple-"]::after,
+button[class*="bg-orange-"]::after,
+button[class*="bg-indigo-"]::after,
+a[class*="bg-blue-"]::after,
+a[class*="bg-green-"]::after,
+a[class*="bg-purple-"]::after,
+a[class*="bg-orange-"]::after {
+  content: "";
+  position: absolute;
+  inset: -4px;
+  border-radius: inherit;
+  background: linear-gradient(
+    90deg,
+    rgba(79, 255, 93, 0.4),
+    rgba(57, 123, 255, 0.4),
+    rgba(168, 85, 247, 0.4)
+  );
+  background-size: 200% 100%;
+  filter: blur(12px);
+  opacity: 0;
+  transition: opacity 0.3s ease-out;
+  z-index: -1;
+}
+
+button[class*="bg-blue-"]:hover::after,
+button[class*="bg-green-"]:hover::after,
+button[class*="bg-purple-"]:hover::after,
+button[class*="bg-orange-"]:hover::after,
+button[class*="bg-indigo-"]:hover::after,
+a[class*="bg-blue-"]:hover::after,
+a[class*="bg-green-"]:hover::after,
+a[class*="bg-purple-"]:hover::after,
+a[class*="bg-orange-"]:hover::after {
+  opacity: 0.6;
+  animation: glow-shimmer 2s linear infinite,
+    glow-pulse 1.5s ease-in-out infinite;
+}
+
+/* Scale and transform effects */
+button[class*="bg-blue-"]:hover,
+button[class*="bg-green-"]:hover,
+button[class*="bg-purple-"]:hover,
+button[class*="bg-orange-"]:hover,
+button[class*="bg-indigo-"]:hover,
+a[class*="bg-blue-"]:hover,
+a[class*="bg-green-"]:hover,
+a[class*="bg-purple-"]:hover,
+a[class*="bg-orange-"]:hover {
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: 0 10px 40px -10px rgba(79, 255, 93, 0.3),
+    0 10px 40px -10px rgba(57, 123, 255, 0.3);
+}
+
+button[class*="bg-blue-"]:active,
+button[class*="bg-green-"]:active,
+button[class*="bg-purple-"]:active,
+button[class*="bg-orange-"]:active,
+button[class*="bg-indigo-"]:active,
+a[class*="bg-blue-"]:active,
+a[class*="bg-green-"]:active,
+a[class*="bg-purple-"]:active,
+a[class*="bg-orange-"]:active {
+  transform: translateY(0) scale(0.98);
+}
+
+/* Ensure button content stays on top */
+button[class*="bg-blue-"] > *,
+button[class*="bg-green-"] > *,
+button[class*="bg-purple-"] > *,
+button[class*="bg-orange-"] > *,
+button[class*="bg-indigo-"] > *,
+a[class*="bg-blue-"] > *,
+a[class*="bg-green-"] > *,
+a[class*="bg-purple-"] > *,
+a[class*="bg-orange-"] > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* Color-specific glow variations */
+button[class*="bg-green-"]:hover::after,
+a[class*="bg-green-"]:hover::after {
+  background: linear-gradient(
+    90deg,
+    rgba(34, 231, 16, 0.5),
+    rgba(49, 255, 245, 0.5)
+  );
+}
+
+button[class*="bg-purple-"]:hover::after,
+a[class*="bg-purple-"]:hover::after {
+  background: linear-gradient(
+    90deg,
+    rgba(168, 85, 247, 0.5),
+    rgba(236, 72, 153, 0.5)
+  );
+}
+
+button[class*="bg-orange-"]:hover::after,
+a[class*="bg-orange-"]:hover::after {
+  background: linear-gradient(
+    90deg,
+    rgba(251, 146, 60, 0.5),
+    rgba(250, 204, 21, 0.5)
+  );
+}
+
+button[class*="bg-indigo-"]:hover::after,
+a[class*="bg-indigo-"]:hover::after {
+  background: linear-gradient(
+    90deg,
+    rgba(99, 102, 241, 0.5),
+    rgba(168, 85, 247, 0.5)
+  );
+}
+
+/* Red buttons - danger style */
+button[class*="bg-red-"],
+a[class*="bg-red-"] {
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s ease-out;
+}
+
+button[class*="bg-red-"]::before,
+a[class*="bg-red-"]::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  padding: 2px;
+  border-radius: inherit;
+  background: linear-gradient(
+    90deg,
+    rgba(255, 79, 93, 0.8) 0%,
+    rgba(255, 123, 57, 0.8) 50%,
+    rgba(255, 79, 93, 0.8) 100%
+  );
+  background-size: 200% 100%;
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  opacity: 0;
+  transition: opacity 0.3s ease-out;
+}
+
+button[class*="bg-red-"]:hover::before,
+a[class*="bg-red-"]:hover::before {
+  opacity: 1;
+  animation: glow-shimmer 2s linear infinite;
+}
+
+button[class*="bg-red-"]:hover,
+a[class*="bg-red-"]:hover {
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: 0 10px 40px -10px rgba(255, 79, 93, 0.5);
+}
+
+button[class*="bg-red-"] > *,
+a[class*="bg-red-"] > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* Disabled state - no glow */
+button:disabled::before,
+button:disabled::after {
+  display: none !important;
+}
+
+button:disabled:hover {
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+/* ===================================
+   FIX FOR APPOINTMENTS CALENDAR CARD
+   Disable all 3D transforms globally
+   =================================== */
+
+/* Wyłącz perspective z index.html dla całego Invoice module */
+[class*="col-span"],
+[class*="grid"],
+.perspective-container,
+.preserve-3d,
+.nebula-container,
+#root,
+#root > *,
+#root * {
+  perspective: none !important;
+  transform-style: flat !important;
+  backface-visibility: visible !important;
+}
+
+/* Wyłącz wszystkie transforms w module Invoice/Appointments */
+.flex.h-screen,
+.flex.h-screen *,
+main.overflow-y-auto,
+main.overflow-y-auto *,
+.xl\\:col-span-4,
+.xl\\:col-span-4 > *,
+.xl\\:col-span-4 *,
+.xl\\:col-span-8,
+.xl\\:col-span-8 > *,
+.xl\\:col-span-8 *,
+.grid.grid-cols-7 button,
+.rounded-2xl,
+.rounded-2xl *,
+.rounded-xl,
+.rounded-xl *,
+button,
+div[class*="bg-"],
+div[class*="shadow"] {
+  transform: none !important;
+  animation: none !important;
+}
+
+/* Wyłącz wszystkie float-heavy i inne animacje 3D */
+.nebula-container,
+[style*="float-heavy"],
+[style*="preserve-3d"],
+[style*="perspective"] {
+  animation: none !important;
+  transform: none !important;
+  transform-style: flat !important;
+  perspective: none !important;
+}
+
+/* ================================================================
+   MOBILE BOTTOM NAVIGATION - Safe Area for iOS
+   ================================================================ */
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* Mobile bottom nav extra padding */
+@media (max-width: 768px) {
+  .pb-20 {
+    padding-bottom: calc(5rem + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+/* Fade in animation for tab panels */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.2s ease-out;
+}
+
+/* Scrollable table with shadow indicators */
+.scrollable-table-container {
+  position: relative;
+}
+
+.scrollable-table-container::before,
+.scrollable-table-container::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 24px;
+  pointer-events: none;
+  z-index: 10;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.scrollable-table-container::before {
+  left: 0;
+  background: linear-gradient(to right, rgba(0, 0, 0, 0.3), transparent);
+}
+
+.scrollable-table-container::after {
+  right: 0;
+  background: linear-gradient(to left, rgba(0, 0, 0, 0.3), transparent);
+}
+
+.scrollable-table-container.scroll-left::before {
+  opacity: 1;
+}
+
+.scrollable-table-container.scroll-right::after {
+  opacity: 1;
+}
+
+/* Mobile scroll hint animation */
+@keyframes scroll-hint {
+  0%, 100% { transform: translateX(0); }
+  50% { transform: translateX(8px); }
+}
+
+.scroll-hint-mobile {
+  animation: scroll-hint 1.5s ease-in-out 2;
+}
+
+/* iOS Select Styling Fix */
+/* iOS ignores option background colors, so we style the select itself */
+select {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%236b7280' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 36px;
+}
+
+/* Dark theme select options - native picker will use system colors */
+.dark-theme select,
+select.bg-white\/10,
+select[class*="bg-slate"] {
+  color-scheme: dark;
+}
+
+/* Light theme select */
+.light-theme select {
+  color-scheme: light;
+}
+
+/* Better touch targets for select */
+select {
+  min-height: 44px;
+  cursor: pointer;
+}
+
+/* Focus ring for accessibility */
+select:focus {
+  outline: 2px solid #00d9ff;
+  outline-offset: 2px;
+}

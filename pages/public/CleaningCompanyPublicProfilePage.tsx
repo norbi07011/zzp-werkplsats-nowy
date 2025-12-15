@@ -7,6 +7,7 @@ import { ReviewCleaningCompanyModal } from "../../src/components/employer/Review
 import { LocationCard } from "../../components/LocationCard";
 import { Animated3DProfileBackground } from "../../components/Animated3DProfileBackground";
 import { SpinningNumbers } from "../../components/SpinningNumbers";
+import { InviteToTeamModal } from "../../src/modules/team-system/components/InviteToTeamModal";
 import {
   Star,
   MapPin,
@@ -92,8 +93,17 @@ interface CleaningReview {
   };
 }
 
-export default function CleaningCompanyPublicProfilePage() {
-  const { id } = useParams<{ id: string }>();
+interface CleaningCompanyPublicProfilePageProps {
+  companyId?: string;
+  embedded?: boolean;
+}
+
+export default function CleaningCompanyPublicProfilePage({
+  companyId: propId,
+  embedded = false,
+}: CleaningCompanyPublicProfilePageProps) {
+  const { id: urlId } = useParams<{ id: string }>();
+  const id = propId || urlId;
   const navigate = useNavigate();
   const { user } = useAuth();
   const [company, setCompany] = useState<CleaningCompany | null>(null);
@@ -111,6 +121,9 @@ export default function CleaningCompanyPublicProfilePage() {
 
   // Review modal
   const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
+
+  // Invite to team modal
+  const [isInviteToTeamModalOpen, setIsInviteToTeamModalOpen] = useState(false);
 
   useEffect(() => {
     const abortController = new AbortController();
@@ -520,6 +533,29 @@ export default function CleaningCompanyPublicProfilePage() {
                         <span>Zespół: {company.team_size} os.</span>
                       </div>
                     </div>
+
+                    {/* Action Buttons */}
+                    <div className="flex gap-3 mt-4">
+                      {company.email && (
+                        <a
+                          href={`mailto:${company.email}`}
+                          className="px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors shadow-lg"
+                        >
+                          Skontaktuj się
+                        </a>
+                      )}
+
+                      {/* Invite to Team Button - Only for employers */}
+                      {user && user.role === "employer" && employerId && (
+                        <button
+                          onClick={() => setIsInviteToTeamModalOpen(true)}
+                          className="px-6 py-3 bg-emerald-600 text-white font-semibold rounded-lg hover:bg-emerald-700 transition-colors shadow-lg flex items-center gap-2"
+                        >
+                          <span>👥</span>
+                          Zaproś do ekipy
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -752,6 +788,20 @@ export default function CleaningCompanyPublicProfilePage() {
             companyId={company.id}
             companyName={company.company_name}
             onSuccess={loadCompanyData}
+          />
+        )}
+
+        {/* Invite to Team Modal */}
+        {company && user && employerId && (
+          <InviteToTeamModal
+            isOpen={isInviteToTeamModalOpen}
+            onClose={() => setIsInviteToTeamModalOpen(false)}
+            employerId={employerId}
+            inviterProfileId={user.id}
+            inviteeId={company.id}
+            inviteeType="cleaning_company"
+            inviteeName={company.company_name}
+            inviteeAvatar={company.avatar_url ?? undefined}
           />
         )}
       </div>

@@ -6,6 +6,7 @@ import { Modal } from "../../components/Modal";
 import { ReviewWorkerModal } from "../../src/components/employer/ReviewWorkerModal";
 import { LocationCard } from "../../components/LocationCard";
 import { Animated3DProfileBackground } from "../../components/Animated3DProfileBackground";
+import { InviteToTeamModal } from "../../src/modules/team-system/components/InviteToTeamModal";
 import {
   Star,
   MapPin,
@@ -76,8 +77,17 @@ interface WorkerProject {
   completion_date: string;
 }
 
-export default function WorkerPublicProfilePage() {
-  const { id } = useParams<{ id: string }>();
+interface WorkerPublicProfilePageProps {
+  workerId?: string; // Optional prop - if provided, use this instead of URL param
+  embedded?: boolean; // If true, hide back button (for dashboard embedding)
+}
+
+export default function WorkerPublicProfilePage({
+  workerId,
+  embedded = false,
+}: WorkerPublicProfilePageProps) {
+  const { id: urlId } = useParams<{ id: string }>();
+  const id = workerId || urlId; // Use prop if provided, otherwise URL param
   const navigate = useNavigate();
   const { user } = useAuth();
   const [worker, setWorker] = useState<Worker | null>(null);
@@ -91,6 +101,7 @@ export default function WorkerPublicProfilePage() {
   // Contact & Review modals
   const [isContactModalOpen, setIsContactModalOpen] = useState(false);
   const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
+  const [isInviteToTeamModalOpen, setIsInviteToTeamModalOpen] = useState(false);
   const [contactSubject, setContactSubject] = useState("");
   const [contactMessage, setContactMessage] = useState("");
   const [employerId, setEmployerId] = useState<string | null>(null);
@@ -747,13 +758,29 @@ export default function WorkerPublicProfilePage() {
                       )}
                   </div>
 
-                  {/* Contact Button */}
-                  <a
-                    href={`mailto:${worker.email}`}
-                    className="px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors shadow-lg"
-                  >
-                    Skontaktuj się
-                  </a>
+                  {/* Action Buttons */}
+                  <div className="flex gap-3">
+                    {/* Contact Button */}
+                    <a
+                      href={`mailto:${worker.email}`}
+                      className="px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors shadow-lg"
+                    >
+                      Skontaktuj się
+                    </a>
+
+                    {/* Invite to Team Button - Only for employers and cleaning companies */}
+                    {user &&
+                      (user.role === "employer" ||
+                        user.role === "cleaning_company") && (
+                        <button
+                          onClick={() => setIsInviteToTeamModalOpen(true)}
+                          className="px-6 py-3 bg-emerald-600 text-white font-semibold rounded-lg hover:bg-emerald-700 transition-colors shadow-lg flex items-center gap-2"
+                        >
+                          <span>👥</span>
+                          Zaproś do ekipy
+                        </button>
+                      )}
+                  </div>
                 </div>
               </div>
             </div>
@@ -893,6 +920,20 @@ export default function WorkerPublicProfilePage() {
             employerId={employerId || undefined}
             cleaningCompanyId={cleaningCompanyId || undefined}
             onSuccess={handleReviewSuccess}
+          />
+        )}
+
+        {/* Invite to Team Modal */}
+        {worker && user && employerId && (
+          <InviteToTeamModal
+            isOpen={isInviteToTeamModalOpen}
+            onClose={() => setIsInviteToTeamModalOpen(false)}
+            employerId={employerId}
+            inviterProfileId={user.id}
+            inviteeId={worker.id}
+            inviteeType="worker"
+            inviteeName={worker.full_name}
+            inviteeAvatar={worker.avatar_url}
           />
         )}
 

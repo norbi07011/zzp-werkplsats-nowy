@@ -161,26 +161,96 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
     return;
   }
 
-  // Original subscription logic
-  // Update worker with Stripe customer ID
-  const { error: updateError } = await supabase
-    .from("workers")
-    .update({
-      stripe_customer_id: customerId,
-      stripe_subscription_id: subscriptionId,
-      subscription_tier: "premium",
-      subscription_status: "active",
-      subscription_start_date: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", workerId);
+  // Get userType from metadata to determine which table to update
+  const userType = session.metadata?.userType || "worker";
 
-  if (updateError) {
-    console.error("❌ Error updating worker:", updateError);
-    return;
+  // Update based on user type
+  if (userType === "regular_user") {
+    // Calculate subscription end date (+1 month from now)
+    const subscriptionEndDate = new Date();
+    subscriptionEndDate.setMonth(subscriptionEndDate.getMonth() + 1);
+
+    // Update regular_users table
+    const { error: updateError } = await supabase
+      .from("regular_users")
+      .update({
+        stripe_customer_id: customerId,
+        stripe_subscription_id: subscriptionId,
+        is_premium: true,
+        subscription_status: "active",
+        subscription_start_date: new Date().toISOString(),
+        subscription_end_date: subscriptionEndDate.toISOString(), // ← ADD THIS
+        last_payment_date: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .eq("profile_id", workerId);
+
+    if (updateError) {
+      console.error("❌ Error updating regular_user:", updateError);
+      return;
+    }
+
+    console.log("✅ Regular user updated with subscription:", workerId);
+  } else if (userType === "cleaning_company") {
+    // Update cleaning_companies table
+    const { error: updateError } = await supabase
+      .from("cleaning_companies")
+      .update({
+        stripe_customer_id: customerId,
+        stripe_subscription_id: subscriptionId,
+        subscription_tier: "premium",
+        subscription_status: "active",
+        updated_at: new Date().toISOString(),
+      })
+      .eq("profile_id", workerId); // workerId is actually profile_id for cleaning companies
+
+    if (updateError) {
+      console.error("❌ Error updating cleaning_company:", updateError);
+      return;
+    }
+
+    console.log("✅ Cleaning company updated with subscription:", workerId);
+  } else if (userType === "employer") {
+    // Update employers table
+    const plan = session.metadata?.plan || "premium";
+    const { error: updateError } = await supabase
+      .from("employers")
+      .update({
+        stripe_customer_id: customerId,
+        stripe_subscription_id: subscriptionId,
+        subscription_tier: plan,
+        subscription_status: "active",
+        updated_at: new Date().toISOString(),
+      })
+      .eq("profile_id", workerId);
+
+    if (updateError) {
+      console.error("❌ Error updating employer:", updateError);
+      return;
+    }
+
+    console.log("✅ Employer updated with subscription:", workerId);
+  } else {
+    // Default: Update workers table (original logic)
+    const { error: updateError } = await supabase
+      .from("workers")
+      .update({
+        stripe_customer_id: customerId,
+        stripe_subscription_id: subscriptionId,
+        subscription_tier: "premium",
+        subscription_status: "active",
+        subscription_start_date: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", workerId);
+
+    if (updateError) {
+      console.error("❌ Error updating worker:", updateError);
+      return;
+    }
+
+    console.log("✅ Worker updated with subscription:", workerId);
   }
-
-  console.log("✅ Worker updated with subscription:", workerId);
 
   // TODO: Send welcome email (FAZA 7)
   // await sendWelcomeEmail(workerId);
@@ -202,10 +272,24 @@ async function handleSubscriptionUpdate(subscription: Stripe.Subscription) {
       ? "cancelled"
       : "inactive";
 
+  // Update workers
   const { error } = await supabase
     .from("workers")
     .update({
       subscription_status: status,
+      subscription_end_date: new Date(
+        (subscription as any).current_period_end * 1000
+      ).toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .eq("stripe_customer_id", customerId);
+
+  // Update regular_users
+  await supabase
+    .from("regular_users")
+    .update({
+      subscription_status: status,
+      is_premium: status === "active",
       subscription_end_date: new Date(
         (subscription as any).current_period_end * 1000
       ).toISOString(),
@@ -230,10 +314,22 @@ async function handleSubscriptionCancelled(subscription: Stripe.Subscription) {
 
   const customerId = subscription.customer as string;
 
+  // Cancel for workers
   const { error } = await supabase
     .from("workers")
     .update({
       subscription_tier: "basic",
+      subscription_status: "cancelled",
+      stripe_subscription_id: null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("stripe_customer_id", customerId);
+
+  // Cancel for regular_users
+  await supabase
+    .from("regular_users")
+    .update({
+      is_premium: false,
       subscription_status: "cancelled",
       stripe_subscription_id: null,
       updated_at: new Date().toISOString(),
@@ -259,35 +355,95 @@ async function handlePaymentSucceeded(invoice: Stripe.Invoice) {
 
   const customerId = invoice.customer as string;
 
-  // Get worker ID
+  // Try to find user in different tables
+  let userId: string | null = null;
+  let userType = "worker";
+
+  // Check workers
   const { data: worker } = await supabase
     .from("workers")
-    .select("id")
+    .select("id, profile_id")
     .eq("stripe_customer_id", customerId)
     .single();
 
-  if (!worker) {
-    console.error("❌ Worker not found for customer:", customerId);
+  if (worker) {
+    userId = worker.profile_id;
+    userType = "worker";
+  } else {
+    // Check regular_users
+    const { data: regularUser } = await supabase
+      .from("regular_users")
+      .select("id, profile_id")
+      .eq("stripe_customer_id", customerId)
+      .single();
+
+    if (regularUser) {
+      userId = regularUser.profile_id;
+      userType = "regular_user";
+    } else {
+      // Check employers
+      const { data: employer } = await supabase
+        .from("employers")
+        .select("profile_id")
+        .eq("stripe_customer_id", customerId)
+        .single();
+
+      if (employer) {
+        userId = employer.profile_id;
+        userType = "employer";
+      } else {
+        // Check cleaning companies
+        const { data: cleaning } = await supabase
+          .from("cleaning_companies")
+          .select("profile_id")
+          .eq("stripe_customer_id", customerId)
+          .single();
+
+        if (cleaning) {
+          userId = cleaning.profile_id;
+          userType = "cleaning_company";
+        } else {
+          // Check accountants
+          const { data: accountant } = await supabase
+            .from("accountants")
+            .select("profile_id")
+            .eq("stripe_customer_id", customerId)
+            .single();
+
+          if (accountant) {
+            userId = accountant.profile_id;
+            userType = "accountant";
+          }
+        }
+      }
+    }
+  }
+
+  if (!userId) {
+    console.error("❌ User not found for customer:", customerId);
     return;
   }
 
-  // Record payment
-  const { error } = await supabase.from("subscription_payments").insert({
-    worker_id: worker.id,
-    amount: invoice.amount_paid / 100, // Convert cents to euros
+  // Record payment in payments table
+  const { error } = await supabase.from("payments").insert({
+    user_id: userId,
+    profile_id: userId,
+    payment_type:
+      userType === "regular_user"
+        ? "regular_user_subscription"
+        : `${userType}_subscription`,
+    amount: (invoice.amount_paid / 100).toFixed(2), // Convert cents to euros
     currency: invoice.currency.toUpperCase(),
-    payment_method: "card",
+    payment_method: "stripe_card",
     status: "completed",
-    stripe_payment_intent_id: (invoice as any).payment_intent as string,
+    description: `Subscription payment - ${userType}`,
     stripe_invoice_id: invoice.id,
-    stripe_charge_id: (invoice as any).charge as string,
+    stripe_customer_id: customerId,
+    stripe_subscription_id: invoice.subscription as string,
     payment_date: new Date(invoice.created * 1000).toISOString(),
-    period_start: new Date((invoice as any).period_start * 1000)
-      .toISOString()
-      .split("T")[0],
-    period_end: new Date((invoice as any).period_end * 1000)
-      .toISOString()
-      .split("T")[0],
+    completed_at: new Date(invoice.created * 1000).toISOString(),
+    created_at: new Date(invoice.created * 1000).toISOString(),
+    updated_at: new Date().toISOString(),
   });
 
   if (error) {
@@ -295,9 +451,26 @@ async function handlePaymentSucceeded(invoice: Stripe.Invoice) {
     return;
   }
 
-  console.log("✅ Payment recorded for worker:", worker.id);
+  // Update last_payment_date based on user type
+  if (userType === "worker" && worker) {
+    await supabase
+      .from("workers")
+      .update({
+        last_payment_date: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", worker.id);
+  } else if (userType === "regular_user") {
+    await supabase
+      .from("regular_users")
+      .update({
+        last_payment_date: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .eq("stripe_customer_id", customerId);
+  }
 
-  // TODO: Send payment receipt email (FAZA 7)
+  console.log("✅ Payment recorded for user:", userId);
 }
 
 /**
@@ -309,37 +482,56 @@ async function handlePaymentFailed(invoice: Stripe.Invoice) {
 
   const customerId = invoice.customer as string;
 
-  // Get worker
+  // Try to find user
+  let userId: string | null = null;
+
   const { data: worker } = await supabase
     .from("workers")
-    .select("id, email")
+    .select("id, profile_id")
     .eq("stripe_customer_id", customerId)
     .single();
 
-  if (!worker) {
-    console.error("❌ Worker not found for customer:", customerId);
+  if (worker) {
+    userId = worker.profile_id;
+  } else {
+    // Check regular_users
+    const { data: regularUser } = await supabase
+      .from("regular_users")
+      .select("id, profile_id")
+      .eq("stripe_customer_id", customerId)
+      .single();
+
+    if (regularUser) {
+      userId = regularUser.profile_id;
+    }
+  }
+
+  if (!userId) {
+    console.error("❌ User not found for customer:", customerId);
     return;
   }
 
-  // Record failed payment
-  await supabase.from("subscription_payments").insert({
-    worker_id: worker.id,
-    amount: invoice.amount_due / 100,
+  // Record failed payment in payments table
+  await supabase.from("payments").insert({
+    user_id: userId,
+    profile_id: userId,
+    payment_type: worker ? "worker_subscription" : "regular_user_subscription",
+    amount: (invoice.amount_due / 100).toFixed(2),
     currency: invoice.currency.toUpperCase(),
-    payment_method: "card",
+    payment_method: "stripe_card",
     status: "failed",
-    stripe_payment_intent_id: (invoice as any).payment_intent as string,
+    description: "Failed subscription payment",
     stripe_invoice_id: invoice.id,
-    payment_date: new Date().toISOString(),
-    period_start: new Date((invoice as any).period_start * 1000)
-      .toISOString()
-      .split("T")[0],
-    period_end: new Date((invoice as any).period_end * 1000)
-      .toISOString()
-      .split("T")[0],
+    stripe_customer_id: customerId,
+    failed_at: new Date().toISOString(),
+    failure_reason: invoice.status_transitions?.payment_failed_at
+      ? "Payment method declined"
+      : "Unknown",
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
   });
 
-  console.log("⚠️ Failed payment recorded for worker:", worker.id);
+  console.log("⚠️ Failed payment recorded for user:", userId);
 
   // TODO: Send payment failed email (FAZA 7)
 }

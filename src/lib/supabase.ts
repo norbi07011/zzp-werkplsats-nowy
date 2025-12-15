@@ -1,5 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
-import { Database } from "../types/supabase";
+import { Database } from "./database.types";
 
 // Get Supabase credentials from environment variables
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
@@ -20,6 +20,17 @@ export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
     persistSession: true,
     detectSessionInUrl: true,
     // WHY: unique storage key prevents conflicts with multiple client instances
+    storageKey: "zzp-werkplaats-auth",
+  },
+});
+
+// WHY: Untyped client for tables not yet in database.types.ts (team modules, document builder)
+// Use this when TypeScript complains about missing table names
+export const supabaseUntyped = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    autoRefreshToken: true,
+    persistSession: true,
+    detectSessionInUrl: true,
     storageKey: "zzp-werkplaats-auth",
   },
 });

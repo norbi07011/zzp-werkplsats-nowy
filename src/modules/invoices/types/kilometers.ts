@@ -3,9 +3,10 @@
 // =====================================================
 // Kilometer tracking for tax deductions (Netherlands 2025)
 // Aligned with invoice_kilometer_entries table
+// UPDATED: Now uses vehicle_id to reference vehicles table
 // =====================================================
 
-export type VehicleType = 'car' | 'bike' | 'motorcycle';
+export type TripType = "BUSINESS" | "COMMUTE" | "PRIVATE";
 
 // =====================================================
 // KILOMETER ENTRY
@@ -13,29 +14,31 @@ export type VehicleType = 'car' | 'bike' | 'motorcycle';
 export interface KilometerEntry {
   id: string;
   user_id: string;
-  
+
   // Trip info
   date: string; // ISO date string
   start_location: string;
   end_location: string;
   purpose: string;
   kilometers: number;
-  
-  // Vehicle info
-  vehicle_type: VehicleType;
-  is_private_vehicle: boolean; // true = private, false = company
-  
+  trip_type: TripType; // BUSINESS (Zakelijk) / COMMUTE (Woon-werk) / PRIVATE (Privé)
+
+  // Vehicle info (NEW: references vehicles table)
+  vehicle_id?: string; // Link to vehicles table
+  vehicle_type: "car" | "bike" | "motorcycle" | "scooter" | "electric_bike"; // All vehicle types
+  is_private_vehicle: boolean; // DEPRECATED: use vehicle.is_company_vehicle
+
   // Rate (NL 2025)
   rate: number; // €/km
   amount: number; // kilometers * rate
-  
+
   // Client/Project reference
   client_id?: string;
   project_id?: string;
-  
+
   // Notes
   notes?: string;
-  
+
   // Timestamps
   created_at: string;
   updated_at: string;
@@ -59,14 +62,19 @@ export const KILOMETER_RATES_2025: KilometerRates = {
 };
 
 // Helper function to get rate
-export function getKilometerRate(vehicleType: VehicleType, isPrivateVehicle: boolean): number {
-  if (vehicleType === 'car') {
-    return isPrivateVehicle ? KILOMETER_RATES_2025.car_private : KILOMETER_RATES_2025.car_company;
+export function getKilometerRate(
+  vehicleType: "car" | "bike" | "motorcycle",
+  isPrivateVehicle: boolean
+): number {
+  if (vehicleType === "car") {
+    return isPrivateVehicle
+      ? KILOMETER_RATES_2025.car_private
+      : KILOMETER_RATES_2025.car_company;
   }
-  if (vehicleType === 'bike') {
+  if (vehicleType === "bike") {
     return KILOMETER_RATES_2025.bike;
   }
-  if (vehicleType === 'motorcycle') {
+  if (vehicleType === "motorcycle") {
     return KILOMETER_RATES_2025.motorcycle;
   }
   return 0;
@@ -81,14 +89,14 @@ export interface KilometerReport {
   total_amount: number;
   tax_free_limit: number; // €3000 in Netherlands
   amount_exceeding_limit: number;
-  
+
   by_vehicle_type: {
-    vehicle_type: VehicleType;
+    vehicle_type: "car" | "bike" | "motorcycle";
     kilometers: number;
     amount: number;
     trips: number;
   }[];
-  
+
   by_client: {
     client_id: string;
     client_name: string;
@@ -96,7 +104,7 @@ export interface KilometerReport {
     amount: number;
     trips: number;
   }[];
-  
+
   by_month: {
     month: string; // YYYY-MM
     kilometers: number;

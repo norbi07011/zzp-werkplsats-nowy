@@ -84,6 +84,15 @@ export function PostFormModal({
         postData.job_salary_max = formData.job_salary_max
           ? parseFloat(formData.job_salary_max)
           : null;
+
+        // 🔥 SYNC job_* → generic fields (CRITICAL FOR FILTERS)
+        postData.location = postData.job_location;
+        postData.category = postData.job_category;
+        if (postData.job_salary_min || postData.job_salary_max) {
+          const min = postData.job_salary_min || 0;
+          const max = postData.job_salary_max || min;
+          postData.budget = (min + max) / 2;
+        }
       }
 
       if (mode === "edit" && postId) {

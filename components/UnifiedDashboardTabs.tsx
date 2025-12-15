@@ -22,6 +22,7 @@ import React from "react";
 export type UnifiedTab =
   | "overview" // 📊 Przegląd - stats, aktywność (TYLKO dla Worker - ma specjalną strukturę)
   | "profile" // 💼 Profil - edycja, portfolio, availability, stats dla Employer/Accountant/CleaningCompany
+  | "my_profile" // 👁️ Mój Profil - podgląd publicznego profilu (jak widzą inni)
   | "messages" // 📬 Wiadomości - chat, notifications
   | "reviews" // ⭐ Opinie - ratings, reviews
   | "tablica" // 📋 Tablica - feed, posts board - ALL roles
@@ -32,8 +33,12 @@ export type UnifiedTab =
   | "submissions" // 📋 Zgłoszenia - ONLY for accountant
   | "forms" // 📝 Formularze - ONLY for accountant
   | "team" // 👥 Drużyna - ONLY for accountant
-  | "my_posts" // 📋 Moje Posty - ONLY for employer, accountant, admin
-  | "saved_activity"; // 📁 Historia Aktywności - ALL roles
+  | "my_posts" // 📋 Moje Posty - ONLY for employer, accountant, admin, regular_user
+  | "saved_activity" // 📁 Historia Aktywności - ALL roles
+  | "experts" // 🔍 Eksperci - ONLY for regular_user (PREMIUM)
+  | "messages_tab" // 💬 Wiadomości - ONLY for regular_user (PREMIUM)
+  | "settings"; // ⚙️ Ustawienia - ALL roles
+// NOTE: "kilometers" and "calendar" are NOT dashboard tabs - they are in /faktury module only
 
 interface TabConfig {
   id: UnifiedTab;
@@ -119,7 +124,7 @@ const ALL_TABS: TabConfig[] = [
     label: "Drużyna",
     icon: "👥",
     description: "Zarządzanie zespołem, pracownicy",
-    roles: ["accountant"], // ✅ ONLY accountant!
+    roles: ["accountant", "worker", "cleaning_company"], // ✅ Accountant + workers can see their teams!
   },
   {
     id: "my_posts",
@@ -135,6 +140,8 @@ const ALL_TABS: TabConfig[] = [
     description: "Zapisane posty, polubiane, komentowane",
     roles: ["admin", "employer", "worker", "accountant", "cleaning_company"], // ✅ ALL roles!
   },
+  // NOTE: "kilometers" and "calendar" tabs REMOVED from main dashboard
+  // They are now ONLY accessible via the "Faktury i BTW" module (/faktury)
 ];
 
 interface UnifiedDashboardTabsProps {
@@ -157,9 +164,16 @@ export const UnifiedDashboardTabs: React.FC<UnifiedDashboardTabsProps> = ({
 
   return (
     <div
-      className={`border-b border-gray-200 dark:border-gray-700 ${className}`}
+      className={`bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 shadow-lg relative ${className}`}
     >
-      <nav className="-mb-px flex space-x-4 overflow-x-auto" aria-label="Tabs">
+      {/* Scroll fade indicators for mobile */}
+      <div className="absolute left-0 top-0 bottom-0 w-6 bg-gradient-to-r from-slate-900 to-transparent pointer-events-none z-10 md:hidden" />
+      <div className="absolute right-0 top-0 bottom-0 w-6 bg-gradient-to-l from-indigo-900 to-transparent pointer-events-none z-10 md:hidden" />
+      
+      <nav
+        className="flex items-center gap-1 px-4 py-2 overflow-x-auto scrollbar-hide"
+        aria-label="Tabs"
+      >
         {visibleTabs.map((tab) => {
           const isActive = activeTab === tab.id;
           const showBadge = tab.id === "messages" && unreadMessages > 0;
@@ -169,49 +183,28 @@ export const UnifiedDashboardTabs: React.FC<UnifiedDashboardTabsProps> = ({
               key={tab.id}
               onClick={() => onTabChange(tab.id)}
               className={`
-                group relative min-w-fit whitespace-nowrap py-4 px-6 text-sm font-medium
-                border-b-2 transition-all duration-200
+                group relative flex items-center gap-2 whitespace-nowrap py-3 px-4 text-sm font-medium
+                rounded-xl transition-all duration-200 min-h-[44px]
                 ${
                   isActive
-                    ? "border-accent-cyber text-accent-cyber"
-                    : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300"
+                    ? "bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg"
+                    : "text-gray-300 hover:bg-white/10 hover:text-white"
                 }
               `}
               aria-current={isActive ? "page" : undefined}
               title={tab.description}
             >
-              <span className="flex items-center gap-2">
-                <span className="text-lg">{tab.icon}</span>
-                <span>{tab.label}</span>
-                {showBadge && (
-                  <span className="inline-flex items-center justify-center w-5 h-5 text-xs font-bold text-white bg-red-500 rounded-full">
-                    {unreadMessages > 9 ? "9+" : unreadMessages}
-                  </span>
-                )}
-              </span>
-
-              {/* Active indicator */}
-              {isActive && (
-                <span className="absolute inset-x-0 bottom-0 h-0.5 bg-gradient-cyber"></span>
+              <span className="text-lg">{tab.icon}</span>
+              <span className="hidden sm:inline">{tab.label}</span>
+              {showBadge && (
+                <span className="absolute -top-1 -right-1 inline-flex items-center justify-center w-5 h-5 text-xs font-bold text-white bg-red-500 rounded-full shadow-lg">
+                  {unreadMessages > 9 ? "9+" : unreadMessages}
+                </span>
               )}
-
-              {/* Hover effect */}
-              <span
-                className={`
-                  absolute inset-x-0 bottom-0 h-0.5 bg-accent-cyber/50 
-                  scale-x-0 group-hover:scale-x-100 transition-transform origin-left
-                  ${isActive ? "hidden" : ""}
-                `}
-              ></span>
             </button>
           );
         })}
       </nav>
-
-      {/* Tab description (mobile helper) */}
-      <div className="md:hidden mt-2 px-4 py-2 bg-gray-50 dark:bg-gray-800/50 rounded text-xs text-gray-600 dark:text-gray-400">
-        {visibleTabs.find((tab) => tab.id === activeTab)?.description}
-      </div>
     </div>
   );
 };

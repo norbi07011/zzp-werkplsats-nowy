@@ -1,8 +1,8 @@
 // =====================================================
 // BTW AANGIFTE (VAT DECLARATIONS) PAGE
 // =====================================================
-// Quarterly VAT declarations with auto-calculation
-// Adapted from NORBS for ZZP Werkplaats (SIMPLIFIED)
+// Complete Dutch VAT declarations with all Belastingdienst rubrieken
+// Includes: EU purchases, reverse charge, kilometers integration
 // =====================================================
 
 import { useState, useMemo, useEffect } from 'react';
@@ -41,6 +41,7 @@ export default function BTWAangifte({ onNavigate }: BTWAangifteProps) {
   const [selectedPeriod, setSelectedPeriod] = useState<BTWPeriod>(`Q${currentQuarter}` as BTWPeriod);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingDeclaration, setEditingDeclaration] = useState<BTWDeclaration | null>(null);
+  const [showRubrieken, setShowRubrieken] = useState(false);
 
   const { declarations, createDeclaration, updateDeclaration, deleteDeclaration } = useSupabaseBTW(user?.id || '');
   const { invoices } = useSupabaseInvoices(user?.id || '');
@@ -64,41 +65,15 @@ export default function BTWAangifte({ onNavigate }: BTWAangifteProps) {
     notes: '',
   });
 
-  // Calculate BTW data from invoices and expenses
+  // Calculate BTW data from invoices, expenses and EU purchases
   const calculatedData = useMemo(() => {
     const dates = QUARTER_DATES[selectedPeriod];
     const startDate = `${selectedYear}${dates.start}`;
     const endDate = `${selectedYear}${dates.end}`;
 
-    console.log('🔍 BTW DEBUG - Filter params:', {
-      selectedPeriod,
-      selectedYear,
-      startDate,
-      endDate,
-      totalInvoices: invoices?.length || 0,
-      totalExpenses: expenses?.length || 0,
-    });
-
-    if (invoices && invoices.length > 0) {
-      console.log('📋 Sample invoices:', invoices.slice(0, 3).map(inv => ({
-        number: inv.invoice_number,
-        date: inv.invoice_date,
-        status: inv.status,
-        net: inv.total_net,
-        vat: inv.total_vat,
-      })));
-    }
-
-    // Filter invoices for selected period (ALL invoices, like NORBS - no status filter)
+    // Filter invoices for selected period
     const periodInvoices = (invoices || []).filter((inv) => {
-      const dateMatch = inv.invoice_date >= startDate && inv.invoice_date <= endDate;
-      return dateMatch;
-    });
-
-    console.log('✅ Filtered invoices for BTW:', {
-      count: periodInvoices.length,
-      numbers: periodInvoices.map(i => i.invoice_number),
-      totalNet: periodInvoices.reduce((sum, i) => sum + i.total_net, 0),
+      return inv.invoice_date >= startDate && inv.invoice_date <= endDate;
     });
 
     // Calculate revenue by VAT rate
@@ -106,13 +81,24 @@ export default function BTWAangifte({ onNavigate }: BTWAangifteProps) {
     let vat9 = 0;
     let vat0 = 0;
     let reverseCharge = 0;
+    let euDeliveries = 0;
+    let exports = 0;
 
     periodInvoices.forEach((inv) => {
+      const clientCountry = inv.client_snapshot?.country || 'NL';
+
       if (inv.is_reverse_charge) {
         reverseCharge += inv.total_net;
+      } else if (clientCountry !== 'NL') {
+        // EU or export based on country
+        const euCountries = ['BE', 'DE', 'FR', 'IT', 'ES', 'AT', 'PL', 'CZ', 'DK', 'SE', 'FI', 'PT', 'IE', 'GR', 'HU', 'RO', 'BG', 'HR', 'SK', 'SI', 'LT', 'LV', 'EE', 'CY', 'MT', 'LU'];
+        if (euCountries.includes(clientCountry)) {
+          euDeliveries += inv.total_net;
+        } else {
+          exports += inv.total_net;
+        }
       } else {
         const vatRate = inv.total_net > 0 ? (inv.total_vat / inv.total_net) * 100 : 0;
-        
         if (vatRate > 20) {
           vat21 += inv.total_net;
         } else if (vatRate > 8 && vatRate < 20) {
@@ -123,7 +109,7 @@ export default function BTWAangifte({ onNavigate }: BTWAangifteProps) {
       }
     });
 
-    // Filter expenses for selected period (ALL expenses, like NORBS)
+    // Filter expenses for selected period
     const periodExpenses = (expenses || []).filter((exp) => {
       return exp.date >= startDate && exp.date <= endDate;
     });
@@ -136,40 +122,81 @@ export default function BTWAangifte({ onNavigate }: BTWAangifteProps) {
       return sum;
     }, 0);
 
-    // Filter kilometers for selected YEAR (annual data - "raz na rok do ksiegowego")
+    // Calculate EU purchases (intracommunautaire verwervingen) - Rubriek 4a/4b
+    const euPurchases = periodExpenses.reduce((sum, exp) => {
+      const supplier = (exp.supplier || '').toLowerCase();
+      const isEu = supplier.includes('.de') || supplier.includes('.fr') || supplier.includes('.be');
+      if (isEu) {
+        return sum + (exp.amount - exp.vat_amount);
+      }
+      return sum;
+    }, 0);
+
+    // EU purchase VAT (you must declare AND deduct)
+    const euPurchaseVat = euPurchases * 0.21;
+
+    // Reverse charge from services purchased (Rubriek 4a alternativ)
+    const reverseChargeServices = periodExpenses.reduce((sum, exp) => {
+      const supplier = (exp.supplier || '').toLowerCase();
+      const isForeign = exp.vat_rate === 0 && (supplier.includes('.de') || supplier.includes('.uk'));
+      if (isForeign) {
+        return sum + exp.amount;
+      }
+      return sum;
+    }, 0);
+
+    // Filter kilometers for selected YEAR
     const yearKilometers = (kilometers || []).filter((km) => {
       return km.date >= `${selectedYear}-01-01` && km.date <= `${selectedYear}-12-31`;
     });
 
-    // Calculate VAT deduction from kilometers (21% VAT rate included in kilometer rate)
     const kilometerVatDeduction = yearKilometers.reduce((sum, km) => {
-      // Kilometer rate already includes VAT component
-      // For €0.23/km, approximately €0.04 is VAT (21%)
-      const vatComponent = km.amount * 0.21; // 21% of total kilometer allowance
-      return sum + vatComponent;
+      return sum + km.amount * 0.21;
     }, 0);
 
     const totalKilometers = yearKilometers.reduce((sum, km) => sum + km.kilometers, 0);
     const totalKilometerAmount = yearKilometers.reduce((sum, km) => sum + km.amount, 0);
 
-    // Total deductible VAT = expenses + kilometers
-    const totalDeductibleVat = deductibleVat + kilometerVatDeduction;
+    // Total deductible VAT = expenses + kilometers + EU purchase VAT (reverse charge)
+    const totalDeductibleVat = deductibleVat + kilometerVatDeduction + euPurchaseVat;
 
-    const vatToPay = vat21 * 0.21 + vat9 * 0.09;
+    // VAT to pay = output VAT + EU purchase VAT (must declare)
+    const vatToPay = vat21 * 0.21 + vat9 * 0.09 + euPurchaseVat;
+    
+    // Balance = VAT to pay - VAT to deduct (including EU purchase VAT back)
     const balance = vatToPay - totalDeductibleVat;
 
-    console.log('🚗 Kilometer BTW integration:', {
-      yearKilometers: yearKilometers.length,
-      totalKilometers,
-      totalKilometerAmount,
-      kilometerVatDeduction,
-      expenseVat: deductibleVat,
-      totalDeductibleVat,
-    });
+    // Build complete Rubrieken object
+    const rubrieken = {
+      // Rubriek 1: Leveringen/diensten belast met Nederlandse BTW
+      '1a': { desc: 'Leveringen/diensten belast met hoog tarief', amount: vat21, vat: vat21 * 0.21 },
+      '1b': { desc: 'BTW over 1a', amount: vat21 * 0.21, vat: 0 },
+      '1c': { desc: 'Leveringen/diensten belast met laag tarief', amount: vat9, vat: vat9 * 0.09 },
+      '1d': { desc: 'BTW over 1c', amount: vat9 * 0.09, vat: 0 },
+      '1e': { desc: 'Leveringen/diensten belast met overige tarieven', amount: reverseCharge, vat: 0 },
+      
+      // Rubriek 3: Leveringen naar landen buiten de EU / 0% tarief
+      '3a': { desc: 'Leveringen naar landen buiten de EU', amount: exports, vat: 0 },
+      '3b': { desc: 'Leveringen naar/diensten in landen binnen de EU', amount: euDeliveries, vat: 0 },
+      '3c': { desc: 'Installatie/afstandsverkopen binnen de EU', amount: 0, vat: 0 },
+      
+      // Rubriek 4: Leveringen/diensten uit landen binnen de EU aan u verricht
+      '4a': { desc: 'Verwervingen van goederen uit landen binnen de EU', amount: euPurchases, vat: euPurchaseVat },
+      '4b': { desc: 'BTW over 4a', amount: euPurchaseVat, vat: 0 },
+      
+      // Rubriek 5: Voorbelasting en totalen
+      '5a': { desc: 'Verschuldigde BTW (1b + 1d + 4b)', amount: vat21 * 0.21 + vat9 * 0.09 + euPurchaseVat, vat: 0 },
+      '5b': { desc: 'Voorbelasting', amount: totalDeductibleVat, vat: 0 },
+      '5c': { desc: 'Subtotaal (5a - 5b)', amount: (vat21 * 0.21 + vat9 * 0.09 + euPurchaseVat) - totalDeductibleVat, vat: 0 },
+      '5d': { desc: 'Vermindering volgens KOR', amount: 0, vat: 0 },
+      '5e': { desc: 'Schatting vorige tijdvakken', amount: 0, vat: 0 },
+      '5f': { desc: 'Schatting dit tijdvak', amount: 0, vat: 0 },
+      '5g': { desc: 'Totaal te betalen/terug te ontvangen', amount: balance, vat: 0 },
+    };
 
     return {
-      invoices: { vat21, vat9, vat0, reverseCharge },
-      expenses: { deductibleVat },
+      invoices: { vat21, vat9, vat0, reverseCharge, euDeliveries, exports },
+      expenses: { deductibleVat, euPurchases, euPurchaseVat, reverseChargeServices },
       kilometers: { 
         count: yearKilometers.length,
         totalKilometers, 
@@ -179,28 +206,26 @@ export default function BTWAangifte({ onNavigate }: BTWAangifteProps) {
       totalDeductibleVat,
       vatToPay,
       balance,
+      rubrieken,
     };
   }, [selectedYear, selectedPeriod, invoices, expenses, kilometers]);
 
-  // Get invoice count for selected quarter (ALL invoices, like NORBS)
+  // Get invoice count for selected quarter
   const quarterInvoiceCount = useMemo(() => {
     const dates = QUARTER_DATES[selectedPeriod];
     const startDate = `${selectedYear}${dates.start}`;
     const endDate = `${selectedYear}${dates.end}`;
     
     return (invoices || []).filter((inv) => {
-      return inv.invoice_date >= startDate && 
-             inv.invoice_date <= endDate;
+      return inv.invoice_date >= startDate && inv.invoice_date <= endDate;
     }).length;
   }, [selectedYear, selectedPeriod, invoices]);
 
   // Auto-fill form with calculated data
   const handleAutoFill = () => {
-    // Validation warnings
     if (quarterInvoiceCount === 0) {
       const confirmProceed = confirm(
         `⚠️ UWAGA: Brak faktur w okresie ${selectedPeriod} ${selectedYear}.\n\n` +
-        `System nie znalazł żadnych faktur w wybranym kwartale. ` +
         `Czy na pewno chcesz zapisać pustą deklarację?`
       );
       if (!confirmProceed) return;
@@ -285,10 +310,11 @@ export default function BTWAangifte({ onNavigate }: BTWAangifteProps) {
     setIsDialogOpen(true);
   };
 
+  // Download XML for Belastingdienst
   const handleDownloadXML = () => {
+    const r = calculatedData.rubrieken;
     const quarterDates = QUARTER_DATES[selectedPeriod];
     
-    // Generate XML in Dutch tax authority (Belastingdienst) format
     const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <Aangifte xmlns="http://www.belastingdienst.nl/wus/btwv/2024">
   <Administratie>
@@ -300,27 +326,30 @@ export default function BTWAangifte({ onNavigate }: BTWAangifteProps) {
     </Periode>
   </Administratie>
   <Opgaaf>
-    <!-- Prestaties belast met hoog tarief (21%) -->
-    <Rubriek_1a>${calculatedData.invoices.vat21.toFixed(2)}</Rubriek_1a>
-    <Rubriek_1b>${(calculatedData.invoices.vat21 * 0.21).toFixed(2)}</Rubriek_1b>
+    <!-- Rubriek 1: Binnenlandse omzet -->
+    <Rubriek_1a>${r['1a'].amount.toFixed(2)}</Rubriek_1a>
+    <Rubriek_1b>${r['1b'].amount.toFixed(2)}</Rubriek_1b>
+    <Rubriek_1c>${r['1c'].amount.toFixed(2)}</Rubriek_1c>
+    <Rubriek_1d>${r['1d'].amount.toFixed(2)}</Rubriek_1d>
+    <Rubriek_1e>${r['1e'].amount.toFixed(2)}</Rubriek_1e>
     
-    <!-- Prestaties belast met laag tarief (9%) -->
-    <Rubriek_1c>${calculatedData.invoices.vat9.toFixed(2)}</Rubriek_1c>
-    <Rubriek_1d>${(calculatedData.invoices.vat9 * 0.09).toFixed(2)}</Rubriek_1d>
+    <!-- Rubriek 3: EU en export -->
+    <Rubriek_3a>${r['3a'].amount.toFixed(2)}</Rubriek_3a>
+    <Rubriek_3b>${r['3b'].amount.toFixed(2)}</Rubriek_3b>
+    <Rubriek_3c>${r['3c'].amount.toFixed(2)}</Rubriek_3c>
     
-    <!-- Prestaties belast met 0% of niet bij u belast -->
-    <Rubriek_3a>${calculatedData.invoices.vat0.toFixed(2)}</Rubriek_3a>
+    <!-- Rubriek 4: EU verwervingen -->
+    <Rubriek_4a>${r['4a'].amount.toFixed(2)}</Rubriek_4a>
+    <Rubriek_4b>${r['4b'].amount.toFixed(2)}</Rubriek_4b>
     
-    <!-- Verlegd BTW (reverse charge) -->
-    <Rubriek_1e>${calculatedData.invoices.reverseCharge.toFixed(2)}</Rubriek_1e>
-    
-    <!-- Voorbelasting (expenses + kilometers) -->
-    <Rubriek_5b>${calculatedData.totalDeductibleVat.toFixed(2)}</Rubriek_5b>
-    
-    <!-- Te betalen/terug te ontvangen -->
-    <Rubriek_5d>${calculatedData.vatToPay.toFixed(2)}</Rubriek_5d>
-    <Rubriek_5e>${calculatedData.totalDeductibleVat.toFixed(2)}</Rubriek_5e>
-    <Rubriek_5f>${calculatedData.balance.toFixed(2)}</Rubriek_5f>
+    <!-- Rubriek 5: Totalen -->
+    <Rubriek_5a>${r['5a'].amount.toFixed(2)}</Rubriek_5a>
+    <Rubriek_5b>${r['5b'].amount.toFixed(2)}</Rubriek_5b>
+    <Rubriek_5c>${r['5c'].amount.toFixed(2)}</Rubriek_5c>
+    <Rubriek_5d>${r['5d'].amount.toFixed(2)}</Rubriek_5d>
+    <Rubriek_5e>${r['5e'].amount.toFixed(2)}</Rubriek_5e>
+    <Rubriek_5f>${r['5f'].amount.toFixed(2)}</Rubriek_5f>
+    <Rubriek_5g>${r['5g'].amount.toFixed(2)}</Rubriek_5g>
   </Opgaaf>
   <Metadata>
     <GeneratedAt>${new Date().toISOString()}</GeneratedAt>
@@ -330,12 +359,50 @@ export default function BTWAangifte({ onNavigate }: BTWAangifteProps) {
   </Metadata>
 </Aangifte>`;
     
-    // Download as file
     const blob = new Blob([xml], { type: 'application/xml' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
     a.download = `BTW_Aangifte_${selectedPeriod}_${selectedYear}.xml`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  // Download CSV for bookkeeping
+  const handleDownloadCSV = () => {
+    const r = calculatedData.rubrieken;
+    
+    const csvRows = [
+      ['Rubriek', 'Omschrijving', 'Bedrag EUR'],
+      ['1a', r['1a'].desc, r['1a'].amount.toFixed(2)],
+      ['1b', r['1b'].desc, r['1b'].amount.toFixed(2)],
+      ['1c', r['1c'].desc, r['1c'].amount.toFixed(2)],
+      ['1d', r['1d'].desc, r['1d'].amount.toFixed(2)],
+      ['1e', r['1e'].desc, r['1e'].amount.toFixed(2)],
+      ['3a', r['3a'].desc, r['3a'].amount.toFixed(2)],
+      ['3b', r['3b'].desc, r['3b'].amount.toFixed(2)],
+      ['3c', r['3c'].desc, r['3c'].amount.toFixed(2)],
+      ['4a', r['4a'].desc, r['4a'].amount.toFixed(2)],
+      ['4b', r['4b'].desc, r['4b'].amount.toFixed(2)],
+      ['5a', r['5a'].desc, r['5a'].amount.toFixed(2)],
+      ['5b', r['5b'].desc, r['5b'].amount.toFixed(2)],
+      ['5c', r['5c'].desc, r['5c'].amount.toFixed(2)],
+      ['5d', r['5d'].desc, r['5d'].amount.toFixed(2)],
+      ['5e', r['5e'].desc, r['5e'].amount.toFixed(2)],
+      ['5f', r['5f'].desc, r['5f'].amount.toFixed(2)],
+      ['5g', r['5g'].desc, r['5g'].amount.toFixed(2)],
+      ['', '', ''],
+      ['Periode', `${selectedPeriod} ${selectedYear}`, ''],
+      ['Kilometer aftrek', calculatedData.kilometers.vatDeduction.toFixed(2), ''],
+      ['Totaal kilometers', calculatedData.kilometers.totalKilometers.toString(), ''],
+    ];
+
+    const csvContent = csvRows.map(row => row.join(';')).join('\n');
+    const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `BTW_Overzicht_${selectedPeriod}_${selectedYear}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -397,7 +464,7 @@ export default function BTWAangifte({ onNavigate }: BTWAangifteProps) {
               <h1 className="text-4xl font-bold tracking-tight mb-2">
                 📊 {t.btw.title}
               </h1>
-              <p className="text-blue-100 text-lg">Kwartalne rozliczenia VAT</p>
+              <p className="text-blue-100 text-lg">Kwartalne rozliczenia VAT • Belastingdienst Format</p>
             </div>
             <Button 
               onClick={() => handleOpenDialog()}
@@ -408,7 +475,7 @@ export default function BTWAangifte({ onNavigate }: BTWAangifteProps) {
           </div>
         </div>
 
-        {/* Calculation Summary - Auto-calculated from invoices & expenses */}
+        {/* Calculation Summary */}
         <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-2xl p-6 shadow-lg">
           <div className="flex items-start gap-4 mb-6">
             <span className="text-4xl">🤖</span>
@@ -417,19 +484,17 @@ export default function BTWAangifte({ onNavigate }: BTWAangifteProps) {
                 Automatyczne Rozliczenie VAT - {selectedPeriod} / {selectedYear}
               </h3>
               <p className="text-gray-700 mb-3">
-                System automatycznie zbiera dane ze <strong>wszystkich faktur</strong> i <strong>wydatków</strong> za wybrany kwartał.
-                Sprawdź podsumowanie i pobierz plik XML do zgłoszenia.
+                System zbiera dane z <strong>faktur</strong>, <strong>wydatków</strong> i <strong>zakupów EU</strong>.
               </p>
-              {/* Data source info */}
               <div className="flex items-center gap-4 text-sm flex-wrap">
                 <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full font-medium">
-                  ✅ {quarterInvoiceCount} {quarterInvoiceCount === 1 ? 'faktura' : 'faktur'}
+                  ✅ {quarterInvoiceCount} faktur
                 </span>
-                <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full font-medium">
-                  💳 {calculatedData.expenses.deductibleVat > 0 ? 'VAT do odliczenia dostępny' : 'Brak wydatków'}
+                <span className="px-3 py-1 bg-purple-100 text-purple-800 rounded-full font-medium">
+                  🇪🇺 {formatCurrency(calculatedData.expenses.euPurchases)} EU zakupy
                 </span>
                 <span className="px-3 py-1 bg-teal-100 text-teal-800 rounded-full font-medium">
-                  🚗 {calculatedData.kilometers.totalKilometers.toLocaleString()} km (cały {selectedYear})
+                  🚗 {calculatedData.kilometers.totalKilometers.toLocaleString()} km
                 </span>
               </div>
             </div>
@@ -447,45 +512,166 @@ export default function BTWAangifte({ onNavigate }: BTWAangifteProps) {
               <div className="text-xs text-gray-500 mt-1">VAT: {formatCurrency(calculatedData.invoices.vat9 * 0.09)}</div>
             </Card>
             <Card className="p-4 bg-gradient-to-br from-purple-50 to-pink-100 border-2 border-purple-200">
-              <div className="text-sm text-gray-600 mb-1">💳 VAT wydatki</div>
-              <div className="text-2xl font-bold text-purple-600">-{formatCurrency(calculatedData.expenses.deductibleVat)}</div>
-              <div className="text-xs text-gray-500 mt-1">Z faktur kosztowych</div>
+              <div className="text-sm text-gray-600 mb-1">🇪🇺 EU zakupy (4a)</div>
+              <div className="text-2xl font-bold text-purple-600">{formatCurrency(calculatedData.expenses.euPurchases)}</div>
+              <div className="text-xs text-gray-500 mt-1">VAT: {formatCurrency(calculatedData.expenses.euPurchaseVat)}</div>
             </Card>
             <Card className="p-4 bg-gradient-to-br from-teal-50 to-cyan-100 border-2 border-teal-200">
-              <div className="text-sm text-gray-600 mb-1">🚗 Kilometrówka {selectedYear}</div>
-              <div className="text-2xl font-bold text-teal-600">-{formatCurrency(calculatedData.kilometers.vatDeduction)}</div>
-              <div className="text-xs text-gray-500 mt-1">
-                {calculatedData.kilometers.totalKilometers.toLocaleString()} km • {formatCurrency(calculatedData.kilometers.totalAmount)}
-              </div>
-              <div className="text-xs text-amber-600 mt-1 font-medium">
-                📅 Dane roczne (cały {selectedYear})
-              </div>
+              <div className="text-sm text-gray-600 mb-1">💳 Voorbelasting (5b)</div>
+              <div className="text-2xl font-bold text-teal-600">-{formatCurrency(calculatedData.totalDeductibleVat)}</div>
+              <div className="text-xs text-gray-500 mt-1">Inkl. {formatCurrency(calculatedData.kilometers.vatDeduction)} km</div>
             </Card>
             <Card className="p-4 bg-gradient-to-br from-orange-50 to-red-100 border-2 border-orange-200">
-              <div className="text-sm text-gray-600 mb-1">💰 Saldo do zapłaty</div>
-              <div className="text-3xl font-bold text-red-600">{formatCurrency(calculatedData.balance)}</div>
+              <div className="text-sm text-gray-600 mb-1">💰 Saldo (5g)</div>
+              <div className={`text-3xl font-bold ${calculatedData.balance > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                {formatCurrency(calculatedData.balance)}
+              </div>
               <div className="text-xs text-gray-500 mt-1">
-                {calculatedData.balance > 0 ? 'Do zapłaty' : 'Do zwrotu'}
+                {calculatedData.balance > 0 ? 'Te betalen' : 'Terug te ontvangen'}
               </div>
             </Card>
           </div>
 
           {/* Quick Actions */}
-          <div className="mt-6 flex gap-4">
+          <div className="mt-6 flex gap-4 flex-wrap">
             <Button 
               onClick={() => handleAutoFill()}
-              className="flex-1 px-6 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl hover:from-blue-700 hover:to-indigo-700 font-bold text-lg shadow-xl"
+              className="flex-1 px-6 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl font-bold text-lg shadow-xl"
             >
-              💾 Zapisz Deklarację (Auto-wypełnione)
+              💾 Zapisz Deklarację
+            </Button>
+            <Button 
+              onClick={() => setShowRubrieken(!showRubrieken)}
+              className="px-6 py-4 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-xl font-bold shadow-xl"
+            >
+              📋 {showRubrieken ? 'Ukryj' : 'Pokaż'} Rubrieken
             </Button>
             <Button 
               onClick={handleDownloadXML}
-              className="px-6 py-4 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-xl hover:from-green-700 hover:to-emerald-700 font-bold text-lg shadow-xl"
+              className="px-6 py-4 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-xl font-bold shadow-xl"
             >
-              📥 Pobierz XML
+              📥 XML
+            </Button>
+            <Button 
+              onClick={handleDownloadCSV}
+              className="px-6 py-4 bg-gradient-to-r from-violet-600 to-purple-600 text-white rounded-xl font-bold shadow-xl"
+            >
+              📊 CSV
             </Button>
           </div>
         </div>
+
+        {/* Rubrieken Section - Collapsible */}
+        {showRubrieken && (
+          <Card className="p-6 bg-white/80 backdrop-blur-sm shadow-xl">
+            <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-3">
+              <span className="text-3xl">🇳🇱</span>
+              BTW Rubrieken - {selectedPeriod} / {selectedYear}
+            </h2>
+            
+            <div className="space-y-6">
+              {/* Rubriek 1: Binnenlandse omzet */}
+              <div className="bg-green-50 rounded-xl p-4 border-2 border-green-200">
+                <h3 className="text-lg font-bold text-green-800 mb-4">
+                  📗 Rubriek 1: Prestaties binnenland
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {['1a', '1b', '1c', '1d', '1e'].map((key) => {
+                    const r = calculatedData.rubrieken[key as keyof typeof calculatedData.rubrieken];
+                    return (
+                      <div key={key} className="flex justify-between items-center p-3 bg-white rounded-lg border">
+                        <div>
+                          <span className="font-bold text-green-700">{key}.</span>
+                          <span className="ml-2 text-sm text-gray-600">{r.desc}</span>
+                        </div>
+                        <span className="font-mono font-bold text-lg">{formatCurrency(r.amount)}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Rubriek 3: EU en export */}
+              <div className="bg-blue-50 rounded-xl p-4 border-2 border-blue-200">
+                <h3 className="text-lg font-bold text-blue-800 mb-4">
+                  📘 Rubriek 3: Leveringen naar buitenland
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {['3a', '3b', '3c'].map((key) => {
+                    const r = calculatedData.rubrieken[key as keyof typeof calculatedData.rubrieken];
+                    return (
+                      <div key={key} className="flex justify-between items-center p-3 bg-white rounded-lg border">
+                        <div>
+                          <span className="font-bold text-blue-700">{key}.</span>
+                          <span className="ml-2 text-sm text-gray-600">{r.desc}</span>
+                        </div>
+                        <span className="font-mono font-bold text-lg">{formatCurrency(r.amount)}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Rubriek 4: EU verwervingen */}
+              <div className="bg-purple-50 rounded-xl p-4 border-2 border-purple-200">
+                <h3 className="text-lg font-bold text-purple-800 mb-4">
+                  📙 Rubriek 4: Verwervingen uit EU (Intracommunautair)
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {['4a', '4b'].map((key) => {
+                    const r = calculatedData.rubrieken[key as keyof typeof calculatedData.rubrieken];
+                    return (
+                      <div key={key} className="flex justify-between items-center p-3 bg-white rounded-lg border">
+                        <div>
+                          <span className="font-bold text-purple-700">{key}.</span>
+                          <span className="ml-2 text-sm text-gray-600">{r.desc}</span>
+                        </div>
+                        <span className="font-mono font-bold text-lg">{formatCurrency(r.amount)}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Rubriek 5: Totalen */}
+              <div className="bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl p-4 border-2 border-amber-300">
+                <h3 className="text-lg font-bold text-amber-800 mb-4">
+                  📕 Rubriek 5: Berekening en totalen
+                </h3>
+                <div className="space-y-3">
+                  {['5a', '5b', '5c', '5d', '5e', '5f', '5g'].map((key) => {
+                    const r = calculatedData.rubrieken[key as keyof typeof calculatedData.rubrieken];
+                    const isTotal = key === '5g';
+                    return (
+                      <div 
+                        key={key} 
+                        className={`flex justify-between items-center p-3 rounded-lg border ${
+                          isTotal 
+                            ? 'bg-gradient-to-r from-orange-100 to-red-100 border-orange-400' 
+                            : 'bg-white'
+                        }`}
+                      >
+                        <div>
+                          <span className={`font-bold ${isTotal ? 'text-orange-700' : 'text-amber-700'}`}>{key}.</span>
+                          <span className={`ml-2 ${isTotal ? 'font-bold text-gray-900' : 'text-sm text-gray-600'}`}>
+                            {r.desc}
+                          </span>
+                        </div>
+                        <span className={`font-mono font-bold ${
+                          isTotal 
+                            ? `text-2xl ${r.amount > 0 ? 'text-red-600' : 'text-green-600'}` 
+                            : 'text-lg'
+                        }`}>
+                          {formatCurrency(r.amount)}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </Card>
+        )}
 
         {/* Filters */}
         <Card className="p-6">
@@ -596,7 +782,6 @@ export default function BTWAangifte({ onNavigate }: BTWAangifteProps) {
             </div>
 
             <div className="p-6 space-y-6">
-              {/* Auto-fill button */}
               <Button onClick={handleAutoFill} className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white">
                 🔄 Autouzupełnij z faktur i wydatków
               </Button>
@@ -642,7 +827,7 @@ export default function BTWAangifte({ onNavigate }: BTWAangifteProps) {
               <div className="bg-purple-50 p-4 rounded-xl border-2 border-purple-200">
                 <h3 className="text-lg font-bold text-gray-900 mb-4">📉 VAT do odliczenia</h3>
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">VAT naliczony</label>
+                  <label className="text-sm font-medium text-gray-700">VAT naliczony (voorbelasting)</label>
                   <Input
                     type="number"
                     step="0.01"

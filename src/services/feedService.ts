@@ -13,14 +13,15 @@ const supabaseServiceAny = supabaseService as any;
 // TYPES
 // =====================================================
 
-export type PostType = "job_offer" | "ad" | "announcement";
-export type AuthorType = "employer" | "accountant" | "admin";
+export type PostType = "job_offer" | "ad" | "announcement" | "service_request";
+export type AuthorType = "employer" | "accountant" | "admin" | "regular_user";
 export type UserType =
   | "worker"
   | "employer"
   | "accountant"
   | "cleaning_company"
-  | "admin";
+  | "admin"
+  | "regular_user";
 export type ReactionType = "like" | "love" | "wow" | "sad" | "angry";
 export type SaveFolder =
   | "do_aplikowania"
@@ -37,6 +38,11 @@ export interface Post {
   content: string;
   media_urls?: string[];
   media_types?: string[];
+
+  // 🔥 NOWE: Pola wspólne dla wszystkich typów postów (dla filtrów)
+  location?: string; // Miasto (Amsterdam, Rotterdam, etc.)
+  category?: string; // Kategoria branżowa (Budowa, IT, Hydraulika, etc.)
+  budget?: number; // Budżet/cena (dla wszystkich typów)
 
   // Job offer metadata
   job_category?: string;
@@ -74,6 +80,18 @@ export interface Post {
   announcement_notify_users?: boolean;
   announcement_target_roles?: string[];
 
+  // ➕ NOWE dla SERVICE_REQUEST (Zlecenia):
+  request_category?: string; // 'plumbing', 'electrical', 'cleaning', 'moving', 'repair', 'gardening', 'painting', 'other'
+  request_location?: string; // Adres/lokalizacja zlecenia
+  request_budget_min?: number; // Minimalny budżet w EUR
+  request_budget_max?: number; // Maksymalny budżet w EUR
+  request_urgency?: "low" | "normal" | "high" | "urgent";
+  request_preferred_date?: string; // Preferowana data wykonania
+  request_contact_method?: "phone" | "email" | "both";
+  request_status?: "open" | "in_progress" | "completed" | "cancelled";
+  request_responses_count?: number; // Liczba ofert od workerów
+  request_selected_worker_id?: string; // ID wybranego workera
+
   // Stats
   likes_count: number;
   comments_count: number;
@@ -97,6 +115,7 @@ export interface Post {
   author_company?: string;
   author_avatar?: string;
   author_profile_id?: string; // Profile ID for public profile links
+  author_phone?: string | null; // Phone number for WhatsApp contact (service requests)
 }
 
 export interface PostComment {
@@ -166,6 +185,57 @@ export interface PostShare {
   created_at: string;
 }
 
+// =====================================================
+// REGULAR USER & SERVICE REQUEST TYPES
+// =====================================================
+
+export interface RegularUser {
+  id: string;
+  profile_id: string;
+  first_name?: string;
+  last_name?: string;
+  phone?: string;
+  city?: string;
+  postal_code?: string;
+  address?: string;
+  requests_posted: number;
+  requests_completed: number;
+  average_rating: number;
+  is_premium: boolean;
+  subscription_end_date?: string;
+  requests_this_month: number;
+  free_requests_limit: number;
+  email_notifications: boolean;
+  sms_notifications: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ServiceRequestResponse {
+  id: string;
+  post_id: string;
+  worker_id: string;
+  offered_price?: number;
+  estimated_hours?: number;
+  message: string;
+  availability_date?: string;
+  status: "pending" | "accepted" | "rejected" | "withdrawn";
+  created_at: string;
+  updated_at: string;
+
+  // Computed (joined from worker)
+  worker?: {
+    id: string;
+    profile: {
+      full_name?: string;
+      avatar_url?: string;
+    };
+    rating?: number;
+    completed_jobs?: number;
+    specializations?: string[];
+  };
+}
+
 export interface CreatePostData {
   author_type: AuthorType;
   type: PostType;
@@ -173,6 +243,11 @@ export interface CreatePostData {
   content: string;
   media_urls?: string[];
   media_types?: string[];
+
+  // 🔥 NOWE: Pola dla filtrów
+  location?: string; // miasto
+  category?: string; // kategoria branżowa
+  budget?: number; // budżet/cena
 
   // Job offer metadata (matching database column names)
   job_category?: string;
@@ -480,9 +555,9 @@ export async function hasUserLikedPost(
     .select("id")
     .eq("post_id", postId)
     .eq("user_id", profileId) // Use user_id for RLS compatibility
-    .single();
+    .maybeSingle(); // 🔥 FIXED: Use maybeSingle() to avoid 406 when no like exists
 
-  if (error && error.code !== "PGRST116") throw error;
+  if (error) throw error;
   return !!data;
 }
 
@@ -497,7 +572,7 @@ export async function getUserReaction(
     .from("post_likes")
     .select("reaction_type")
     .eq("post_id", postId)
-    .eq("profile_id", profileId)
+    .eq("user_id", profileId) // FIXED: Use user_id consistently
     .maybeSingle();
 
   if (error) {
@@ -866,6 +941,24 @@ async function getAuthorData(
         author_name: profile?.full_name || "Pracownik",
         author_avatar: data?.avatar_url,
         author_profile_id: data?.profile_id,
+      };
+    } else if (authorType === "regular_user") {
+      // Regular user pobiera dane bezpośrednio z profiles (authorId = profile_id)
+      const { data: profile, error } = await supabaseAny
+        .from("profiles")
+        .select("full_name, avatar_url")
+        .eq("id", authorId)
+        .single();
+
+      if (error) {
+        console.error("[getAuthorData] Regular user profile error:", error);
+        return { author_name: "Użytkownik" };
+      }
+
+      return {
+        author_name: profile?.full_name || "Użytkownik",
+        author_avatar: profile?.avatar_url,
+        author_profile_id: authorId, // For regular_user, authorId is profile_id
       };
     } else {
       return { author_name: "Nieznany" };
@@ -1654,4 +1747,272 @@ async function getUserRoleId(
     return { roleId: data?.id || profileId };
   }
   return { roleId: profileId };
+}
+
+// =====================================================
+// SERVICE REQUESTS (Zlecenia od Regular Users)
+// =====================================================
+
+/**
+ * Get all service requests (for workers to browse)
+ */
+export async function getServiceRequests(filters?: {
+  category?: string;
+  urgency?: string;
+  minBudget?: number;
+  maxBudget?: number;
+  status?: string;
+}): Promise<Post[]> {
+  let query = supabaseAny
+    .from("posts")
+    .select("*")
+    .eq("type", "service_request")
+    .eq("is_active", true)
+    .is("deleted_at", null)
+    .order("created_at", { ascending: false });
+
+  // Apply filters
+  if (filters?.category) {
+    query = query.eq("request_category", filters.category);
+  }
+  if (filters?.urgency) {
+    query = query.eq("request_urgency", filters.urgency);
+  }
+  if (filters?.status) {
+    query = query.eq("request_status", filters.status);
+  } else {
+    // Default: only show open requests
+    query = query.eq("request_status", "open");
+  }
+  if (filters?.minBudget) {
+    query = query.gte("request_budget_min", filters.minBudget);
+  }
+  if (filters?.maxBudget) {
+    query = query.lte("request_budget_max", filters.maxBudget);
+  }
+
+  const { data, error } = await query;
+
+  if (error) throw error;
+  return (data as any) || [];
+}
+
+/**
+ * Worker submits response to service request
+ */
+export async function respondToServiceRequest(
+  postId: string,
+  workerId: string,
+  response: {
+    offered_price?: number;
+    estimated_hours?: number;
+    message: string;
+    availability_date?: string;
+  }
+): Promise<void> {
+  const { error } = await supabaseAny.from("service_request_responses").insert({
+    post_id: postId,
+    worker_id: workerId,
+    ...response,
+    status: "pending",
+  });
+
+  if (error) throw error;
+
+  console.log(
+    `[RESPOND-SERVICE-REQUEST] Worker ${workerId} responded to request ${postId}`
+  );
+}
+
+/**
+ * Regular user gets responses to their request
+ */
+export async function getRequestResponses(
+  postId: string
+): Promise<ServiceRequestResponse[]> {
+  const { data, error } = await supabaseAny
+    .from("service_request_responses")
+    .select(
+      `
+      *,
+      worker:workers(
+        id,
+        profile:profiles(full_name, avatar_url),
+        rating,
+        completed_jobs,
+        specializations
+      )
+    `
+    )
+    .eq("post_id", postId)
+    .order("created_at", { ascending: false });
+
+  if (error) throw error;
+  return (data as any) || [];
+}
+
+/**
+ * Regular user accepts worker's response
+ */
+export async function acceptWorkerResponse(
+  responseId: string,
+  postId: string
+): Promise<void> {
+  // Update response status to accepted
+  const { error: responseError } = await supabaseAny
+    .from("service_request_responses")
+    .update({ status: "accepted", updated_at: new Date().toISOString() })
+    .eq("id", responseId);
+
+  if (responseError) throw responseError;
+
+  // Get worker_id from response
+  const { data: response } = await supabaseAny
+    .from("service_request_responses")
+    .select("worker_id")
+    .eq("id", responseId)
+    .single();
+
+  // Update post status to in_progress and set selected_worker_id
+  const { error: postError } = await supabaseAny
+    .from("posts")
+    .update({
+      request_status: "in_progress",
+      request_selected_worker_id: response.worker_id,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", postId);
+
+  if (postError) throw postError;
+
+  // Reject all other responses
+  const { error: rejectError } = await supabaseAny
+    .from("service_request_responses")
+    .update({ status: "rejected", updated_at: new Date().toISOString() })
+    .eq("post_id", postId)
+    .neq("id", responseId)
+    .eq("status", "pending");
+
+  if (rejectError) throw rejectError;
+
+  console.log(
+    `[ACCEPT-RESPONSE] Response ${responseId} accepted for request ${postId}`
+  );
+}
+
+/**
+ * Regular user rejects worker's response
+ */
+export async function rejectWorkerResponse(responseId: string): Promise<void> {
+  const { error } = await supabaseAny
+    .from("service_request_responses")
+    .update({ status: "rejected", updated_at: new Date().toISOString() })
+    .eq("id", responseId);
+
+  if (error) throw error;
+
+  console.log(`[REJECT-RESPONSE] Response ${responseId} rejected`);
+}
+
+/**
+ * Worker withdraws their response
+ */
+export async function withdrawResponse(responseId: string): Promise<void> {
+  const { error } = await supabaseAny
+    .from("service_request_responses")
+    .update({ status: "withdrawn", updated_at: new Date().toISOString() })
+    .eq("id", responseId);
+
+  if (error) throw error;
+
+  console.log(`[WITHDRAW-RESPONSE] Response ${responseId} withdrawn by worker`);
+}
+
+/**
+ * Complete service request (mark as completed)
+ */
+export async function completeServiceRequest(postId: string): Promise<void> {
+  const { error } = await supabaseAny
+    .from("posts")
+    .update({
+      request_status: "completed",
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", postId);
+
+  if (error) throw error;
+
+  console.log(`[COMPLETE-REQUEST] Request ${postId} marked as completed`);
+}
+
+/**
+ * Cancel service request
+ */
+export async function cancelServiceRequest(postId: string): Promise<void> {
+  const { error } = await supabaseAny
+    .from("posts")
+    .update({
+      request_status: "cancelled",
+      is_active: false,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", postId);
+
+  if (error) throw error;
+
+  console.log(`[CANCEL-REQUEST] Request ${postId} cancelled`);
+}
+
+/**
+ * Get regular user profile
+ */
+export async function getRegularUserProfile(
+  userId: string
+): Promise<RegularUser | null> {
+  const { data, error } = await supabaseAny
+    .from("regular_users")
+    .select("*")
+    .eq("profile_id", userId)
+    .single();
+
+  if (error) {
+    if (error.code === "PGRST116") return null; // Not found
+    throw error;
+  }
+
+  return data as any;
+}
+
+/**
+ * Check if regular user can create new request (freemium limit)
+ */
+export async function canCreateServiceRequest(
+  userId: string
+): Promise<{ can: boolean; reason?: string }> {
+  const user = await getRegularUserProfile(userId);
+
+  if (!user) {
+    return { can: false, reason: "User not found" };
+  }
+
+  // Premium users can create unlimited requests
+  if (user.is_premium) {
+    const now = new Date();
+    const subscriptionEndDate = user.subscription_end_date
+      ? new Date(user.subscription_end_date)
+      : null;
+    if (subscriptionEndDate && subscriptionEndDate > now) {
+      return { can: true };
+    }
+  }
+
+  // Free users have limit
+  if (user.requests_this_month >= user.free_requests_limit) {
+    return {
+      can: false,
+      reason: `Osiągnięto limit ${user.free_requests_limit} darmowych zleceń na miesiąc. Kup premium (€9.99/miesiąc) dla nielimitowanych zleceń!`,
+    };
+  }
+
+  return { can: true };
 }

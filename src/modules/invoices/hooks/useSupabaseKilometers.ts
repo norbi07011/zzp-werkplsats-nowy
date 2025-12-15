@@ -27,9 +27,12 @@ interface UseKilometersReturn {
     data: Omit<
       KilometerEntry,
       "id" | "user_id" | "created_at" | "updated_at" | "rate" | "amount"
-    >
+    > & { custom_rate?: number }
   ) => Promise<KilometerEntry>;
-  updateEntry: (id: string, data: Partial<KilometerEntry>) => Promise<void>;
+  updateEntry: (
+    id: string,
+    data: Partial<KilometerEntry> & { custom_rate?: number }
+  ) => Promise<void>;
   deleteEntry: (id: string) => Promise<void>;
   refetch: () => Promise<void>;
 }
@@ -198,19 +201,22 @@ export function useSupabaseKilometers(
     data: Omit<
       KilometerEntry,
       "id" | "user_id" | "created_at" | "updated_at" | "rate" | "amount"
-    >
+    > & { custom_rate?: number } // Optional custom rate from vehicle
   ): Promise<KilometerEntry> => {
     try {
       setError(null);
 
-      // Calculate rate and amount
-      const rate = getKilometerRate(data.vehicle_type, data.is_private_vehicle);
+      // Use custom rate if provided (from vehicle), otherwise calculate default
+      const { custom_rate, ...entryData } = data;
+      const rate =
+        custom_rate ??
+        getKilometerRate(data.vehicle_type, data.is_private_vehicle);
       const amount = data.kilometers * rate;
 
       const { data: entry, error: createError } = await supabase
         .from("invoice_kilometer_entries")
         .insert({
-          ...data,
+          ...entryData,
           user_id: userId,
           rate,
           amount,
@@ -246,19 +252,24 @@ export function useSupabaseKilometers(
       const current = entries.find((e) => e.id === id);
       if (!current) throw new Error("Entry not found");
 
-      // Recalculate if vehicle type, kilometers, or is_private_vehicle changed
+      // Extract custom_rate from updates (it's only for calculation, not for saving)
+      const { custom_rate: customRate, ...updateData } = updates as any;
+
+      // Recalculate if vehicle type, kilometers, is_private_vehicle, or custom_rate changed
       let calculated = {};
       if (
         updates.vehicle_type !== undefined ||
         updates.kilometers !== undefined ||
-        updates.is_private_vehicle !== undefined
+        updates.is_private_vehicle !== undefined ||
+        customRate !== undefined
       ) {
         const vehicleType = updates.vehicle_type ?? current.vehicle_type;
         const isPrivate =
           updates.is_private_vehicle ?? current.is_private_vehicle;
         const kilometers = updates.kilometers ?? current.kilometers;
 
-        const rate = getKilometerRate(vehicleType, isPrivate);
+        // Use custom rate if provided (from vehicle), otherwise calculate default
+        const rate = customRate ?? getKilometerRate(vehicleType, isPrivate);
         const amount = kilometers * rate;
 
         calculated = { rate, amount };
@@ -267,7 +278,7 @@ export function useSupabaseKilometers(
       const { error: updateError } = await supabase
         .from("invoice_kilometer_entries")
         .update({
-          ...updates,
+          ...updateData,
           ...calculated,
         })
         .eq("id", id)

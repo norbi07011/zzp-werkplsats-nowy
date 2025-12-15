@@ -28,7 +28,7 @@ export interface EmployerStats {
   total_saved_workers: number;
   total_contacts: number;
   contacts_this_month: number;
-  subscription_expires_at: string | null;
+  subscription_end_date: string | null;
   days_until_expiry: number;
   profile_views: number; // Profile views count from profile_views table WHERE employer_id
 }
@@ -244,11 +244,11 @@ export async function getEmployerStats(
       .limit(1)
       .maybeSingle();
 
-    const subscriptionExpiresAt =
-      subscription?.end_date || (employer as any).subscription_expires_at;
-    const daysUntilExpiry = subscriptionExpiresAt
+    const subscriptionEndDate =
+      subscription?.end_date || (employer as any).subscription_end_date;
+    const daysUntilExpiry = subscriptionEndDate
       ? Math.ceil(
-          (new Date(subscriptionExpiresAt).getTime() - Date.now()) /
+          (new Date(subscriptionEndDate).getTime() - Date.now()) /
             (1000 * 60 * 60 * 24)
         )
       : 0;
@@ -259,7 +259,7 @@ export async function getEmployerStats(
       total_saved_workers: savedWorkers || 0,
       total_contacts: totalContacts || 0,
       contacts_this_month: contactsThisMonth || 0,
-      subscription_expires_at: subscriptionExpiresAt,
+      subscription_end_date: subscriptionEndDate,
       days_until_expiry: Math.max(0, daysUntilExpiry),
       profile_views: profileViewsCount || 0, // Profile views count from profile_views table
     };
@@ -279,7 +279,7 @@ function getDefaultStats(): EmployerStats {
     total_saved_workers: 0,
     total_contacts: 0,
     contacts_this_month: 0,
-    subscription_expires_at: null,
+    subscription_end_date: null,
     days_until_expiry: 0,
     profile_views: 0, // Default profile views count
   };

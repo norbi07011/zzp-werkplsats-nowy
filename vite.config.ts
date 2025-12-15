@@ -27,31 +27,31 @@ export default defineConfig(({ mode }) => {
       // PWA Plugin - Offline support & caching
       VitePWA({
         registerType: "autoUpdate",
-        includeAssets: ["favicon.ico", "robots.txt", "apple-touch-icon.png"],
+        includeAssets: ["Public/LOGOEIFEO.jpg", "robots.txt"],
         manifest: {
-          name: "ZZP Werkplaats",
-          short_name: "ZZP",
+          name: "ZZP Werkplaats - Gecertifireiate Vakmensen voor Uw Bedrijf",
+          short_name: "ZZP Werkplaats",
           description:
-            "Platform łączący pracodawców z wykwalifikowanymi pracownikami",
+            "Platform łączący pracodawców z wykwalifikowanymi pracownikami - Gecertifireiate Vakmensen voor Uw Bedrijf",
           theme_color: "#9333ea",
           background_color: "#1a1a2e",
           display: "standalone",
           icons: [
             {
-              src: "pwa-192x192.png",
+              src: "Public/LOGOEIFEO.jpg",
               sizes: "192x192",
-              type: "image/png",
+              type: "image/jpeg",
             },
             {
-              src: "pwa-512x512.png",
+              src: "Public/LOGOEIFEO.jpg",
               sizes: "512x512",
-              type: "image/png",
+              type: "image/jpeg",
             },
           ],
         },
         workbox: {
-          // Increase file size limit to 3MB (stats.html is 2.1MB)
-          maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
+          // Increase file size limit to 5MB (large physics bundle)
+          maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
           // 🔥 AUTO CACHE CLEAR SETTINGS
           cleanupOutdatedCaches: true,
           skipWaiting: true,

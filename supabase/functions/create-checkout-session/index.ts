@@ -9,7 +9,12 @@ const corsHeaders = {
 
 interface CheckoutRequest {
   priceId: string;
-  userType: "worker" | "employer";
+  userType:
+    | "worker"
+    | "employer"
+    | "cleaning_company"
+    | "accountant"
+    | "regular_user";
   userId: string;
   email: string;
   plan?: "basic" | "premium";
@@ -50,7 +55,53 @@ serve(async (req: Request) => {
     }
 
     // Get the origin for success/cancel URLs
-    const origin = req.headers.get("origin") || "http://localhost:3000";
+    // IMPORTANT: Force correct development port - must match where app runs
+    const requestOrigin = req.headers.get("origin");
+    const origin = requestOrigin?.includes("localhost")
+      ? "http://localhost:3005" // Always use correct dev port
+      : requestOrigin || "https://zzp-werkplaats.nl";
+
+    console.log(
+      "📍 Using origin for redirect:",
+      origin,
+      "(from request:",
+      requestOrigin,
+      ")"
+    );
+
+    // Determine cancel URL based on user type
+    const getCancelUrl = (type: string) => {
+      switch (type) {
+        case "cleaning_company":
+          return `${origin}/cleaning-company/subscription`;
+        case "employer":
+          return `${origin}/employer/subscription`;
+        case "accountant":
+          return `${origin}/accountant/subscription`;
+        case "regular_user":
+          return `${origin}/regular-user?tab=subscription`;
+        case "worker":
+        default:
+          return `${origin}/worker/subscription`;
+      }
+    };
+
+    // Determine success URL based on user type - returns to subscription page with success=true
+    const getSuccessUrl = (type: string) => {
+      switch (type) {
+        case "cleaning_company":
+          return `${origin}/cleaning-company/subscription?success=true&session_id={CHECKOUT_SESSION_ID}`;
+        case "employer":
+          return `${origin}/employer/subscription?success=true&session_id={CHECKOUT_SESSION_ID}`;
+        case "accountant":
+          return `${origin}/accountant/subscription?success=true&session_id={CHECKOUT_SESSION_ID}`;
+        case "regular_user":
+          return `${origin}/payment-success?session_id={CHECKOUT_SESSION_ID}&user_type=regular_user`;
+        case "worker":
+        default:
+          return `${origin}/worker/subscription?success=true&session_id={CHECKOUT_SESSION_ID}`;
+      }
+    };
 
     // Create Stripe checkout session
     const session = await stripe.checkout.sessions.create({
@@ -62,10 +113,8 @@ serve(async (req: Request) => {
         },
       ],
       mode: "subscription",
-      success_url: `${origin}/payment-success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${origin}/${
-        userType === "worker" ? "dashboard" : "employer/dashboard"
-      }`,
+      success_url: getSuccessUrl(userType),
+      cancel_url: getCancelUrl(userType),
       customer_email: email,
       metadata: {
         userId,

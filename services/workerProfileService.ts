@@ -45,14 +45,42 @@ export interface WorkerProfileData {
 }
 
 export interface ProfileUpdateData {
+  // Profile table fields
   full_name?: string;
   phone?: string;
   language?: "nl" | "en" | "pl" | "de" | "es" | "fr" | "ar";
+
+  // Workers table fields - basic info
   specialization?: string;
-  hourly_rate?: number;
-  years_experience?: number;
-  location_city?: string;
   bio?: string;
+  years_experience?: number;
+
+  // Workers table fields - rates
+  hourly_rate?: number;
+  hourly_rate_max?: number | null;
+  rate_negotiable?: boolean;
+
+  // Workers table fields - location
+  location_city?: string;
+  address?: string;
+  postal_code?: string;
+  location_country?: string;
+  service_radius_km?: number;
+
+  // Workers table fields - business info
+  kvk_number?: string;
+  btw_number?: string;
+
+  // Workers table fields - skills/languages
+  languages?: string[];
+  certifications?: string[];
+
+  // Workers table fields - tools/vehicle
+  own_tools?: string[];
+  own_vehicle?: boolean;
+  vehicle_type?: string;
+
+  // Workers table fields - availability
   available_from?: string | null;
 }
 
@@ -263,16 +291,53 @@ export async function updateWorkerProfile(
     if (updates.language !== undefined)
       profileUpdates.language = updates.language;
 
-    // Workers table fields
+    // Workers table fields - basic info
     if (updates.specialization !== undefined)
       workerUpdates.specialization = updates.specialization;
-    if (updates.hourly_rate !== undefined)
-      workerUpdates.hourly_rate = updates.hourly_rate;
+    if (updates.bio !== undefined) workerUpdates.bio = updates.bio;
     if (updates.years_experience !== undefined)
       workerUpdates.years_experience = updates.years_experience;
+
+    // Workers table fields - rates
+    if (updates.hourly_rate !== undefined)
+      workerUpdates.hourly_rate = updates.hourly_rate;
+    if (updates.hourly_rate_max !== undefined)
+      workerUpdates.hourly_rate_max = updates.hourly_rate_max;
+    if (updates.rate_negotiable !== undefined)
+      workerUpdates.rate_negotiable = updates.rate_negotiable;
+
+    // Workers table fields - location
     if (updates.location_city !== undefined)
       workerUpdates.location_city = updates.location_city;
-    if (updates.bio !== undefined) workerUpdates.bio = updates.bio;
+    if (updates.address !== undefined) workerUpdates.address = updates.address;
+    if (updates.postal_code !== undefined)
+      workerUpdates.postal_code = updates.postal_code;
+    if (updates.location_country !== undefined)
+      workerUpdates.location_country = updates.location_country;
+    if (updates.service_radius_km !== undefined)
+      workerUpdates.service_radius_km = updates.service_radius_km;
+
+    // Workers table fields - business info
+    if (updates.kvk_number !== undefined)
+      workerUpdates.kvk_number = updates.kvk_number;
+    if (updates.btw_number !== undefined)
+      workerUpdates.btw_number = updates.btw_number;
+
+    // Workers table fields - skills/languages
+    if (updates.languages !== undefined)
+      workerUpdates.languages = updates.languages;
+    if (updates.certifications !== undefined)
+      workerUpdates.certifications = updates.certifications;
+
+    // Workers table fields - tools/vehicle
+    if (updates.own_tools !== undefined)
+      workerUpdates.own_tools = updates.own_tools;
+    if (updates.own_vehicle !== undefined)
+      workerUpdates.own_vehicle = updates.own_vehicle;
+    if (updates.vehicle_type !== undefined)
+      workerUpdates.vehicle_type = updates.vehicle_type;
+
+    // Workers table fields - availability
     if (updates.available_from !== undefined)
       workerUpdates.available_from = updates.available_from;
 
@@ -1325,11 +1390,11 @@ export async function updateAvailability(
  * Toggle worker availability status
  */
 export async function toggleAvailability(
-  workerId: string,
+  profileId: string,
   isAvailable: boolean
 ): Promise<void> {
   console.log("🔄 [WORKER-SERVICE] toggleAvailability:", {
-    workerId,
+    profileId,
     isAvailable,
   });
 
@@ -1340,7 +1405,7 @@ export async function toggleAvailability(
         is_available: isAvailable,
         updated_at: new Date().toISOString(),
       })
-      .eq("id", workerId);
+      .eq("profile_id", profileId);
 
     if (error) {
       console.error("❌ [WORKER-SERVICE] Error toggling availability:", error);

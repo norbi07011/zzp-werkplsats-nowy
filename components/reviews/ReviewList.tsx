@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { StarRating } from './StarRating';
-import { supabase } from '@/lib/supabase';
+import React, { useState, useEffect } from "react";
+import { StarRating } from "./StarRating";
+import { supabase } from "@/lib/supabase";
 
 interface Review {
   id: string;
@@ -23,11 +23,11 @@ interface ReviewListProps {
 export const ReviewList: React.FC<ReviewListProps> = ({
   workerId,
   maxReviews = 10,
-  showTitle = true
+  showTitle = true,
 }) => {
   const [reviews, setReviews] = useState<Review[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string>('');
+  const [error, setError] = useState<string>("");
   const [averageRating, setAverageRating] = useState<number>(0);
 
   useEffect(() => {
@@ -37,13 +37,14 @@ export const ReviewList: React.FC<ReviewListProps> = ({
   const loadReviews = async () => {
     try {
       setLoading(true);
-      setError('');
+      setError("");
 
-      console.log('[REVIEWS] Loading reviews for worker:', workerId);
+      console.log("[REVIEWS] Loading reviews for worker:", workerId);
 
       const { data: reviewsData, error: reviewsError } = await supabase
-        .from('reviews')
-        .select(`
+        .from("reviews")
+        .select(
+          `
           id,
           rating,
           comment,
@@ -59,15 +60,16 @@ export const ReviewList: React.FC<ReviewListProps> = ({
             id,
             company_name
           )
-        `)
-        .eq('worker_id', workerId)
-        .eq('status', 'approved')
-        .order('created_at', { ascending: false })
+        `
+        )
+        .eq("worker_id", workerId)
+        .eq("status", "approved")
+        .order("created_at", { ascending: false })
         .limit(maxReviews);
 
       if (reviewsError) {
-        console.error('[REVIEWS] Error loading reviews:', reviewsError);
-        setError('Nie udało się załadować opinii');
+        console.error("[REVIEWS] Error loading reviews:", reviewsError);
+        setError("Nie udało się załadować opinii");
         return;
       }
 
@@ -75,28 +77,31 @@ export const ReviewList: React.FC<ReviewListProps> = ({
       const reviewsWithEmployers = (reviewsData || []).map((review: any) => {
         return {
           ...review,
-          employer: review.employer
+          employer: review.employer,
         };
       });
-
-      setReviews(reviewsWithEmployers);
-        })
-      );
 
       setReviews(reviewsWithEmployers);
 
       // Calculate average rating
       if (reviewsWithEmployers.length > 0) {
-        const avg = reviewsWithEmployers.reduce((sum, r) => sum + r.rating, 0) / reviewsWithEmployers.length;
+        const avg =
+          reviewsWithEmployers.reduce((sum, r) => sum + r.rating, 0) /
+          reviewsWithEmployers.length;
         setAverageRating(Number(avg.toFixed(1)));
       } else {
         setAverageRating(0);
       }
 
-      console.log('[REVIEWS] Loaded reviews:', reviewsWithEmployers.length, 'avg:', averageRating);
+      console.log(
+        "[REVIEWS] Loaded reviews:",
+        reviewsWithEmployers.length,
+        "avg:",
+        averageRating
+      );
     } catch (err) {
-      console.error('[REVIEWS] Unexpected error:', err);
-      setError('Wystąpił nieoczekiwany błąd');
+      console.error("[REVIEWS] Unexpected error:", err);
+      setError("Wystąpił nieoczekiwany błąd");
     } finally {
       setLoading(false);
     }
@@ -104,10 +109,10 @@ export const ReviewList: React.FC<ReviewListProps> = ({
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
-    return date.toLocaleDateString('pl-PL', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
+    return date.toLocaleDateString("pl-PL", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
     });
   };
 
@@ -152,7 +157,7 @@ export const ReviewList: React.FC<ReviewListProps> = ({
                 {averageRating}
               </span>
               <span className="text-sm text-gray-500">
-                ({reviews.length} {reviews.length === 1 ? 'opinia' : 'opinii'})
+                ({reviews.length} {reviews.length === 1 ? "opinia" : "opinii"})
               </span>
             </div>
           )}
@@ -162,8 +167,18 @@ export const ReviewList: React.FC<ReviewListProps> = ({
       {reviews.length === 0 ? (
         <div className="text-center py-8">
           <div className="w-16 h-16 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
-            <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.196-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+            <svg
+              className="w-8 h-8 text-gray-400"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.196-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"
+              />
             </svg>
           </div>
           <p className="text-gray-500">Brak opinii</p>
@@ -184,12 +199,18 @@ export const ReviewList: React.FC<ReviewListProps> = ({
                   {review.reviewer?.avatar_url ? (
                     <img
                       src={review.reviewer.avatar_url}
-                      alt={review.reviewer.full_name || 'Reviewer'}
+                      alt={review.reviewer.full_name || "Reviewer"}
                       className="w-10 h-10 rounded-full object-cover border-2 border-gray-200"
                     />
                   ) : (
                     <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm">
-                      {(review.reviewer?.full_name || review.employer?.company_name || 'P').charAt(0).toUpperCase()}
+                      {(
+                        review.reviewer?.full_name ||
+                        review.employer?.company_name ||
+                        "P"
+                      )
+                        .charAt(0)
+                        .toUpperCase()}
                     </div>
                   )}
                   <div>
@@ -200,12 +221,16 @@ export const ReviewList: React.FC<ReviewListProps> = ({
                       size="sm"
                     />
                     <span className="font-medium text-gray-900 block text-sm mt-1">
-                      {review.reviewer?.full_name || review.employer?.company_name || 'Pracodawca'}
+                      {review.reviewer?.full_name ||
+                        review.employer?.company_name ||
+                        "Pracodawca"}
                     </span>
                   </div>
                 </div>
                 <span className="text-sm text-gray-500">
-                  {review.created_at ? formatDate(review.created_at) : 'Brak daty'}
+                  {review.created_at
+                    ? formatDate(review.created_at)
+                    : "Brak daty"}
                 </span>
               </div>
 

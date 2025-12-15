@@ -8,7 +8,7 @@
  */
 
 import React from "react";
-import { Bell, Calendar, Users } from "../icons";
+import { Bell, Calendar, Users, MapPin } from "../icons";
 
 interface AnnouncementFormProps {
   formData: {
@@ -19,6 +19,10 @@ interface AnnouncementFormProps {
     announcement_pinned?: boolean;
     announcement_notify_users?: boolean;
     announcement_target_roles?: string[];
+    // 🔥 NOWE: dla filtrów
+    location?: string;
+    category?: string;
+    budget?: number;
   };
   onChange: (field: string, value: any) => void;
 }
@@ -81,6 +85,70 @@ export const AnnouncementForm: React.FC<AnnouncementFormProps> = ({
             Skonfiguruj ogłoszenie dla użytkowników platformy
           </p>
         </div>
+      </div>
+
+      {/* 🔥 MIASTO */}
+      <div>
+        <label className="block text-sm font-bold text-gray-700 mb-3">
+          <span className="flex items-center gap-2">
+            <MapPin size={18} /> Miasto (opcjonalne)
+          </span>
+        </label>
+        <select
+          value={formData.location || ""}
+          onChange={(e) => onChange("location", e.target.value)}
+          className="w-full px-4 py-3 rounded-xl border-2 border-amber-200 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 transition-all bg-white"
+        >
+          <option value="">Wszystkie miasta</option>
+          <option value="Amsterdam">Amsterdam</option>
+          <option value="Rotterdam">Rotterdam</option>
+          <option value="Den Haag">Den Haag</option>
+          <option value="Utrecht">Utrecht</option>
+          <option value="Eindhoven">Eindhoven</option>
+          <option value="Groningen">Groningen</option>
+          <option value="Tilburg">Tilburg</option>
+          <option value="Almere">Almere</option>
+          <option value="Breda">Breda</option>
+          <option value="Nijmegen">Nijmegen</option>
+          <option value="Arnhem">Arnhem</option>
+          <option value="Haarlem">Haarlem</option>
+          <option value="Enschede">Enschede</option>
+          <option value="Apeldoorn">Apeldoorn</option>
+          <option value="Leiden">Leiden</option>
+          <option value="Maastricht">Maastricht</option>
+          <option value="Dordrecht">Dordrecht</option>
+          <option value="Zoetermeer">Zoetermeer</option>
+          <option value="Zwolle">Zwolle</option>
+          <option value="Den Bosch">Den Bosch</option>
+        </select>
+      </div>
+
+      {/* 🔥 KATEGORIA BRANŻOWA */}
+      <div>
+        <label className="block text-sm font-bold text-gray-700 mb-3">
+          <span className="flex items-center gap-2">📂 Kategoria branżowa</span>
+        </label>
+        <select
+          value={formData.category || ""}
+          onChange={(e) => onChange("category", e.target.value)}
+          className="w-full px-4 py-3 rounded-xl border-2 border-amber-200 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 transition-all bg-white"
+        >
+          <option value="">Wybierz kategorię</option>
+          <option value="Budowa/Renovatie">Budowa/Renovatie</option>
+          <option value="Instalacje elektryczne">Instalacje elektryczne</option>
+          <option value="Hydraulika">Hydraulika</option>
+          <option value="Ogrodnictwo">Ogrodnictwo</option>
+          <option value="Malowanie">Malowanie</option>
+          <option value="Sprzątanie">Sprzątanie</option>
+          <option value="Transport">Transport</option>
+          <option value="IT/Tech">IT/Tech</option>
+          <option value="Administracja">Administracja</option>
+          <option value="Księgowość">Księgowość</option>
+          <option value="Marketing">Marketing</option>
+          <option value="Fotografia">Fotografia</option>
+          <option value="Catering">Catering</option>
+          <option value="Inne">Inne</option>
+        </select>
       </div>
 
       {/* Category */}

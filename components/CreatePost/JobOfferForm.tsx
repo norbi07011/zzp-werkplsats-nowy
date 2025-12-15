@@ -19,6 +19,9 @@ interface JobOfferFormProps {
     job_contact_email?: string;
     job_contact_phone?: string;
     job_location?: string;
+    job_category?: string; // 🔥 ADDED: Missing field for filtering
+    job_salary_min?: number; // 🔥 ADDED: Missing field for budget calculation
+    job_salary_max?: number; // 🔥 ADDED: Missing field for budget calculation
   };
   onChange: (field: string, value: any) => void;
 }
@@ -78,6 +81,114 @@ export const JobOfferForm: React.FC<JobOfferFormProps> = ({
           <p className="text-sm text-gray-600">
             Uzupełnij informacje o oferowanej pracy
           </p>
+        </div>
+      </div>
+
+      {/* 🔥 MIASTO */}
+      <div>
+        <label className="block text-sm font-bold text-gray-700 mb-3">
+          <span className="flex items-center gap-2">
+            <MapPin size={18} /> Miasto
+            <span className="text-red-500">*</span>
+            <span className="text-xs font-normal text-gray-500">
+              (Wymagane do filtrowania)
+            </span>
+          </span>
+        </label>
+        <select
+          value={formData.job_location || ""}
+          onChange={(e) => onChange("job_location", e.target.value)}
+          className="w-full px-4 py-3 rounded-xl border-2 border-blue-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all bg-white"
+          required
+        >
+          <option value="">Wybierz miasto</option>
+          <option value="Amsterdam">Amsterdam</option>
+          <option value="Rotterdam">Rotterdam</option>
+          <option value="Den Haag">Den Haag</option>
+          <option value="Utrecht">Utrecht</option>
+          <option value="Eindhoven">Eindhoven</option>
+          <option value="Groningen">Groningen</option>
+          <option value="Tilburg">Tilburg</option>
+          <option value="Almere">Almere</option>
+          <option value="Breda">Breda</option>
+          <option value="Nijmegen">Nijmegen</option>
+          <option value="Arnhem">Arnhem</option>
+          <option value="Haarlem">Haarlem</option>
+          <option value="Enschede">Enschede</option>
+          <option value="Apeldoorn">Apeldoorn</option>
+          <option value="Leiden">Leiden</option>
+          <option value="Maastricht">Maastricht</option>
+          <option value="Dordrecht">Dordrecht</option>
+          <option value="Zoetermeer">Zoetermeer</option>
+          <option value="Zwolle">Zwolle</option>
+          <option value="Den Bosch">Den Bosch</option>
+        </select>
+      </div>
+
+      {/* 🔥 KATEGORIA */}
+      <div>
+        <label className="block text-sm font-bold text-gray-700 mb-3">
+          <span className="flex items-center gap-2">
+            📂 Kategoria branżowa
+            <span className="text-red-500">*</span>
+          </span>
+        </label>
+        <select
+          value={formData.job_category || ""}
+          onChange={(e) => onChange("job_category", e.target.value)}
+          className="w-full px-4 py-3 rounded-xl border-2 border-blue-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all bg-white"
+          required
+        >
+          <option value="">Wybierz kategorię</option>
+          <option value="Budowa/Renovatie">Budowa/Renovatie</option>
+          <option value="Instalacje elektryczne">Instalacje elektryczne</option>
+          <option value="Hydraulika">Hydraulika</option>
+          <option value="Ogrodnictwo">Ogrodnictwo</option>
+          <option value="Malowanie">Malowanie</option>
+          <option value="Sprzątanie">Sprzątanie</option>
+          <option value="Transport">Transport</option>
+          <option value="IT/Tech">IT/Tech</option>
+          <option value="Administracja">Administracja</option>
+          <option value="Księgowość">Księgowość</option>
+          <option value="Marketing">Marketing</option>
+          <option value="Fotografia">Fotografia</option>
+          <option value="Catering">Catering</option>
+          <option value="Inne">Inne</option>
+        </select>
+      </div>
+
+      {/* 🔥 BUDŻET/WYNAGRODZENIE */}
+      <div>
+        <label className="block text-sm font-bold text-gray-700 mb-3">
+          <span className="flex items-center gap-2">
+            💰 Wynagrodzenie (€/miesiąc)
+          </span>
+        </label>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="text-xs text-gray-600 mb-1 block">Od</label>
+            <input
+              type="number"
+              placeholder="2000"
+              value={formData.job_salary_min || ""}
+              onChange={(e) =>
+                onChange("job_salary_min", parseInt(e.target.value) || 0)
+              }
+              className="w-full px-4 py-3 rounded-xl border-2 border-blue-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
+            />
+          </div>
+          <div>
+            <label className="text-xs text-gray-600 mb-1 block">Do</label>
+            <input
+              type="number"
+              placeholder="5000"
+              value={formData.job_salary_max || ""}
+              onChange={(e) =>
+                onChange("job_salary_max", parseInt(e.target.value) || 0)
+              }
+              className="w-full px-4 py-3 rounded-xl border-2 border-blue-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
+            />
+          </div>
         </div>
       </div>
 

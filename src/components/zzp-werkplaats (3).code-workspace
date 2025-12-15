@@ -1,0 +1,20 @@
+{
+  "folders": [
+    {
+      "path": "../.."
+    },
+    {
+      "path": "../../../betoncoat-b.v. (1)"
+    },
+    {
+      "path": "../../../zzp-werkplaats (6)"
+    }
+  ],
+  "settings": {
+    "typescript.tsdk": "node_modules/typescript/lib",
+    "vscode-edge-devtools.webhint": false,
+    "typescript.validate.enable": true,
+    "sqltools.connections": [],
+    "powershell.cwd": "zzp-werkplaats (3)"
+  }
+}

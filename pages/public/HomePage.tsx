@@ -1,34 +1,38 @@
-import React, { Suspense } from "react";
+import React, { Suspense, useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { Logo } from "../../src/components/common/Logo";
-import Spline from "@splinetool/react-spline";
+import { getUserStats, type UserStats } from "../../src/services/statsService";
+
+import Pattern from "../../components/Logo3D/Pattern";
 
 export const HomePage: React.FC = () => {
   const { t } = useTranslation();
+  const [stats, setStats] = useState<UserStats | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    console.log("🏠 HomePage: Fetching user stats...");
+    setIsLoading(true);
+    getUserStats()
+      .then((data) => {
+        console.log("🏠 HomePage: Stats received:", data);
+        setStats(data);
+      })
+      .catch((error) => {
+        console.error("🏠 HomePage: Error loading stats:", error);
+      })
+      .finally(() => {
+        setIsLoading(false);
+      });
+  }, []);
 
   return (
     <div className="bg-primary-dark">
-      {/* Hero Section - Video Background FULLSCREEN */}
-      <section className="relative bg-black text-white overflow-hidden min-h-screen">
-        {/* Video Background - PEŁNY EKRAN BEZ FILTRA */}
-        <div className="absolute inset-0 z-0">
-          <video
-            autoPlay
-            loop
-            muted
-            playsInline
-            preload="auto"
-            className="w-full h-full object-cover"
-            onLoadedData={(e) => {
-              const video = e.currentTarget;
-              video.play().catch((err) => console.log("Video autoplay:", err));
-            }}
-          >
-            <source src="/LOGO W TLE2.mp4" type="video/mp4" />
-            Twoja przeglądarka nie obsługuje video.
-          </video>
-        </div>
+      {/* Hero Section - Aurora Animated Background FULLSCREEN */}
+      <section className="relative text-white overflow-hidden min-h-screen">
+        {/* Aurora Pattern Background */}
+        <Pattern />
 
         {/* Zawartość NA FILMIE (z-index wyższy) - CAŁKOWICIE LEWA STRONA */}
         <div className="relative z-20 min-h-screen flex items-center">
@@ -39,7 +43,7 @@ export const HomePage: React.FC = () => {
               {/* Main Heading - Premium Style - CAŁKOWICIE LEFT */}
               <div className="space-y-8 mb-16">
                 <h1
-                  className="text-5xl lg:text-7xl font-black leading-tight text-left"
+                  className="text-3xl sm:text-5xl lg:text-7xl font-black leading-tight text-left"
                   style={{
                     textShadow: "2px 2px 4px rgba(0,0,0,0.3)",
                   }}
@@ -48,7 +52,7 @@ export const HomePage: React.FC = () => {
                     ZZP Werkplaats
                   </span>
                   <span
-                    className="block mt-2 text-4xl lg:text-6xl bg-gradient-to-r from-cyan-400 via-blue-500 to-violet-600 bg-clip-text text-transparent font-black"
+                    className="block mt-2 text-2xl sm:text-4xl lg:text-6xl bg-gradient-to-r from-cyan-400 via-blue-500 to-violet-600 bg-clip-text text-transparent font-black"
                     style={{
                       textShadow: "none",
                       filter: "drop-shadow(2px 2px 4px rgba(0,0,0,0.4))",
@@ -59,11 +63,11 @@ export const HomePage: React.FC = () => {
                 </h1>
 
                 <p
-                  className="text-2xl lg:text-3xl text-white font-bold leading-relaxed text-left drop-shadow-lg"
+                  className="text-lg sm:text-2xl lg:text-3xl text-white font-bold leading-relaxed text-left drop-shadow-lg"
                   style={{ textShadow: "2px 2px 4px rgba(0,0,0,0.3)" }}
                 >
                   Gecertificeerde vakmensen voor de bouw.
-                  <span className="block mt-3 text-white font-black text-3xl lg:text-4xl">
+                  <span className="block mt-3 text-white font-black text-xl sm:text-3xl lg:text-4xl">
                     Elke professional is getest en geverifieerd.
                   </span>
                 </p>
@@ -96,10 +100,14 @@ export const HomePage: React.FC = () => {
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 max-w-3xl">
                 <div className="bg-gradient-to-br from-cyan-500/30 to-cyan-600/20 backdrop-blur-xl border-2 border-cyan-400/60 rounded-2xl p-6 shadow-2xl hover:scale-105 transition-transform">
                   <div
-                    className="text-5xl lg:text-6xl font-black bg-gradient-to-r from-cyan-200 to-cyan-300 bg-clip-text text-transparent mb-2"
+                    className="text-3xl sm:text-5xl lg:text-6xl font-black bg-gradient-to-r from-cyan-200 to-cyan-300 bg-clip-text text-transparent mb-2"
                     style={{ textShadow: "0 0 30px rgba(34,211,238,0.5)" }}
                   >
-                    500+
+                    {isLoading
+                      ? "..."
+                      : stats
+                      ? stats.totalWorkers + stats.totalCleaningCompanies
+                      : "0"}
                   </div>
                   <div className="text-sm font-bold text-white uppercase tracking-wide">
                     Actieve ZZP'ers
@@ -108,25 +116,25 @@ export const HomePage: React.FC = () => {
 
                 <div className="bg-gradient-to-br from-cyan-500/30 to-cyan-600/20 backdrop-blur-xl border-2 border-cyan-400/60 rounded-2xl p-6 shadow-2xl hover:scale-105 transition-transform">
                   <div
-                    className="text-5xl lg:text-6xl font-black bg-gradient-to-r from-cyan-200 to-cyan-300 bg-clip-text text-transparent mb-2"
+                    className="text-3xl sm:text-5xl lg:text-6xl font-black bg-gradient-to-r from-cyan-200 to-cyan-300 bg-clip-text text-transparent mb-2"
                     style={{ textShadow: "0 0 30px rgba(34,211,238,0.5)" }}
                   >
-                    1200+
+                    {isLoading ? "..." : stats ? stats.totalEmployers : "0"}
                   </div>
                   <div className="text-sm font-bold text-white uppercase tracking-wide">
-                    Matches
+                    Actieve Pracodawcy
                   </div>
                 </div>
 
                 <div className="bg-gradient-to-br from-cyan-500/30 to-cyan-600/20 backdrop-blur-xl border-2 border-cyan-400/60 rounded-2xl p-6 shadow-2xl hover:scale-105 transition-transform">
                   <div
-                    className="text-5xl lg:text-6xl font-black bg-gradient-to-r from-cyan-200 to-cyan-300 bg-clip-text text-transparent mb-2"
+                    className="text-3xl sm:text-5xl lg:text-6xl font-black bg-gradient-to-r from-cyan-200 to-cyan-300 bg-clip-text text-transparent mb-2"
                     style={{ textShadow: "0 0 30px rgba(34,211,238,0.5)" }}
                   >
-                    98%
+                    {isLoading ? "..." : stats ? stats.totalAccountants : "0"}
                   </div>
                   <div className="text-sm font-bold text-white uppercase tracking-wide">
-                    Tevredenheid
+                    Actieve Księgowi
                   </div>
                 </div>
               </div>

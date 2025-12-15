@@ -302,7 +302,68 @@ const MessagesManager = () => {
 
         {/* Messages Table */}
         <div className="bg-white/10 backdrop-blur-md rounded-2xl border border-white/20 overflow-hidden">
-          <div className="overflow-x-auto">
+          {/* Mobile Card View */}
+          <div className="md:hidden divide-y divide-white/10">
+            {filteredMessages.length === 0 ? (
+              <div className="px-6 py-16 text-center">
+                <div className="text-6xl mb-4">📭</div>
+                <p className="text-xl text-gray-400">Brak wiadomości</p>
+              </div>
+            ) : (
+              filteredMessages.map((msg) => (
+                <div
+                  key={msg.id}
+                  className={`p-4 hover:bg-white/5 transition-colors ${!msg.is_read ? 'bg-blue-500/5' : ''}`}
+                  onClick={() => setSelectedMessage(msg)}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="flex-shrink-0 mt-1">
+                      {!msg.is_read ? (
+                        <div className="w-3 h-3 bg-blue-500 rounded-full shadow-glow-blue"></div>
+                      ) : (
+                        <div className="w-3 h-3 bg-gray-500 rounded-full"></div>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2">
+                        <h3 className="font-semibold text-white truncate">
+                          {msg.from_user?.profile?.full_name || "Brak danych"}
+                        </h3>
+                        <span className="text-xs text-gray-400 flex-shrink-0">
+                          {new Date(msg.created_at).toLocaleDateString("pl-PL")}
+                        </span>
+                      </div>
+                      <p className="text-sm text-white font-medium truncate">{msg.subject}</p>
+                      <p className="text-sm text-gray-400 truncate">{msg.body}</p>
+                      <div className="flex flex-wrap items-center gap-2 mt-2">
+                        <span className={`px-2 py-0.5 rounded-full text-xs ${
+                          msg.category === "inquiry" ? "bg-blue-500/20 text-blue-400" :
+                          msg.category === "complaint" ? "bg-red-500/20 text-red-400" :
+                          msg.category === "support" ? "bg-green-500/20 text-green-400" :
+                          "bg-gray-500/20 text-gray-400"
+                        }`}>
+                          {msg.category === "inquiry" ? "Zapytanie" :
+                           msg.category === "complaint" ? "Reklamacja" :
+                           msg.category === "support" ? "Wsparcie" : "Inne"}
+                        </span>
+                        <span className={`px-2 py-0.5 rounded-full text-xs ${
+                          msg.priority === "urgent" ? "bg-red-500/20 text-red-400" :
+                          msg.priority === "high" ? "bg-yellow-500/20 text-yellow-400" :
+                          "bg-gray-500/20 text-gray-400"
+                        }`}>
+                          {msg.priority === "urgent" ? "🔴 Pilne" :
+                           msg.priority === "high" ? "🟡 Wysokie" : "🔵 Normalne"}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+          
+          {/* Desktop Table View */}
+          <div className="hidden md:block overflow-x-auto scrollable-table-container scroll-right">
             <table className="w-full">
               <thead className="bg-white/5 border-b border-white/10">
                 <tr>

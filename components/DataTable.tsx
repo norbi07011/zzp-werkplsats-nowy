@@ -325,8 +325,8 @@ export function DataTable<T extends Record<string, any>>({
                 )}
             </div>
 
-            {/* Table */}
-            <div className="overflow-x-auto">
+            {/* Table - Desktop */}
+            <div className="hidden md:block overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
                         <tr>
@@ -399,6 +399,40 @@ export function DataTable<T extends Record<string, any>>({
                 </table>
             </div>
 
+            {/* Mobile Card View */}
+            <div className="md:hidden divide-y divide-gray-200">
+                {paginatedData.length === 0 ? (
+                    <div className="px-4 py-12 text-center text-gray-500">
+                        {emptyMessage}
+                    </div>
+                ) : (
+                    paginatedData.map((row, index) => (
+                        <div
+                            key={index}
+                            className={`p-4 ${onRowClick ? 'cursor-pointer active:bg-gray-50' : ''} transition-colors`}
+                            onClick={() => onRowClick?.(row, index)}
+                        >
+                            {columns.map((column, colIndex) => (
+                                <div
+                                    key={String(column.key)}
+                                    className={`flex justify-between items-start py-1.5 ${colIndex === 0 ? 'pb-2' : ''}`}
+                                >
+                                    <span className={`text-xs font-medium text-gray-500 ${colIndex === 0 ? 'hidden' : 'block'}`}>
+                                        {column.title}
+                                    </span>
+                                    <span className={`text-sm text-gray-900 ${colIndex === 0 ? 'font-semibold text-base w-full' : 'text-right'}`}>
+                                        {column.render
+                                            ? column.render(row[column.key], row, index)
+                                            : row[column.key]?.toString() || '-'
+                                        }
+                                    </span>
+                                </div>
+                            ))}
+                        </div>
+                    ))
+                )}
+            </div>
+
             {/* Pagination */}
             {pagination.enabled && totalPages > 1 && (
                 <div className="px-6 py-3 border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-4">
@@ -427,14 +461,14 @@ export function DataTable<T extends Record<string, any>>({
                         <button
                             onClick={() => setCurrentPage(1)}
                             disabled={currentPage === 1}
-                            className="px-3 py-1 text-sm border border-gray-300 rounded-md disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                            className="px-3 py-2 min-h-[44px] text-sm border border-gray-300 rounded-md disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
                         >
                             Eerste
                         </button>
                         <button
                             onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
                             disabled={currentPage === 1}
-                            className="px-3 py-1 text-sm border border-gray-300 rounded-md disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                            className="px-3 py-2 min-h-[44px] text-sm border border-gray-300 rounded-md disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
                         >
                             Vorige
                         </button>
@@ -444,7 +478,7 @@ export function DataTable<T extends Record<string, any>>({
                                 key={index}
                                 onClick={() => typeof pageNum === 'number' ? setCurrentPage(pageNum) : null}
                                 disabled={pageNum === '...'}
-                                className={`px-3 py-1 text-sm border border-gray-300 rounded-md disabled:cursor-default ${
+                                className={`px-3 py-2 min-h-[44px] text-sm border border-gray-300 rounded-md disabled:cursor-default ${
                                     pageNum === currentPage
                                         ? 'bg-blue-600 text-white border-blue-600'
                                         : pageNum === '...'
@@ -459,14 +493,14 @@ export function DataTable<T extends Record<string, any>>({
                         <button
                             onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
                             disabled={currentPage === totalPages}
-                            className="px-3 py-1 text-sm border border-gray-300 rounded-md disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                            className="px-3 py-2 min-h-[44px] text-sm border border-gray-300 rounded-md disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
                         >
                             Volgende
                         </button>
                         <button
                             onClick={() => setCurrentPage(totalPages)}
                             disabled={currentPage === totalPages}
-                            className="px-3 py-1 text-sm border border-gray-300 rounded-md disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                            className="px-3 py-2 min-h-[44px] text-sm border border-gray-300 rounded-md disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
                         >
                             Laatste
                         </button>

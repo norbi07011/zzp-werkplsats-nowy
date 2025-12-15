@@ -1,4 +1,4 @@
-import { Navigate, useLocation } from "react-router-dom";
+import { Navigate, useLocation, useSearchParams } from "react-router-dom";
 import { useAuth, type UserRole } from "../contexts/AuthContext";
 
 interface ProtectedRouteProps {
@@ -9,10 +9,15 @@ interface ProtectedRouteProps {
 }
 
 // WHY: paths that should be accessible without active subscription (e.g. payment/onboarding pages)
+// ALSO: paths where we may return from Stripe with temporary session loss
 const SUBSCRIPTION_WHITELIST_PATHS = [
   "/employer/subscription",
   "/employer/payment",
   "/employer/checkout",
+  "/cleaning-company/subscription", // Added for payment success redirect
+  "/cleaning-company/payment",
+  "/accountant/subscription", // Added for accountant payment success redirect
+  "/worker/subscription",
   "/payment-success",
   "/payment-cancel",
 ];
@@ -25,6 +30,24 @@ export const ProtectedRoute = ({
 }: ProtectedRouteProps) => {
   const { user, isAuthenticated, isLoading } = useAuth();
   const location = useLocation();
+  const [searchParams] = useSearchParams();
+
+  // ✅ CRITICAL: Check if returning from Stripe payment - allow access for session recovery
+  const isPaymentReturn =
+    searchParams.get("payment_success") === "true" ||
+    searchParams.get("success") === "true";
+  const isWhitelistedPath = SUBSCRIPTION_WHITELIST_PATHS.some((path) =>
+    location.pathname.startsWith(path)
+  );
+
+  // If returning from payment AND on whitelisted path, allow access (session will be recovered on page)
+  if (isPaymentReturn && isWhitelistedPath) {
+    console.log(
+      "[ProtectedRoute] Payment return detected on whitelisted path, allowing access:",
+      location.pathname
+    );
+    return <>{children}</>;
+  }
 
   // Show loading state while checking auth
   if (isLoading) {

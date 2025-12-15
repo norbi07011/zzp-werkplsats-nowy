@@ -86,8 +86,7 @@ export const BTW_RATES = {
 // =====================================================
 export function getQuarterDateRange(year: number, quarter: BTWPeriod): { start: string; end: string } {
   const ranges = {
-    Q1: { start: `${year}-01-01`, end: `${year}-03-31` },
-    Q2: { start: `${year}-04-01`, end: `${year}-06-30` },
+    Q1: { start: `${year}-01-01`, end: `${year}-03-31` },    Q2: { start: `${year}-04-01`, end: `${year}-06-30` },
     Q3: { start: `${year}-07-01`, end: `${year}-09-30` },
     Q4: { start: `${year}-10-01`, end: `${year}-12-31` },
   };

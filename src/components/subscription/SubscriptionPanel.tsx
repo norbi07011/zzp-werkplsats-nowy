@@ -1,85 +1,171 @@
 /**
  * SUBSCRIPTION PANEL - Worker Dashboard
  * Wyświetla status subskrypcji, historię płatności i upgrade CTA
+ *
+ * NAPRAWIONE: Pobiera RZECZYWISTE dane z Supabase (nie MOCK!)
  */
 
-import React, { useState, useEffect } from 'react';
-import { Crown, User, Calendar, CreditCard, AlertCircle, CheckCircle, XCircle, TrendingUp } from 'lucide-react';
-import { SubscriptionBadge } from '../SubscriptionBadge';
-import { CheckoutButton } from '../payment/CheckoutButton';
-import type { 
-  WorkerSubscription, 
-  SubscriptionPayment, 
-  SubscriptionTier 
-} from '../../types/subscription';
+import React, { useState, useEffect } from "react";
+import {
+  Crown,
+  User,
+  Calendar,
+  CreditCard,
+  AlertCircle,
+  CheckCircle,
+  XCircle,
+  TrendingUp,
+} from "lucide-react";
+import { SubscriptionBadge } from "../SubscriptionBadge";
+import { CheckoutButton } from "../payment/CheckoutButton";
+import { supabase } from "../../lib/supabase";
+import type {
+  WorkerSubscription,
+  SubscriptionPayment,
+  SubscriptionTier,
+} from "../../types/subscription";
 
 interface SubscriptionPanelProps {
   workerId: string;
   onUpgradeClick?: () => void;
 }
 
-export function SubscriptionPanel({ workerId, onUpgradeClick }: SubscriptionPanelProps) {
-  const [subscription, setSubscription] = useState<WorkerSubscription | null>(null);
+export function SubscriptionPanel({
+  workerId,
+  onUpgradeClick,
+}: SubscriptionPanelProps) {
+  const [subscription, setSubscription] = useState<WorkerSubscription | null>(
+    null
+  );
   const [payments, setPayments] = useState<SubscriptionPayment[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCancelModal, setShowCancelModal] = useState(false);
 
-  // MOCK DATA for development (replace with Supabase later)
+  // FIXED: Fetch REAL data from Supabase (not MOCK!)
   useEffect(() => {
-    // Simulate API call
-    setTimeout(() => {
-      // Mock subscription data
-      const mockSubscription: Partial<WorkerSubscription> = {
-        subscription_tier: 'basic' as SubscriptionTier, // Change to 'premium' to test Premium view
-        subscription_status: 'active',
-        subscription_start_date: '2025-01-01',
-        subscription_end_date: '2025-02-01',
-        stripe_customer_id: 'cus_mock123',
-        stripe_subscription_id: 'sub_mock123',
-        zzp_certificate_issued: false,
-        zzp_certificate_number: null,
-      };
+    const fetchSubscriptionData = async () => {
+      if (!workerId) {
+        console.log("[SubscriptionPanel] No workerId provided");
+        setLoading(false);
+        return;
+      }
 
-      // Mock payment history
-      const mockPayments: Partial<SubscriptionPayment>[] = [
-        {
-          id: 'pay_001',
-          amount: 13.00,
-          currency: 'EUR',
-          payment_method: 'card',
-          status: 'completed',
-          stripe_payment_intent_id: 'pi_mock001',
-          stripe_invoice_id: 'in_mock001',
-          stripe_charge_id: 'ch_mock001',
-          payment_date: '2025-01-01T10:00:00Z',
-          period_start: '2025-01-01',
-          period_end: '2025-02-01',
-          created_at: '2025-01-01T10:00:00Z',
-        },
-        {
-          id: 'pay_002',
-          amount: 13.00,
-          currency: 'EUR',
-          payment_method: 'card',
-          status: 'completed',
-          stripe_payment_intent_id: 'pi_mock002',
-          stripe_invoice_id: 'in_mock002',
-          payment_date: '2024-12-01T10:00:00Z',
-          period_start: '2024-12-01',
-          period_end: '2025-01-01',
-          created_at: '2024-12-01T10:00:00Z',
-        },
-      ];
+      console.log("[SubscriptionPanel] Fetching data for workerId:", workerId);
 
-      setSubscription(mockSubscription as WorkerSubscription);
-      setPayments(mockPayments as SubscriptionPayment[]);
-      setLoading(false);
-    }, 500);
+      try {
+        // 1. Fetch worker subscription data from database
+        // workerId może być profile_id lub worker id, próbujemy obu
+        let workerData = null;
+        let error = null;
+
+        // Najpierw spróbuj przez profile_id (UUID z auth)
+        const { data: byProfileId, error: err1 } = await supabase
+          .from("workers")
+          .select(
+            `
+            id,
+            subscription_tier,
+            subscription_status,
+            subscription_start_date,
+            subscription_end_date,
+            stripe_customer_id,
+            stripe_subscription_id,
+            zzp_certificate_issued,
+            zzp_certificate_number
+          `
+          )
+          .eq("profile_id", workerId)
+          .single();
+
+        if (byProfileId) {
+          workerData = byProfileId;
+          console.log("[SubscriptionPanel] Found by profile_id:", workerData);
+        } else {
+          // Jeśli nie znaleziono, spróbuj przez worker id
+          const { data: byWorkerId, error: err2 } = await supabase
+            .from("workers")
+            .select(
+              `
+              id,
+              subscription_tier,
+              subscription_status,
+              subscription_start_date,
+              subscription_end_date,
+              stripe_customer_id,
+              stripe_subscription_id,
+              zzp_certificate_issued,
+              zzp_certificate_number
+            `
+            )
+            .eq("id", workerId)
+            .single();
+
+          if (byWorkerId) {
+            workerData = byWorkerId;
+            console.log("[SubscriptionPanel] Found by id:", workerData);
+          } else {
+            error = err2 || err1;
+          }
+        }
+
+        if (error) {
+          console.error("[SubscriptionPanel] Error fetching worker:", error);
+          setLoading(false);
+          return;
+        }
+
+        if (!workerData) {
+          console.log("[SubscriptionPanel] No worker data found");
+          setLoading(false);
+          return;
+        }
+
+        // Mapuj dane z bazy na typ WorkerSubscription
+        const subscriptionData: Partial<WorkerSubscription> = {
+          subscription_tier:
+            (workerData.subscription_tier as SubscriptionTier) || "basic",
+          subscription_status: workerData.subscription_status || "active",
+          subscription_start_date: workerData.subscription_start_date,
+          subscription_end_date: workerData.subscription_end_date,
+          stripe_customer_id: workerData.stripe_customer_id,
+          stripe_subscription_id: workerData.stripe_subscription_id,
+          zzp_certificate_issued: workerData.zzp_certificate_issued || false,
+          zzp_certificate_number: workerData.zzp_certificate_number,
+        };
+
+        console.log("[SubscriptionPanel] Subscription data:", subscriptionData);
+        setSubscription(subscriptionData as WorkerSubscription);
+
+        // 2. Fetch payment history
+        const { data: paymentsData, error: paymentsError } = await supabase
+          .from("payments")
+          .select("*")
+          .eq("worker_id", workerData.id)
+          .order("created_at", { ascending: false })
+          .limit(10);
+
+        if (paymentsError) {
+          console.error(
+            "[SubscriptionPanel] Error fetching payments:",
+            paymentsError
+          );
+        } else {
+          console.log("[SubscriptionPanel] Payments:", paymentsData);
+          setPayments((paymentsData as SubscriptionPayment[]) || []);
+        }
+      } catch (err) {
+        console.error("[SubscriptionPanel] Unexpected error:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchSubscriptionData();
   }, [workerId]);
 
   const handleCancelSubscription = async () => {
     // TODO: Implement cancel logic with subscriptions.ts
-    alert('Anulowanie subskrypcji - funkcjonalność będzie dostępna wkrótce');
+    alert("Anulowanie subskrypcji - funkcjonalność będzie dostępna wkrótce");
     setShowCancelModal(false);
   };
 
@@ -102,19 +188,22 @@ export function SubscriptionPanel({ workerId, onUpgradeClick }: SubscriptionPane
     );
   }
 
-  const isBasic = subscription.subscription_tier === 'basic';
-  const isPremium = subscription.subscription_tier === 'premium';
-  const isActive = subscription.subscription_status === 'active';
+  const isBasic = subscription.subscription_tier === "basic";
+  const isPremium = subscription.subscription_tier === "premium";
+  const isActive = subscription.subscription_status === "active";
 
   return (
     <div className="space-y-6">
       {/* Subscription Status Card */}
       <div className="bg-white rounded-lg shadow-lg overflow-hidden">
         {/* Header with gradient */}
-        <div className={`p-6 ${isPremium 
-          ? 'bg-gradient-to-r from-yellow-400 to-yellow-600' 
-          : 'bg-gradient-to-r from-blue-500 to-blue-600'
-        }`}>
+        <div
+          className={`p-6 ${
+            isPremium
+              ? "bg-gradient-to-r from-yellow-400 to-yellow-600"
+              : "bg-gradient-to-r from-blue-500 to-blue-600"
+          }`}
+        >
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               {isPremium ? (
@@ -123,16 +212,28 @@ export function SubscriptionPanel({ workerId, onUpgradeClick }: SubscriptionPane
                 <User className="w-12 h-12 text-white" />
               )}
               <div>
-                <h2 className={`text-2xl font-bold ${isPremium ? 'text-yellow-950' : 'text-white'}`}>
-                  {isPremium ? 'Premium Member' : 'Basic Member'}
+                <h2
+                  className={`text-2xl font-bold ${
+                    isPremium ? "text-yellow-950" : "text-white"
+                  }`}
+                >
+                  {isPremium ? "Premium Member" : "Basic Member"}
                 </h2>
-                <p className={`text-sm ${isPremium ? 'text-yellow-900' : 'text-blue-100'}`}>
-                  {isActive ? '✓ Aktywna subskrypcja' : '✗ Nieaktywna'}
+                <p
+                  className={`text-sm ${
+                    isPremium ? "text-yellow-900" : "text-blue-100"
+                  }`}
+                >
+                  {isActive ? "✓ Aktywna subskrypcja" : "✗ Nieaktywna"}
                 </p>
               </div>
             </div>
             <div className="text-right">
-              <p className={`text-3xl font-bold ${isPremium ? 'text-yellow-950' : 'text-white'}`}>
+              <p
+                className={`text-3xl font-bold ${
+                  isPremium ? "text-yellow-950" : "text-white"
+                }`}
+              >
                 €13<span className="text-lg">/miesiąc</span>
               </p>
             </div>
@@ -148,9 +249,11 @@ export function SubscriptionPanel({ workerId, onUpgradeClick }: SubscriptionPane
               <div>
                 <p className="text-sm text-gray-600">Data rozpoczęcia</p>
                 <p className="font-semibold text-gray-900">
-                  {subscription.subscription_start_date 
-                    ? new Date(subscription.subscription_start_date).toLocaleDateString('pl-PL')
-                    : 'N/A'}
+                  {subscription.subscription_start_date
+                    ? new Date(
+                        subscription.subscription_start_date
+                      ).toLocaleDateString("pl-PL")
+                    : "N/A"}
                 </p>
               </div>
             </div>
@@ -161,9 +264,11 @@ export function SubscriptionPanel({ workerId, onUpgradeClick }: SubscriptionPane
               <div>
                 <p className="text-sm text-gray-600">Następne odnowienie</p>
                 <p className="font-semibold text-gray-900">
-                  {subscription.subscription_end_date 
-                    ? new Date(subscription.subscription_end_date).toLocaleDateString('pl-PL')
-                    : 'N/A'}
+                  {subscription.subscription_end_date
+                    ? new Date(
+                        subscription.subscription_end_date
+                      ).toLocaleDateString("pl-PL")
+                    : "N/A"}
                 </p>
               </div>
             </div>
@@ -173,9 +278,7 @@ export function SubscriptionPanel({ workerId, onUpgradeClick }: SubscriptionPane
               <CreditCard className="w-5 h-5 text-green-500 mt-1" />
               <div>
                 <p className="text-sm text-gray-600">Metoda płatności</p>
-                <p className="font-semibold text-gray-900">
-                  Karta •••• 4242
-                </p>
+                <p className="font-semibold text-gray-900">Karta •••• 4242</p>
               </div>
             </div>
           </div>
@@ -190,7 +293,8 @@ export function SubscriptionPanel({ workerId, onUpgradeClick }: SubscriptionPane
                     Je hebt Premium abonnement (€13/maand)
                   </p>
                   <p className="text-sm text-blue-700">
-                    Voor ZZP Certificaat, zie onderstaande sectie "Haal je ZZP Certificaat" (€230).
+                    Voor ZZP Certificaat, zie onderstaande sectie "Haal je ZZP
+                    Certificaat" (€230).
                   </p>
                 </div>
               </div>
@@ -230,27 +334,37 @@ export function SubscriptionPanel({ workerId, onUpgradeClick }: SubscriptionPane
               <ul className="space-y-2 mb-6">
                 <li className="flex items-center gap-2 text-gray-700">
                   <CheckCircle className="w-5 h-5 text-green-500" />
-                  <span><strong>Hogere positie</strong> in werkgever zoekopdrachten</span>
+                  <span>
+                    <strong>Hogere positie</strong> in werkgever zoekopdrachten
+                  </span>
                 </li>
                 <li className="flex items-center gap-2 text-gray-700">
                   <CheckCircle className="w-5 h-5 text-green-500" />
-                  <span><strong>Premium badge</strong> op je profiel</span>
+                  <span>
+                    <strong>Premium badge</strong> op je profiel
+                  </span>
                 </li>
                 <li className="flex items-center gap-2 text-gray-700">
                   <CheckCircle className="w-5 h-5 text-green-500" />
-                  <span><strong>Eerste resultaten</strong> in werkgever zoekacties</span>
+                  <span>
+                    <strong>Eerste resultaten</strong> in werkgever zoekacties
+                  </span>
                 </li>
                 <li className="flex items-center gap-2 text-gray-700">
                   <CheckCircle className="w-5 h-5 text-green-500" />
-                  <span><strong>Meer contacten</strong> van werkgevers</span>
+                  <span>
+                    <strong>Meer contacten</strong> van werkgevers
+                  </span>
                 </li>
               </ul>
               <div className="bg-white p-4 rounded-lg border border-yellow-300 mb-4">
                 <p className="text-sm text-gray-600">
-                  <strong>Let op:</strong> Premium abonnement geeft GEEN certificaat. Voor ZZP Certificaat, zie onderstaande sectie "Haal je ZZP Certificaat".
+                  <strong>Let op:</strong> Premium abonnement geeft GEEN
+                  certificaat. Voor ZZP Certificaat, zie onderstaande sectie
+                  "Haal je ZZP Certificaat".
                 </p>
               </div>
-              <CheckoutButton 
+              <CheckoutButton
                 userId={workerId}
                 currentTier={subscription.subscription_tier}
                 className="px-8 py-4"
@@ -278,19 +392,30 @@ export function SubscriptionPanel({ workerId, onUpgradeClick }: SubscriptionPane
             <ul className="space-y-2 mb-6">
               <li className="flex items-center gap-2 text-gray-700">
                 <CheckCircle className="w-5 h-5 text-blue-600" />
-                <span><strong>Fysiek examen</strong> in magazijn (vorklifts, logistiek, kwaliteit)</span>
+                <span>
+                  <strong>Fysiek examen</strong> in magazijn (vorklifts,
+                  logistiek, kwaliteit)
+                </span>
               </li>
               <li className="flex items-center gap-2 text-gray-700">
                 <CheckCircle className="w-5 h-5 text-blue-600" />
-                <span><strong>Beoordeling door eigenaar</strong> (praktische vaardigheden 1-10)</span>
+                <span>
+                  <strong>Beoordeling door eigenaar</strong> (praktische
+                  vaardigheden 1-10)
+                </span>
               </li>
               <li className="flex items-center gap-2 text-gray-700">
                 <CheckCircle className="w-5 h-5 text-blue-600" />
-                <span><strong>Officieel certificaat</strong> met uniek nummer (ZZP-2025-00XXX)</span>
+                <span>
+                  <strong>Officieel certificaat</strong> met uniek nummer
+                  (ZZP-2025-00XXX)
+                </span>
               </li>
               <li className="flex items-center gap-2 text-gray-700">
                 <CheckCircle className="w-5 h-5 text-blue-600" />
-                <span><strong>1 jaar geldig</strong> op je profiel</span>
+                <span>
+                  <strong>1 jaar geldig</strong> op je profiel
+                </span>
               </li>
             </ul>
             <div className="bg-white p-6 rounded-lg border border-blue-300 mb-6">
@@ -304,13 +429,19 @@ export function SubscriptionPanel({ workerId, onUpgradeClick }: SubscriptionPane
                 </div>
               </div>
               <p className="text-sm text-gray-700">
-                Inclusief: examenafspraak, praktische test in magazijn, beoordeling, en certificaat (geldig 7 jaar).
+                Inclusief: examenafspraak, praktische test in magazijn,
+                beoordeling, en certificaat (geldig 7 jaar).
               </p>
             </div>
-            <button 
+            <button
               onClick={() => {
-                // Navigate to ZZP Exam Application Form
-                window.location.href = '/worker/zzp-exam-application';
+                // Navigate to ZZP Exam Application Form via parent callback
+                if (onUpgradeClick) {
+                  onUpgradeClick();
+                } else {
+                  // Fallback: try to navigate directly
+                  window.location.href = "/worker/zzp-exam-application";
+                }
               }}
               className="w-full px-8 py-4 bg-gradient-to-r from-blue-500 to-indigo-600 text-white font-bold rounded-lg hover:from-blue-600 hover:to-indigo-700 transition-all transform hover:scale-105 shadow-lg"
             >
@@ -323,7 +454,9 @@ export function SubscriptionPanel({ workerId, onUpgradeClick }: SubscriptionPane
       {/* Payment History */}
       <div className="bg-white rounded-lg shadow">
         <div className="p-6 border-b border-gray-200">
-          <h3 className="text-xl font-bold text-gray-900">Historia płatności</h3>
+          <h3 className="text-xl font-bold text-gray-900">
+            Historia płatności
+          </h3>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full">
@@ -350,28 +483,31 @@ export function SubscriptionPanel({ workerId, onUpgradeClick }: SubscriptionPane
               {payments.map((payment) => (
                 <tr key={payment.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {new Date(payment.payment_date).toLocaleDateString('pl-PL')}
+                    {new Date(payment.payment_date).toLocaleDateString("pl-PL")}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                    {new Date(payment.period_start).toLocaleDateString('pl-PL', { month: 'short', year: 'numeric' })}
+                    {new Date(payment.period_start).toLocaleDateString(
+                      "pl-PL",
+                      { month: "short", year: "numeric" }
+                    )}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900">
                     €{payment.amount.toFixed(2)}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    {payment.status === 'completed' && (
+                    {payment.status === "completed" && (
                       <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
                         <CheckCircle className="w-3 h-3" />
                         Opłacono
                       </span>
                     )}
-                    {payment.status === 'pending' && (
+                    {payment.status === "pending" && (
                       <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
                         <AlertCircle className="w-3 h-3" />
                         Oczekuje
                       </span>
                     )}
-                    {payment.status === 'failed' && (
+                    {payment.status === "failed" && (
                       <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
                         <XCircle className="w-3 h-3" />
                         Niepowodzenie
@@ -385,7 +521,9 @@ export function SubscriptionPanel({ workerId, onUpgradeClick }: SubscriptionPane
                         className="text-orange-600 hover:text-orange-800 font-medium"
                         onClick={(e) => {
                           e.preventDefault();
-                          alert('Pobieranie faktury - funkcjonalność będzie dostępna wkrótce');
+                          alert(
+                            "Pobieranie faktury - funkcjonalność będzie dostępna wkrótce"
+                          );
                         }}
                       >
                         Pobierz PDF
@@ -397,7 +535,7 @@ export function SubscriptionPanel({ workerId, onUpgradeClick }: SubscriptionPane
             </tbody>
           </table>
         </div>
-        
+
         {payments.length === 0 && (
           <div className="p-8 text-center text-gray-500">
             Brak historii płatności
@@ -413,7 +551,8 @@ export function SubscriptionPanel({ workerId, onUpgradeClick }: SubscriptionPane
               Anulować subskrypcję?
             </h3>
             <p className="text-gray-600 mb-6">
-              Czy na pewno chcesz anulować swoją subskrypcję? Stracisz dostęp do:
+              Czy na pewno chcesz anulować swoją subskrypcję? Stracisz dostęp
+              do:
             </p>
             <ul className="space-y-2 mb-6">
               <li className="flex items-center gap-2 text-gray-700">

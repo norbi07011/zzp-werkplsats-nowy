@@ -13,6 +13,7 @@ import { useState, useEffect, useRef } from "react";
 import React from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
+import { useIsMobile } from "../src/hooks/useIsMobile";
 import workerProfileService from "../services/workerProfileService";
 import { Animated3DProfileBackground } from "../components/Animated3DProfileBackground";
 import { getJobs } from "../src/services/job";
@@ -38,8 +39,16 @@ import {
   TabPanel,
   type UnifiedTab,
 } from "../components/UnifiedDashboardTabs";
+import { DashboardSidebar } from "../components/DashboardSidebar";
+import { NavigationDrawer } from "../components/NavigationDrawer";
+import { QuickActionsCard } from "../components/QuickActionsCard";
+import {
+  ProfileNavigationDrawer,
+  type ProfileSubTab,
+} from "../components/ProfileNavigationDrawer";
 import { SubscriptionPanel } from "../src/components/subscription/SubscriptionPanel";
 import { CertificateApplicationForm } from "../src/components/subscription/CertificateApplicationForm";
+import { ZZPExamApplicationForm } from "../src/components/certificates/ZZPExamApplicationForm";
 import FeedPage from "../pages/FeedPage_PREMIUM";
 import {
   PageContainer,
@@ -51,6 +60,13 @@ import {
 import DateBlocker from "../src/components/common/DateBlocker";
 import { CoverImageUploader } from "../src/components/common/CoverImageUploader";
 import SavedActivity from "./worker/SavedActivity";
+import { UpcomingEventsCard } from "../components/UpcomingEventsCard";
+import { GlowButton } from "../components/ui/GlowButton";
+import { WorkerSettingsPanel } from "../components/settings/WorkerSettingsPanel";
+import { MyProfilePreview } from "../components/profile/MyProfilePreview";
+import { TeamMembershipTab } from "../src/modules/team-system/components/TeamMembershipTab";
+import { WorkerTeamDashboard } from "../src/modules/team-system/pages/worker/WorkerTeamDashboard";
+// NOTE: Kilometers, Appointments and I18nProvider removed - they are only in /faktury module
 
 // ===================================================================
 // TYPESCRIPT INTERFACES - MESSENGER
@@ -208,6 +224,7 @@ const getConversationPartner = (
 
 export default function WorkerDashboard() {
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
 
   // 🔍 DIAGNOSTIC: Count renders to detect infinite loop
   const renderCount = React.useRef(0);
@@ -234,9 +251,12 @@ export default function WorkerDashboard() {
 
   // State Management
   const { activeTab, setActiveTab } = useUnifiedTabs("overview");
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isProfileSidebarOpen, setIsProfileSidebarOpen] = useState(false);
 
   // Profile sub-tabs (used in renderProfile function inside Settings tab)
-  const [activeProfileTab, setActiveProfileTab] = useState<string>("overview");
+  const [activeProfileTab, setActiveProfileTab] =
+    useState<ProfileSubTab>("edit");
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -954,6 +974,60 @@ export default function WorkerDashboard() {
     setSaving(false);
   };
 
+  const handleProfileDataSave = async (data: {
+    full_name?: string;
+    phone?: string;
+    email?: string;
+    specialization?: string;
+    bio?: string;
+    skills?: string[];
+    languages?: string[];
+    hourly_rate?: number;
+    hourly_rate_max?: number;
+    rate_negotiable?: boolean;
+    years_experience?: number;
+    location_city?: string;
+    postal_code?: string;
+    address?: string;
+    service_radius_km?: number;
+    kvk_number?: string;
+    btw_number?: string;
+    certifications?: string[];
+    own_tools?: boolean;
+    own_vehicle?: boolean;
+    vehicle_type?: string;
+  }) => {
+    setSaving(true);
+    setError(null);
+
+    try {
+      const success = await workerProfileService.updateWorkerProfile(
+        userId,
+        data
+      );
+
+      if (success) {
+        setSuccess("✅ Dane profilu zostały zaktualizowane!");
+        setTimeout(() => setSuccess(null), 3000);
+
+        // Odśwież dane profilu
+        const updatedProfile = await workerProfileService.getWorkerProfile(
+          userId
+        );
+        if (updatedProfile) {
+          setProfileData(updatedProfile);
+        }
+      } else {
+        setError("❌ Nie udało się zapisać danych profilu");
+      }
+    } catch (err) {
+      console.error("Error saving profile data:", err);
+      setError("❌ Wystąpił błąd podczas zapisywania danych");
+    }
+
+    setSaving(false);
+  };
+
   // ===================================================================
   // AVAILABILITY HANDLERS
   // ===================================================================
@@ -1004,6 +1078,26 @@ export default function WorkerDashboard() {
     } catch (err) {
       console.error("Availability update error:", err);
       setError("❌ Nie udało się zaktualizować dostępności");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleAvailabilityToggle = async (isAvailable: boolean) => {
+    try {
+      setSaving(true);
+      await workerProfileService.toggleAvailability(userId, isAvailable);
+
+      setWorkerProfile({ ...workerProfile, is_available: isAvailable });
+      setSuccess(
+        isAvailable
+          ? "✅ Jesteś teraz dostępny do pracy!"
+          : "✅ Status zmieniony na niedostępny"
+      );
+      setTimeout(() => setSuccess(null), 2000);
+    } catch (err) {
+      console.error("Availability toggle error:", err);
+      setError("❌ Nie udało się zmienić statusu dostępności");
     } finally {
       setSaving(false);
     }
@@ -1331,14 +1425,6 @@ export default function WorkerDashboard() {
           icon="👷"
           title={`Witaj, ${workerProfile.full_name}!`}
           subtitle="Panel pracownika"
-          actionButton={
-            <div className="flex items-center gap-3">
-              {/* TODO: Toggle Availability */}
-              <button className="px-4 py-2 rounded-lg font-medium bg-green-100 text-green-700 hover:bg-green-200 transition-colors">
-                ✓ Dostępny do pracy
-              </button>
-            </div>
-          }
         />
 
         {/* STATS GRID - 4 ładne karty z gradientami */}
@@ -1375,178 +1461,80 @@ export default function WorkerDashboard() {
           </div>
         </div>
 
-        {/* PROFILE MANAGEMENT - 3 cards */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-          {/* Avatar Card */}
-          <ContentCard>
-            <h3 className="text-lg font-semibold text-gray-800 mb-3">
-              Zdjęcie profilowe
-            </h3>
-            <div className="flex flex-col items-center gap-4">
+        {/* QUICK PROFILE SUMMARY - Link to Settings */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+          {/* Profile Preview Card */}
+          <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-white/60 shadow-xl p-6">
+            <div className="flex items-center gap-4 mb-4">
               {workerProfile?.avatar_url ? (
                 <img
                   src={workerProfile.avatar_url}
                   alt="Avatar"
-                  className="w-32 h-32 rounded-full object-cover border-4 border-blue-100 shadow-lg"
+                  className="w-16 h-16 rounded-full object-cover border-4 border-blue-100 shadow-lg"
                 />
               ) : (
-                <div className="w-32 h-32 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white font-bold text-5xl border-4 border-blue-100 shadow-lg">
+                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white font-bold text-2xl border-4 border-blue-100 shadow-lg">
                   {workerProfile?.full_name?.[0]?.toUpperCase() || "W"}
                 </div>
               )}
-              <label className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium cursor-pointer flex items-center justify-center gap-2 transition-colors w-full">
-                <span>📷 Zmień zdjęcie</span>
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={handleAvatarUpload}
-                />
-              </label>
+              <div>
+                <h3 className="text-lg font-bold text-gray-900">
+                  {workerProfile?.full_name}
+                </h3>
+                <p className="text-sm text-gray-500">{workerProfile?.email}</p>
+              </div>
             </div>
-          </ContentCard>
-
-          {/* Cover Image Section */}
-          {workerProfile && (
-            <ContentCard>
-              <h3 className="text-lg font-semibold text-gray-800 mb-3">
-                🖼️ Zdjęcie w tle profilu
-              </h3>
-              <CoverImageUploader
-                currentCoverUrl={workerProfile.cover_image_url}
-                onUploadSuccess={handleCoverImageUploadSuccess}
-                profileType="worker"
-                profileId={workerProfile.id}
-              />
-            </ContentCard>
-          )}
-
-          {/* Worker Info Card */}
-          <ContentCard>
-            <h3 className="text-lg font-semibold text-gray-800 mb-3">
-              Dane osobowe
-            </h3>
-            <div className="space-y-2 text-sm text-gray-600">
-              <p>📧 {workerProfile.email || "Brak emaila"}</p>
-              <p>📱 {workerProfile.phone || "Brak telefonu"}</p>
-              <p>📍 {workerProfile.location_city || "Brak lokalizacji"}</p>
-            </div>
-            <button
+            <GlowButton
               onClick={() => setActiveTab("settings")}
-              className="mt-4 w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+              variant="primary"
+              size="md"
+              fullWidth
             >
-              ✏️ Edytuj dane
-            </button>
-          </ContentCard>
-
-          {/* Status Card */}
-          <ContentCard>
-            <h3 className="text-lg font-semibold text-gray-800 mb-3">
-              Status dostępności
-            </h3>
-            <p className="text-sm text-gray-600 mb-4">
-              Twój profil jest widoczny dla pracodawców
-            </p>
-            <button
-              onClick={() =>
-                alert(
-                  "Funkcja dostępności - wkrótce! (wymaga migracji bazy danych)"
-                )
-              }
-              className="w-full bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
-            >
-              ✓ Dostępny do pracy
-            </button>
-          </ContentCard>
-        </div>
-
-        {/* Placeholder for other sections */}
-
-        {/* ✅ DOSTĘPNOŚĆ + ZARZĄDZANIE DATAMI - 2 kolumny (jak CleaningDashboard) */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-          {/* LEFT: Dostępność */}
-          <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6">
-            <h2 className="text-xl font-semibold text-gray-800 mb-2">
-              � Twoja dostępność
-            </h2>
-            <p className="text-sm text-gray-600 mb-4">
-              Zaznacz dni kiedy możesz przyjść do pracy
-            </p>
-
-            <div className="bg-blue-50 p-6 rounded-lg">
-              <div className="grid grid-cols-7 gap-2 mb-4">
-                {WEEK_DAYS_PL.map((day, index) => {
-                  // Map Polish day names to database keys
-                  const dbDayKey = WEEK_DAYS_DB[index];
-                  const isAvailable =
-                    workerProfile?.availability?.[dbDayKey] ?? index < 5;
-
-                  return (
-                    <div key={day} className="text-center">
-                      <p className="text-xs text-gray-600 mb-1">{day}</p>
-                      <button
-                        onClick={() => handleAvailabilityChange(day)}
-                        className={`w-full py-2 rounded-lg text-xs font-medium transition-colors ${
-                          isAvailable
-                            ? "bg-blue-600 text-white"
-                            : "bg-gray-200 text-gray-500"
-                        }`}
-                      >
-                        {isAvailable ? "✓" : "✗"}
-                      </button>
-                    </div>
-                  );
-                })}
-              </div>
-              <p className="text-xs text-gray-500 text-center">
-                Kliknij na dzień aby zmienić dostępność
-              </p>
-            </div>
-
-            <div className="mt-4 grid grid-cols-2 gap-4">
-              <div className="bg-white border border-gray-200 rounded-lg p-4">
-                <p className="text-sm text-gray-600">Dostępne dni</p>
-                <p className="text-2xl font-bold text-blue-600">
-                  {workerProfile?.availability
-                    ? Object.values(workerProfile.availability).filter(Boolean)
-                        .length
-                    : 5}
-                </p>
-              </div>
-              <div className="bg-white border border-gray-200 rounded-lg p-4">
-                <p className="text-sm text-gray-600">Preferowane</p>
-                <p className="text-2xl font-bold text-gray-700">
-                  {workerProfile?.preferred_days_per_week || 5} dni/tydzień
-                </p>
-              </div>
-            </div>
+              ⚙️ Zarządzaj profilem i ustawieniami
+            </GlowButton>
           </div>
 
-          {/* RIGHT: Zarządzaj datami */}
-          <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6">
-            <h2 className="text-xl font-semibold text-gray-800 mb-2">
-              🚫 Zarządzaj datami
-            </h2>
-            <p className="text-sm text-gray-600 mb-4">
-              Zablokuj dni kiedy nie możesz pracować (urlop, święta, zajęty)
-            </p>
-
-            <button
-              onClick={() => setShowDateBlocker(true)}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-3 rounded-lg font-medium mb-4 transition-colors"
-            >
-              + Zablokuj datę
-            </button>
-
-            <div className="space-y-2">
-              <p className="text-sm font-medium text-gray-700">
-                Brak zablokowanych dat
-              </p>
-              <p className="text-xs text-gray-500">
-                Zablokuj daty, kiedy nie chcesz przyjmować ofert pracy. Zmiany
-                są synchronizowane automatycznie.
-              </p>
+          {/* Availability Summary Card */}
+          <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-white/60 shadow-xl p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold text-gray-900">
+                📅 Twoja dostępność
+              </h3>
+              <div className="text-2xl font-bold text-green-600">
+                {workerProfile?.availability
+                  ? Object.values(workerProfile.availability).filter(Boolean)
+                      .length
+                  : 5}
+                /7 dni
+              </div>
             </div>
+            <div className="flex gap-1 mb-4">
+              {WEEK_DAYS_PL.map((day, index) => {
+                const dbDayKey = WEEK_DAYS_DB[index];
+                const isAvailable =
+                  workerProfile?.availability?.[dbDayKey] ?? index < 5;
+                return (
+                  <div
+                    key={day}
+                    className={`flex-1 py-2 text-center text-xs font-medium rounded-lg ${
+                      isAvailable
+                        ? "bg-green-500 text-white"
+                        : "bg-gray-200 text-gray-400"
+                    }`}
+                  >
+                    {day}
+                  </div>
+                );
+              })}
+            </div>
+            <GlowButton
+              onClick={() => setActiveTab("settings")}
+              variant="success"
+              size="md"
+              fullWidth
+            >
+              📆 Zmień dostępność
+            </GlowButton>
           </div>
         </div>
 
@@ -1735,12 +1723,13 @@ export default function WorkerDashboard() {
                 Pokaż swoją pracę - dodaj zdjęcia
               </p>
             </div>
-            <button
+            <GlowButton
               onClick={() => openPortfolioModal()}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+              variant="primary"
+              size="md"
             >
               + Dodaj zdjęcia
-            </button>
+            </GlowButton>
           </div>
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -1755,134 +1744,17 @@ export default function WorkerDashboard() {
           </div>
         </div>
 
-        {/* Szybkie działania Card */}
-        <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6 mb-6">
-          <h2 className="text-xl font-bold text-gray-900 mb-4">
-            ⚡ Szybkie działania
-          </h2>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <Link
-              to="/employers"
-              className="w-full px-4 py-2.5 bg-orange-600 text-white rounded-lg font-medium hover:bg-orange-700 flex items-center justify-center gap-2 transition-colors text-sm"
-            >
-              <svg
-                className="w-4 h-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                />
-              </svg>
-              Szukaj pracodawców
-            </Link>
-
-            <Link
-              to="/cleaning-companies"
-              className="w-full px-4 py-2.5 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 flex items-center justify-center gap-2 transition-colors text-sm"
-            >
-              <svg
-                className="w-4 h-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
-                />
-              </svg>
-              Szukaj firm sprzątających
-            </Link>
-
-            <Link
-              to="/accountants"
-              className="w-full px-4 py-2.5 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 flex items-center justify-center gap-2 transition-colors text-sm"
-            >
-              <svg
-                className="w-4 h-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"
-                />
-              </svg>
-              Szukaj księgowych
-            </Link>
-
-            <Link
-              to="/faktury"
-              className="w-full px-4 py-2.5 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 flex items-center justify-center gap-2 transition-colors text-sm"
-            >
-              <svg
-                className="w-4 h-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                />
-              </svg>
-              Faktury & BTW
-            </Link>
-
-            <button
-              onClick={handleViewSubscription}
-              className="w-full px-4 py-2.5 bg-purple-600 text-white rounded-lg font-medium hover:bg-purple-700 flex items-center justify-center gap-2 transition-colors text-sm"
-            >
-              <svg
-                className="w-4 h-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"
-                />
-              </svg>
-              Subskrypcja
-            </button>
-
-            <button
-              onClick={handleContactSupport}
-              className="w-full px-4 py-2.5 border-2 border-gray-300 rounded-lg font-medium text-gray-700 hover:bg-gray-50 flex items-center justify-center gap-2 transition-colors text-sm"
-            >
-              <svg
-                className="w-4 h-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-5 0a4 4 0 11-8 0 4 4 0 018 0z"
-                />
-              </svg>
-              Wsparcie
-            </button>
-          </div>
+        {/* 📅 Nadchodzące spotkania - Real Calendar Events */}
+        <div className="mb-6">
+          <UpcomingEventsCard />
         </div>
+
+        {/* Szybkie działania Card - Premium Glass Style */}
+        <QuickActionsCard
+          role="worker"
+          isMobile={isMobile}
+          onSubscription={handleViewSubscription}
+        />
 
         {/* DateBlocker Modal */}
         {showDateBlocker && (
@@ -2259,6 +2131,53 @@ export default function WorkerDashboard() {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 p-8">
         <div className="max-w-6xl mx-auto">
+          {/* Profile Navigation Drawer - DRUGI HAMBURGER */}
+          <ProfileNavigationDrawer
+            isOpen={isProfileSidebarOpen}
+            onClose={() => setIsProfileSidebarOpen(false)}
+            activeSubTab={activeProfileTab}
+            onSubTabChange={(tab) => {
+              setActiveProfileTab(tab);
+              setIsProfileSidebarOpen(false);
+            }}
+            role="worker"
+            userName={workerProfile?.full_name || "Pracownik"}
+            userAvatar={workerProfile?.avatar_url}
+          />
+
+          {/* Profile Sub-Header with Second Hamburger (Mobile Only) */}
+          {isMobile && (
+            <div className="bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-lg mb-4 shadow-lg">
+              <div className="flex items-center justify-between px-4 py-3">
+                <button
+                  onClick={() => setIsProfileSidebarOpen(true)}
+                  className="p-2 hover:bg-white/20 rounded-lg transition-colors"
+                  aria-label="Otwórz menu profilu"
+                >
+                  <svg
+                    className="w-6 h-6"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M4 6h16M4 12h16M4 18h16"
+                    />
+                  </svg>
+                </button>
+                <h2 className="text-lg font-bold">
+                  {activeProfileTab === "edit" && "✏️ Edytuj Profil"}
+                  {activeProfileTab === "availability" && "📅 Dostępność"}
+                  {activeProfileTab === "stats" && "📈 Statystyki"}
+                </h2>
+                <div className="w-10"></div>
+              </div>
+            </div>
+          )}
+
           {/* Header with Avatar */}
           <div className="relative bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-700 h-32 rounded-2xl mb-16">
             <div className="absolute -bottom-12 left-8">
@@ -2293,29 +2212,30 @@ export default function WorkerDashboard() {
             </div>
           </div>
 
-          {/* Tab Navigation */}
-          <div className="flex gap-4 mb-8 border-b border-gray-200 overflow-x-auto bg-white rounded-t-2xl px-4">
-            {[
-              { id: "overview", label: "📊 Przegląd" },
-              { id: "basic", label: "👤 Dane podstawowe" },
-              { id: "skills", label: "⚡ Umiejętności" },
-              { id: "certificates", label: "🏆 Certyfikaty" },
-              { id: "portfolio", label: "💼 Portfolio" },
-              { id: "settings", label: "⚙️ Ustawienia" },
-            ].map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveProfileTab(tab.id)}
-                className={`px-6 py-3 font-medium whitespace-nowrap transition-colors ${
-                  activeProfileTab === tab.id
-                    ? "text-blue-600 border-b-2 border-blue-600"
-                    : "text-gray-600 hover:text-gray-900"
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
+          {/* Tab Navigation - Desktop Only */}
+          {!isMobile && (
+            <div className="flex gap-4 mb-8 border-b border-gray-200 overflow-x-auto bg-white rounded-t-2xl px-4">
+              {[
+                { id: "overview", label: "📊 Przegląd" },
+                { id: "basic", label: "👤 Dane podstawowe" },
+                { id: "skills", label: "⚡ Umiejętności" },
+                { id: "certificates", label: "🏆 Certyfikaty" },
+                { id: "portfolio", label: "💼 Portfolio" },
+              ].map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveProfileTab(tab.id)}
+                  className={`px-6 py-3 font-medium whitespace-nowrap transition-colors ${
+                    activeProfileTab === tab.id
+                      ? "text-blue-600 border-b-2 border-blue-600"
+                      : "text-gray-600 hover:text-gray-900"
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+          )}
 
           {/* Tab Content */}
           <div className="bg-white rounded-b-2xl shadow-xl p-8 border border-gray-200">
@@ -2324,7 +2244,6 @@ export default function WorkerDashboard() {
             {activeProfileTab === "skills" && renderProfileSkills()}
             {activeProfileTab === "certificates" && renderProfileCertificates()}
             {activeProfileTab === "portfolio" && renderProfilePortfolio()}
-            {activeProfileTab === "settings" && renderProfileSettings()}
           </div>
         </div>
       </div>
@@ -2645,20 +2564,22 @@ export default function WorkerDashboard() {
 
         {/* Action Buttons */}
         <div className="flex gap-4 pt-4">
-          <button
+          <GlowButton
             type="submit"
             disabled={saving}
-            className="px-8 py-3 bg-gradient-to-r from-accent-cyber to-accent-techGreen text-white font-bold rounded-lg hover:shadow-lg hover:shadow-accent-cyber/50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            variant="success"
+            size="lg"
           >
             {saving ? "⏳ Zapisywanie..." : "💾 Zapisz zmiany"}
-          </button>
-          <button
+          </GlowButton>
+          <GlowButton
             type="button"
             onClick={() => setActiveTab("overview")}
-            className="px-8 py-3 bg-dark-700 text-white font-bold rounded-lg hover:bg-dark-600 transition-all"
+            variant="primary"
+            size="lg"
           >
             Anuluj
-          </button>
+          </GlowButton>
         </div>
       </form>
     );
@@ -2682,13 +2603,14 @@ export default function WorkerDashboard() {
             className="flex-1 px-4 py-3 bg-dark-700 border border-neutral-600 rounded-lg text-white focus:border-accent-cyber focus:outline-none"
             placeholder="Wpisz umiejętność i naciśnij Enter..."
           />
-          <button
+          <GlowButton
             type="button"
             onClick={handleAddSkill}
-            className="px-6 py-3 bg-gradient-to-r from-accent-cyber to-accent-techGreen text-white font-bold rounded-lg hover:shadow-lg hover:shadow-accent-cyber/50 transition-all"
+            variant="success"
+            size="md"
           >
             + Dodaj
-          </button>
+          </GlowButton>
         </div>
 
         {/* Skills List */}
@@ -2927,169 +2849,6 @@ export default function WorkerDashboard() {
     );
   };
 
-  // Profile Tab: Settings
-  const renderProfileSettings = () => {
-    return (
-      <div className="space-y-8">
-        <h2 className="text-2xl font-bold text-white mb-6">Ustawienia</h2>
-
-        {/* Notifications */}
-        <div>
-          <h3 className="text-lg font-bold text-white mb-4">Powiadomienia</h3>
-          <div className="space-y-3">
-            <label className="flex items-center gap-3">
-              <input
-                type="checkbox"
-                checked={notificationSettings.email_enabled}
-                onChange={(e) =>
-                  setNotificationSettings({
-                    ...notificationSettings,
-                    email_enabled: e.target.checked,
-                  })
-                }
-                className="w-5 h-5 rounded border-neutral-600 bg-dark-700 text-accent-cyber focus:ring-accent-cyber"
-              />
-              <span className="text-white">Włącz powiadomienia email</span>
-            </label>
-            <label className="flex items-center gap-3">
-              <input
-                type="checkbox"
-                checked={notificationSettings.sms_enabled}
-                onChange={(e) =>
-                  setNotificationSettings({
-                    ...notificationSettings,
-                    sms_enabled: e.target.checked,
-                  })
-                }
-                className="w-5 h-5 rounded border-neutral-600 bg-dark-700 text-accent-cyber focus:ring-accent-cyber"
-              />
-              <span className="text-white">Włącz powiadomienia SMS</span>
-            </label>
-            <label className="flex items-center gap-3">
-              <input
-                type="checkbox"
-                checked={notificationSettings.push_enabled}
-                onChange={(e) =>
-                  setNotificationSettings({
-                    ...notificationSettings,
-                    push_enabled: e.target.checked,
-                  })
-                }
-                className="w-5 h-5 rounded border-neutral-600 bg-dark-700 text-accent-cyber focus:ring-accent-cyber"
-              />
-              <span className="text-white">Włącz powiadomienia push</span>
-            </label>
-          </div>
-          <button
-            onClick={handleNotificationSettingsUpdate}
-            disabled={saving}
-            className="mt-4 px-6 py-2 bg-accent-cyber text-white rounded-lg hover:bg-accent-cyber/80 transition-all disabled:opacity-50"
-          >
-            💾 Zapisz ustawienia powiadomień
-          </button>
-        </div>
-
-        {/* Privacy */}
-        <div>
-          <h3 className="text-lg font-bold text-white mb-4">Prywatność</h3>
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm text-neutral-400 mb-2">
-                Widoczność profilu
-              </label>
-              <select
-                value={privacySettings.profile_visibility}
-                onChange={(e) =>
-                  setPrivacySettings({
-                    ...privacySettings,
-                    profile_visibility: e.target.value as any,
-                  })
-                }
-                className="w-full px-4 py-3 bg-dark-700 border border-neutral-600 rounded-lg text-white focus:border-accent-cyber focus:outline-none"
-              >
-                <option value="public">Publiczny</option>
-                <option value="contacts">Tylko kontakty</option>
-                <option value="private">Prywatny</option>
-              </select>
-            </div>
-            <label className="flex items-center gap-3">
-              <input
-                type="checkbox"
-                checked={privacySettings.show_email}
-                onChange={(e) =>
-                  setPrivacySettings({
-                    ...privacySettings,
-                    show_email: e.target.checked,
-                  })
-                }
-                className="w-5 h-5 rounded border-neutral-600 bg-dark-700 text-accent-cyber focus:ring-accent-cyber"
-              />
-              <span className="text-white">Pokaż email publicznie</span>
-            </label>
-            <label className="flex items-center gap-3">
-              <input
-                type="checkbox"
-                checked={privacySettings.show_phone}
-                onChange={(e) =>
-                  setPrivacySettings({
-                    ...privacySettings,
-                    show_phone: e.target.checked,
-                  })
-                }
-                className="w-5 h-5 rounded border-neutral-600 bg-dark-700 text-accent-cyber focus:ring-accent-cyber"
-              />
-              <span className="text-white">Pokaż telefon publicznie</span>
-            </label>
-            <label className="flex items-center gap-3">
-              <input
-                type="checkbox"
-                checked={privacySettings.show_location}
-                onChange={(e) =>
-                  setPrivacySettings({
-                    ...privacySettings,
-                    show_location: e.target.checked,
-                  })
-                }
-                className="w-5 h-5 rounded border-neutral-600 bg-dark-700 text-accent-cyber focus:ring-accent-cyber"
-              />
-              <span className="text-white">Pokaż lokalizację publicznie</span>
-            </label>
-          </div>
-          <button
-            onClick={handlePrivacySettingsUpdate}
-            disabled={saving}
-            className="mt-4 px-6 py-2 bg-accent-cyber text-white rounded-lg hover:bg-accent-cyber/80 transition-all disabled:opacity-50"
-          >
-            💾 Zapisz ustawienia prywatności
-          </button>
-        </div>
-
-        {/* Language */}
-        <div>
-          <h3 className="text-lg font-bold text-white mb-4">Regionalne</h3>
-          <div>
-            <label className="block text-sm text-neutral-400 mb-2">Język</label>
-            <select
-              value={profileForm.language}
-              onChange={(e) =>
-                setProfileForm({
-                  ...profileForm,
-                  language: e.target.value as any,
-                })
-              }
-              className="w-full px-4 py-3 bg-dark-700 border border-neutral-600 rounded-lg text-white focus:border-accent-cyber focus:outline-none"
-            >
-              <option value="nl">🇳🇱 Nederlands</option>
-              <option value="en">🇬🇧 English</option>
-              <option value="pl">🇵🇱 Polski</option>
-              <option value="de">🇩🇪 Deutsch</option>
-            </select>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
   // ===================================================================
   // PORTFOLIO TAB
   // ===================================================================
@@ -3116,12 +2875,13 @@ export default function WorkerDashboard() {
             <div className="text-center py-16 bg-white rounded-xl shadow-xl border border-gray-200">
               <div className="text-6xl mb-4">📂</div>
               <p className="text-gray-600 mb-6">Brak projektów w portfolio</p>
-              <button
+              <GlowButton
                 onClick={() => openPortfolioModal()}
-                className="px-6 py-3 bg-blue-600 text-white font-bold rounded-lg hover:shadow-lg transition-all"
+                variant="primary"
+                size="lg"
               >
                 Dodaj pierwszy projekt
-              </button>
+              </GlowButton>
             </div>
           ) : (
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -4676,25 +4436,46 @@ export default function WorkerDashboard() {
   };
 
   // ===================================================================
-  // CERTIFICATE APPLICATION TAB
+  // CERTIFICATE APPLICATION TAB - ZZP EXAM (€230)
   // ===================================================================
 
   const renderCertificateApplication = () => {
+    // Get user email from profile
+    const userEmail = workerProfile?.email || "";
+
     return (
-      <div className="min-h-screen bg-primary-dark p-8">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 p-8">
         <div className="max-w-4xl mx-auto">
-          <CertificateApplicationForm
-            workerId={userId}
-            onSubmit={() => {
-              setSuccess("✅ Aplikacja wysłana! Skontaktujemy się wkrótce.");
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">
+            🏆 Aanmelden voor ZZP Examen
+          </h1>
+          <p className="text-gray-600 mb-8">
+            Fysiek examen in magazijn + Officieel ZZP Certificaat (€230
+            eenmalig)
+          </p>
+
+          <ZZPExamApplicationForm
+            userId={userId}
+            userEmail={userEmail}
+            onSuccess={() => {
+              setSuccess(
+                "✅ Egzamin opłacony! Wkrótce skontaktujemy się w sprawie terminu."
+              );
               setTimeout(() => {
                 setActiveTab("subscription");
-              }, 2000);
-            }}
-            onCancel={() => {
-              setActiveTab("subscription");
+              }, 3000);
             }}
           />
+
+          {/* Back button */}
+          <div className="mt-6 text-center">
+            <button
+              onClick={() => setActiveTab("subscription")}
+              className="text-gray-600 hover:text-gray-900 underline"
+            >
+              ← Terug naar abonnement
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -4722,88 +4503,171 @@ export default function WorkerDashboard() {
         <Animated3DProfileBackground role="worker" opacity={0.25} />
       </div>
 
-      <div className="relative z-10">
-        {/* Global Notifications */}
-        {error && (
-          <div className="fixed top-4 right-4 z-50 bg-red-500/90 text-white px-6 py-4 rounded-lg shadow-2xl border border-red-400 animate-slide-in">
-            {error}
-          </div>
+      {/* Main Layout: Sidebar + Content */}
+      <div className="flex h-screen relative z-10">
+        {/* Desktop Sidebar */}
+        {!isMobile && (
+          <DashboardSidebar
+            activeTab={activeTab}
+            onTabChange={setActiveTab}
+            title="👷 Pracownik"
+            subtitle="Panel zarządzania"
+            unreadMessages={unreadCount}
+            onSupportClick={handleContactSupport}
+          />
         )}
-        {success && (
-          <div className="fixed top-4 right-4 z-50 bg-green-500/90 text-white px-6 py-4 rounded-lg shadow-2xl border border-green-400 animate-slide-in">
-            {success}
-          </div>
+
+        {/* Mobile Navigation Drawer */}
+        {isMobile && (
+          <DashboardSidebar
+            activeTab={activeTab}
+            onTabChange={setActiveTab}
+            title="👷 Pracownik"
+            subtitle="Panel zarządzania"
+            unreadMessages={unreadCount}
+            isMobile={true}
+            isMobileMenuOpen={isSidebarOpen}
+            onMobileMenuToggle={() => setIsSidebarOpen(false)}
+            onSupportClick={handleContactSupport}
+          />
         )}
 
-        {/* ✅ Unified Dashboard Tabs */}
-        <div className="bg-white border-b border-gray-200 sticky top-0 z-50 shadow-sm">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-            <UnifiedDashboardTabs
-              activeTab={activeTab}
-              onTabChange={setActiveTab}
-              role="worker"
-              unreadMessages={unreadCount}
-            />
-          </div>
-        </div>
-
-        {/* Tab Content */}
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <TabPanel isActive={activeTab === "overview"}>
-            {renderPanelTab()}
-          </TabPanel>
-
-          <TabPanel isActive={activeTab === "profile"}>
-            {renderSettingsTab()}
-          </TabPanel>
-
-          <TabPanel isActive={activeTab === "reviews"}>
-            {renderReviewsTab()}
-          </TabPanel>
-
-          <TabPanel isActive={activeTab === "messages"}>
-            {renderMessagesTab()}
-          </TabPanel>
-
-          <TabPanel isActive={activeTab === "certificates"}>
-            {renderProfileCertificates()}
-
-            {/* Certificate Application Form */}
-            <div className="mt-8">
-              <CertificateApplicationForm
-                workerId={userId}
-                onSubmit={() => {
-                  setSuccess(
-                    "✅ Aplikacja wysłana! Skontaktujemy się wkrótce."
-                  );
-                  setTimeout(() => {
-                    // Reload certificates after submission
-                    loadAllData();
-                  }, 2000);
-                }}
-                onCancel={() => setActiveTab("overview")}
-              />
+        {/* Main Content Area */}
+        <div className="flex-1 flex flex-col overflow-hidden">
+          {/* Mobile Header with Hamburger */}
+          {isMobile && (
+            <div className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white sticky top-0 z-40 shadow-lg flex-shrink-0">
+              <div className="flex items-center justify-between px-4 py-3">
+                <h1 className="text-lg font-bold">👷 Pracownik</h1>
+                <button
+                  onClick={() => setIsSidebarOpen(true)}
+                  className="p-2 hover:bg-white/20 rounded-lg transition-colors"
+                  aria-label="Otwórz menu"
+                >
+                  <svg
+                    className="w-6 h-6"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M4 6h16M4 12h16M4 18h16"
+                    />
+                  </svg>
+                </button>
+              </div>
             </div>
-          </TabPanel>
+          )}
 
-          <TabPanel isActive={activeTab === "portfolio"}>
-            {renderPortfolio()}
-          </TabPanel>
+          {/* Global Notifications */}
+          {error && (
+            <div className="fixed top-4 right-4 z-50 bg-red-500/90 text-white px-6 py-4 rounded-lg shadow-2xl border border-red-400 animate-slide-in">
+              {error}
+            </div>
+          )}
+          {success && (
+            <div className="fixed top-4 right-4 z-50 bg-green-500/90 text-white px-6 py-4 rounded-lg shadow-2xl border border-green-400 animate-slide-in">
+              {success}
+            </div>
+          )}
 
-          <TabPanel isActive={activeTab === "subscription"}>
-            {renderSubscription()}
-          </TabPanel>
+          {/* Main scrollable content */}
+          <main className="flex-1 overflow-y-auto p-4 md:p-8">
+            <TabPanel isActive={activeTab === "overview"}>
+              {renderPanelTab()}
+            </TabPanel>
 
-          <TabPanel isActive={activeTab === "saved_activity"}>
-            <SavedActivity />
-          </TabPanel>
+            <TabPanel isActive={activeTab === "profile"}>
+              {renderSettingsTab()}
+            </TabPanel>
+
+            <TabPanel isActive={activeTab === "reviews"}>
+              {renderReviewsTab()}
+            </TabPanel>
+
+            <TabPanel isActive={activeTab === "messages"}>
+              {renderMessagesTab()}
+            </TabPanel>
+
+            <TabPanel isActive={activeTab === "certificates"}>
+              {renderProfileCertificates()}
+
+              {/* Certificate Application Form */}
+              <div className="mt-8">
+                <CertificateApplicationForm
+                  workerId={userId}
+                  onSubmit={() => {
+                    setSuccess(
+                      "✅ Aplikacja wysłana! Skontaktujemy się wkrótce."
+                    );
+                    setTimeout(() => {
+                      // Reload certificates after submission
+                      loadAllData();
+                    }, 2000);
+                  }}
+                  onCancel={() => setActiveTab("overview")}
+                />
+              </div>
+            </TabPanel>
+
+            <TabPanel isActive={activeTab === "portfolio"}>
+              {renderPortfolio()}
+            </TabPanel>
+
+            <TabPanel isActive={activeTab === "subscription"}>
+              {renderSubscription()}
+            </TabPanel>
+
+            <TabPanel isActive={activeTab === "saved_activity"}>
+              <SavedActivity />
+            </TabPanel>
+
+            <TabPanel isActive={activeTab === "team"}>
+              {userId && <WorkerTeamDashboard />}
+            </TabPanel>
+
+            <TabPanel isActive={activeTab === "my_profile"}>
+              <MyProfilePreview role="worker" />
+            </TabPanel>
+
+            <TabPanel isActive={activeTab === "settings"}>
+              <WorkerSettingsPanel
+                workerProfile={workerProfile}
+                notificationSettings={notificationSettings}
+                privacySettings={privacySettings}
+                language={profileForm.language || "pl"}
+                blockedDates={workerProfile?.unavailable_dates || []}
+                saving={saving}
+                onAvatarUpload={handleAvatarUpload}
+                onCoverImageUpload={handleCoverImageUploadSuccess}
+                onAvailabilityChange={handleAvailabilityChange}
+                onAvailabilityToggle={handleAvailabilityToggle}
+                onBlockDate={handleBlockDate}
+                onUnblockDate={handleUnblockDate}
+                onNotificationSettingsChange={setNotificationSettings}
+                onNotificationSettingsSave={handleNotificationSettingsUpdate}
+                onPrivacySettingsChange={setPrivacySettings}
+                onPrivacySettingsSave={handlePrivacySettingsUpdate}
+                onLanguageChange={(lang) =>
+                  setProfileForm({ ...profileForm, language: lang })
+                }
+                onProfileDataSave={handleProfileDataSave}
+                isMobile={isMobile}
+              />
+            </TabPanel>
+
+            {/* NOTE: Kilometers and Calendar tabs removed - they are only in /faktury module */}
+
+            {/* Support Ticket Modal */}
+            <SupportTicketModal
+              isOpen={showSupportModal}
+              onClose={() => setShowSupportModal(false)}
+            />
+          </main>
         </div>
-
-        {/* Support Ticket Modal */}
-        <SupportTicketModal
-          isOpen={showSupportModal}
-          onClose={() => setShowSupportModal(false)}
-        />
       </div>
     </div>
   );

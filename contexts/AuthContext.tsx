@@ -16,7 +16,8 @@ export type UserRole =
   | "employer"
   | "worker"
   | "accountant"
-  | "cleaning_company";
+  | "cleaning_company"
+  | "regular_user";
 
 export interface Subscription {
   planId: "worker-basic" | "worker-plus" | "client-basic" | "client-pro";
@@ -41,7 +42,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
-  register: (userData: RegisterData) => Promise<void>;
+  register: (userData: RegisterData) => Promise<{ userId: string }>;
   logout: () => Promise<void>;
   refreshToken: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
@@ -384,6 +385,57 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     const initializeAuth = async () => {
       try {
+        // 🔍 DEBUG: Check what's in localStorage immediately
+        console.log("[Auth] Checking localStorage for saved session...");
+        console.log("[Auth] All localStorage keys:", Object.keys(localStorage));
+
+        // ✅ CRITICAL: Check for saved session from Stripe payment redirect FIRST
+        // This runs before getSession to restore tokens lost during cross-domain redirect
+        const savedPaymentSession = localStorage.getItem(
+          "stripe_payment_session"
+        );
+        console.log(
+          "[Auth] stripe_payment_session value:",
+          savedPaymentSession ? "EXISTS" : "NULL"
+        );
+
+        if (savedPaymentSession) {
+          console.log(
+            "[Auth] Found saved payment session, attempting restore..."
+          );
+          try {
+            const sessionData = JSON.parse(savedPaymentSession);
+            const tokenAge = Date.now() - sessionData.timestamp;
+
+            // Only restore if token is less than 30 minutes old
+            if (tokenAge < 30 * 60 * 1000) {
+              console.log("[Auth] Token age OK, restoring session...");
+              const { data, error } = await supabase.auth.setSession({
+                access_token: sessionData.access_token,
+                refresh_token: sessionData.refresh_token,
+              });
+
+              if (data?.session) {
+                console.log("[Auth] ✅ Session restored from Stripe payment!");
+                localStorage.removeItem("stripe_payment_session");
+                // Continue with normal flow - session is now set
+              } else {
+                console.log(
+                  "[Auth] Could not restore session:",
+                  error?.message
+                );
+                localStorage.removeItem("stripe_payment_session");
+              }
+            } else {
+              console.log("[Auth] Saved token too old, discarding");
+              localStorage.removeItem("stripe_payment_session");
+            }
+          } catch (parseErr) {
+            console.error("[Auth] Error parsing saved session:", parseErr);
+            localStorage.removeItem("stripe_payment_session");
+          }
+        }
+
         // WHY: get existing Supabase session (if user is already logged in)
         const {
           data: { session },
@@ -477,8 +529,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const appUser = await mapSupabaseUserToAppUser(data.user);
       setUser(appUser);
 
-      // Keep animation visible for smooth transition (hide after navigation)
-      setTimeout(() => setShowLoginAnimation(false), 5000); // 1500 + 3500ms for longer animation
+      // Keep animation visible for smooth transition
+      setTimeout(() => setShowLoginAnimation(false), 3500); // Match animation duration
     } catch (error) {
       console.error("Login failed:", error);
       setShowLoginAnimation(false); // Hide on error
@@ -490,7 +542,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const register = async (userData: RegisterData): Promise<void> => {
+  const register = async (
+    userData: RegisterData
+  ): Promise<{ userId: string }> => {
     setIsLoading(true);
 
     try {
@@ -695,11 +749,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         }
       }
 
+      // 🔥 NEW: If regular_user, DON'T create regular_users entry here
+      // (RegisterRegularUserPage will do it after register() returns)
+      if (userData.role === ("regular_user" as any)) {
+        console.log(
+          "[REGULAR-USER-REG] Regular user auth created, profile will be completed by RegisterPage"
+        );
+      }
+
       // If auto-confirm is enabled, user will be logged in automatically
       if (data.session?.user) {
         const appUser = await mapSupabaseUserToAppUser(data.session.user);
         setUser(appUser);
       }
+
+      // Return userId for caller to use
+      return { userId: data.user.id };
     } catch (error) {
       console.error("Registration failed:", error);
       throw error instanceof Error
