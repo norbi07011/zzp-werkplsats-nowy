@@ -122,6 +122,10 @@ const ColorPickerPopup: React.FC<ColorPickerProps> = ({
   onChange,
   onClose,
 }) => {
+  const pickerRef = useRef<HTMLDivElement>(null);
+  const satLightRef = useRef<HTMLDivElement>(null);
+  const hueRef = useRef<HTMLDivElement>(null);
+
   // Use refs for dragging state to avoid re-renders
   const isDraggingSatLight = useRef(false);
   const isDraggingHue = useRef(false);
