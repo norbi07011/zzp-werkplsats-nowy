@@ -33,20 +33,9 @@ import {
   ChevronRight,
   Menu,
   X,
+  Settings,
+  HelpCircle,
 } from "lucide-react";
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 type TabType =
   | "dashboard"

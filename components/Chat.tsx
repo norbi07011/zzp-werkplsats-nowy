@@ -1,7 +1,19 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { useProjectChat, type ChatMessage, type ChatChannel } from '../hooks/useProjectChat';
-import { useAuth } from '../contexts/AuthContext';
-import { Send, Hash, Lock, MoreVertical, Image as ImageIcon, Paperclip, Smile } from 'lucide-react';
+import React, { useState, useEffect, useRef } from "react";
+import {
+  useProjectChat,
+  type ChatMessage,
+  type ChatChannel,
+} from "../hooks/useProjectChat";
+import { useAuth } from "../contexts/AuthContext";
+import {
+  Send,
+  Hash,
+  Lock,
+  MoreVertical,
+  Image as ImageIcon,
+  Paperclip,
+  Smile,
+} from "lucide-react";
 
 interface ChatProps {
   projectId: string;
@@ -9,20 +21,20 @@ interface ChatProps {
 
 export function Chat({ projectId }: ChatProps) {
   const { user } = useAuth();
-  const { 
-    channels, 
-    messages, 
-    loading, 
-    error, 
-    fetchChannels, 
-    createChannel, 
-    sendMessage, 
-    editMessage, 
-    deleteMessage 
+  const {
+    channels,
+    messages,
+    loading,
+    error,
+    fetchChannels,
+    createChannel,
+    sendMessage,
+    editMessage,
+    deleteMessage,
   } = useProjectChat(projectId);
-  
+
   const [activeChannelId, setActiveChannelId] = useState<string | null>(null);
-  const [messageInput, setMessageInput] = useState('');
+  const [messageInput, setMessageInput] = useState("");
   const [showChannelForm, setShowChannelForm] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -35,7 +47,7 @@ export function Chat({ projectId }: ChatProps) {
 
   // Scroll to bottom when new messages arrive
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
   const handleSendMessage = async (e: React.FormEvent) => {
@@ -43,10 +55,10 @@ export function Chat({ projectId }: ChatProps) {
     if (!messageInput.trim() || !activeChannelId) return;
 
     try {
-      await sendMessage(messageInput, 'text');
-      setMessageInput('');
+      await sendMessage(messageInput, "text");
+      setMessageInput("");
     } catch (err) {
-      console.error('Failed to send message:', err);
+      console.error("Failed to send message:", err);
     }
   };
 
@@ -63,12 +75,20 @@ export function Chat({ projectId }: ChatProps) {
     const isToday = date.toDateString() === today.toDateString();
 
     if (isToday) {
-      return date.toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' });
+      return date.toLocaleTimeString("pl-PL", {
+        hour: "2-digit",
+        minute: "2-digit",
+      });
     }
-    return date.toLocaleDateString('pl-PL', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+    return date.toLocaleDateString("pl-PL", {
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
   };
 
-  const activeChannel = channels.find(c => c.id === activeChannelId);
+  const activeChannel = channels.find((c) => c.id === activeChannelId);
 
   if (loading && channels.length === 0) {
     return (
@@ -95,14 +115,14 @@ export function Chat({ projectId }: ChatProps) {
         </div>
 
         <div className="flex-1 overflow-y-auto p-2">
-          {channels.map(channel => (
+          {channels.map((channel) => (
             <button
               key={channel.id}
               onClick={() => setActiveChannelId(channel.id)}
               className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg transition-colors ${
                 activeChannelId === channel.id
-                  ? 'bg-blue-100 text-blue-700'
-                  : 'text-gray-700 hover:bg-gray-100'
+                  ? "bg-blue-100 text-blue-700"
+                  : "text-gray-700 hover:bg-gray-100"
               }`}
             >
               {getChannelIcon(channel)}
@@ -131,9 +151,13 @@ export function Chat({ projectId }: ChatProps) {
             <div className="flex items-center gap-2">
               {getChannelIcon(activeChannel)}
               <div>
-                <h3 className="font-semibold text-gray-900">{activeChannel.name}</h3>
+                <h3 className="font-semibold text-gray-900">
+                  {activeChannel.name}
+                </h3>
                 {activeChannel.description && (
-                  <p className="text-sm text-gray-500">{activeChannel.description}</p>
+                  <p className="text-sm text-gray-500">
+                    {activeChannel.description}
+                  </p>
                 )}
               </div>
             </div>
@@ -157,12 +181,16 @@ export function Chat({ projectId }: ChatProps) {
             <>
               {messages.map((message, index) => {
                 const isOwnMessage = message.sender_id === user?.id;
-                const showAvatar = index === 0 || messages[index - 1].sender_id !== message.sender_id;
+                const showAvatar =
+                  index === 0 ||
+                  messages[index - 1].sender_id !== message.sender_id;
 
                 return (
                   <div
                     key={message.id}
-                    className={`flex gap-3 ${isOwnMessage ? 'flex-row-reverse' : ''}`}
+                    className={`flex gap-3 ${
+                      isOwnMessage ? "flex-row-reverse" : ""
+                    }`}
                   >
                     {showAvatar ? (
                       <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white text-sm font-semibold flex-shrink-0">
@@ -172,19 +200,25 @@ export function Chat({ projectId }: ChatProps) {
                       <div className="w-8 flex-shrink-0"></div>
                     )}
 
-                    <div className={`flex-1 max-w-md ${isOwnMessage ? 'items-end' : 'items-start'} flex flex-col`}>
+                    <div
+                      className={`flex-1 max-w-md ${
+                        isOwnMessage ? "items-end" : "items-start"
+                      } flex flex-col`}
+                    >
                       <div
                         className={`px-4 py-2 rounded-lg ${
                           isOwnMessage
-                            ? 'bg-blue-600 text-white'
-                            : 'bg-gray-100 text-gray-900'
+                            ? "bg-blue-600 text-white"
+                            : "bg-gray-100 text-gray-900"
                         }`}
                       >
                         <p className="text-sm whitespace-pre-wrap break-words">
                           {message.message_text}
                         </p>
                         {message.is_edited && (
-                          <span className="text-xs opacity-70 ml-2">(edytowane)</span>
+                          <span className="text-xs opacity-70 ml-2">
+                            (edytowane)
+                          </span>
                         )}
                       </div>
                       <span className="text-xs text-gray-500 mt-1">
@@ -205,10 +239,16 @@ export function Chat({ projectId }: ChatProps) {
             <form onSubmit={handleSendMessage} className="flex items-end gap-2">
               <div className="flex-1">
                 <div className="flex items-center gap-2 bg-gray-50 rounded-lg px-3 py-2">
-                  <button type="button" className="p-1 hover:bg-gray-200 rounded transition-colors">
+                  <button
+                    type="button"
+                    className="p-1 hover:bg-gray-200 rounded transition-colors"
+                  >
                     <Paperclip className="w-5 h-5 text-gray-500" />
                   </button>
-                  <button type="button" className="p-1 hover:bg-gray-200 rounded transition-colors">
+                  <button
+                    type="button"
+                    className="p-1 hover:bg-gray-200 rounded transition-colors"
+                  >
                     <ImageIcon className="w-5 h-5 text-gray-500" />
                   </button>
                   <input
@@ -218,7 +258,10 @@ export function Chat({ projectId }: ChatProps) {
                     placeholder="Napisz wiadomość..."
                     className="flex-1 bg-transparent border-none outline-none text-gray-900 placeholder-gray-500"
                   />
-                  <button type="button" className="p-1 hover:bg-gray-200 rounded transition-colors">
+                  <button
+                    type="button"
+                    className="p-1 hover:bg-gray-200 rounded transition-colors"
+                  >
                     <Smile className="w-5 h-5 text-gray-500" />
                   </button>
                 </div>

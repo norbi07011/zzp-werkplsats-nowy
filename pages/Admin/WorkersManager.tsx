@@ -380,9 +380,13 @@ export const WorkersManager = () => {
                           {worker.firstName} {worker.lastName}
                         </h3>
                         {worker.isVerified ? (
-                          <span className="text-green-400 text-xs flex items-center gap-1">✓ Zweryfikowany</span>
+                          <span className="text-green-400 text-xs flex items-center gap-1">
+                            ✓ Zweryfikowany
+                          </span>
                         ) : (
-                          <span className="text-yellow-400 text-xs">⚠️ Do weryfikacji</span>
+                          <span className="text-yellow-400 text-xs">
+                            ⚠️ Do weryfikacji
+                          </span>
                         )}
                       </div>
                       <p className="text-sm text-gray-400">{worker.location}</p>
@@ -390,17 +394,21 @@ export const WorkersManager = () => {
                         <span className="text-xs text-gray-300 bg-white/10 px-2 py-1 rounded-full">
                           {worker.category}
                         </span>
-                        <span className={`text-xs px-2 py-1 rounded-full ${
-                          worker.level === Level.Senior
-                            ? "bg-purple-500/20 text-purple-300"
-                            : worker.level === Level.Regular
-                            ? "bg-blue-500/20 text-blue-300"
-                            : "bg-green-500/20 text-green-300"
-                        }`}>
+                        <span
+                          className={`text-xs px-2 py-1 rounded-full ${
+                            worker.level === Level.Senior
+                              ? "bg-purple-500/20 text-purple-300"
+                              : worker.level === Level.Regular
+                              ? "bg-blue-500/20 text-blue-300"
+                              : "bg-green-500/20 text-green-300"
+                          }`}
+                        >
                           {worker.level}
                         </span>
                         {worker.hasVca && (
-                          <span className="text-xs text-green-400 bg-green-500/10 px-2 py-1 rounded-full">VCA ✓</span>
+                          <span className="text-xs text-green-400 bg-green-500/10 px-2 py-1 rounded-full">
+                            VCA ✓
+                          </span>
                         )}
                       </div>
                       <div className="flex items-center gap-2 mt-3">
@@ -438,7 +446,7 @@ export const WorkersManager = () => {
               ))
             )}
           </div>
-          
+
           {/* Desktop Table View */}
           <div className="hidden md:block overflow-x-auto scrollable-table-container scroll-right">
             <table className="w-full">

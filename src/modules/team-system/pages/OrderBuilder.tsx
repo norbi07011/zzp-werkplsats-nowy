@@ -7,21 +7,20 @@
  */
 
 import React, { useState } from "react";
+import {
+  Briefcase,
+  CheckCircle,
+  ChevronLeft,
+  ChevronRight,
+  Euro,
+  FileText,
+  MapPin,
+  Plus,
+  Save,
+  Users,
+} from "lucide-react";
 import { useTeamStore } from "../context/TeamStoreContext";
 import { Priority, TaskStatus, Task, Project } from "../types";
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 interface OrderFormData {
   title: string;

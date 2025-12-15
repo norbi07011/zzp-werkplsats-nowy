@@ -8,8 +8,37 @@ import { PageLoader } from "../components/PageLoader";
 import { TruckAnimation } from "../components/TruckAnimation";
 import { VehicleAnimation } from "../components/VehicleAnimations";
 import { TiltCard } from "../components/TiltCard";
-// Import icons from lucide-react (React 18+ style)
-const CheckCircle2 = CheckCircle; // Alias for compatibility
+import {
+  BarChart2 as BarChart,
+  Bike,
+  Calculator,
+  Calendar,
+  Car,
+  Check,
+  CheckCircle,
+  Download,
+  Edit3,
+  FileSpreadsheet,
+  FileText,
+  Filter,
+  Fuel,
+  Gauge,
+  History,
+  Navigation,
+  Plus,
+  RefreshCw,
+  Save,
+  Settings,
+  ShieldCheck,
+  Trash2,
+  TrendingUp,
+  User,
+  X,
+  Zap,
+} from "lucide-react";
+
+// Alias for compatibility
+const CheckCircle2 = CheckCircle;
 
 // --- Constants & Dutch Tax Rules ---
 

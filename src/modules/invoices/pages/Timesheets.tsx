@@ -1,17 +1,18 @@
 import React, { useState, useEffect, useMemo } from "react";
-
-
-
-
-
-
-
-
-
-
-
-
-
+import {
+  ArrowRight,
+  Building2,
+  Calculator,
+  ChevronLeft,
+  ChevronRight,
+  Clock,
+  Download,
+  Loader2,
+  MapPin,
+  Palette,
+  User,
+  Wand2,
+} from "lucide-react";
 
 import { useAuth } from "../../../../contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
@@ -496,7 +497,7 @@ export const Timesheets: React.FC = () => {
             className="group relative overflow-hidden bg-gradient-to-r from-orange-500 to-red-500 text-white px-8 py-3 rounded-xl flex items-center gap-3 shadow-lg shadow-orange-500/30 hover:shadow-orange-500/50 transition-all hover:-translate-y-1 disabled:opacity-70"
           >
             {isGenerating ? (
-              <Loader size={20} className="animate-spin" />
+              <Loader2 size={20} className="animate-spin" />
             ) : (
               <Download size={20} />
             )}

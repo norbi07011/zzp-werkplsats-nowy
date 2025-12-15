@@ -29,15 +29,15 @@ Node version:        20 (w Environment)
 
 W Netlify Dashboard → Site settings → Environment variables:
 
-| Zmienna | Wartość |
-|---------|---------|
-| `VITE_SUPABASE_URL` | `https://[PROJECT_ID].supabase.co` |
-| `VITE_SUPABASE_ANON_KEY` | Twój anon key z Supabase |
-| `VITE_STRIPE_PUBLISHABLE_KEY` | `pk_test_...` lub `pk_live_...` |
-| `VITE_STRIPE_PRICE_WORKER_PREMIUM` | ID ceny z Stripe |
-| `VITE_STRIPE_PRICE_EMPLOYER_BASIC` | ID ceny z Stripe |
-| `VITE_STRIPE_PRICE_EMPLOYER_PREMIUM` | ID ceny z Stripe |
-| `NODE_VERSION` | `20` |
+| Zmienna                              | Wartość                            |
+| ------------------------------------ | ---------------------------------- |
+| `VITE_SUPABASE_URL`                  | `https://[PROJECT_ID].supabase.co` |
+| `VITE_SUPABASE_ANON_KEY`             | Twój anon key z Supabase           |
+| `VITE_STRIPE_PUBLISHABLE_KEY`        | `pk_test_...` lub `pk_live_...`    |
+| `VITE_STRIPE_PRICE_WORKER_PREMIUM`   | ID ceny z Stripe                   |
+| `VITE_STRIPE_PRICE_EMPLOYER_BASIC`   | ID ceny z Stripe                   |
+| `VITE_STRIPE_PRICE_EMPLOYER_PREMIUM` | ID ceny z Stripe                   |
+| `NODE_VERSION`                       | `20`                               |
 
 ### 4. Deploy!
 
@@ -92,15 +92,19 @@ W Supabase Edge Functions dodaj domenę Netlify do allowed origins.
 ## 🐛 Typowe Problemy
 
 ### Błąd 404 na deep links
+
 → Sprawdź czy `_redirects` jest w `dist/` po buildzie
 
 ### "Supabase client not initialized"
+
 → Brak zmiennych środowiskowych w Netlify
 
 ### Blank page
+
 → Sprawdź Console, prawdopodobnie błąd JS
 
 ### Auth nie działa
+
 → Dodaj domenę Netlify do Supabase URL Configuration
 
 ---

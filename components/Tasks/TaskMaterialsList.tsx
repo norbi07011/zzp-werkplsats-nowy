@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Plus, Trash2, Edit2, Package, ExternalLink } from 'lucide-react';
+import React, { useState } from "react";
+import { Plus, Trash2, Edit2, Package, ExternalLink } from "lucide-react";
 
 export interface TaskMaterial {
   name: string;
@@ -20,40 +20,56 @@ interface TaskMaterialsListProps {
 export function TaskMaterialsList({
   materials,
   onMaterialsChange,
-  editable = true
+  editable = true,
 }: TaskMaterialsListProps) {
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [formData, setFormData] = useState<TaskMaterial>({
-    name: '',
+    name: "",
     quantity: 1,
-    unit: 'szt',
+    unit: "szt",
     price: 0,
-    supplier: '',
-    supplier_url: '',
-    notes: ''
+    supplier: "",
+    supplier_url: "",
+    notes: "",
   });
 
-  const commonUnits = ['szt', 'm2', 'mb', 'litr', 'kg', 'rolka', 'paczka', 'worek'];
-  const commonSuppliers = ['Bouwmaat', 'Gamma', 'Praxis', 'Hornbach', 'Technische Unie', 'Houthandel'];
+  const commonUnits = [
+    "szt",
+    "m2",
+    "mb",
+    "litr",
+    "kg",
+    "rolka",
+    "paczka",
+    "worek",
+  ];
+  const commonSuppliers = [
+    "Bouwmaat",
+    "Gamma",
+    "Praxis",
+    "Hornbach",
+    "Technische Unie",
+    "Houthandel",
+  ];
 
-  const totalCost = materials.reduce((sum, m) => sum + (m.quantity * m.price), 0);
+  const totalCost = materials.reduce((sum, m) => sum + m.quantity * m.price, 0);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!formData.name.trim()) {
-      alert('Nazwa materiału jest wymagana');
+      alert("Nazwa materiału jest wymagana");
       return;
     }
 
     if (formData.quantity <= 0) {
-      alert('Ilość musi być większa niż 0');
+      alert("Ilość musi być większa niż 0");
       return;
     }
 
     if (formData.price < 0) {
-      alert('Cena nie może być ujemna');
+      alert("Cena nie może być ujemna");
       return;
     }
 
@@ -70,13 +86,13 @@ export function TaskMaterialsList({
 
     // Reset form
     setFormData({
-      name: '',
+      name: "",
       quantity: 1,
-      unit: 'szt',
+      unit: "szt",
       price: 0,
-      supplier: '',
-      supplier_url: '',
-      notes: ''
+      supplier: "",
+      supplier_url: "",
+      notes: "",
     });
     setShowAddForm(false);
   };
@@ -88,7 +104,7 @@ export function TaskMaterialsList({
   };
 
   const handleDelete = (index: number) => {
-    if (!confirm('Czy na pewno usunąć ten materiał?')) return;
+    if (!confirm("Czy na pewno usunąć ten materiał?")) return;
     const updated = materials.filter((_, i) => i !== index);
     onMaterialsChange(updated);
   };
@@ -97,13 +113,13 @@ export function TaskMaterialsList({
     setShowAddForm(false);
     setEditingIndex(null);
     setFormData({
-      name: '',
+      name: "",
       quantity: 1,
-      unit: 'szt',
+      unit: "szt",
       price: 0,
-      supplier: '',
-      supplier_url: '',
-      notes: ''
+      supplier: "",
+      supplier_url: "",
+      notes: "",
     });
   };
 
@@ -116,7 +132,8 @@ export function TaskMaterialsList({
           Materiały
           {materials.length > 0 && (
             <span className="text-sm font-normal text-gray-500">
-              ({materials.length} {materials.length === 1 ? 'pozycja' : 'pozycji'})
+              ({materials.length}{" "}
+              {materials.length === 1 ? "pozycja" : "pozycji"})
             </span>
           )}
         </h3>
@@ -133,9 +150,12 @@ export function TaskMaterialsList({
 
       {/* Add/Edit Form */}
       {showAddForm && editable && (
-        <form onSubmit={handleSubmit} className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-3">
+        <form
+          onSubmit={handleSubmit}
+          className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-3"
+        >
           <h4 className="font-medium text-gray-900">
-            {editingIndex !== null ? 'Edytuj materiał' : 'Nowy materiał'}
+            {editingIndex !== null ? "Edytuj materiał" : "Nowy materiał"}
           </h4>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -147,7 +167,9 @@ export function TaskMaterialsList({
               <input
                 type="text"
                 value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, name: e.target.value })
+                }
                 placeholder="np. Farba ścienna biała"
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg"
                 required
@@ -162,7 +184,12 @@ export function TaskMaterialsList({
               <input
                 type="number"
                 value={formData.quantity}
-                onChange={(e) => setFormData({ ...formData, quantity: parseFloat(e.target.value) || 0 })}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    quantity: parseFloat(e.target.value) || 0,
+                  })
+                }
                 step="0.01"
                 min="0.01"
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg"
@@ -177,11 +204,15 @@ export function TaskMaterialsList({
               </label>
               <select
                 value={formData.unit}
-                onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, unit: e.target.value })
+                }
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg"
               >
-                {commonUnits.map(unit => (
-                  <option key={unit} value={unit}>{unit}</option>
+                {commonUnits.map((unit) => (
+                  <option key={unit} value={unit}>
+                    {unit}
+                  </option>
                 ))}
               </select>
             </div>
@@ -194,7 +225,12 @@ export function TaskMaterialsList({
               <input
                 type="number"
                 value={formData.price}
-                onChange={(e) => setFormData({ ...formData, price: parseFloat(e.target.value) || 0 })}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    price: parseFloat(e.target.value) || 0,
+                  })
+                }
                 step="0.01"
                 min="0"
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg"
@@ -220,13 +256,15 @@ export function TaskMaterialsList({
               <input
                 type="text"
                 value={formData.supplier}
-                onChange={(e) => setFormData({ ...formData, supplier: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, supplier: e.target.value })
+                }
                 placeholder="np. Bouwmaat"
                 list="suppliers-list"
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg"
               />
               <datalist id="suppliers-list">
-                {commonSuppliers.map(supplier => (
+                {commonSuppliers.map((supplier) => (
                   <option key={supplier} value={supplier} />
                 ))}
               </datalist>
@@ -240,7 +278,9 @@ export function TaskMaterialsList({
               <input
                 type="url"
                 value={formData.supplier_url}
-                onChange={(e) => setFormData({ ...formData, supplier_url: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, supplier_url: e.target.value })
+                }
                 placeholder="https://..."
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg"
               />
@@ -253,7 +293,9 @@ export function TaskMaterialsList({
               </label>
               <textarea
                 value={formData.notes}
-                onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, notes: e.target.value })
+                }
                 placeholder="Dodatkowe informacje..."
                 rows={2}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg"
@@ -267,7 +309,7 @@ export function TaskMaterialsList({
               type="submit"
               className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
             >
-              {editingIndex !== null ? 'Zapisz zmiany' : 'Dodaj materiał'}
+              {editingIndex !== null ? "Zapisz zmiany" : "Dodaj materiał"}
             </button>
             <button
               type="button"
@@ -286,12 +328,26 @@ export function TaskMaterialsList({
           <table className="w-full">
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
-                <th className="text-left px-4 py-3 text-sm font-semibold text-gray-700">Materiał</th>
-                <th className="text-center px-4 py-3 text-sm font-semibold text-gray-700">Ilość</th>
-                <th className="text-right px-4 py-3 text-sm font-semibold text-gray-700">Cena/j.</th>
-                <th className="text-right px-4 py-3 text-sm font-semibold text-gray-700">Suma</th>
-                <th className="text-left px-4 py-3 text-sm font-semibold text-gray-700">Dostawca</th>
-                {editable && <th className="text-right px-4 py-3 text-sm font-semibold text-gray-700">Akcje</th>}
+                <th className="text-left px-4 py-3 text-sm font-semibold text-gray-700">
+                  Materiał
+                </th>
+                <th className="text-center px-4 py-3 text-sm font-semibold text-gray-700">
+                  Ilość
+                </th>
+                <th className="text-right px-4 py-3 text-sm font-semibold text-gray-700">
+                  Cena/j.
+                </th>
+                <th className="text-right px-4 py-3 text-sm font-semibold text-gray-700">
+                  Suma
+                </th>
+                <th className="text-left px-4 py-3 text-sm font-semibold text-gray-700">
+                  Dostawca
+                </th>
+                {editable && (
+                  <th className="text-right px-4 py-3 text-sm font-semibold text-gray-700">
+                    Akcje
+                  </th>
+                )}
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
@@ -299,9 +355,13 @@ export function TaskMaterialsList({
                 <tr key={index} className="hover:bg-gray-50">
                   <td className="px-4 py-3">
                     <div>
-                      <div className="font-medium text-gray-900">{material.name}</div>
+                      <div className="font-medium text-gray-900">
+                        {material.name}
+                      </div>
                       {material.notes && (
-                        <div className="text-xs text-gray-500 mt-1">{material.notes}</div>
+                        <div className="text-xs text-gray-500 mt-1">
+                          {material.notes}
+                        </div>
                       )}
                     </div>
                   </td>
@@ -357,7 +417,10 @@ export function TaskMaterialsList({
             </tbody>
             <tfoot className="bg-gray-50 border-t border-gray-200">
               <tr>
-                <td colSpan={editable ? 3 : 2} className="px-4 py-3 text-right font-semibold text-gray-900">
+                <td
+                  colSpan={editable ? 3 : 2}
+                  className="px-4 py-3 text-right font-semibold text-gray-900"
+                >
                   Razem:
                 </td>
                 <td className="px-4 py-3 text-right text-lg font-bold text-green-600">

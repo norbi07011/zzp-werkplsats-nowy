@@ -472,7 +472,10 @@ export const EmployersManager = () => {
               <div className="md:hidden divide-y divide-white/10">
                 {filteredCompanies.length === 0 ? (
                   <div className="px-6 py-16 text-center">
-                    <Building2 className="mx-auto mb-4 text-gray-400" size={48} />
+                    <Building2
+                      className="mx-auto mb-4 text-gray-400"
+                      size={48}
+                    />
                     <p className="text-xl text-gray-400">Brak firm</p>
                   </div>
                 ) : (
@@ -480,11 +483,17 @@ export const EmployersManager = () => {
                     <div
                       key={company.id}
                       className="p-4 hover:bg-white/5 transition-colors"
-                      onClick={() => navigate(`/profile/employer/${company.id}`)}
+                      onClick={() =>
+                        navigate(`/profile/employer/${company.id}`)
+                      }
                     >
                       <div className="flex items-start gap-3">
                         {company.logo_url ? (
-                          <img src={company.logo_url} alt={company.company_name} className="w-12 h-12 rounded-lg object-cover flex-shrink-0" />
+                          <img
+                            src={company.logo_url}
+                            alt={company.company_name}
+                            className="w-12 h-12 rounded-lg object-cover flex-shrink-0"
+                          />
                         ) : (
                           <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white font-bold flex-shrink-0">
                             {company.company_name.charAt(0)}
@@ -494,17 +503,25 @@ export const EmployersManager = () => {
                           <div className="flex items-center justify-between gap-2">
                             <h3 className="font-semibold text-white truncate flex items-center gap-1">
                               {company.company_name}
-                              {company.is_verified && <Shield className="text-green-400 flex-shrink-0" size={14} />}
+                              {company.is_verified && (
+                                <Shield
+                                  className="text-green-400 flex-shrink-0"
+                                  size={14}
+                                />
+                              )}
                             </h3>
                             {getPlanBadge(company.subscription_plan)}
                           </div>
                           {company.contact_email && (
-                            <p className="text-sm text-gray-400 truncate">{company.contact_email}</p>
+                            <p className="text-sm text-gray-400 truncate">
+                              {company.contact_email}
+                            </p>
                           )}
                           <div className="flex flex-wrap items-center gap-2 mt-2">
                             {getStatusBadge(company.subscription_status)}
                             <span className="text-xs text-gray-400">
-                              👥 {company.active_workers_count}/{company.workers_limit}
+                              👥 {company.active_workers_count}/
+                              {company.workers_limit}
                             </span>
                             <span className="text-xs text-gray-400">
                               💰 €{(company.total_spent ?? 0).toFixed(0)}
@@ -520,7 +537,10 @@ export const EmployersManager = () => {
                             </Link>
                             {!company.is_verified && (
                               <button
-                                onClick={(e) => { e.stopPropagation(); handleVerify(company.id); }}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleVerify(company.id);
+                                }}
                                 className="px-3 py-2 min-h-[44px] bg-green-500/20 text-green-300 rounded-lg text-sm"
                               >
                                 ✓ Weryfikuj
@@ -533,7 +553,7 @@ export const EmployersManager = () => {
                   ))
                 )}
               </div>
-              
+
               {/* Desktop Table View */}
               <div className="hidden md:block overflow-x-auto scrollable-table-container scroll-right">
                 <table className="w-full">

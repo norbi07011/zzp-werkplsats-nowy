@@ -10,8 +10,7 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "../../contexts/AuthContext";
 import { supabase } from "../../src/lib/supabase";
-
-
+import { Loader2, User } from "lucide-react";
 
 // Import public profile components
 import WorkerPublicProfilePage from "../../pages/public/WorkerPublicProfilePage";

@@ -83,7 +83,7 @@ declare module "lucide-react" {
   export const Move: any;
   export const Settings2: any;
   export const Pipette: any;
-  
+
   // DashboardSidebar icons
   export const MessageSquare: any;
   export const Star: any;
@@ -93,7 +93,7 @@ declare module "lucide-react" {
   export const ChevronRight: any;
   export const ChevronLeft: any;
   export const HelpCircle: any;
-  
+
   // TeamPage icons
   export const FolderKanban: any;
   export const MessageCircle: any;

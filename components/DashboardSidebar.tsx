@@ -36,32 +36,11 @@ import {
   Search,
   Headphones,
   Receipt,
+  HardHat,
+  Building2,
+  Calculator,
+  Sparkles,
 } from "lucide-react";
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 import type { UnifiedTab } from "./UnifiedDashboardTabs";
 
@@ -450,8 +429,8 @@ export const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
             )}
           </div>
 
-          {/* Faktury Link - Only for accountant, worker, and cleaning_company */}
-          {user.role !== "regular_user" && user.role !== "employer" && (
+          {/* Faktury Link - For accountant, worker, cleaning_company and employer */}
+          {user.role !== "regular_user" && user.role !== "admin" && (
             <Link
               to="/faktury"
               onClick={() =>

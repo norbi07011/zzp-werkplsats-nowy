@@ -1,14 +1,10 @@
 import React, { useState } from "react";
 import type { Vehicle, VehicleType, FuelType } from "../types";
 import { getVehicleRate, formatDutchPlate, DUTCH_RATES_2025 } from "../types";
+import { Car, Bike, Check, Edit3, Plus, Star, Trash2 } from "lucide-react";
 
-
- // Close enough
-
-
-
-
-
+// Motorcycle doesn't exist in lucide-react, using Bike as fallback
+const Motorcycle = Bike;
 
 const VEHICLE_ICONS: Record<VehicleType, React.ReactNode> = {
   car: <Car size={24} />,

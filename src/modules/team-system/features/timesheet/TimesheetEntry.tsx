@@ -5,7 +5,7 @@
  */
 
 import React, { useState, useEffect } from "react";
-import { Calendar, Clock, Briefcase, Save, Loader2 } from 'lucide-react';
+import { Calendar, Clock, Briefcase, Save, Loader2 } from "lucide-react";
 
 import { supabase } from "../../../../lib/supabase";
 import { useAuth } from "../../../../../contexts/AuthContext";

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 import {
   FileText,
   ChevronDown,
@@ -9,7 +9,7 @@ import {
   Clock,
   Euro,
   Sparkles,
-} from 'lucide-react';
+} from "lucide-react";
 
 interface TaskMaterial {
   name: string;
@@ -50,28 +50,30 @@ interface TaskTemplateSelectorProps {
 export function TaskTemplateSelector({
   templates,
   onTemplateSelect,
-  loading = false
+  loading = false,
 }: TaskTemplateSelectorProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [selectedTemplate, setSelectedTemplate] = useState<TaskTemplate | null>(null);
+  const [selectedTemplate, setSelectedTemplate] = useState<TaskTemplate | null>(
+    null
+  );
   const [showPreview, setShowPreview] = useState(false);
 
   const categoryIcons: Record<string, string> = {
-    painting: '🎨',
-    renovation: '🔨',
-    electrical: '⚡',
-    plumbing: '🚰',
-    carpentry: '🪚',
-    other: '📋'
+    painting: "🎨",
+    renovation: "🔨",
+    electrical: "⚡",
+    plumbing: "🚰",
+    carpentry: "🪚",
+    other: "📋",
   };
 
   const categoryLabels: Record<string, string> = {
-    painting: 'Malowanie',
-    renovation: 'Renowacja',
-    electrical: 'Elektryka',
-    plumbing: 'Hydraulika',
-    carpentry: 'Stolarka',
-    other: 'Inne'
+    painting: "Malowanie",
+    renovation: "Renowacja",
+    electrical: "Elektryka",
+    plumbing: "Hydraulika",
+    carpentry: "Stolarka",
+    other: "Inne",
   };
 
   const handleSelectTemplate = (template: TaskTemplate) => {
@@ -94,17 +96,17 @@ export function TaskTemplateSelector({
   };
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('nl-NL', {
-      style: 'currency',
-      currency: 'EUR',
+    return new Intl.NumberFormat("nl-NL", {
+      style: "currency",
+      currency: "EUR",
       minimumFractionDigits: 2,
-      maximumFractionDigits: 2
+      maximumFractionDigits: 2,
     }).format(amount);
   };
 
   // Group templates by category
   const templatesByCategory = templates.reduce((acc, template) => {
-    const category = template.template_category || 'other';
+    const category = template.template_category || "other";
     if (!acc[category]) {
       acc[category] = [];
     }
@@ -128,10 +130,16 @@ export function TaskTemplateSelector({
           <div className="flex items-center gap-2">
             <FileText className="w-5 h-5 text-purple-600" />
             <span className="text-gray-700">
-              {loading ? 'Ładowanie szablonów...' : `Wybierz szablon (${templates.length} dostępnych)`}
+              {loading
+                ? "Ładowanie szablonów..."
+                : `Wybierz szablon (${templates.length} dostępnych)`}
             </span>
           </div>
-          <ChevronDown className={`w-5 h-5 text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+          <ChevronDown
+            className={`w-5 h-5 text-gray-400 transition-transform ${
+              isOpen ? "rotate-180" : ""
+            }`}
+          />
         </button>
       </div>
 
@@ -144,48 +152,63 @@ export function TaskTemplateSelector({
               <p>Brak dostępnych szablonów</p>
             </div>
           ) : (
-            Object.entries(templatesByCategory).map(([category, categoryTemplates]) => (
-              <div key={category} className="border-b border-gray-200 last:border-0">
-                <div className="px-4 py-2 bg-gray-50 border-b border-gray-200">
-                  <h4 className="font-medium text-gray-700 flex items-center gap-2">
-                    <span>{categoryIcons[category] || categoryIcons.other}</span>
-                    {categoryLabels[category] || category}
-                  </h4>
-                </div>
-                {categoryTemplates.map((template) => (
-                  <button
-                    key={template.id}
-                    onClick={() => handleSelectTemplate(template)}
-                    className="w-full px-4 py-3 text-left hover:bg-purple-50 transition-colors flex items-center justify-between group"
-                  >
-                    <div>
-                      <p className="font-medium text-gray-900">{template.template_name}</p>
-                      {template.description && (
-                        <p className="text-sm text-gray-500 mt-1">{template.description}</p>
-                      )}
-                      <div className="flex items-center gap-4 mt-2 text-xs text-gray-600">
-                        <span className="flex items-center gap-1">
-                          <Package className="w-3 h-3" />
-                          {template.materials.length} materiałów
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <ListChecks className="w-3 h-3" />
-                          {template.checklist.length} kroków
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <Clock className="w-3 h-3" />
-                          {template.estimated_hours}h
-                        </span>
+            Object.entries(templatesByCategory).map(
+              ([category, categoryTemplates]) => (
+                <div
+                  key={category}
+                  className="border-b border-gray-200 last:border-0"
+                >
+                  <div className="px-4 py-2 bg-gray-50 border-b border-gray-200">
+                    <h4 className="font-medium text-gray-700 flex items-center gap-2">
+                      <span>
+                        {categoryIcons[category] || categoryIcons.other}
+                      </span>
+                      {categoryLabels[category] || category}
+                    </h4>
+                  </div>
+                  {categoryTemplates.map((template) => (
+                    <button
+                      key={template.id}
+                      onClick={() => handleSelectTemplate(template)}
+                      className="w-full px-4 py-3 text-left hover:bg-purple-50 transition-colors flex items-center justify-between group"
+                    >
+                      <div>
+                        <p className="font-medium text-gray-900">
+                          {template.template_name}
+                        </p>
+                        {template.description && (
+                          <p className="text-sm text-gray-500 mt-1">
+                            {template.description}
+                          </p>
+                        )}
+                        <div className="flex items-center gap-4 mt-2 text-xs text-gray-600">
+                          <span className="flex items-center gap-1">
+                            <Package className="w-3 h-3" />
+                            {template.materials.length} materiałów
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <ListChecks className="w-3 h-3" />
+                            {template.checklist.length} kroków
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <Clock className="w-3 h-3" />
+                            {template.estimated_hours}h
+                          </span>
+                        </div>
                       </div>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-bold text-purple-600">{formatCurrency(template.calculated_cost)}</p>
-                      <p className="text-xs text-gray-500 mt-1">szacowany koszt</p>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            ))
+                      <div className="text-right">
+                        <p className="font-bold text-purple-600">
+                          {formatCurrency(template.calculated_cost)}
+                        </p>
+                        <p className="text-xs text-gray-500 mt-1">
+                          szacowany koszt
+                        </p>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )
+            )
           )}
         </div>
       )}
@@ -202,10 +225,11 @@ export function TaskTemplateSelector({
                     <FileText className="w-6 h-6" />
                   </div>
                   <div>
-                    <h3 className="text-xl font-bold">{selectedTemplate.template_name}</h3>
+                    <h3 className="text-xl font-bold">
+                      {selectedTemplate.template_name}
+                    </h3>
                     <p className="text-purple-100 text-sm mt-1">
-                      {categoryIcons[selectedTemplate.template_category]}
-                      {' '}
+                      {categoryIcons[selectedTemplate.template_category]}{" "}
                       {categoryLabels[selectedTemplate.template_category]}
                     </p>
                   </div>
@@ -225,7 +249,9 @@ export function TaskTemplateSelector({
               <div className="bg-green-50 border border-green-200 rounded-lg p-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-gray-600">Szacowany koszt całkowity</p>
+                    <p className="text-sm text-gray-600">
+                      Szacowany koszt całkowity
+                    </p>
                     <p className="text-3xl font-bold text-green-700 mt-1">
                       {formatCurrency(selectedTemplate.calculated_cost)}
                     </p>
@@ -233,7 +259,9 @@ export function TaskTemplateSelector({
                   <div className="text-right text-sm text-gray-600">
                     <div className="flex items-center gap-2">
                       <Euro className="w-4 h-4" />
-                      <span>{formatCurrency(selectedTemplate.hourly_rate)}/h</span>
+                      <span>
+                        {formatCurrency(selectedTemplate.hourly_rate)}/h
+                      </span>
                     </div>
                     <div className="flex items-center gap-2 mt-1">
                       <Clock className="w-4 h-4" />
@@ -267,9 +295,13 @@ export function TaskTemplateSelector({
                             <td className="text-right p-2">
                               {material.quantity} {material.unit}
                             </td>
-                            <td className="text-right p-2">{formatCurrency(material.price)}</td>
+                            <td className="text-right p-2">
+                              {formatCurrency(material.price)}
+                            </td>
                             <td className="text-right p-2 font-medium">
-                              {formatCurrency(material.quantity * material.price)}
+                              {formatCurrency(
+                                material.quantity * material.price
+                              )}
                             </td>
                           </tr>
                         ))}
@@ -295,7 +327,9 @@ export function TaskTemplateSelector({
                         <span className="flex-shrink-0 w-6 h-6 rounded-full bg-purple-100 text-purple-700 flex items-center justify-center text-xs font-medium">
                           {index + 1}
                         </span>
-                        <span className="text-sm text-gray-700">{item.text}</span>
+                        <span className="text-sm text-gray-700">
+                          {item.text}
+                        </span>
                       </div>
                     ))}
                   </div>
@@ -306,7 +340,9 @@ export function TaskTemplateSelector({
               {selectedTemplate.description && (
                 <div>
                   <h4 className="font-semibold text-gray-900 mb-2">Opis</h4>
-                  <p className="text-sm text-gray-600">{selectedTemplate.description}</p>
+                  <p className="text-sm text-gray-600">
+                    {selectedTemplate.description}
+                  </p>
                 </div>
               )}
             </div>

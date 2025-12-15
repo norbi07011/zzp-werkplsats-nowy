@@ -5,7 +5,18 @@
  */
 
 import React, { useState, useEffect } from "react";
-import { Bell, BellOff, Mail, Smartphone, MessageSquare, Save, Loader2, AlertCircle, CheckCircle, Settings } from 'lucide-react';
+import {
+  Bell,
+  BellOff,
+  Mail,
+  Smartphone,
+  MessageSquare,
+  Save,
+  Loader2,
+  AlertCircle,
+  CheckCircle,
+  Settings,
+} from "lucide-react";
 
 import { supabase } from "../../../../lib/supabase";
 import { useAuth } from "../../../../../contexts/AuthContext";

@@ -169,7 +169,7 @@ export const UnifiedDashboardTabs: React.FC<UnifiedDashboardTabsProps> = ({
       {/* Scroll fade indicators for mobile */}
       <div className="absolute left-0 top-0 bottom-0 w-6 bg-gradient-to-r from-slate-900 to-transparent pointer-events-none z-10 md:hidden" />
       <div className="absolute right-0 top-0 bottom-0 w-6 bg-gradient-to-l from-indigo-900 to-transparent pointer-events-none z-10 md:hidden" />
-      
+
       <nav
         className="flex items-center gap-1 px-4 py-2 overflow-x-auto scrollbar-hide"
         aria-label="Tabs"

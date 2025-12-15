@@ -1,22 +1,20 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+import {
+  Bell,
+  Calendar,
+  ChevronLeft,
+  ChevronRight,
+  Clock,
+  Edit3,
+  MapPin,
+  Plus,
+  Save,
+  Sparkles,
+  Trash2,
+  Video,
+  X,
+  Zap,
+} from "lucide-react";
 
 import { useAuth } from "../../../../contexts/AuthContext";
 import { supabase } from "../../../../src/lib/supabase";

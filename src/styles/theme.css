@@ -981,7 +981,7 @@ div[class*="shadow"] {
 
 .scrollable-table-container::before,
 .scrollable-table-container::after {
-  content: '';
+  content: "";
   position: absolute;
   top: 0;
   bottom: 0;
@@ -1012,8 +1012,13 @@ div[class*="shadow"] {
 
 /* Mobile scroll hint animation */
 @keyframes scroll-hint {
-  0%, 100% { transform: translateX(0); }
-  50% { transform: translateX(8px); }
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  50% {
+    transform: translateX(8px);
+  }
 }
 
 .scroll-hint-mobile {

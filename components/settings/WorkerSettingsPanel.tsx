@@ -36,23 +36,6 @@ import {
   Image as ImageIcon,
 } from "lucide-react";
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 import { CoverImageUploader } from "../../src/components/common/CoverImageUploader";
 import DateBlocker from "../../src/components/common/DateBlocker";
 import { GlowButton } from "../ui/GlowButton";

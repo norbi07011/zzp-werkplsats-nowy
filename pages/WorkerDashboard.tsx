@@ -4625,6 +4625,10 @@ export default function WorkerDashboard() {
               <SavedActivity />
             </TabPanel>
 
+            <TabPanel isActive={activeTab === "tablica"}>
+              <FeedPage />
+            </TabPanel>
+
             <TabPanel isActive={activeTab === "team"}>
               {userId && <WorkerTeamDashboard />}
             </TabPanel>

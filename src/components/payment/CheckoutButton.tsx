@@ -3,14 +3,20 @@
  * Handles upgrade to Premium subscription
  */
 
-import React, { useState } from 'react';
-import { CreditCard, Loader2, AlertCircle, CheckCircle, TrendingUp } from 'lucide-react';
-import { handleUpgradeToPremium } from '../../services/stripe';
-import { isStripeConfigured } from '../../config/stripe';
+import React, { useState } from "react";
+import {
+  CreditCard,
+  Loader2,
+  AlertCircle,
+  CheckCircle,
+  TrendingUp,
+} from "lucide-react";
+import { handleUpgradeToPremium } from "../../services/stripe";
+import { isStripeConfigured } from "../../config/stripe";
 
 interface CheckoutButtonProps {
   userId: string;
-  currentTier?: 'basic' | 'premium';
+  currentTier?: "basic" | "premium";
   className?: string;
   onSuccess?: () => void;
   onError?: (error: Error) => void;
@@ -18,15 +24,15 @@ interface CheckoutButtonProps {
 
 export const CheckoutButton: React.FC<CheckoutButtonProps> = ({
   userId,
-  currentTier = 'basic',
-  className = '',
+  currentTier = "basic",
+  className = "",
   onSuccess,
-  onError
+  onError,
 }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const isAlreadyPremium = currentTier === 'premium';
+  const isAlreadyPremium = currentTier === "premium";
   const isConfigured = isStripeConfigured();
 
   const handleClick = async () => {
@@ -35,7 +41,9 @@ export const CheckoutButton: React.FC<CheckoutButtonProps> = ({
     }
 
     if (!isConfigured) {
-      const configError = new Error('Stripe is niet geconfigureerd. Neem contact op met support.');
+      const configError = new Error(
+        "Stripe is niet geconfigureerd. Neem contact op met support."
+      );
       setError(configError.message);
       onError?.(configError);
       return;
@@ -48,7 +56,8 @@ export const CheckoutButton: React.FC<CheckoutButtonProps> = ({
       await handleUpgradeToPremium(userId);
       onSuccess?.();
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Er is iets misgegaan';
+      const errorMessage =
+        err instanceof Error ? err.message : "Er is iets misgegaan";
       setError(errorMessage);
       onError?.(err instanceof Error ? err : new Error(errorMessage));
     } finally {
@@ -105,7 +114,8 @@ export const CheckoutButton: React.FC<CheckoutButtonProps> = ({
         <div className="flex items-start gap-2 p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
           <AlertCircle className="w-5 h-5 text-yellow-400 flex-shrink-0 mt-0.5" />
           <p className="text-sm text-yellow-400">
-            Betalingen zijn momenteel niet beschikbaar. Configureer Stripe om door te gaan.
+            Betalingen zijn momenteel niet beschikbaar. Configureer Stripe om
+            door te gaan.
           </p>
         </div>
       )}

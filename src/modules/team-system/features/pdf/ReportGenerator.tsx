@@ -8,7 +8,20 @@
  */
 
 import React, { useState, useRef } from "react";
-import { FileText, Download, Calendar, Clock, Loader2, AlertCircle, CheckCircle, ChevronDown, User, DollarSign, Briefcase, Users } from 'lucide-react';
+import {
+  FileText,
+  Download,
+  Calendar,
+  Clock,
+  Loader2,
+  AlertCircle,
+  CheckCircle,
+  ChevronDown,
+  User,
+  DollarSign,
+  Briefcase,
+  Users,
+} from "lucide-react";
 
 import { supabase } from "../../../../lib/supabase";
 import { toast } from "sonner";

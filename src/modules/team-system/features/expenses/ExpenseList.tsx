@@ -5,7 +5,21 @@
  */
 
 import React, { useState, useEffect, useCallback } from "react";
-import { DollarSign, Calendar, Filter, Loader2, Check, X, Eye, ChevronDown, ChevronUp, AlertCircle, Image, User, FileText } from 'lucide-react';
+import {
+  DollarSign,
+  Calendar,
+  Filter,
+  Loader2,
+  Check,
+  X,
+  Eye,
+  ChevronDown,
+  ChevronUp,
+  AlertCircle,
+  Image,
+  User,
+  FileText,
+} from "lucide-react";
 
 import { supabaseUntyped as supabase } from "../../../../lib/supabase";
 import { useAuth } from "../../../../../contexts/AuthContext";

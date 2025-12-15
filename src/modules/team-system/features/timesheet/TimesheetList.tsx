@@ -5,15 +5,17 @@
  */
 
 import React, { useState, useEffect, useCallback } from "react";
-import { Calendar, Clock, User, Check, ChevronDown, ChevronUp, Filter, Loader2, AlertCircle } from 'lucide-react';
-
-
-
-
-
-
-
-
+import {
+  Calendar,
+  Clock,
+  User,
+  Check,
+  ChevronDown,
+  ChevronUp,
+  Filter,
+  Loader2,
+  AlertCircle,
+} from "lucide-react";
 
 import { supabase } from "../../../../lib/supabase";
 import { useAuth } from "../../../../../contexts/AuthContext";

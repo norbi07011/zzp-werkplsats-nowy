@@ -248,17 +248,24 @@ export const AccountantsManager = () => {
                 <div
                   key={accountant.id}
                   className="p-4 hover:bg-white/5 transition-colors"
-                  onClick={() => navigate(`/profile/accountant/${accountant.id}`)}
+                  onClick={() =>
+                    navigate(`/profile/accountant/${accountant.id}`)
+                  }
                 >
                   <div className="flex items-start gap-3">
                     <img
-                      src={accountant.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${accountant.id}`}
+                      src={
+                        accountant.avatar_url ||
+                        `https://api.dicebear.com/7.x/avataaars/svg?seed=${accountant.id}`
+                      }
                       alt={accountant.full_name}
                       className="w-12 h-12 rounded-full border-2 border-white/20 flex-shrink-0"
                     />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-2">
-                        <h3 className="font-semibold text-white truncate">{accountant.full_name}</h3>
+                        <h3 className="font-semibold text-white truncate">
+                          {accountant.full_name}
+                        </h3>
                         {accountant.is_verified ? (
                           <span className="text-green-400 text-xs flex items-center gap-1">
                             <CheckCircle size={12} /> Zweryfikowany
@@ -269,12 +276,19 @@ export const AccountantsManager = () => {
                           </span>
                         )}
                       </div>
-                      <p className="text-sm text-gray-400 truncate">{accountant.email}</p>
+                      <p className="text-sm text-gray-400 truncate">
+                        {accountant.email}
+                      </p>
                       {accountant.phone && (
-                        <p className="text-sm text-gray-500">{accountant.phone}</p>
+                        <p className="text-sm text-gray-500">
+                          {accountant.phone}
+                        </p>
                       )}
                       <p className="text-xs text-gray-500 mt-1">
-                        Zarejestrowany: {new Date(accountant.created_at).toLocaleDateString("pl-PL")}
+                        Zarejestrowany:{" "}
+                        {new Date(accountant.created_at).toLocaleDateString(
+                          "pl-PL"
+                        )}
                       </p>
                     </div>
                   </div>
@@ -282,7 +296,7 @@ export const AccountantsManager = () => {
               ))
             )}
           </div>
-          
+
           {/* Desktop Table View */}
           <div className="hidden md:block overflow-x-auto scrollable-table-container scroll-right">
             <table className="w-full">

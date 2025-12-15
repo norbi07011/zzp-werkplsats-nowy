@@ -1,85 +1,107 @@
-import React, { useState } from 'react';
-import { useProjectTasks, type ProjectTask } from '../hooks/useProjectTasks';
-import { useAuth } from '../contexts/AuthContext';
-import { TaskFormModal } from './Tasks/TaskFormModal';
-import { Plus, Filter, Search, Calendar, User, AlertCircle, CheckCircle, Clock, XCircle, CheckSquare } from 'lucide-react';
+import React, { useState } from "react";
+import { useProjectTasks, type ProjectTask } from "../hooks/useProjectTasks";
+import { useAuth } from "../contexts/AuthContext";
+import { TaskFormModal } from "./Tasks/TaskFormModal";
+import {
+  Plus,
+  Filter,
+  Search,
+  Calendar,
+  User,
+  AlertCircle,
+  CheckCircle,
+  Clock,
+  XCircle,
+  CheckSquare,
+} from "lucide-react";
 
 interface TaskListProps {
   projectId: string;
 }
 
-type TaskView = 'list' | 'kanban';
-type TaskFilter = 'all' | 'my-tasks' | 'high-priority' | 'overdue';
-type SortField = 'title' | 'priority' | 'due_date' | 'status' | 'created_at';
-type SortOrder = 'asc' | 'desc';
+type TaskView = "list" | "kanban";
+type TaskFilter = "all" | "my-tasks" | "high-priority" | "overdue";
+type SortField = "title" | "priority" | "due_date" | "status" | "created_at";
+type SortOrder = "asc" | "desc";
 
 export function TaskList({ projectId }: TaskListProps) {
-  const { tasks, loading, error, updateTask, deleteTask } = useProjectTasks(projectId);
+  const { tasks, loading, error, updateTask, deleteTask } =
+    useProjectTasks(projectId);
   const { user } = useAuth(); // ✅ NEW: Get current user
-  const [view, setView] = useState<TaskView>('kanban');
-  const [filter, setFilter] = useState<TaskFilter>('all');
-  const [searchQuery, setSearchQuery] = useState('');
+  const [view, setView] = useState<TaskView>("kanban");
+  const [filter, setFilter] = useState<TaskFilter>("all");
+  const [searchQuery, setSearchQuery] = useState("");
   const [showTaskForm, setShowTaskForm] = useState(false);
   const [selectedTask, setSelectedTask] = useState<ProjectTask | null>(null);
   const [draggedTask, setDraggedTask] = useState<ProjectTask | null>(null); // ✅ NEW: For drag&drop
   const [selectedTasks, setSelectedTasks] = useState<Set<string>>(new Set()); // ✅ NEW: For bulk actions
   const [bulkActionMode, setBulkActionMode] = useState(false); // ✅ NEW: Toggle bulk select mode
-  const [sortField, setSortField] = useState<SortField>('created_at'); // ✅ NEW: Sort field
-  const [sortOrder, setSortOrder] = useState<SortOrder>('desc'); // ✅ NEW: Sort order
+  const [sortField, setSortField] = useState<SortField>("created_at"); // ✅ NEW: Sort field
+  const [sortOrder, setSortOrder] = useState<SortOrder>("desc"); // ✅ NEW: Sort order
 
   // Filter and search tasks
-  const filteredTasks = tasks.filter(task => {
-    // Search filter
-    if (searchQuery && !task.title.toLowerCase().includes(searchQuery.toLowerCase())) {
-      return false;
-    }
+  const filteredTasks = tasks
+    .filter((task) => {
+      // Search filter
+      if (
+        searchQuery &&
+        !task.title.toLowerCase().includes(searchQuery.toLowerCase())
+      ) {
+        return false;
+      }
 
-    // Status filters
-    switch (filter) {
-      case 'my-tasks':
-        return task.assigned_to === user?.id; // ✅ FIXED: Use actual user ID
-      case 'high-priority':
-        return task.priority === 'high' || task.priority === 'urgent';
-      case 'overdue':
-        return task.due_date && new Date(task.due_date) < new Date() && task.status !== 'completed';
-      default:
-        return true;
-    }
-  }).sort((a, b) => {
-    // ✅ NEW: Sort tasks
-    let comparison = 0;
-    
-    switch (sortField) {
-      case 'title':
-        comparison = a.title.localeCompare(b.title);
-        break;
-      case 'priority':
-        const priorityOrder = { urgent: 4, high: 3, medium: 2, low: 1 };
-        comparison = priorityOrder[a.priority] - priorityOrder[b.priority];
-        break;
-      case 'due_date':
-        const dateA = a.due_date ? new Date(a.due_date).getTime() : 0;
-        const dateB = b.due_date ? new Date(b.due_date).getTime() : 0;
-        comparison = dateA - dateB;
-        break;
-      case 'status':
-        comparison = a.status.localeCompare(b.status);
-        break;
-      case 'created_at':
-        comparison = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
-        break;
-    }
-    
-    return sortOrder === 'asc' ? comparison : -comparison;
-  });
+      // Status filters
+      switch (filter) {
+        case "my-tasks":
+          return task.assigned_to === user?.id; // ✅ FIXED: Use actual user ID
+        case "high-priority":
+          return task.priority === "high" || task.priority === "urgent";
+        case "overdue":
+          return (
+            task.due_date &&
+            new Date(task.due_date) < new Date() &&
+            task.status !== "completed"
+          );
+        default:
+          return true;
+      }
+    })
+    .sort((a, b) => {
+      // ✅ NEW: Sort tasks
+      let comparison = 0;
+
+      switch (sortField) {
+        case "title":
+          comparison = a.title.localeCompare(b.title);
+          break;
+        case "priority":
+          const priorityOrder = { urgent: 4, high: 3, medium: 2, low: 1 };
+          comparison = priorityOrder[a.priority] - priorityOrder[b.priority];
+          break;
+        case "due_date":
+          const dateA = a.due_date ? new Date(a.due_date).getTime() : 0;
+          const dateB = b.due_date ? new Date(b.due_date).getTime() : 0;
+          comparison = dateA - dateB;
+          break;
+        case "status":
+          comparison = a.status.localeCompare(b.status);
+          break;
+        case "created_at":
+          comparison =
+            new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+          break;
+      }
+
+      return sortOrder === "asc" ? comparison : -comparison;
+    });
 
   // Group tasks by status for Kanban
   const tasksByStatus = {
-    not_started: filteredTasks.filter(t => t.status === 'not_started'),
-    in_progress: filteredTasks.filter(t => t.status === 'in_progress'),
-    review: filteredTasks.filter(t => t.status === 'review'),
-    completed: filteredTasks.filter(t => t.status === 'completed'),
-    blocked: filteredTasks.filter(t => t.status === 'blocked'),
+    not_started: filteredTasks.filter((t) => t.status === "not_started"),
+    in_progress: filteredTasks.filter((t) => t.status === "in_progress"),
+    review: filteredTasks.filter((t) => t.status === "review"),
+    completed: filteredTasks.filter((t) => t.status === "completed"),
+    blocked: filteredTasks.filter((t) => t.status === "blocked"),
   };
 
   // Handler do otwierania formularza (nowe zadanie)
@@ -104,17 +126,20 @@ export function TaskList({ projectId }: TaskListProps) {
   // ✅ NEW: Drag&Drop handlers
   const handleDragStart = (e: React.DragEvent, task: ProjectTask) => {
     setDraggedTask(task);
-    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.effectAllowed = "move";
   };
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
+    e.dataTransfer.dropEffect = "move";
   };
 
-  const handleDrop = async (e: React.DragEvent, newStatus: ProjectTask['status']) => {
+  const handleDrop = async (
+    e: React.DragEvent,
+    newStatus: ProjectTask["status"]
+  ) => {
     e.preventDefault();
-    
+
     if (!draggedTask || draggedTask.status === newStatus) {
       setDraggedTask(null);
       return;
@@ -124,8 +149,8 @@ export function TaskList({ projectId }: TaskListProps) {
       await updateTask(draggedTask.id, { status: newStatus });
       setDraggedTask(null);
     } catch (error) {
-      console.error('Error updating task status:', error);
-      alert('Błąd podczas zmiany statusu zadania');
+      console.error("Error updating task status:", error);
+      alert("Błąd podczas zmiany statusu zadania");
     }
   };
 
@@ -141,7 +166,7 @@ export function TaskList({ projectId }: TaskListProps) {
   };
 
   const selectAllTasks = () => {
-    setSelectedTasks(new Set(filteredTasks.map(t => t.id)));
+    setSelectedTasks(new Set(filteredTasks.map((t) => t.id)));
   };
 
   const deselectAllTasks = () => {
@@ -150,35 +175,35 @@ export function TaskList({ projectId }: TaskListProps) {
 
   const bulkDelete = async () => {
     if (selectedTasks.size === 0) return;
-    
+
     if (!confirm(`Czy na pewno chcesz usunąć ${selectedTasks.size} zadań?`)) {
       return;
     }
 
     try {
-      await Promise.all(
-        Array.from(selectedTasks).map(id => deleteTask(id))
-      );
+      await Promise.all(Array.from(selectedTasks).map((id) => deleteTask(id)));
       setSelectedTasks(new Set());
       setBulkActionMode(false);
     } catch (error) {
-      console.error('Error bulk deleting tasks:', error);
-      alert('Błąd podczas usuwania zadań');
+      console.error("Error bulk deleting tasks:", error);
+      alert("Błąd podczas usuwania zadań");
     }
   };
 
-  const bulkChangeStatus = async (newStatus: ProjectTask['status']) => {
+  const bulkChangeStatus = async (newStatus: ProjectTask["status"]) => {
     if (selectedTasks.size === 0) return;
 
     try {
       await Promise.all(
-        Array.from(selectedTasks).map(id => updateTask(id, { status: newStatus }))
+        Array.from(selectedTasks).map((id) =>
+          updateTask(id, { status: newStatus })
+        )
       );
       setSelectedTasks(new Set());
       setBulkActionMode(false);
     } catch (error) {
-      console.error('Error bulk updating status:', error);
-      alert('Błąd podczas zmiany statusu zadań');
+      console.error("Error bulk updating status:", error);
+      alert("Błąd podczas zmiany statusu zadań");
     }
   };
 
@@ -187,57 +212,76 @@ export function TaskList({ projectId }: TaskListProps) {
 
     try {
       await Promise.all(
-        Array.from(selectedTasks).map(id => updateTask(id, { assigned_to: userId }))
+        Array.from(selectedTasks).map((id) =>
+          updateTask(id, { assigned_to: userId })
+        )
       );
       setSelectedTasks(new Set());
       setBulkActionMode(false);
     } catch (error) {
-      console.error('Error bulk assigning tasks:', error);
-      alert('Błąd podczas przypisywania zadań');
+      console.error("Error bulk assigning tasks:", error);
+      alert("Błąd podczas przypisywania zadań");
     }
   };
 
   // ✅ NEW: Export to CSV
   const exportToCSV = () => {
-    const headers = ['ID', 'Tytuł', 'Status', 'Priorytet', 'Termin', 'Przypisane do', 'Utworzono'];
-    const rows = filteredTasks.map(task => [
+    const headers = [
+      "ID",
+      "Tytuł",
+      "Status",
+      "Priorytet",
+      "Termin",
+      "Przypisane do",
+      "Utworzono",
+    ];
+    const rows = filteredTasks.map((task) => [
       task.id,
       task.title,
       task.status,
       task.priority,
-      task.due_date || '',
-      task.assigned_to || '',
-      new Date(task.created_at).toLocaleString('pl-PL')
+      task.due_date || "",
+      task.assigned_to || "",
+      new Date(task.created_at).toLocaleString("pl-PL"),
     ]);
 
     const csvContent = [
-      headers.join(','),
-      ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
-    ].join('\n');
+      headers.join(","),
+      ...rows.map((row) => row.map((cell) => `"${cell}"`).join(",")),
+    ].join("\n");
 
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
-    link.download = `zadania_${new Date().toISOString().split('T')[0]}.csv`;
+    link.download = `zadania_${new Date().toISOString().split("T")[0]}.csv`;
     link.click();
   };
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
-      case 'urgent': return 'bg-red-100 text-red-800 border-red-200';
-      case 'high': return 'bg-orange-100 text-orange-800 border-orange-200';
-      case 'medium': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-      case 'low': return 'bg-green-100 text-green-800 border-green-200';
-      default: return 'bg-gray-100 text-gray-800 border-gray-200';
+      case "urgent":
+        return "bg-red-100 text-red-800 border-red-200";
+      case "high":
+        return "bg-orange-100 text-orange-800 border-orange-200";
+      case "medium":
+        return "bg-yellow-100 text-yellow-800 border-yellow-200";
+      case "low":
+        return "bg-green-100 text-green-800 border-green-200";
+      default:
+        return "bg-gray-100 text-gray-800 border-gray-200";
     }
   };
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case 'completed': return <CheckCircle className="w-4 h-4 text-green-600" />;
-      case 'in_progress': return <Clock className="w-4 h-4 text-blue-600" />;
-      case 'blocked': return <XCircle className="w-4 h-4 text-red-600" />;
-      default: return <AlertCircle className="w-4 h-4 text-gray-400" />;
+      case "completed":
+        return <CheckCircle className="w-4 h-4 text-green-600" />;
+      case "in_progress":
+        return <Clock className="w-4 h-4 text-blue-600" />;
+      case "blocked":
+        return <XCircle className="w-4 h-4 text-red-600" />;
+      default:
+        return <AlertCircle className="w-4 h-4 text-gray-400" />;
     }
   };
 
@@ -266,13 +310,13 @@ export function TaskList({ projectId }: TaskListProps) {
           <button
             onClick={() => setBulkActionMode(!bulkActionMode)}
             className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
-              bulkActionMode 
-                ? 'bg-purple-600 text-white hover:bg-purple-700' 
-                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+              bulkActionMode
+                ? "bg-purple-600 text-white hover:bg-purple-700"
+                : "bg-gray-200 text-gray-700 hover:bg-gray-300"
             }`}
           >
             <CheckSquare className="w-5 h-5" />
-            {bulkActionMode ? 'Anuluj' : 'Zaznacz wiele'}
+            {bulkActionMode ? "Anuluj" : "Zaznacz wiele"}
           </button>
           <button
             onClick={handleOpenNewTaskForm}
@@ -309,11 +353,15 @@ export function TaskList({ projectId }: TaskListProps) {
             {selectedTasks.size > 0 && (
               <div className="flex items-center gap-2 flex-wrap">
                 <select
-                  onChange={(e) => bulkChangeStatus(e.target.value as ProjectTask['status'])}
+                  onChange={(e) =>
+                    bulkChangeStatus(e.target.value as ProjectTask["status"])
+                  }
                   className="text-sm border border-purple-300 rounded px-3 py-1.5"
                   defaultValue=""
                 >
-                  <option value="" disabled>Zmień status</option>
+                  <option value="" disabled>
+                    Zmień status
+                  </option>
                   <option value="not_started">Nie rozpoczęto</option>
                   <option value="in_progress">W trakcie</option>
                   <option value="review">Do przeglądu</option>
@@ -373,13 +421,13 @@ export function TaskList({ projectId }: TaskListProps) {
             <option value="due_date">Termin</option>
             <option value="status">Status</option>
           </select>
-          
+
           <button
-            onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+            onClick={() => setSortOrder(sortOrder === "asc" ? "desc" : "asc")}
             className="border border-gray-300 rounded-lg px-3 py-2 hover:bg-gray-50"
-            title={sortOrder === 'asc' ? 'Rosnąco' : 'Malejąco'}
+            title={sortOrder === "asc" ? "Rosnąco" : "Malejąco"}
           >
-            {sortOrder === 'asc' ? '↑' : '↓'}
+            {sortOrder === "asc" ? "↑" : "↓"}
           </button>
         </div>
 
@@ -393,14 +441,22 @@ export function TaskList({ projectId }: TaskListProps) {
 
         <div className="flex gap-2">
           <button
-            onClick={() => setView('kanban')}
-            className={`px-3 py-2 rounded-lg ${view === 'kanban' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600'}`}
+            onClick={() => setView("kanban")}
+            className={`px-3 py-2 rounded-lg ${
+              view === "kanban"
+                ? "bg-blue-100 text-blue-700"
+                : "bg-gray-100 text-gray-600"
+            }`}
           >
             Kanban
           </button>
           <button
-            onClick={() => setView('list')}
-            className={`px-3 py-2 rounded-lg ${view === 'list' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600'}`}
+            onClick={() => setView("list")}
+            className={`px-3 py-2 rounded-lg ${
+              view === "list"
+                ? "bg-blue-100 text-blue-700"
+                : "bg-gray-100 text-gray-600"
+            }`}
           >
             Lista
           </button>
@@ -408,18 +464,18 @@ export function TaskList({ projectId }: TaskListProps) {
       </div>
 
       {/* Kanban View */}
-      {view === 'kanban' && (
+      {view === "kanban" && (
         <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
           {Object.entries(tasksByStatus).map(([status, statusTasks]) => (
-            <div 
-              key={status} 
+            <div
+              key={status}
               className="bg-gray-50 rounded-lg p-4"
               onDragOver={handleDragOver}
-              onDrop={(e) => handleDrop(e, status as ProjectTask['status'])}
+              onDrop={(e) => handleDrop(e, status as ProjectTask["status"])}
             >
               <div className="flex items-center justify-between mb-4">
                 <h3 className="font-semibold text-gray-700 capitalize">
-                  {status.replace('_', ' ')}
+                  {status.replace("_", " ")}
                 </h3>
                 <span className="bg-gray-200 text-gray-600 text-xs font-medium px-2 py-1 rounded-full">
                   {statusTasks.length}
@@ -427,7 +483,7 @@ export function TaskList({ projectId }: TaskListProps) {
               </div>
 
               <div className="space-y-3 min-h-[200px]">
-                {statusTasks.map(task => (
+                {statusTasks.map((task) => (
                   <div
                     key={task.id}
                     draggable={!bulkActionMode}
@@ -442,10 +498,10 @@ export function TaskList({ projectId }: TaskListProps) {
                     }}
                     className={`bg-white p-3 rounded-lg shadow-sm border transition-all ${
                       bulkActionMode && selectedTasks.has(task.id)
-                        ? 'border-purple-500 bg-purple-50'
-                        : 'border-gray-200 hover:shadow-md'
-                    } ${draggedTask?.id === task.id ? 'opacity-50' : ''} ${
-                      bulkActionMode ? 'cursor-pointer' : 'cursor-move'
+                        ? "border-purple-500 bg-purple-50"
+                        : "border-gray-200 hover:shadow-md"
+                    } ${draggedTask?.id === task.id ? "opacity-50" : ""} ${
+                      bulkActionMode ? "cursor-pointer" : "cursor-move"
                     }`}
                   >
                     <div className="flex items-start justify-between mb-2">
@@ -459,24 +515,32 @@ export function TaskList({ projectId }: TaskListProps) {
                             onClick={(e) => e.stopPropagation()}
                           />
                         )}
-                        <h4 className="font-medium text-gray-900 text-sm flex-1">{task.title}</h4>
+                        <h4 className="font-medium text-gray-900 text-sm flex-1">
+                          {task.title}
+                        </h4>
                       </div>
                       {getStatusIcon(task.status)}
                     </div>
 
                     {task.description && (
-                      <p className="text-xs text-gray-600 mb-2 line-clamp-2">{task.description}</p>
+                      <p className="text-xs text-gray-600 mb-2 line-clamp-2">
+                        {task.description}
+                      </p>
                     )}
 
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className={`text-xs px-2 py-1 rounded border ${getPriorityColor(task.priority)}`}>
+                      <span
+                        className={`text-xs px-2 py-1 rounded border ${getPriorityColor(
+                          task.priority
+                        )}`}
+                      >
                         {task.priority}
                       </span>
 
                       {task.due_date && (
                         <span className="text-xs text-gray-500 flex items-center gap-1">
                           <Calendar className="w-3 h-3" />
-                          {new Date(task.due_date).toLocaleDateString('pl-PL')}
+                          {new Date(task.due_date).toLocaleDateString("pl-PL")}
                         </span>
                       )}
 
@@ -506,22 +570,32 @@ export function TaskList({ projectId }: TaskListProps) {
       )}
 
       {/* List View */}
-      {view === 'list' && (
+      {view === "list" && (
         <div className="bg-white rounded-lg shadow-sm overflow-hidden">
           <table className="w-full">
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
-                <th className="text-left px-4 py-3 text-sm font-semibold text-gray-700">Status</th>
-                <th className="text-left px-4 py-3 text-sm font-semibold text-gray-700">Tytuł</th>
-                <th className="text-left px-4 py-3 text-sm font-semibold text-gray-700">Priorytet</th>
-                <th className="text-left px-4 py-3 text-sm font-semibold text-gray-700">Termin</th>
-                <th className="text-left px-4 py-3 text-sm font-semibold text-gray-700">Postęp</th>
+                <th className="text-left px-4 py-3 text-sm font-semibold text-gray-700">
+                  Status
+                </th>
+                <th className="text-left px-4 py-3 text-sm font-semibold text-gray-700">
+                  Tytuł
+                </th>
+                <th className="text-left px-4 py-3 text-sm font-semibold text-gray-700">
+                  Priorytet
+                </th>
+                <th className="text-left px-4 py-3 text-sm font-semibold text-gray-700">
+                  Termin
+                </th>
+                <th className="text-left px-4 py-3 text-sm font-semibold text-gray-700">
+                  Postęp
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {filteredTasks.map(task => (
-                <tr 
-                  key={task.id} 
+              {filteredTasks.map((task) => (
+                <tr
+                  key={task.id}
                   onClick={() => handleOpenEditTaskForm(task)}
                   className="hover:bg-gray-50 cursor-pointer"
                 >
@@ -529,7 +603,7 @@ export function TaskList({ projectId }: TaskListProps) {
                     <div className="flex items-center gap-2">
                       {getStatusIcon(task.status)}
                       <span className="text-sm text-gray-700 capitalize">
-                        {task.status.replace('_', ' ')}
+                        {task.status.replace("_", " ")}
                       </span>
                     </div>
                   </td>
@@ -537,19 +611,25 @@ export function TaskList({ projectId }: TaskListProps) {
                     <div>
                       <p className="font-medium text-gray-900">{task.title}</p>
                       {task.description && (
-                        <p className="text-sm text-gray-500 line-clamp-1">{task.description}</p>
+                        <p className="text-sm text-gray-500 line-clamp-1">
+                          {task.description}
+                        </p>
                       )}
                     </div>
                   </td>
                   <td className="px-4 py-3">
-                    <span className={`text-xs px-2 py-1 rounded border ${getPriorityColor(task.priority)}`}>
+                    <span
+                      className={`text-xs px-2 py-1 rounded border ${getPriorityColor(
+                        task.priority
+                      )}`}
+                    >
                       {task.priority}
                     </span>
                   </td>
                   <td className="px-4 py-3">
                     {task.due_date && (
                       <span className="text-sm text-gray-600">
-                        {new Date(task.due_date).toLocaleDateString('pl-PL')}
+                        {new Date(task.due_date).toLocaleDateString("pl-PL")}
                       </span>
                     )}
                   </td>
@@ -561,7 +641,9 @@ export function TaskList({ projectId }: TaskListProps) {
                           style={{ width: `${task.progress_percentage}%` }}
                         />
                       </div>
-                      <span className="text-xs text-gray-600">{task.progress_percentage}%</span>
+                      <span className="text-xs text-gray-600">
+                        {task.progress_percentage}%
+                      </span>
                     </div>
                   </td>
                 </tr>
@@ -579,15 +661,21 @@ export function TaskList({ projectId }: TaskListProps) {
         </div>
         <div className="bg-white p-4 rounded-lg shadow-sm">
           <p className="text-sm text-gray-600">W trakcie</p>
-          <p className="text-2xl font-bold text-blue-600">{tasksByStatus.in_progress.length}</p>
+          <p className="text-2xl font-bold text-blue-600">
+            {tasksByStatus.in_progress.length}
+          </p>
         </div>
         <div className="bg-white p-4 rounded-lg shadow-sm">
           <p className="text-sm text-gray-600">Do przeglądu</p>
-          <p className="text-2xl font-bold text-orange-600">{tasksByStatus.review.length}</p>
+          <p className="text-2xl font-bold text-orange-600">
+            {tasksByStatus.review.length}
+          </p>
         </div>
         <div className="bg-white p-4 rounded-lg shadow-sm">
           <p className="text-sm text-gray-600">Ukończone</p>
-          <p className="text-2xl font-bold text-green-600">{tasksByStatus.completed.length}</p>
+          <p className="text-2xl font-bold text-green-600">
+            {tasksByStatus.completed.length}
+          </p>
         </div>
       </div>
 

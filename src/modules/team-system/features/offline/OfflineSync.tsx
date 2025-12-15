@@ -5,7 +5,17 @@
  */
 
 import React, { useState, useEffect, useCallback } from "react";
-import { Wifi, WifiOff, Cloud, CloudOff, RefreshCw, Loader2, AlertCircle, CheckCircle, Trash2 } from 'lucide-react';
+import {
+  Wifi,
+  WifiOff,
+  Cloud,
+  CloudOff,
+  RefreshCw,
+  Loader2,
+  AlertCircle,
+  CheckCircle,
+  Trash2,
+} from "lucide-react";
 
 import { supabaseUntyped as supabase } from "../../../../lib/supabase";
 import { useAuth } from "../../../../../contexts/AuthContext";

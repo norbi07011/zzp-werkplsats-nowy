@@ -6,8 +6,6 @@ import { LanguageSwitcher } from "../components/LanguageSwitcher";
 import { ThemeToggle } from "../src/components/common/ThemeToggle";
 import { Menu, X } from "lucide-react";
 
-
-
 export const PublicLayout: React.FC = () => {
   const { t } = useTranslation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);

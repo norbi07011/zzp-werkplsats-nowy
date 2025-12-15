@@ -8,13 +8,15 @@
 
 import React from "react";
 import { Link } from "react-router-dom";
-
-
-
-
-
-
-
+import {
+  FileText,
+  Building2,
+  Sparkles,
+  Calculator,
+  CreditCard,
+  HardHat,
+  Search,
+} from "lucide-react";
 
 // Role type matching AuthContext
 type DashboardRole =

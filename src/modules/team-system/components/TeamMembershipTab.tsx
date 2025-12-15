@@ -9,6 +9,19 @@
 import React, { useState, useEffect } from "react";
 import { supabase } from "../../../lib/supabase";
 import { toast } from "sonner";
+import {
+  AlertCircle,
+  Briefcase,
+  Building2,
+  Calendar,
+  Check,
+  Clock,
+  Loader2,
+  Mail,
+  Star,
+  Users,
+  X,
+} from "lucide-react";
 
 
 

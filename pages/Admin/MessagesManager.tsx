@@ -313,7 +313,9 @@ const MessagesManager = () => {
               filteredMessages.map((msg) => (
                 <div
                   key={msg.id}
-                  className={`p-4 hover:bg-white/5 transition-colors ${!msg.is_read ? 'bg-blue-500/5' : ''}`}
+                  className={`p-4 hover:bg-white/5 transition-colors ${
+                    !msg.is_read ? "bg-blue-500/5" : ""
+                  }`}
                   onClick={() => setSelectedMessage(msg)}
                 >
                   <div className="flex items-start gap-3">
@@ -333,26 +335,46 @@ const MessagesManager = () => {
                           {new Date(msg.created_at).toLocaleDateString("pl-PL")}
                         </span>
                       </div>
-                      <p className="text-sm text-white font-medium truncate">{msg.subject}</p>
-                      <p className="text-sm text-gray-400 truncate">{msg.body}</p>
+                      <p className="text-sm text-white font-medium truncate">
+                        {msg.subject}
+                      </p>
+                      <p className="text-sm text-gray-400 truncate">
+                        {msg.body}
+                      </p>
                       <div className="flex flex-wrap items-center gap-2 mt-2">
-                        <span className={`px-2 py-0.5 rounded-full text-xs ${
-                          msg.category === "inquiry" ? "bg-blue-500/20 text-blue-400" :
-                          msg.category === "complaint" ? "bg-red-500/20 text-red-400" :
-                          msg.category === "support" ? "bg-green-500/20 text-green-400" :
-                          "bg-gray-500/20 text-gray-400"
-                        }`}>
-                          {msg.category === "inquiry" ? "Zapytanie" :
-                           msg.category === "complaint" ? "Reklamacja" :
-                           msg.category === "support" ? "Wsparcie" : "Inne"}
+                        <span
+                          className={`px-2 py-0.5 rounded-full text-xs ${
+                            msg.category === "inquiry"
+                              ? "bg-blue-500/20 text-blue-400"
+                              : msg.category === "complaint"
+                              ? "bg-red-500/20 text-red-400"
+                              : msg.category === "support"
+                              ? "bg-green-500/20 text-green-400"
+                              : "bg-gray-500/20 text-gray-400"
+                          }`}
+                        >
+                          {msg.category === "inquiry"
+                            ? "Zapytanie"
+                            : msg.category === "complaint"
+                            ? "Reklamacja"
+                            : msg.category === "support"
+                            ? "Wsparcie"
+                            : "Inne"}
                         </span>
-                        <span className={`px-2 py-0.5 rounded-full text-xs ${
-                          msg.priority === "urgent" ? "bg-red-500/20 text-red-400" :
-                          msg.priority === "high" ? "bg-yellow-500/20 text-yellow-400" :
-                          "bg-gray-500/20 text-gray-400"
-                        }`}>
-                          {msg.priority === "urgent" ? "🔴 Pilne" :
-                           msg.priority === "high" ? "🟡 Wysokie" : "🔵 Normalne"}
+                        <span
+                          className={`px-2 py-0.5 rounded-full text-xs ${
+                            msg.priority === "urgent"
+                              ? "bg-red-500/20 text-red-400"
+                              : msg.priority === "high"
+                              ? "bg-yellow-500/20 text-yellow-400"
+                              : "bg-gray-500/20 text-gray-400"
+                          }`}
+                        >
+                          {msg.priority === "urgent"
+                            ? "🔴 Pilne"
+                            : msg.priority === "high"
+                            ? "🟡 Wysokie"
+                            : "🔵 Normalne"}
                         </span>
                       </div>
                     </div>
@@ -361,7 +383,7 @@ const MessagesManager = () => {
               ))
             )}
           </div>
-          
+
           {/* Desktop Table View */}
           <div className="hidden md:block overflow-x-auto scrollable-table-container scroll-right">
             <table className="w-full">

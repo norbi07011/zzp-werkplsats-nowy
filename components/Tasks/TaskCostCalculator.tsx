@@ -1,5 +1,12 @@
-import React, { useState, useEffect } from 'react';
-import { Calculator, Euro, Clock, Package, AlertCircle, TrendingUp } from 'lucide-react';
+import React, { useState, useEffect } from "react";
+import {
+  Calculator,
+  Euro,
+  Clock,
+  Package,
+  AlertCircle,
+  TrendingUp,
+} from "lucide-react";
 
 interface TaskMaterial {
   name: string;
@@ -28,7 +35,7 @@ export function TaskCostCalculator({
   onHourlyRateChange,
   onEstimatedHoursChange,
   editable = true,
-  showBreakdown = true
+  showBreakdown = true,
 }: TaskCostCalculatorProps) {
   const [editingRate, setEditingRate] = useState(false);
   const [editingHours, setEditingHours] = useState(false);
@@ -37,7 +44,7 @@ export function TaskCostCalculator({
 
   // Calculate materials cost
   const materialsCost = materials.reduce((sum, material) => {
-    return sum + (material.quantity * material.price);
+    return sum + material.quantity * material.price;
   }, 0);
 
   // Calculate labor cost
@@ -78,11 +85,11 @@ export function TaskCostCalculator({
   };
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('nl-NL', {
-      style: 'currency',
-      currency: 'EUR',
+    return new Intl.NumberFormat("nl-NL", {
+      style: "currency",
+      currency: "EUR",
       minimumFractionDigits: 2,
-      maximumFractionDigits: 2
+      maximumFractionDigits: 2,
     }).format(amount);
   };
 
@@ -91,7 +98,9 @@ export function TaskCostCalculator({
       {/* Header */}
       <div className="flex items-center gap-2">
         <Calculator className="w-5 h-5 text-blue-600" />
-        <h3 className="text-lg font-semibold text-gray-900">Kalkulacja kosztów</h3>
+        <h3 className="text-lg font-semibold text-gray-900">
+          Kalkulacja kosztów
+        </h3>
       </div>
 
       {/* Breakdown Cards */}
@@ -134,7 +143,7 @@ export function TaskCostCalculator({
                       value={tempRate}
                       onChange={(e) => setTempRate(e.target.value)}
                       onBlur={handleSaveRate}
-                      onKeyPress={(e) => e.key === 'Enter' && handleSaveRate()}
+                      onKeyPress={(e) => e.key === "Enter" && handleSaveRate()}
                       className="w-20 px-2 py-1 border border-blue-300 rounded text-right"
                       step="0.01"
                       min="0"
@@ -145,7 +154,9 @@ export function TaskCostCalculator({
                 ) : (
                   <button
                     onClick={() => editable && setEditingRate(true)}
-                    className={`font-medium ${editable ? 'hover:text-blue-600' : ''}`}
+                    className={`font-medium ${
+                      editable ? "hover:text-blue-600" : ""
+                    }`}
                     disabled={!editable}
                   >
                     {formatCurrency(hourlyRate)}/h
@@ -163,7 +174,7 @@ export function TaskCostCalculator({
                       value={tempHours}
                       onChange={(e) => setTempHours(e.target.value)}
                       onBlur={handleSaveHours}
-                      onKeyPress={(e) => e.key === 'Enter' && handleSaveHours()}
+                      onKeyPress={(e) => e.key === "Enter" && handleSaveHours()}
                       className="w-20 px-2 py-1 border border-blue-300 rounded text-right"
                       step="0.5"
                       min="0"
@@ -174,7 +185,9 @@ export function TaskCostCalculator({
                 ) : (
                   <button
                     onClick={() => editable && setEditingHours(true)}
-                    className={`font-medium ${editable ? 'hover:text-blue-600' : ''}`}
+                    className={`font-medium ${
+                      editable ? "hover:text-blue-600" : ""
+                    }`}
                     disabled={!editable}
                   >
                     {estimatedHours}h
@@ -243,7 +256,8 @@ export function TaskCostCalculator({
           <div className="text-sm text-yellow-800">
             <p className="font-medium mb-1">Brak kalkulacji kosztów</p>
             <p>
-              Dodaj materiały lub ustaw stawkę godzinową i szacowany czas, aby zobaczyć kalkulację.
+              Dodaj materiały lub ustaw stawkę godzinową i szacowany czas, aby
+              zobaczyć kalkulację.
             </p>
           </div>
         </div>
@@ -255,7 +269,8 @@ export function TaskCostCalculator({
           <div className="text-sm text-blue-800">
             <p className="font-medium mb-1">Ustaw stawkę godzinową</p>
             <p>
-              Określiłeś szacowany czas ({estimatedHours}h), ale nie ustawiłeś stawki godzinowej.
+              Określiłeś szacowany czas ({estimatedHours}h), ale nie ustawiłeś
+              stawki godzinowej.
             </p>
           </div>
         </div>
@@ -267,7 +282,8 @@ export function TaskCostCalculator({
           <div className="text-sm text-blue-800">
             <p className="font-medium mb-1">Ustaw szacowany czas</p>
             <p>
-              Określiłeś stawkę ({formatCurrency(hourlyRate)}/h), ale nie ustawiłeś szacowanego czasu pracy.
+              Określiłeś stawkę ({formatCurrency(hourlyRate)}/h), ale nie
+              ustawiłeś szacowanego czasu pracy.
             </p>
           </div>
         </div>

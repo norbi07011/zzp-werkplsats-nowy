@@ -1,5 +1,12 @@
-import React, { useState } from 'react';
-import { Plus, Trash2, Check, Circle, CheckCircle2, ListChecks } from 'lucide-react';
+import React, { useState } from "react";
+import {
+  Plus,
+  Trash2,
+  Check,
+  Circle,
+  CheckCircle2,
+  ListChecks,
+} from "lucide-react";
 
 export interface ChecklistItem {
   id: number;
@@ -18,14 +25,15 @@ interface TaskChecklistManagerProps {
 export function TaskChecklistManager({
   checklist,
   onChecklistChange,
-  editable = true
+  editable = true,
 }: TaskChecklistManagerProps) {
-  const [newItemText, setNewItemText] = useState('');
+  const [newItemText, setNewItemText] = useState("");
   const [showAddForm, setShowAddForm] = useState(false);
 
-  const completedCount = checklist.filter(item => item.completed).length;
+  const completedCount = checklist.filter((item) => item.completed).length;
   const totalCount = checklist.length;
-  const completionPercentage = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
+  const completionPercentage =
+    totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
 
   const handleAddItem = (e: React.FormEvent) => {
     e.preventDefault();
@@ -37,20 +45,20 @@ export function TaskChecklistManager({
     const newItem: ChecklistItem = {
       id: Date.now(),
       text: newItemText.trim(),
-      completed: false
+      completed: false,
     };
 
     onChecklistChange([...checklist, newItem]);
-    setNewItemText('');
+    setNewItemText("");
     setShowAddForm(false);
   };
 
   const handleToggleItem = (index: number) => {
     const updated = [...checklist];
     const item = updated[index];
-    
+
     item.completed = !item.completed;
-    
+
     if (item.completed) {
       item.completed_at = new Date().toISOString();
       // Would set completed_by from auth context
@@ -63,25 +71,28 @@ export function TaskChecklistManager({
   };
 
   const handleDeleteItem = (index: number) => {
-    if (!confirm('Czy na pewno usunąć ten krok?')) return;
+    if (!confirm("Czy na pewno usunąć ten krok?")) return;
     const updated = checklist.filter((_, i) => i !== index);
     onChecklistChange(updated);
   };
 
-  const handleMoveItem = (index: number, direction: 'up' | 'down') => {
+  const handleMoveItem = (index: number, direction: "up" | "down") => {
     if (
-      (direction === 'up' && index === 0) ||
-      (direction === 'down' && index === checklist.length - 1)
+      (direction === "up" && index === 0) ||
+      (direction === "down" && index === checklist.length - 1)
     ) {
       return;
     }
 
     const updated = [...checklist];
-    const targetIndex = direction === 'up' ? index - 1 : index + 1;
-    
+    const targetIndex = direction === "up" ? index - 1 : index + 1;
+
     // Swap items
-    [updated[index], updated[targetIndex]] = [updated[targetIndex], updated[index]];
-    
+    [updated[index], updated[targetIndex]] = [
+      updated[targetIndex],
+      updated[index],
+    ];
+
     onChecklistChange(updated);
   };
 
@@ -114,7 +125,9 @@ export function TaskChecklistManager({
         <div className="bg-gray-100 rounded-lg p-4">
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm font-medium text-gray-700">Postęp</span>
-            <span className="text-sm font-bold text-purple-600">{completionPercentage}%</span>
+            <span className="text-sm font-bold text-purple-600">
+              {completionPercentage}%
+            </span>
           </div>
           <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
             <div
@@ -137,7 +150,10 @@ export function TaskChecklistManager({
 
       {/* Add Form */}
       {showAddForm && editable && (
-        <form onSubmit={handleAddItem} className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+        <form
+          onSubmit={handleAddItem}
+          className="bg-purple-50 border border-purple-200 rounded-lg p-4"
+        >
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Nowy krok
           </label>
@@ -160,7 +176,7 @@ export function TaskChecklistManager({
               type="button"
               onClick={() => {
                 setShowAddForm(false);
-                setNewItemText('');
+                setNewItemText("");
               }}
               className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
             >
@@ -178,8 +194,8 @@ export function TaskChecklistManager({
               key={item.id}
               className={`group flex items-start gap-3 p-3 rounded-lg border transition-all ${
                 item.completed
-                  ? 'bg-green-50 border-green-200'
-                  : 'bg-white border-gray-200 hover:border-purple-300'
+                  ? "bg-green-50 border-green-200"
+                  : "bg-white border-gray-200 hover:border-purple-300"
               }`}
             >
               {/* Checkbox */}
@@ -187,8 +203,8 @@ export function TaskChecklistManager({
                 onClick={() => handleToggleItem(index)}
                 className={`mt-0.5 flex-shrink-0 w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors ${
                   item.completed
-                    ? 'bg-green-500 border-green-500 text-white'
-                    : 'border-gray-300 hover:border-purple-500'
+                    ? "bg-green-500 border-green-500 text-white"
+                    : "border-gray-300 hover:border-purple-500"
                 }`}
                 disabled={!editable}
               >
@@ -197,18 +213,25 @@ export function TaskChecklistManager({
 
               {/* Content */}
               <div className="flex-1 min-w-0">
-                <p className={`text-sm ${item.completed ? 'line-through text-gray-500' : 'text-gray-900'}`}>
+                <p
+                  className={`text-sm ${
+                    item.completed
+                      ? "line-through text-gray-500"
+                      : "text-gray-900"
+                  }`}
+                >
                   {item.text}
                 </p>
                 {item.completed && item.completed_at && (
                   <p className="text-xs text-gray-500 mt-1">
                     <CheckCircle2 className="w-3 h-3 inline mr-1" />
-                    Wykonano: {new Date(item.completed_at).toLocaleDateString('pl-PL', {
-                      day: '2-digit',
-                      month: '2-digit',
-                      year: 'numeric',
-                      hour: '2-digit',
-                      minute: '2-digit'
+                    Wykonano:{" "}
+                    {new Date(item.completed_at).toLocaleDateString("pl-PL", {
+                      day: "2-digit",
+                      month: "2-digit",
+                      year: "numeric",
+                      hour: "2-digit",
+                      minute: "2-digit",
                     })}
                   </p>
                 )}
@@ -220,18 +243,18 @@ export function TaskChecklistManager({
                   {/* Move up */}
                   {index > 0 && (
                     <button
-                      onClick={() => handleMoveItem(index, 'up')}
+                      onClick={() => handleMoveItem(index, "up")}
                       className="p-1 hover:bg-gray-100 rounded transition-colors"
                       title="Przesuń w górę"
                     >
                       <span className="text-gray-600">↑</span>
                     </button>
                   )}
-                  
+
                   {/* Move down */}
                   {index < checklist.length - 1 && (
                     <button
-                      onClick={() => handleMoveItem(index, 'down')}
+                      onClick={() => handleMoveItem(index, "down")}
                       className="p-1 hover:bg-gray-100 rounded transition-colors"
                       title="Przesuń w dół"
                     >

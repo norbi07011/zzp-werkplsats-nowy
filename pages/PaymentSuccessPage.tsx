@@ -7,7 +7,7 @@ import React, { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { supabase } from "../src/lib/supabase";
-import { Loader2, CheckCircle, AlertCircle } from 'lucide-react';
+import { Loader2, CheckCircle, AlertCircle } from "lucide-react";
 
 const PaymentSuccessPage: React.FC = () => {
   console.log("[PaymentSuccess] 🚀 COMPONENT RENDERED");

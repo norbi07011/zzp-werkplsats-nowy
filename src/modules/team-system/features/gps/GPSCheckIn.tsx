@@ -6,7 +6,16 @@
  */
 
 import React, { useState, useEffect } from "react";
-import { MapPin, Clock, Loader2, AlertCircle, CheckCircle, Navigation, LogIn, LogOut } from 'lucide-react';
+import {
+  MapPin,
+  Clock,
+  Loader2,
+  AlertCircle,
+  CheckCircle,
+  Navigation,
+  LogIn,
+  LogOut,
+} from "lucide-react";
 
 import { supabase } from "../../../../lib/supabase";
 import { useAuth } from "../../../../../contexts/AuthContext";

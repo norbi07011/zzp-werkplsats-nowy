@@ -31,15 +31,6 @@ import {
   Video,
 } from "lucide-react";
 
-
-
-
-
-
-
-
-
-
 // Event types with colors
 const EVENT_STYLES: Record<
   string,

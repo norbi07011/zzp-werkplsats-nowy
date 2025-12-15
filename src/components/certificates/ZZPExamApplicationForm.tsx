@@ -3,10 +3,18 @@
  * Worker wypełnia formularz i opłaca egzamin (€230)
  */
 
-import React, { useState } from 'react';
-import { Calendar, MapPin, FileText, CreditCard, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
-import { STRIPE_CONFIG } from '../../config/stripe';
-import { supabase } from '@/lib/supabase';
+import React, { useState } from "react";
+import {
+  Calendar,
+  MapPin,
+  FileText,
+  CreditCard,
+  CheckCircle,
+  AlertCircle,
+  Loader2,
+} from "lucide-react";
+import { STRIPE_CONFIG } from "../../config/stripe";
+import { supabase } from "@/lib/supabase";
 
 interface ZZPExamApplicationFormProps {
   userId: string;
@@ -15,32 +23,32 @@ interface ZZPExamApplicationFormProps {
 }
 
 const WAREHOUSE_LOCATIONS = [
-  'Amsterdam Warehouse',
-  'Rotterdam Warehouse',
-  'Utrecht Warehouse',
-  'Eindhoven Warehouse'
+  "Amsterdam Warehouse",
+  "Rotterdam Warehouse",
+  "Utrecht Warehouse",
+  "Eindhoven Warehouse",
 ];
 
 const SPECIALIZATIONS = [
-  { id: 'forklift', label: 'Wózki widłowe', icon: '🚜' },
-  { id: 'warehouse', label: 'Prace magazynowe', icon: '📦' },
-  { id: 'logistics', label: 'Logistyka', icon: '🚚' },
-  { id: 'heavy_machinery', label: 'Ciężki sprzęt', icon: '🏗️' },
-  { id: 'inventory', label: 'Zarządzanie zapasami', icon: '📊' },
-  { id: 'quality_control', label: 'Kontrola jakości', icon: '✅' }
+  { id: "forklift", label: "Wózki widłowe", icon: "🚜" },
+  { id: "warehouse", label: "Prace magazynowe", icon: "📦" },
+  { id: "logistics", label: "Logistyka", icon: "🚚" },
+  { id: "heavy_machinery", label: "Ciężki sprzęt", icon: "🏗️" },
+  { id: "inventory", label: "Zarządzanie zapasami", icon: "📊" },
+  { id: "quality_control", label: "Kontrola jakości", icon: "✅" },
 ];
 
 export const ZZPExamApplicationForm: React.FC<ZZPExamApplicationFormProps> = ({
   userId,
   userEmail,
-  onSuccess
+  onSuccess,
 }) => {
   const [formData, setFormData] = useState({
-    examDate: '',
-    warehouseLocation: '',
-    experienceDescription: '',
+    examDate: "",
+    warehouseLocation: "",
+    experienceDescription: "",
     specializations: [] as string[],
-    contactPhone: ''
+    contactPhone: "",
   });
 
   const [loading, setLoading] = useState(false);
@@ -50,40 +58,42 @@ export const ZZPExamApplicationForm: React.FC<ZZPExamApplicationFormProps> = ({
   const examAmount = STRIPE_CONFIG.products.zzpExam.amount;
 
   const handleSpecializationToggle = (id: string) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
       specializations: prev.specializations.includes(id)
-        ? prev.specializations.filter(s => s !== id)
-        : [...prev.specializations, id]
+        ? prev.specializations.filter((s) => s !== id)
+        : [...prev.specializations, id],
     }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // Validation
     if (!formData.examDate) {
-      setError('Wybierz preferowaną datę egzaminu');
+      setError("Wybierz preferowaną datę egzaminu");
       return;
     }
-    
+
     if (!formData.warehouseLocation) {
-      setError('Wybierz lokalizację magazynu');
+      setError("Wybierz lokalizację magazynu");
       return;
     }
-    
+
     if (!formData.experienceDescription.trim()) {
-      setError('Opisz swoje doświadczenie');
+      setError("Opisz swoje doświadczenie");
       return;
     }
-    
+
     if (formData.specializations.length === 0) {
-      setError('Wybierz przynajmniej jedną specjalizację');
+      setError("Wybierz przynajmniej jedną specjalizację");
       return;
     }
 
     if (!examPriceId) {
-      setError('Stripe nie jest skonfigurowany. Skontaktuj się z administracją.');
+      setError(
+        "Stripe nie jest skonfigurowany. Skontaktuj się z administracją."
+      );
       return;
     }
 
@@ -92,45 +102,47 @@ export const ZZPExamApplicationForm: React.FC<ZZPExamApplicationFormProps> = ({
 
     try {
       // Get current session token for authorization
-      const { data: { session } } = await supabase.auth.getSession();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
       if (!session) {
-        throw new Error('Nie jesteś zalogowany. Zaloguj się ponownie.');
+        throw new Error("Nie jesteś zalogowany. Zaloguj się ponownie.");
       }
 
       // Call Supabase Edge Function to create exam payment session
       const functionsUrl = import.meta.env.VITE_SUPABASE_FUNCTIONS_URL;
-      
+
       if (!functionsUrl) {
-        throw new Error('Konfiguracja Supabase jest nieprawidłowa.');
+        throw new Error("Konfiguracja Supabase jest nieprawidłowa.");
       }
 
-      console.log('🔵 Creating exam payment session...', {
+      console.log("🔵 Creating exam payment session...", {
         functionsUrl,
         examPriceId,
-        userId
+        userId,
       });
 
       const response = await fetch(`${functionsUrl}/create-exam-payment`, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`,
-          'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY || '',
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+          apikey: import.meta.env.VITE_SUPABASE_ANON_KEY || "",
         },
         body: JSON.stringify({
           userId,
           email: userEmail,
           priceId: examPriceId,
-          examData: formData
-        })
+          examData: formData,
+        }),
       });
 
-      console.log('🔵 Response status:', response.status, response.statusText);
+      console.log("🔵 Response status:", response.status, response.statusText);
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('❌ Error response:', errorText);
-        let errorMessage = 'Nie udało się utworzyć sesji płatności';
+        console.error("❌ Error response:", errorText);
+        let errorMessage = "Nie udało się utworzyć sesji płatności";
         try {
           const errorJson = JSON.parse(errorText);
           errorMessage = errorJson.error || errorMessage;
@@ -141,22 +153,26 @@ export const ZZPExamApplicationForm: React.FC<ZZPExamApplicationFormProps> = ({
       }
 
       const responseData = await response.json();
-      console.log('✅ Payment session created:', responseData);
-      
+      console.log("✅ Payment session created:", responseData);
+
       const { url } = responseData;
-      
+
       if (!url) {
-        throw new Error('Nie otrzymano adresu URL płatności');
+        throw new Error("Nie otrzymano adresu URL płatności");
       }
 
       // Redirect to Stripe Checkout
-      console.log('🔵 Redirecting to:', url);
+      console.log("🔵 Redirecting to:", url);
       window.location.href = url;
-      
+
       onSuccess?.();
     } catch (err) {
-      console.error('❌ Error creating exam payment:', err);
-      setError(err instanceof Error ? err.message : 'Wystąpił błąd podczas przetwarzania');
+      console.error("❌ Error creating exam payment:", err);
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Wystąpił błąd podczas przetwarzania"
+      );
       setLoading(false); // IMPORTANT: Reset loading state on error!
     }
   };
@@ -164,7 +180,7 @@ export const ZZPExamApplicationForm: React.FC<ZZPExamApplicationFormProps> = ({
   // Get minimum date (tomorrow)
   const minDate = new Date();
   minDate.setDate(minDate.getDate() + 1);
-  const minDateString = minDate.toISOString().split('T')[0];
+  const minDateString = minDate.toISOString().split("T")[0];
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
@@ -189,7 +205,9 @@ export const ZZPExamApplicationForm: React.FC<ZZPExamApplicationFormProps> = ({
             type="date"
             min={minDateString}
             value={formData.examDate}
-            onChange={(e) => setFormData({ ...formData, examDate: e.target.value })}
+            onChange={(e) =>
+              setFormData({ ...formData, examDate: e.target.value })
+            }
             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
             required
           />
@@ -206,13 +224,17 @@ export const ZZPExamApplicationForm: React.FC<ZZPExamApplicationFormProps> = ({
           </label>
           <select
             value={formData.warehouseLocation}
-            onChange={(e) => setFormData({ ...formData, warehouseLocation: e.target.value })}
+            onChange={(e) =>
+              setFormData({ ...formData, warehouseLocation: e.target.value })
+            }
             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
             required
           >
             <option value="">Wybierz magazyn...</option>
-            {WAREHOUSE_LOCATIONS.map(location => (
-              <option key={location} value={location}>{location}</option>
+            {WAREHOUSE_LOCATIONS.map((location) => (
+              <option key={location} value={location}>
+                {location}
+              </option>
             ))}
           </select>
         </div>
@@ -224,16 +246,17 @@ export const ZZPExamApplicationForm: React.FC<ZZPExamApplicationFormProps> = ({
             Specjalizacje (wybierz wszystkie, które posiadasz)
           </label>
           <div className="grid grid-cols-2 gap-3">
-            {SPECIALIZATIONS.map(spec => (
+            {SPECIALIZATIONS.map((spec) => (
               <button
                 key={spec.id}
                 type="button"
                 onClick={() => handleSpecializationToggle(spec.id)}
                 className={`
                   flex items-center gap-2 px-4 py-3 rounded-lg border-2 transition-all
-                  ${formData.specializations.includes(spec.id)
-                    ? 'border-amber-500 bg-amber-50 text-amber-900'
-                    : 'border-gray-200 hover:border-amber-300 text-gray-700'
+                  ${
+                    formData.specializations.includes(spec.id)
+                      ? "border-amber-500 bg-amber-50 text-amber-900"
+                      : "border-gray-200 hover:border-amber-300 text-gray-700"
                   }
                 `}
               >
@@ -255,15 +278,18 @@ export const ZZPExamApplicationForm: React.FC<ZZPExamApplicationFormProps> = ({
           </label>
           <textarea
             value={formData.experienceDescription}
-            onChange={(e) => setFormData({ ...formData, experienceDescription: e.target.value })}
+            onChange={(e) =>
+              setFormData({
+                ...formData,
+                experienceDescription: e.target.value,
+              })
+            }
             rows={4}
             placeholder="Opisz swoje doświadczenie w pracy magazynowej, obsłudze wózków widłowych, logistyce, itp."
             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent resize-none"
             required
           />
-          <p className="mt-1 text-sm text-gray-500">
-            Min. 50 znaków
-          </p>
+          <p className="mt-1 text-sm text-gray-500">Min. 50 znaków</p>
         </div>
 
         {/* Contact Phone (optional) */}
@@ -274,7 +300,9 @@ export const ZZPExamApplicationForm: React.FC<ZZPExamApplicationFormProps> = ({
           <input
             type="tel"
             value={formData.contactPhone}
-            onChange={(e) => setFormData({ ...formData, contactPhone: e.target.value })}
+            onChange={(e) =>
+              setFormData({ ...formData, contactPhone: e.target.value })
+            }
             placeholder="+31 6 1234 5678"
             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
           />
@@ -284,10 +312,13 @@ export const ZZPExamApplicationForm: React.FC<ZZPExamApplicationFormProps> = ({
         <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm text-gray-600">Koszt egzaminu:</span>
-            <span className="text-lg font-bold text-gray-900">€{examAmount}</span>
+            <span className="text-lg font-bold text-gray-900">
+              €{examAmount}
+            </span>
           </div>
           <p className="text-xs text-gray-500">
-            Obejmuje: Egzamin praktyczny + Certyfikat ZZP (ważny 7 lat) + €190 + 21% BTW
+            Obejmuje: Egzamin praktyczny + Certyfikat ZZP (ważny 7 lat) + €190 +
+            21% BTW
           </p>
         </div>
 

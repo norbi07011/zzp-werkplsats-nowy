@@ -5,7 +5,14 @@
  */
 
 import React, { useRef, useState, useEffect } from "react";
-import { Save, X, Trash2, Loader2, AlertCircle, CheckCircle } from 'lucide-react';
+import {
+  Save,
+  X,
+  Trash2,
+  Loader2,
+  AlertCircle,
+  CheckCircle,
+} from "lucide-react";
 
 import { supabase } from "../../../../lib/supabase";
 import { useAuth } from "../../../../../contexts/AuthContext";

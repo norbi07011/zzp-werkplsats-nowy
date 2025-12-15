@@ -33,20 +33,6 @@ import {
   Image as ImageIcon,
 } from "lucide-react";
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 import { CoverImageUploader } from "../../src/components/common/CoverImageUploader";
 import { GlowButton } from "../ui/GlowButton";
 

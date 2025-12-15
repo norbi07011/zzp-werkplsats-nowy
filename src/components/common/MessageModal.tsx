@@ -5,7 +5,7 @@
  * Features: Read message, reply, mark as read
  */
 
-import { useState } from 'react';
+import { useState } from "react";
 
 interface MessageModalProps {
   message: {
@@ -31,44 +31,44 @@ export const MessageModal: React.FC<MessageModalProps> = ({
   onReply,
   onMarkAsRead,
 }) => {
-  const [replyContent, setReplyContent] = useState('');
+  const [replyContent, setReplyContent] = useState("");
   const [showReplyForm, setShowReplyForm] = useState(false);
   const [sending, setSending] = useState(false);
 
   const getSenderName = (): string => {
     const { first_name, last_name } = message.sender;
     if (first_name || last_name) {
-      return `${first_name || ''} ${last_name || ''}`.trim();
+      return `${first_name || ""} ${last_name || ""}`.trim();
     }
-    return 'Użytkownik';
+    return "Użytkownik";
   };
 
   const formatDate = (dateString: string): string => {
     const date = new Date(dateString);
-    return date.toLocaleString('pl-PL', {
-      day: '2-digit',
-      month: 'long',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
+    return date.toLocaleString("pl-PL", {
+      day: "2-digit",
+      month: "long",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
     });
   };
 
   const handleSendReply = async () => {
     if (!replyContent.trim()) {
-      alert('Wpisz treść odpowiedzi');
+      alert("Wpisz treść odpowiedzi");
       return;
     }
 
     try {
       setSending(true);
       await onReply(message.id, replyContent);
-      setReplyContent('');
+      setReplyContent("");
       setShowReplyForm(false);
-      alert('✅ Odpowiedź wysłana!');
+      alert("✅ Odpowiedź wysłana!");
     } catch (err) {
-      console.error('Error sending reply:', err);
-      alert('❌ Nie udało się wysłać odpowiedzi');
+      console.error("Error sending reply:", err);
+      alert("❌ Nie udało się wysłać odpowiedzi");
     } finally {
       setSending(false);
     }
@@ -94,20 +94,32 @@ export const MessageModal: React.FC<MessageModalProps> = ({
           <div className="flex items-start justify-between mb-2">
             <div className="flex-1">
               <h2 className="text-2xl font-bold mb-1">
-                {message.subject || 'Wiadomość'}
+                {message.subject || "Wiadomość"}
               </h2>
               <div className="flex items-center gap-2 text-blue-100">
                 <span className="font-medium">{getSenderName()}</span>
                 <span>•</span>
-                <span className="text-sm">{formatDate(message.created_at)}</span>
+                <span className="text-sm">
+                  {formatDate(message.created_at)}
+                </span>
               </div>
             </div>
             <button
               onClick={onClose}
               className="text-white hover:bg-white hover:bg-opacity-20 rounded-full p-2 transition-colors"
             >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              <svg
+                className="w-6 h-6"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M6 18L18 6M6 6l12 12"
+                />
               </svg>
             </button>
           </div>
@@ -136,8 +148,18 @@ export const MessageModal: React.FC<MessageModalProps> = ({
                 onClick={handleMarkAsRead}
                 className="flex-1 bg-gray-100 text-gray-700 px-4 py-3 rounded-lg hover:bg-gray-200 transition-colors font-medium flex items-center justify-center gap-2"
               >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                <svg
+                  className="w-5 h-5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M5 13l4 4L19 7"
+                  />
                 </svg>
                 Oznacz jako przeczytaną
               </button>
@@ -149,20 +171,30 @@ export const MessageModal: React.FC<MessageModalProps> = ({
               onClick={() => setShowReplyForm(!showReplyForm)}
               className="flex-1 bg-blue-600 text-white px-4 py-3 rounded-lg hover:bg-blue-700 transition-colors font-medium flex items-center justify-center gap-2"
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+              <svg
+                className="w-5 h-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"
+                />
               </svg>
-              {showReplyForm ? 'Anuluj odpowiedź' : 'Odpowiedz'}
+              {showReplyForm ? "Anuluj odpowiedź" : "Odpowiedz"}
             </button>
           </div>
 
           {/* Reply Form */}
-          <div className={showReplyForm ? 'mt-6' : 'hidden'}>
+          <div className={showReplyForm ? "mt-6" : "hidden"}>
             <div className="bg-blue-50 rounded-xl p-6 border-2 border-blue-200">
               <h3 className="text-lg font-semibold text-gray-800 mb-3">
                 📝 Twoja odpowiedź
               </h3>
-              
+
               <textarea
                 value={replyContent}
                 onChange={(e) => setReplyContent(e.target.value)}
@@ -176,7 +208,7 @@ export const MessageModal: React.FC<MessageModalProps> = ({
                 <button
                   onClick={() => {
                     setShowReplyForm(false);
-                    setReplyContent('');
+                    setReplyContent("");
                   }}
                   className="flex-1 bg-gray-200 text-gray-700 px-4 py-3 rounded-lg hover:bg-gray-300 transition-colors font-medium"
                   disabled={sending}
@@ -188,9 +220,10 @@ export const MessageModal: React.FC<MessageModalProps> = ({
                   disabled={sending || !replyContent.trim()}
                   className={`
                     flex-1 px-4 py-3 rounded-lg font-medium transition-all flex items-center justify-center gap-2
-                    ${sending || !replyContent.trim()
-                      ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                      : 'bg-blue-600 text-white hover:bg-blue-700'
+                    ${
+                      sending || !replyContent.trim()
+                        ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                        : "bg-blue-600 text-white hover:bg-blue-700"
                     }
                   `}
                 >
@@ -201,8 +234,18 @@ export const MessageModal: React.FC<MessageModalProps> = ({
                     </>
                   ) : (
                     <>
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                      <svg
+                        className="w-5 h-5"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"
+                        />
                       </svg>
                       Wyślij odpowiedź
                     </>

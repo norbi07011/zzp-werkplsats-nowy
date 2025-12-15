@@ -25,12 +25,14 @@ import {
 } from "../lib";
 import { useAuth } from "../../../../contexts/AuthContext";
 import type { InvoiceLine, CreateInvoiceData } from "../types";
-
-
-
-
-
-
+import {
+  ArrowRight,
+  Box,
+  Briefcase,
+  Clock,
+  Image as ImageIcon,
+  Palette,
+} from "lucide-react";
 
 // --- Types from Documents.tsx ---
 interface InvoiceDesign {

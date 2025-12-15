@@ -3,15 +3,15 @@
  * Handles employer subscription upgrades (Basic/Premium)
  */
 
-import React, { useState } from 'react';
-import { CreditCard, Loader2, AlertCircle, CheckCircle } from 'lucide-react';
-import { handleEmployerSubscription } from '../../services/stripe';
-import { isStripeConfigured } from '../../config/stripe';
+import React, { useState } from "react";
+import { CreditCard, Loader2, AlertCircle, CheckCircle } from "lucide-react";
+import { handleEmployerSubscription } from "../../services/stripe";
+import { isStripeConfigured } from "../../config/stripe";
 
 interface EmployerCheckoutButtonProps {
   employerId: string;
-  plan: 'basic' | 'premium';
-  currentPlan?: 'basic' | 'premium';
+  plan: "basic" | "premium";
+  currentPlan?: "basic" | "premium";
   className?: string;
   onSuccess?: () => void;
   onError?: (error: Error) => void;
@@ -21,9 +21,9 @@ export const EmployerCheckoutButton: React.FC<EmployerCheckoutButtonProps> = ({
   employerId,
   plan,
   currentPlan,
-  className = '',
+  className = "",
   onSuccess,
-  onError
+  onError,
 }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -33,15 +33,15 @@ export const EmployerCheckoutButton: React.FC<EmployerCheckoutButtonProps> = ({
 
   const planDetails = {
     basic: {
-      name: 'Basic',
-      price: '€13',
-      label: 'Koop Basic - €13/maand'
+      name: "Basic",
+      price: "€13",
+      label: "Koop Basic - €13/maand",
     },
     premium: {
-      name: 'Premium',
-      price: '€25',
-      label: 'Upgrade do Premium - €25/maand'
-    }
+      name: "Premium",
+      price: "€25",
+      label: "Upgrade do Premium - €25/maand",
+    },
   };
 
   const handleClick = async () => {
@@ -50,7 +50,9 @@ export const EmployerCheckoutButton: React.FC<EmployerCheckoutButtonProps> = ({
     }
 
     if (!isConfigured) {
-      const configError = new Error('Stripe is niet geconfigureerd. Neem contact op met support.');
+      const configError = new Error(
+        "Stripe is niet geconfigureerd. Neem contact op met support."
+      );
       setError(configError.message);
       onError?.(configError);
       return;
@@ -63,7 +65,8 @@ export const EmployerCheckoutButton: React.FC<EmployerCheckoutButtonProps> = ({
       await handleEmployerSubscription(employerId, plan);
       onSuccess?.();
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Er is iets misgegaan';
+      const errorMessage =
+        err instanceof Error ? err.message : "Er is iets misgegaan";
       setError(errorMessage);
       onError?.(err instanceof Error ? err : new Error(errorMessage));
     } finally {
@@ -90,9 +93,10 @@ export const EmployerCheckoutButton: React.FC<EmployerCheckoutButtonProps> = ({
         disabled={loading || !isConfigured}
         className={`
           flex items-center justify-center gap-2 px-6 py-3 rounded-xl
-          ${plan === 'premium' 
-            ? 'bg-gradient-to-r from-yellow-400 to-orange-500 text-white' 
-            : 'bg-gradient-to-r from-blue-500 to-blue-600 text-white'
+          ${
+            plan === "premium"
+              ? "bg-gradient-to-r from-yellow-400 to-orange-500 text-white"
+              : "bg-gradient-to-r from-blue-500 to-blue-600 text-white"
           }
           font-medium
           hover:shadow-lg hover:scale-105 transition-all duration-200
@@ -124,7 +128,8 @@ export const EmployerCheckoutButton: React.FC<EmployerCheckoutButtonProps> = ({
         <div className="flex items-start gap-2 p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
           <AlertCircle className="w-5 h-5 text-yellow-400 flex-shrink-0 mt-0.5" />
           <p className="text-sm text-yellow-400">
-            Betalingen zijn momenteel niet beschikbaar. Configureer Stripe om door te gaan.
+            Betalingen zijn momenteel niet beschikbaar. Configureer Stripe om
+            door te gaan.
           </p>
         </div>
       )}
