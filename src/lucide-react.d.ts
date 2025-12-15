@@ -68,5 +68,36 @@ declare module "lucide-react" {
   export const CloudOff: any;
   export const Cloud: any;
 
+  // StyleEditor icons
+  export const Palette: any;
+  export const Type: any;
+  export const LayoutTemplate: any;
+  export const Layout: any;
+  export const RotateCcw: any;
+  export const ChevronUp: any;
+  export const ZoomIn: any;
+  export const ZoomOut: any;
+  export const AlignLeft: any;
+  export const AlignCenter: any;
+  export const AlignRight: any;
+  export const Move: any;
+  export const Settings2: any;
+  export const Pipette: any;
+  
+  // DashboardSidebar icons
+  export const MessageSquare: any;
+  export const Star: any;
+  export const Clipboard: any;
+  export const ClipboardList: any;
+  export const Bookmark: any;
+  export const ChevronRight: any;
+  export const ChevronLeft: any;
+  export const HelpCircle: any;
+  
+  // TeamPage icons
+  export const FolderKanban: any;
+  export const MessageCircle: any;
+  export const Trophy: any;
+
   // Add more as needed...
 }

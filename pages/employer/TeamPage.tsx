@@ -21,6 +21,19 @@ import { RankingPage } from "../../src/modules/team-system/pages/RankingPage";
 import { Dashboard as TeamDashboard } from "../../src/modules/team-system/pages/TeamDashboard";
 import { OrderBuilder } from "../../src/modules/team-system/pages/OrderBuilder";
 import { DocumentBuilder } from "../../src/modules/team-system/tools";
+import {
+  LayoutDashboard,
+  FolderKanban,
+  Users,
+  Calendar,
+  MessageCircle,
+  Trophy,
+  Wrench,
+  ChevronLeft,
+  ChevronRight,
+  Menu,
+  X,
+} from "lucide-react";
 
 
 

@@ -11,6 +11,29 @@ import React, { useState } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import { Link } from "react-router-dom";
 import { Logo } from "./Logo";
+import {
+  LayoutDashboard,
+  User,
+  Eye,
+  MessageSquare,
+  Star,
+  Clipboard,
+  Palette,
+  CreditCard,
+  Briefcase,
+  ClipboardList,
+  FileText,
+  Users,
+  Bookmark,
+  Settings,
+  ChevronRight,
+  ChevronLeft,
+  ChevronDown,
+  ChevronUp,
+  HelpCircle,
+  Menu,
+  X,
+} from "lucide-react";
 
 
 
