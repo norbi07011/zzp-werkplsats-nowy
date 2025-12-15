@@ -11,25 +11,25 @@
  */
 
 import React, { useState, useEffect } from "react";
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+import {
+  Camera,
+  FileText,
+  Bell,
+  Shield,
+  Save,
+  ChevronDown,
+  ChevronUp,
+  User,
+  Building,
+  Phone,
+  Mail,
+  MapPin,
+  Globe,
+  Loader2,
+  X,
+  Plus,
+  Check,
+} from "lucide-react";
 import { CoverImageUploader } from "../../src/components/common/CoverImageUploader";
 import { GlowButton } from "../ui/GlowButton";
 

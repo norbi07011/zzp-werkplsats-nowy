@@ -11,7 +11,28 @@
  */
 
 import React, { useState } from "react";
-
+import {
+  Camera,
+  FileText,
+  Bell,
+  Shield,
+  Save,
+  ChevronDown,
+  ChevronUp,
+  User,
+  Phone,
+  Mail,
+  MapPin,
+  Loader2,
+  X,
+  Plus,
+  Check,
+  Calendar,
+  Clock,
+  Briefcase,
+  Languages,
+  Award,
+} from "lucide-react";
 
 
 
