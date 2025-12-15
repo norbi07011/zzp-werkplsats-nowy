@@ -1,9 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAddTeamMember, Project } from '../hooks/useAddTeamMember';
-import UserPlus from 'lucide-react/dist/esm/icons/user-plus';
-import Check from 'lucide-react/dist/esm/icons/check';
-import Mail from 'lucide-react/dist/esm/icons/mail';
-import ChevronDown from 'lucide-react/dist/esm/icons/chevron-down';
+import { UserPlus, Check, Mail, ChevronDown } from 'lucide-react';
 
 interface AddToTeamButtonProps {
   userId: string;

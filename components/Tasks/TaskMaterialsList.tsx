@@ -1,9 +1,5 @@
 import React, { useState } from 'react';
-import Plus from 'lucide-react/dist/esm/icons/plus';
-import Trash2 from 'lucide-react/dist/esm/icons/trash-2';
-import Edit2 from 'lucide-react/dist/esm/icons/edit-2';
-import Package from 'lucide-react/dist/esm/icons/package';
-import ExternalLink from 'lucide-react/dist/esm/icons/external-link';
+import { Plus, Trash2, Edit2, Package, ExternalLink } from 'lucide-react';
 
 export interface TaskMaterial {
   name: string;

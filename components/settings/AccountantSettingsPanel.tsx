@@ -30,6 +30,7 @@ import {
   X,
   Plus,
   Check,
+  Image as ImageIcon,
 } from "lucide-react";
 import { CoverImageUploader } from "../../src/components/common/CoverImageUploader";
 import { GlowButton } from "../ui/GlowButton";
@@ -331,7 +332,7 @@ export const AccountantSettingsPanel: React.FC<
       <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-white/60 shadow-xl p-6">
         <div className="flex items-center gap-3 mb-6">
           <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-600 rounded-xl flex items-center justify-center">
-            <Image size={20} className="text-white" />
+            <ImageIcon size={20} className="text-white" />
           </div>
           <div>
             <h3 className="font-bold text-gray-900">Zdjęcie w tle</h3>

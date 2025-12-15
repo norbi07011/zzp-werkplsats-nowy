@@ -2,16 +2,7 @@ import React, { useState } from 'react';
 import { useProjectTasks, type ProjectTask } from '../hooks/useProjectTasks';
 import { useAuth } from '../contexts/AuthContext';
 import { TaskFormModal } from './Tasks/TaskFormModal';
-import Plus from 'lucide-react/dist/esm/icons/plus';
-import Filter from 'lucide-react/dist/esm/icons/filter';
-import Search from 'lucide-react/dist/esm/icons/search';
-import Calendar from 'lucide-react/dist/esm/icons/calendar';
-import User from 'lucide-react/dist/esm/icons/user';
-import AlertCircle from 'lucide-react/dist/esm/icons/alert-circle';
-import CheckCircle from 'lucide-react/dist/esm/icons/check-circle';
-import Clock from 'lucide-react/dist/esm/icons/clock';
-import XCircle from 'lucide-react/dist/esm/icons/x-circle';
-import CheckSquare from 'lucide-react/dist/esm/icons/check-square';
+import { Plus, Filter, Search, Calendar, User, AlertCircle, CheckCircle, Clock, XCircle, CheckSquare } from 'lucide-react';
 
 interface TaskListProps {
   projectId: string;

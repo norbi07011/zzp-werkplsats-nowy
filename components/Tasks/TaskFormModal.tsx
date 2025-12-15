@@ -3,15 +3,7 @@ import { Modal } from '../Modal';
 import { ProjectTask } from '../../hooks/useProjectTasks';
 import { useProjectTasks } from '../../hooks/useProjectTasks';
 import { useProjectMembers } from '../../hooks/useProjectMembers';
-import Save from 'lucide-react/dist/esm/icons/save';
-import X from 'lucide-react/dist/esm/icons/x';
-import FileText from 'lucide-react/dist/esm/icons/file-text';
-import Image from 'lucide-react/dist/esm/icons/image';
-import Package from 'lucide-react/dist/esm/icons/package';
-import CheckSquare from 'lucide-react/dist/esm/icons/check-square';
-import Calculator from 'lucide-react/dist/esm/icons/calculator';
-import Layout from 'lucide-react/dist/esm/icons/layout';
-import User from 'lucide-react/dist/esm/icons/user';
+import { Save, X, FileText, Image as ImageIcon, Package, CheckSquare, Calculator, Layout, User } from 'lucide-react';
 
 // Import wszystkich 5 komponentów RAPP.NL
 import { TaskPhotoGallery } from './TaskPhotoGallery';

@@ -1,9 +1,5 @@
 import React, { useState, useRef } from 'react';
-import Upload from 'lucide-react/dist/esm/icons/upload';
-import X from 'lucide-react/dist/esm/icons/x';
-import ZoomIn from 'lucide-react/dist/esm/icons/zoom-in';
-import Download from 'lucide-react/dist/esm/icons/download';
-import Camera from 'lucide-react/dist/esm/icons/camera';
+import { Upload, X, ZoomIn, Download, Camera } from 'lucide-react';
 import { supabase } from '../../src/lib/supabase';
 
 interface TaskPhoto {

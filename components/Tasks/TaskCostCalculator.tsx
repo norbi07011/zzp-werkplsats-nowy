@@ -1,10 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import Calculator from 'lucide-react/dist/esm/icons/calculator';
-import Euro from 'lucide-react/dist/esm/icons/euro';
-import Clock from 'lucide-react/dist/esm/icons/clock';
-import Package from 'lucide-react/dist/esm/icons/package';
-import AlertCircle from 'lucide-react/dist/esm/icons/alert-circle';
-import TrendingUp from 'lucide-react/dist/esm/icons/trending-up';
+import { Calculator, Euro, Clock, Package, AlertCircle, TrendingUp } from 'lucide-react';
 
 interface TaskMaterial {
   name: string;

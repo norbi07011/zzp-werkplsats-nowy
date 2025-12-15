@@ -1,9 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useProjectEvents, type ProjectEvent } from '../hooks/useProjectEvents';
-import ChevronLeft from 'lucide-react/dist/esm/icons/chevron-left';
-import ChevronRight from 'lucide-react/dist/esm/icons/chevron-right';
-import Plus from 'lucide-react/dist/esm/icons/plus';
-import CalendarIcon from 'lucide-react/dist/esm/icons/calendar';
+import { ChevronLeft, ChevronRight, Plus, Calendar as CalendarIcon } from 'lucide-react';
 
 interface CalendarProps {
   projectId: string;

@@ -1,10 +1,5 @@
 import React, { useState } from 'react';
-import Plus from 'lucide-react/dist/esm/icons/plus';
-import Trash2 from 'lucide-react/dist/esm/icons/trash-2';
-import Check from 'lucide-react/dist/esm/icons/check';
-import Circle from 'lucide-react/dist/esm/icons/circle';
-import CheckCircle2 from 'lucide-react/dist/esm/icons/check-circle-2';
-import ListChecks from 'lucide-react/dist/esm/icons/list-checks';
+import { Plus, Trash2, Check, Circle, CheckCircle2, ListChecks } from 'lucide-react';
 
 export interface ChecklistItem {
   id: number;

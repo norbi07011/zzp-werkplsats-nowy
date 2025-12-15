@@ -1,13 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useProjectChat, type ChatMessage, type ChatChannel } from '../hooks/useProjectChat';
 import { useAuth } from '../contexts/AuthContext';
-import Send from 'lucide-react/dist/esm/icons/send';
-import Hash from 'lucide-react/dist/esm/icons/hash';
-import Lock from 'lucide-react/dist/esm/icons/lock';
-import MoreVertical from 'lucide-react/dist/esm/icons/more-vertical';
-import Image from 'lucide-react/dist/esm/icons/image';
-import Paperclip from 'lucide-react/dist/esm/icons/paperclip';
-import Smile from 'lucide-react/dist/esm/icons/smile';
+import { Send, Hash, Lock, MoreVertical, Image as ImageIcon, Paperclip, Smile } from 'lucide-react';
 
 interface ChatProps {
   projectId: string;
@@ -215,7 +209,7 @@ export function Chat({ projectId }: ChatProps) {
                     <Paperclip className="w-5 h-5 text-gray-500" />
                   </button>
                   <button type="button" className="p-1 hover:bg-gray-200 rounded transition-colors">
-                    <Image className="w-5 h-5 text-gray-500" />
+                    <ImageIcon className="w-5 h-5 text-gray-500" />
                   </button>
                   <input
                     type="text"
