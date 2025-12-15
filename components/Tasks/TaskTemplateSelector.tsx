@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import FileText from 'lucide-react/dist/esm/icons/file-text';
-import ChevronDown from 'lucide-react/dist/esm/icons/chevron-down';
-import Check from 'lucide-react/dist/esm/icons/check';
-import X from 'lucide-react/dist/esm/icons/x';
-import Package from 'lucide-react/dist/esm/icons/package';
-import ListChecks from 'lucide-react/dist/esm/icons/list-checks';
-import Clock from 'lucide-react/dist/esm/icons/clock';
-import Euro from 'lucide-react/dist/esm/icons/euro';
-import Sparkles from 'lucide-react/dist/esm/icons/sparkles';
+import {
+  FileText,
+  ChevronDown,
+  Check,
+  X,
+  Package,
+  ListChecks,
+  Clock,
+  Euro,
+  Sparkles,
+} from 'lucide-react';
 
 interface TaskMaterial {
   name: string;

@@ -1,14 +1,17 @@
 import React, { useState, useEffect } from "react";
 import { supabase } from "../src/lib/supabase";
-
-
-
-
-
-
-
-
-
+import {
+  User,
+  Phone,
+  Mail,
+  MapPin,
+  FileText,
+  Building2,
+  Users,
+  X,
+  Save,
+  Loader2,
+} from "lucide-react";
 interface CleaningCompany {
   id: string;
   company_name: string;

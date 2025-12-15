@@ -1,14 +1,16 @@
 import React, { useState } from "react";
 import { supabase } from "../src/lib/supabase";
-
-
-
-
-
-
-
-
-
+import {
+  User,
+  Phone,
+  Mail,
+  MapPin,
+  FileText,
+  Building2,
+  X,
+  Plus,
+  Loader2,
+} from "lucide-react";
 interface AddCleaningCompanyModalProps {
   isOpen: boolean;
   onClose: () => void;
