@@ -121,8 +121,7 @@ const ColorPickerPopup: React.FC<ColorPickerProps> = ({
   value,
   onChange,
   onClose,
-}) =
-
+}) => {
   // Use refs for dragging state to avoid re-renders
   const isDraggingSatLight = useRef(false);
   const isDraggingHue = useRef(false);
