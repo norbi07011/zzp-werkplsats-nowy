@@ -627,9 +627,17 @@ function App() {
                             path="kilometers"
                             element={<KilometersPage />}
                           />
-                          {/* 👥 Team - Zarządzanie zespołem (BetonCoat style) */}
-                          <Route path="team" element={<EmployerTeamPage />} />
                         </Route>
+
+                        {/* 👥 Team - Zarządzanie zespołem (osobny layout - poza AuthenticatedLayout) */}
+                        <Route
+                          path="/employer/team"
+                          element={
+                            <ProtectedRoute requiredRole="employer">
+                              <EmployerTeamPage />
+                            </ProtectedRoute>
+                          }
+                        />
 
                         {/* Worker routes (LAZY LOADED) */}
                         {/* Subscription page - outside nested routes for direct access */}
