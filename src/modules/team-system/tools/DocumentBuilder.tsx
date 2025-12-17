@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
+import { useNavigate } from "react-router-dom";
 import {
   LayoutDashboard,
   FileText,
@@ -162,6 +163,7 @@ const parseNumber = (value: string, defaultValue: number = 0): number => {
 export function DocumentBuilder() {
   // --- AUTH & ONLINE STATUS ---
   const { user, isAuthenticated } = useAuth();
+  const navigate = useNavigate();
   const [isOnline, setIsOnline] = useState(true);
   const [isLoadingData, setIsLoadingData] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -1550,6 +1552,17 @@ export function DocumentBuilder() {
           </div>
 
           <nav className="flex-1 px-4 space-y-2 mt-4 md:mt-0">
+            {/* Back to Team button */}
+            <button
+              onClick={() => {
+                navigate("/employer/team");
+                setIsMobileMenuOpen(false);
+              }}
+              className="w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors text-orange-400 hover:bg-orange-500/20 hover:text-orange-300 border border-orange-500/30 mb-4"
+            >
+              <ArrowLeft size={20} /> Powrót do Drużyny
+            </button>
+            
             <button
               onClick={() => {
                 setView("dashboard");

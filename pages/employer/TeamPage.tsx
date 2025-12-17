@@ -330,6 +330,15 @@ const TeamSystemContent = () => {
     </div>
   );
 
+  // Special case: DocumentBuilder has its own full-screen layout
+  if (activeTab === "tools") {
+    return (
+      <div className="min-h-screen bg-slate-100">
+        <DocumentBuilder />
+      </div>
+    );
+  }
+
   // Full layout with sidebar (always - this is a standalone page)
   return (
     <div className="min-h-screen bg-slate-100 flex flex-col md:flex-row">
@@ -399,7 +408,6 @@ const TeamSystemContent = () => {
           {activeTab === "chat" && <ChatPage />}
           {activeTab === "ranking" && <RankingPage />}
           {activeTab === "orderbuilder" && <OrderBuilder />}
-          {activeTab === "tools" && <DocumentBuilder />}
         </div>
       </main>
 
