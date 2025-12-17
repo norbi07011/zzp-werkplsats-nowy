@@ -3,8 +3,8 @@
  * MOBILE BOTTOM NAVIGATION - Stały dolny pasek nawigacji
  * ================================================================
  *
- * 4 przyciski: Panel, Kanał, Zespół, Menu (hamburger)
- * Ustawienia dostępne przez Menu → Sidebar
+ * 2 przyciski: Panel, Kanał
+ * Menu dostępne przez hamburger w górnym headerze
  * Widoczny tylko na mobile (md:hidden)
  */
 
@@ -12,13 +12,8 @@ import React from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 
-interface MobileBottomNavProps {
-  onMenuClick: () => void;
-}
-
-export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
-  onMenuClick,
-}) => {
+// Usunięto onMenuClick - hamburger jest teraz tylko w górnym headerze
+export const MobileBottomNav: React.FC = () => {
   const location = useLocation();
   const { user } = useAuth();
 
@@ -97,16 +92,6 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
             )}
           </Link>
         ))}
-
-        {/* Hamburger Menu Button */}
-        <button
-          onClick={onMenuClick}
-          className="flex flex-col items-center justify-center flex-1 py-2 px-1 rounded-xl text-neutral-400 hover:text-neutral-200 transition-all duration-200"
-          aria-label="Otwórz menu"
-        >
-          <span className="text-xl mb-0.5">☰</span>
-          <span className="text-[10px] font-medium">Menu</span>
-        </button>
       </div>
     </nav>
   );
