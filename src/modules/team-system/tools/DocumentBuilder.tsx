@@ -91,6 +91,107 @@ import {
 } from "./documentService";
 import { toast } from "sonner";
 
+// --- UTILITY: Image Compression ---
+const compressImage = (file: File, maxWidth: number = 1200, quality: number = 0.7): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const canvas = document.createElement('canvas');
+    const reader = new FileReader();
+    
+    reader.onload = (e) => {
+      img.onload = () => {
+        // Calculate new dimensions (maintain aspect ratio)
+        let width = img.width;
+        let height = img.height;
+        
+        if (width > maxWidth) {
+          height = Math.round((height * maxWidth) / width);
+          width = maxWidth;
+        }
+        
+        canvas.width = width;
+        canvas.height = height;
+        
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          reject(new Error('Canvas context not available'));
+          return;
+        }
+        
+        ctx.drawImage(img, 0, 0, width, height);
+        
+        // Convert to JPEG with compression (smaller than PNG)
+        const compressedBase64 = canvas.toDataURL('image/jpeg', quality);
+        resolve(compressedBase64);
+      };
+      img.onerror = () => reject(new Error('Failed to load image'));
+      img.src = e.target?.result as string;
+    };
+    reader.onerror = () => reject(new Error('Failed to read file'));
+    reader.readAsDataURL(file);
+  });
+};
+
+// --- UTILITY: Safe localStorage save ---
+const safeLocalStorageSet = (key: string, value: string): boolean => {
+  try {
+    localStorage.setItem(key, value);
+    return true;
+  } catch (error) {
+    if (error instanceof DOMException && error.name === 'QuotaExceededError') {
+      console.warn(`[DocumentBuilder] localStorage quota exceeded for key: ${key}`);
+      // Try to clear old data and retry
+      try {
+        // Remove the largest item (usually the quote with images)
+        localStorage.removeItem(key);
+        localStorage.setItem(key, value);
+        return true;
+      } catch {
+        console.error(`[DocumentBuilder] Cannot save to localStorage: ${key}`);
+        return false;
+      }
+    }
+    console.error(`[DocumentBuilder] localStorage error:`, error);
+    return false;
+  }
+};
+
+// --- UTILITY: Strip images from quote for localStorage (save space) ---
+const prepareQuoteForLocalStorage = (quote: Quote): Quote => {
+  // For localStorage, we keep only small images (thumbnails)
+  // Large images will only be in memory/Supabase
+  const MAX_IMAGE_SIZE = 50000; // 50KB per image max for localStorage
+  
+  return {
+    ...quote,
+    images: quote.images.map(img => {
+      if (img.url && img.url.length > MAX_IMAGE_SIZE) {
+        // Store just a placeholder, image will be re-uploaded
+        return { ...img, url: '' };
+      }
+      return img;
+    }),
+    items: quote.items.map(item => {
+      if (item.imageUrl && item.imageUrl.length > MAX_IMAGE_SIZE) {
+        return { ...item, imageUrl: '' };
+      }
+      return item;
+    }),
+    materials: quote.materials.map(item => {
+      if (item.imageUrl && item.imageUrl.length > MAX_IMAGE_SIZE) {
+        return { ...item, imageUrl: '' };
+      }
+      return item;
+    }),
+    tools: quote.tools.map(item => {
+      if (item.imageUrl && item.imageUrl.length > MAX_IMAGE_SIZE) {
+        return { ...item, imageUrl: '' };
+      }
+      return item;
+    }),
+  };
+};
+
 // Mock Initial Data
 const initialQuote: Quote = {
   id: "1",
@@ -355,14 +456,20 @@ export function DocumentBuilder() {
   };
 
   // --- PERSISTENCE EFFECTS (localStorage jako cache) ---
-  useEffect(
-    () =>
-      localStorage.setItem(
-        STORAGE_KEYS.ACTIVE_QUOTE,
-        JSON.stringify(activeQuote)
-      ),
-    [activeQuote]
-  );
+  useEffect(() => {
+    // Przygotuj quote do zapisu - usuń duże zdjęcia które przekraczają limit
+    const quoteForStorage = prepareQuoteForLocalStorage(activeQuote);
+    const jsonData = JSON.stringify(quoteForStorage);
+    
+    // Użyj bezpiecznego zapisu z obsługą błędów
+    const saved = safeLocalStorageSet(STORAGE_KEYS.ACTIVE_QUOTE, jsonData);
+    
+    if (!saved) {
+      // Jeśli nadal nie można zapisać, zapisz bez zdjęć
+      const minimalQuote = { ...activeQuote, images: [], items: activeQuote.items.map(i => ({ ...i, imageUrl: '' })) };
+      safeLocalStorageSet(STORAGE_KEYS.ACTIVE_QUOTE, JSON.stringify(minimalQuote));
+    }
+  }, [activeQuote]);
 
   // Zapisz companyProfile do localStorage natychmiast, do bazy z debounce
   useEffect(() => {
@@ -604,16 +711,19 @@ export function DocumentBuilder() {
     }
   };
 
-  const handleItemImageUpload = (
+  const handleItemImageUpload = async (
     id: string,
     e: React.ChangeEvent<HTMLInputElement>
   ) => {
     if (e.target.files && e.target.files[0]) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        handleUpdateItem(id, "image", reader.result as string);
-      };
-      reader.readAsDataURL(e.target.files[0]);
+      try {
+        const compressedBase64 = await compressImage(e.target.files[0], 800, 0.6);
+        handleUpdateItem(id, "image", compressedBase64);
+        console.log(`[DocumentBuilder] Item image compressed: ${Math.round(compressedBase64.length / 1024)}KB`);
+      } catch (error) {
+        console.error("Błąd kompresji obrazu:", error);
+        toast.error("Nie udało się załadować obrazu");
+      }
     }
   };
 
@@ -659,25 +769,21 @@ export function DocumentBuilder() {
     }));
   };
 
-  const handleResourceImageUpload = (
+  const handleResourceImageUpload = async (
     type: "materials" | "tools",
     id: string,
     e: React.ChangeEvent<HTMLInputElement>
   ) => {
     if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-
-      // Konwertuj do Base64 zamiast blob URL (blob URLs znikają po odświeżeniu strony)
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const base64String = reader.result as string;
-        handleUpdateResource(type, id, "imageUrl", base64String);
-      };
-      reader.onerror = () => {
-        console.error("Błąd odczytu pliku obrazu");
+      try {
+        // Kompresuj obraz (max 800px, jakość 60%)
+        const compressedBase64 = await compressImage(e.target.files[0], 800, 0.6);
+        handleUpdateResource(type, id, "imageUrl", compressedBase64);
+        console.log(`[DocumentBuilder] Resource image compressed: ${Math.round(compressedBase64.length / 1024)}KB`);
+      } catch (error) {
+        console.error("Błąd kompresji obrazu:", error);
         toast.error("Nie udało się załadować obrazu");
-      };
-      reader.readAsDataURL(file);
+      }
     }
   };
 
@@ -750,31 +856,32 @@ export function DocumentBuilder() {
     return result;
   };
 
-  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
       
-      // Konwertuj do Base64 zamiast blob URL (blob URLs znikają po odświeżeniu strony)
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const base64String = reader.result as string;
+      try {
+        // Kompresuj zdjęcie przed zapisem (max 1200px szerokości, jakość 70%)
+        // To zmniejsza rozmiar z ~5MB do ~100-200KB
+        const compressedBase64 = await compressImage(file, 1200, 0.7);
+        
         const newImage: ProjectImage = {
           id: Date.now().toString(),
-          url: base64String,
+          url: compressedBase64,
           caption: "",
-          description: "", // Init new field
+          description: "",
           annotations: [],
         };
         setActiveQuote((prev) => ({
           ...prev,
           images: [...prev.images, newImage],
         }));
-      };
-      reader.onerror = () => {
-        console.error("Błąd odczytu pliku obrazu");
+        
+        console.log(`[DocumentBuilder] Photo uploaded, compressed size: ${Math.round(compressedBase64.length / 1024)}KB`);
+      } catch (error) {
+        console.error("Błąd kompresji/odczytu pliku obrazu:", error);
         toast.error("Nie udało się załadować zdjęcia");
-      };
-      reader.readAsDataURL(file);
+      }
     }
   };
 
