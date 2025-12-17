@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { Logo } from "../../src/components/common/Logo";
 import { getUserStats, type UserStats } from "../../src/services/statsService";
+import { GlowCard } from "../../src/components/ui/GlowCard";
 
 import Pattern from "../../components/Logo3D/Pattern";
 
@@ -91,57 +92,102 @@ export const HomePage: React.FC = () => {
                 >
                   <span className="flex items-center justify-center gap-3">
                     <span className="text-3xl">🏢</span>
-                    <span>Odkryj Talent</span>
+                    <span>Ontdek Talent</span>
                   </span>
                 </Link>
               </div>
 
-              {/* Stats Cards - CAŁKOWICIE LEFT */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 max-w-3xl">
-                <div className="bg-gradient-to-br from-cyan-500/30 to-cyan-600/20 backdrop-blur-xl border-2 border-cyan-400/60 rounded-2xl p-6 shadow-2xl hover:scale-105 transition-transform">
-                  <div
-                    className="text-3xl sm:text-5xl lg:text-6xl font-black bg-gradient-to-r from-cyan-200 to-cyan-300 bg-clip-text text-transparent mb-2"
-                    style={{ textShadow: "0 0 30px rgba(34,211,238,0.5)" }}
-                  >
-                    {isLoading
-                      ? "..."
-                      : stats
-                      ? stats.totalWorkers + stats.totalCleaningCompanies
-                      : "0"}
+              {/* Stats Cards - PREMIUM GLOW CARDS with Interactive Effect */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 max-w-4xl">
+                {/* Card 1 - Cyan variant with animated glow border */}
+                <GlowCard variant="cyan" size="md">
+                  <div className="text-center py-2">
+                    <div
+                      className="text-4xl sm:text-5xl lg:text-6xl font-black bg-gradient-to-r from-cyan-300 via-white to-purple-300 bg-clip-text text-transparent mb-3"
+                      style={{ textShadow: "0 0 40px rgba(34,211,238,0.6)" }}
+                    >
+                      {isLoading
+                        ? "..."
+                        : stats
+                        ? stats.totalWorkers + stats.totalCleaningCompanies
+                        : "0"}
+                    </div>
+                    <div className="text-sm font-bold text-cyan-300 uppercase tracking-widest">
+                      Actieve ZZP'ers
+                    </div>
                   </div>
-                  <div className="text-sm font-bold text-white uppercase tracking-wide">
-                    Actieve ZZP'ers
-                  </div>
-                </div>
+                </GlowCard>
 
-                <div className="bg-gradient-to-br from-cyan-500/30 to-cyan-600/20 backdrop-blur-xl border-2 border-cyan-400/60 rounded-2xl p-6 shadow-2xl hover:scale-105 transition-transform">
-                  <div
-                    className="text-3xl sm:text-5xl lg:text-6xl font-black bg-gradient-to-r from-cyan-200 to-cyan-300 bg-clip-text text-transparent mb-2"
-                    style={{ textShadow: "0 0 30px rgba(34,211,238,0.5)" }}
-                  >
-                    {isLoading ? "..." : stats ? stats.totalEmployers : "0"}
+                {/* Card 2 - Emerald variant with animated glow border */}
+                <GlowCard variant="emerald" size="md">
+                  <div className="text-center py-2">
+                    <div
+                      className="text-4xl sm:text-5xl lg:text-6xl font-black bg-gradient-to-r from-emerald-300 via-white to-cyan-300 bg-clip-text text-transparent mb-3"
+                      style={{ textShadow: "0 0 40px rgba(16,185,129,0.6)" }}
+                    >
+                      {isLoading ? "..." : stats ? stats.totalEmployers : "0"}
+                    </div>
+                    <div className="text-sm font-bold text-emerald-300 uppercase tracking-widest">
+                      Actieve Werkgevers
+                    </div>
                   </div>
-                  <div className="text-sm font-bold text-white uppercase tracking-wide">
-                    Actieve Pracodawcy
-                  </div>
-                </div>
+                </GlowCard>
 
-                <div className="bg-gradient-to-br from-cyan-500/30 to-cyan-600/20 backdrop-blur-xl border-2 border-cyan-400/60 rounded-2xl p-6 shadow-2xl hover:scale-105 transition-transform">
-                  <div
-                    className="text-3xl sm:text-5xl lg:text-6xl font-black bg-gradient-to-r from-cyan-200 to-cyan-300 bg-clip-text text-transparent mb-2"
-                    style={{ textShadow: "0 0 30px rgba(34,211,238,0.5)" }}
-                  >
-                    {isLoading ? "..." : stats ? stats.totalAccountants : "0"}
+                {/* Card 3 - Purple variant with animated glow border */}
+                <GlowCard variant="purple" size="md">
+                  <div className="text-center py-2">
+                    <div
+                      className="text-4xl sm:text-5xl lg:text-6xl font-black bg-gradient-to-r from-purple-300 via-white to-pink-300 bg-clip-text text-transparent mb-3"
+                      style={{ textShadow: "0 0 40px rgba(168,85,247,0.6)" }}
+                    >
+                      {isLoading ? "..." : stats ? stats.totalAccountants : "0"}
+                    </div>
+                    <div className="text-sm font-bold text-purple-300 uppercase tracking-widest">
+                      Actieve Boekhouders
+                    </div>
                   </div>
-                  <div className="text-sm font-bold text-white uppercase tracking-wide">
-                    Actieve Księgowi
-                  </div>
-                </div>
+                </GlowCard>
               </div>
             </div>
           </div>
         </div>
       </section>
+
+      {/* ═══════════════════ MESH GRADIENT DIVIDER 1 ═══════════════════ */}
+      <div className="relative h-32 overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/20 via-purple-500/20 to-pink-500/20"></div>
+        <div className="absolute inset-0 bg-gradient-to-b from-primary-dark via-transparent to-primary-dark"></div>
+        <div className="absolute top-1/2 left-1/4 w-96 h-96 bg-cyan-500/30 rounded-full blur-3xl -translate-y-1/2"></div>
+        <div className="absolute top-1/2 right-1/4 w-96 h-96 bg-purple-500/30 rounded-full blur-3xl -translate-y-1/2"></div>
+        <svg
+          className="absolute inset-0 w-full h-full opacity-20"
+          preserveAspectRatio="none"
+        >
+          <defs>
+            <pattern
+              id="mesh1"
+              x="0"
+              y="0"
+              width="40"
+              height="40"
+              patternUnits="userSpaceOnUse"
+            >
+              <path
+                d="M0 20h40M20 0v40"
+                stroke="url(#meshGrad1)"
+                strokeWidth="0.5"
+                fill="none"
+              />
+            </pattern>
+            <linearGradient id="meshGrad1" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#06b6d4" />
+              <stop offset="50%" stopColor="#8b5cf6" />
+              <stop offset="100%" stopColor="#ec4899" />
+            </linearGradient>
+          </defs>
+          <rect width="100%" height="100%" fill="url(#mesh1)" />
+        </svg>
+      </div>
 
       {/* How It Works - 4 Steps */}
       <section className="py-24 bg-primary-dark">
@@ -149,7 +195,7 @@ export const HomePage: React.FC = () => {
           <h2 className="text-5xl font-bold text-center mb-4 text-white font-heading">
             {t("home.howItWorks.title", "Hoe het werkt")}
           </h2>
-          <p className="text-xl text-neutral-400 text-center mb-20">
+          <p className="text-xl text-neutral-200 text-center mb-20">
             {t(
               "home.howItWorks.subtitle",
               "Van registratie tot eerste opdracht in 4 stappen"
@@ -158,28 +204,28 @@ export const HomePage: React.FC = () => {
 
           {/* Real Photos - How It Works Process */}
           <div className="mb-16 grid md:grid-cols-2 gap-6">
-            <div className="rounded-2xl overflow-hidden border-4 border-accent-techGreen/30 shadow-2xl transform hover:scale-105 transition-transform">
+            <div className="rounded-2xl overflow-hidden border-4 border-accent-techGreen/30 shadow-2xl transform hover:scale-105 transition-transform bg-black">
               <img
-                src="https://images.unsplash.com/photo-1552664730-d307ca884978?w=600&h=400&fit=crop"
-                alt="Team collaboration and work process"
-                className="w-full h-64 object-cover"
+                src="/home-pricing.jpg"
+                alt="ZZP Werkplaats Basic en Premium plannen"
+                className="w-full h-auto object-contain"
               />
               <div className="bg-gradient-to-r from-green-600 to-emerald-600 p-4 text-center">
                 <p className="text-white font-bold">
-                  🚀 Start vandaag nog met jouw ZZP carrière!
+                  🚀 Kies je plan: BASIC €0 of PREMIUM €13/maand!
                 </p>
               </div>
             </div>
 
             <div className="rounded-2xl overflow-hidden border-4 border-accent-cyber/30 shadow-2xl transform hover:scale-105 transition-transform">
               <img
-                src="https://images.unsplash.com/photo-1521737711867-e3b97375f902?w=600&h=400&fit=crop"
-                alt="Professional worker using technology"
-                className="w-full h-64 object-cover"
+                src="/home-certyfikat.png"
+                alt="ZZP Werkplaats gecertificeerde professional"
+                className="w-full h-auto block"
               />
               <div className="bg-gradient-to-r from-blue-600 to-cyan-600 p-4 text-center">
                 <p className="text-white font-bold">
-                  💼 Direct contact met opdrachtgevers!
+                  ✅ Gecertificeerd en geverifieerd!
                 </p>
               </div>
             </div>
@@ -187,71 +233,91 @@ export const HomePage: React.FC = () => {
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
             {/* Step 1 */}
-            <div className="group text-center bg-gradient-glass backdrop-blur-md p-8 rounded-2xl border border-accent-techGreen/20 hover:border-accent-techGreen hover:shadow-glow-success transition-all">
-              <div className="w-20 h-20 bg-gradient-success text-white rounded-2xl flex items-center justify-center text-3xl font-bold mx-auto mb-6 shadow-glow-success group-hover:scale-110 transition-transform">
-                1
+            <GlowCard variant="emerald" size="md">
+              <div className="group text-center">
+                <div className="w-20 h-20 bg-gradient-success text-white rounded-2xl flex items-center justify-center text-3xl font-bold mx-auto mb-6 shadow-glow-success group-hover:scale-110 transition-transform">
+                  1
+                </div>
+                <h3 className="text-xl font-bold mb-3 text-white">
+                  {t("home.howItWorks.step1.title", "Maak Profiel")}
+                </h3>
+                <p className="text-neutral-200">
+                  {t(
+                    "home.howItWorks.step1.description",
+                    "Registreer gratis en vul je profiel in met specialisatie, ervaring en uurloon"
+                  )}
+                </p>
               </div>
-              <h3 className="text-xl font-bold mb-3 text-white">
-                {t("home.howItWorks.step1.title", "Maak Profiel")}
-              </h3>
-              <p className="text-neutral-400">
-                {t(
-                  "home.howItWorks.step1.description",
-                  "Registreer gratis en vul je profiel in met specialisatie, ervaring en uurloon"
-                )}
-              </p>
-            </div>
+            </GlowCard>
 
             {/* Step 2 */}
-            <div className="group text-center bg-gradient-glass backdrop-blur-md p-8 rounded-2xl border border-accent-techGreen/20 hover:border-accent-techGreen hover:shadow-glow-success transition-all">
-              <div className="w-20 h-20 bg-gradient-success text-white rounded-2xl flex items-center justify-center text-3xl font-bold mx-auto mb-6 shadow-glow-success group-hover:scale-110 transition-transform">
-                2
+            <GlowCard variant="emerald" size="md">
+              <div className="group text-center">
+                <div className="w-20 h-20 bg-gradient-success text-white rounded-2xl flex items-center justify-center text-3xl font-bold mx-auto mb-6 shadow-glow-success group-hover:scale-110 transition-transform">
+                  2
+                </div>
+                <h3 className="text-xl font-bold mb-3 text-white">
+                  {t("home.howItWorks.step2.title", "Kies Premium")}
+                </h3>
+                <p className="text-neutral-200">
+                  {t(
+                    "home.howItWorks.step2.description",
+                    "Upgrade naar Premium (€13/maand) om zichtbaar te zijn voor opdrachtgevers"
+                  )}
+                </p>
               </div>
-              <h3 className="text-xl font-bold mb-3 text-white">
-                {t("home.howItWorks.step2.title", "Kies Premium")}
-              </h3>
-              <p className="text-neutral-400">
-                {t(
-                  "home.howItWorks.step2.description",
-                  "Upgrade naar Premium (€13/maand) om zichtbaar te zijn voor opdrachtgevers"
-                )}
-              </p>
-            </div>
+            </GlowCard>
 
             {/* Step 3 */}
-            <div className="group text-center bg-gradient-glass backdrop-blur-md p-8 rounded-2xl border border-accent-cyber/20 hover:border-accent-cyber hover:shadow-glow-cyber transition-all">
-              <div className="w-20 h-20 bg-gradient-cyber text-white rounded-2xl flex items-center justify-center text-3xl font-bold mx-auto mb-6 shadow-glow-cyber group-hover:scale-110 transition-transform">
-                3
+            <GlowCard variant="cyan" size="md">
+              <div className="group text-center">
+                <div className="w-20 h-20 bg-gradient-cyber text-white rounded-2xl flex items-center justify-center text-3xl font-bold mx-auto mb-6 shadow-glow-cyber group-hover:scale-110 transition-transform">
+                  3
+                </div>
+                <h3 className="text-xl font-bold mb-3 text-white">
+                  {t("home.howItWorks.step3.title", "Word Gevonden")}
+                </h3>
+                <p className="text-neutral-200">
+                  {t(
+                    "home.howItWorks.step3.description",
+                    "Opdrachtgevers zoeken en vinden je profiel via filters (locatie, skills, etc.)"
+                  )}
+                </p>
               </div>
-              <h3 className="text-xl font-bold mb-3 text-white">
-                {t("home.howItWorks.step3.title", "Word Gevonden")}
-              </h3>
-              <p className="text-neutral-400">
-                {t(
-                  "home.howItWorks.step3.description",
-                  "Opdrachtgevers zoeken en vinden je profiel via filters (locatie, skills, etc.)"
-                )}
-              </p>
-            </div>
+            </GlowCard>
 
             {/* Step 4 */}
-            <div className="group text-center bg-gradient-glass backdrop-blur-md p-8 rounded-2xl border border-accent-cyber/20 hover:border-accent-cyber hover:shadow-glow-cyber transition-all">
-              <div className="w-20 h-20 bg-gradient-cyber text-white rounded-2xl flex items-center justify-center text-3xl font-bold mx-auto mb-6 shadow-glow-cyber group-hover:scale-110 transition-transform">
-                4
+            <GlowCard variant="cyan" size="md">
+              <div className="group text-center">
+                <div className="w-20 h-20 bg-gradient-cyber text-white rounded-2xl flex items-center justify-center text-3xl font-bold mx-auto mb-6 shadow-glow-cyber group-hover:scale-110 transition-transform">
+                  4
+                </div>
+                <h3 className="text-xl font-bold mb-3 text-white">
+                  {t("home.howItWorks.step4.title", "Ontvang Opdrachten")}
+                </h3>
+                <p className="text-neutral-200">
+                  {t(
+                    "home.howItWorks.step4.description",
+                    "Opdrachtgevers nemen direct contact op via platform - geen commissie!"
+                  )}
+                </p>
               </div>
-              <h3 className="text-xl font-bold mb-3 text-white">
-                {t("home.howItWorks.step4.title", "Ontvang Opdrachten")}
-              </h3>
-              <p className="text-neutral-400">
-                {t(
-                  "home.howItWorks.step4.description",
-                  "Opdrachtgevers nemen direct contact op via platform - geen commissie!"
-                )}
-              </p>
-            </div>
+            </GlowCard>
           </div>
         </div>
       </section>
+
+      {/* ═══════════════════ MESH GRADIENT DIVIDER 2 ═══════════════════ */}
+      <div className="relative h-24 overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/10 via-teal-500/15 to-cyan-500/10"></div>
+        <div className="absolute inset-0 bg-gradient-to-b from-primary-dark via-transparent to-primary-navy/20"></div>
+        <div className="absolute top-1/2 left-1/3 w-64 h-64 bg-emerald-500/20 rounded-full blur-3xl -translate-y-1/2 animate-pulse"></div>
+        <div
+          className="absolute top-1/2 right-1/3 w-64 h-64 bg-teal-500/20 rounded-full blur-3xl -translate-y-1/2 animate-pulse"
+          style={{ animationDelay: "1s" }}
+        ></div>
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,transparent_0%,rgba(16,185,129,0.1)_25%,rgba(20,184,166,0.15)_50%,rgba(6,182,212,0.1)_75%,transparent_100%)]"></div>
+      </div>
 
       {/* Benefits for Workers */}
       <section className="py-24 bg-primary-navy/20">
@@ -263,11 +329,11 @@ export const HomePage: React.FC = () => {
               </h2>
 
               {/* Real Photo - ZZP Benefits */}
-              <div className="mb-8 rounded-2xl overflow-hidden border-4 border-accent-techGreen/30 shadow-2xl transform hover:scale-105 transition-transform">
+              <div className="mb-8 rounded-2xl overflow-hidden border-4 border-accent-techGreen/30 shadow-2xl transform hover:scale-105 transition-transform inline-block">
                 <img
-                  src="https://images.unsplash.com/photo-1565688534245-05d6b5be184a?w=700&h=500&fit=crop"
-                  alt="Independent worker managing their own business"
-                  className="w-full h-80 object-cover"
+                  src="/home-employer.jpg"
+                  alt="ZZP professional werkend aan laptop"
+                  className="block w-auto h-auto max-w-full"
                 />
                 <div className="bg-gradient-to-r from-green-600 to-emerald-600 p-4 text-center">
                   <p className="text-white font-bold">
@@ -298,7 +364,7 @@ export const HomePage: React.FC = () => {
                         "Officieel certificaat"
                       )}
                     </strong>
-                    <span className="text-neutral-400">
+                    <span className="text-neutral-200">
                       {t(
                         "home.benefits.workers.benefit1.description",
                         "Bewijs uw vaardigheden met een erkend certificaat"
@@ -327,7 +393,7 @@ export const HomePage: React.FC = () => {
                         "Meer opdrachten"
                       )}
                     </strong>
-                    <span className="text-neutral-400">
+                    <span className="text-neutral-200">
                       {t(
                         "home.benefits.workers.benefit2.description",
                         "Toegang tot opdrachtgevers die kwaliteit zoeken"
@@ -356,7 +422,7 @@ export const HomePage: React.FC = () => {
                         "Geen commissie"
                       )}
                     </strong>
-                    <span className="text-neutral-400">
+                    <span className="text-neutral-200">
                       {t(
                         "home.benefits.workers.benefit3.description",
                         "Alleen vaste maandprijs - wij nemen 0% commissie op jouw opdrachten"
@@ -372,29 +438,12 @@ export const HomePage: React.FC = () => {
                 {t("home.benefits.workers.cta", "Start nu")}
               </Link>
             </div>
-            <div className="relative bg-gradient-glass backdrop-blur-md rounded-3xl p-12 border border-accent-cyber/20 shadow-3d group hover:border-accent-cyber transition-all">
-              <div className="absolute inset-0 bg-accent-cyber/5 rounded-3xl blur-2xl group-hover:bg-accent-cyber/10 transition-colors"></div>
-              <div className="relative text-center text-neutral-300">
-                <svg
-                  className="w-40 h-40 mx-auto mb-6 text-accent-cyber"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={1.5}
-                    d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
-                  />
-                </svg>
-                <p>
-                  {t(
-                    "common.imagePlaceholder",
-                    "[Illustratie van certificaat]"
-                  )}
-                </p>
-              </div>
+            <div className="relative rounded-2xl overflow-hidden border-4 border-accent-cyber/30 shadow-2xl transform hover:scale-105 transition-transform">
+              <img
+                src="/home-certyfikat.png"
+                alt="ZZP Werkplaats gecertificeerde professional met certificaat"
+                className="block w-full h-auto"
+              />
             </div>
           </div>
         </div>
@@ -425,228 +474,325 @@ export const HomePage: React.FC = () => {
           {/* 2 Main Features */}
           <div className="grid md:grid-cols-2 gap-8 mb-16">
             {/* Team Feature */}
-            <div className="group bg-gradient-glass backdrop-blur-md rounded-2xl p-10 border border-accent-techGreen/30 hover:border-accent-techGreen transition-all hover:shadow-glow-success">
-              <div className="w-20 h-20 bg-gradient-to-br from-accent-techGreen to-green-600 rounded-2xl flex items-center justify-center text-4xl mb-6 shadow-lg group-hover:scale-110 transition-transform">
-                �
+            <GlowCard variant="emerald" size="lg">
+              <div className="group">
+                <div className="w-20 h-20 bg-gradient-to-br from-accent-techGreen to-green-600 rounded-2xl flex items-center justify-center text-4xl mb-6 shadow-lg group-hover:scale-110 transition-transform">
+                  👥
+                </div>
+                <h3 className="text-3xl font-bold text-white mb-4">
+                  Team Configuratie
+                </h3>
+                <p className="text-neutral-300 mb-6 text-lg">
+                  ZZP'ers kunnen zich nu registreren als{" "}
+                  <strong>team leader</strong>, <strong>duo partner</strong>, of{" "}
+                  <strong>helper</strong>. Perfect voor grote projecten die meer
+                  mankracht vereisen!
+                </p>
+                <ul className="space-y-3 text-neutral-200">
+                  <li className="flex items-start gap-3">
+                    <span className="text-accent-techGreen text-xl">✓</span>
+                    <span>
+                      <strong className="text-white">
+                        Teams 2-10 personen:
+                      </strong>{" "}
+                      Krijg direct een heel team voor je project
+                    </span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="text-accent-techGreen text-xl">✓</span>
+                    <span>
+                      <strong className="text-white">
+                        Gecombineerd uurloon:
+                      </strong>{" "}
+                      Transparante pricing voor hele team
+                    </span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="text-accent-techGreen text-xl">✓</span>
+                    <span>
+                      <strong className="text-white">Team beschrijving:</strong>{" "}
+                      Zie exact wie in het team zit en hun specialisaties
+                    </span>
+                  </li>
+                </ul>
               </div>
-              <h3 className="text-3xl font-bold text-white mb-4">
-                Team Configuratie
-              </h3>
-              <p className="text-neutral-300 mb-6 text-lg">
-                ZZP'ers kunnen zich nu registreren als{" "}
-                <strong>team leader</strong>, <strong>duo partner</strong>, of{" "}
-                <strong>helper</strong>. Perfect voor grote projecten die meer
-                mankracht vereisen!
-              </p>
-              <ul className="space-y-3 text-neutral-400">
-                <li className="flex items-start gap-3">
-                  <span className="text-accent-techGreen text-xl">✓</span>
-                  <span>
-                    <strong className="text-white">Teams 2-10 personen:</strong>{" "}
-                    Krijg direct een heel team voor je project
-                  </span>
-                </li>
-                <li className="flex items-start gap-3">
-                  <span className="text-accent-techGreen text-xl">✓</span>
-                  <span>
-                    <strong className="text-white">
-                      Gecombineerd uurloon:
-                    </strong>{" "}
-                    Transparante pricing voor hele team
-                  </span>
-                </li>
-                <li className="flex items-start gap-3">
-                  <span className="text-accent-techGreen text-xl">✓</span>
-                  <span>
-                    <strong className="text-white">Team beschrijving:</strong>{" "}
-                    Zie exact wie in het team zit en hun specialisaties
-                  </span>
-                </li>
-              </ul>
-            </div>
+            </GlowCard>
 
             {/* On-Demand Feature */}
-            <div className="group bg-gradient-glass backdrop-blur-md rounded-2xl p-10 border border-yellow-500/30 hover:border-yellow-500 transition-all hover:shadow-glow-premium">
-              <div className="w-20 h-20 bg-gradient-to-br from-yellow-400 to-amber-500 rounded-2xl flex items-center justify-center text-4xl mb-6 shadow-lg group-hover:scale-110 transition-transform">
-                ⚡
+            <GlowCard variant="orange" size="lg">
+              <div className="group">
+                <div className="w-20 h-20 bg-gradient-to-br from-yellow-400 to-amber-500 rounded-2xl flex items-center justify-center text-4xl mb-6 shadow-lg group-hover:scale-110 transition-transform">
+                  ⚡
+                </div>
+                <h3 className="text-3xl font-bold text-white mb-4">
+                  "Skoczek" On-Demand
+                </h3>
+                <p className="text-neutral-300 mb-6 text-lg">
+                  Workers kunnen aangeven dat ze{" "}
+                  <strong>beschikbaar zijn voor spoedklussen</strong>. Ideaal
+                  voor noodgevallen, ziektevervangingen, of acute projecten!
+                </p>
+                <ul className="space-y-3 text-neutral-200">
+                  <li className="flex items-start gap-3">
+                    <span className="text-yellow-400 text-xl">✓</span>
+                    <span>
+                      <strong className="text-white">
+                        Real-time beschikbaarheid:
+                      </strong>{" "}
+                      ZZP'er zet toggle ON/OFF wanneer beschikbaar
+                    </span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="text-yellow-400 text-xl">✓</span>
+                    <span>
+                      <strong className="text-white">
+                        ⚡ Badge in zoekresultaten:
+                      </strong>{" "}
+                      Direct zichtbaar wie vandaag kan starten
+                    </span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="text-yellow-400 text-xl">✓</span>
+                    <span>
+                      <strong className="text-white">Premium filter:</strong>{" "}
+                      Opdrachtgevers kunnen filteren op "Beschikbaar Nu"
+                    </span>
+                  </li>
+                </ul>
               </div>
-              <h3 className="text-3xl font-bold text-white mb-4">
-                "Skoczek" On-Demand
-              </h3>
-              <p className="text-neutral-300 mb-6 text-lg">
-                Workers kunnen aangeven dat ze{" "}
-                <strong>beschikbaar zijn voor spoedklussen</strong>. Ideaal voor
-                noodgevallen, ziektevervangingen, of acute projecten!
-              </p>
-              <ul className="space-y-3 text-neutral-400">
-                <li className="flex items-start gap-3">
-                  <span className="text-yellow-400 text-xl">✓</span>
-                  <span>
-                    <strong className="text-white">
-                      Real-time beschikbaarheid:
-                    </strong>{" "}
-                    ZZP'er zet toggle ON/OFF wanneer beschikbaar
-                  </span>
-                </li>
-                <li className="flex items-start gap-3">
-                  <span className="text-yellow-400 text-xl">✓</span>
-                  <span>
-                    <strong className="text-white">
-                      ⚡ Badge in zoekresultaten:
-                    </strong>{" "}
-                    Direct zichtbaar wie vandaag kan starten
-                  </span>
-                </li>
-                <li className="flex items-start gap-3">
-                  <span className="text-yellow-400 text-xl">✓</span>
-                  <span>
-                    <strong className="text-white">Premium filter:</strong>{" "}
-                    Opdrachtgevers kunnen filteren op "Beschikbaar Nu"
-                  </span>
-                </li>
-              </ul>
-            </div>
+            </GlowCard>
           </div>
 
-          {/* Pricing Comparison */}
-          <div className="bg-gradient-to-r from-primary-navy/50 to-primary-navy/30 backdrop-blur-md rounded-3xl p-10 md:p-12 border border-accent-cyber/20">
-            <h3 className="text-3xl md:text-4xl font-bold text-white mb-10 text-center">
-              Simpele, Transparante Prijzen
+          {/* Pricing Comparison - PREMIUM GEOMETRIC DESIGN */}
+          <div className="relative bg-gradient-to-br from-slate-900/80 via-slate-800/60 to-slate-900/80 backdrop-blur-xl rounded-3xl p-10 md:p-12 border border-white/10 overflow-hidden">
+            {/* Geometric mesh background */}
+            <div className="absolute inset-0 opacity-30">
+              <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(ellipse_at_top_left,_rgba(6,182,212,0.3)_0%,_transparent_50%)]" />
+              <div className="absolute bottom-0 right-0 w-full h-full bg-[radial-gradient(ellipse_at_bottom_right,_rgba(139,92,246,0.3)_0%,_transparent_50%)]" />
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full bg-[radial-gradient(circle_at_center,_rgba(236,72,153,0.15)_0%,_transparent_70%)]" />
+            </div>
+
+            <h3 className="relative text-3xl md:text-4xl font-bold text-white mb-10 text-center">
+              <span className="bg-gradient-to-r from-cyan-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
+                Simpele, Transparante Prijzen
+              </span>
             </h3>
 
             {/* Real Photo - Pricing Transparency */}
             <div className="mb-10 rounded-2xl overflow-hidden border-4 border-green-500/30 shadow-2xl transform hover:scale-105 transition-transform">
               <img
-                src="https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?w=800&h=400&fit=crop"
-                alt="Transparent pricing and business planning"
-                className="w-full h-64 object-cover"
+                src="/home-team.png"
+                alt="ZZP Werkplaats team van gecertificeerde professionals"
+                className="w-full h-auto block"
               />
               <div className="bg-gradient-to-r from-green-600 to-emerald-600 p-4 text-center">
                 <p className="text-white font-bold">
-                  💰 Geen verborgen kosten - Alles transparant!
+                  👥 Professionele teams - transparante prijzen!
                 </p>
               </div>
             </div>
 
-            <div className="grid md:grid-cols-3 gap-8">
-              {/* Workers Basic */}
-              <div className="bg-gradient-glass backdrop-blur-md rounded-2xl p-8 border border-neutral-600/30">
-                <div className="text-sm text-accent-techGreen font-bold mb-2">
-                  VOOR ZZP'ERS
+            <div className="relative grid md:grid-cols-3 gap-8">
+              {/* Workers Basic - 3D Geometric Card */}
+              <div className="group relative" style={{ perspective: "1000px" }}>
+                <div
+                  className="relative bg-gradient-to-br from-slate-800/90 to-slate-900/90 backdrop-blur-xl rounded-2xl p-8 border border-slate-600/50 transition-all duration-500 group-hover:border-slate-400/50"
+                  style={{
+                    transformStyle: "preserve-3d",
+                    transition: "transform 0.5s",
+                  }}
+                >
+                  {/* Subtle inner glow */}
+                  <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-white/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                  <div className="relative">
+                    <div className="text-sm text-slate-400 font-bold mb-2 tracking-widest">
+                      VOOR ZZP'ERS
+                    </div>
+                    <h4 className="text-2xl font-bold text-white mb-4">
+                      Basic
+                    </h4>
+                    <p className="text-5xl font-bold bg-gradient-to-r from-slate-200 to-slate-400 bg-clip-text text-transparent mb-2">
+                      €0
+                    </p>
+                    <p className="text-slate-500 mb-6">/maand</p>
+                    <ul className="space-y-3 mb-8 text-sm">
+                      <li className="flex items-center gap-2 text-slate-400">
+                        <span className="w-5 h-5 rounded-full bg-slate-700 flex items-center justify-center text-xs">
+                          ✓
+                        </span>
+                        Profiel aanmaken
+                      </li>
+                      <li className="flex items-center gap-2 text-slate-500">
+                        <span className="w-5 h-5 rounded-full bg-red-900/50 flex items-center justify-center text-xs text-red-400">
+                          ✗
+                        </span>
+                        <span className="line-through">
+                          Zichtbaar voor opdrachtgevers
+                        </span>
+                      </li>
+                    </ul>
+                    <p className="text-xs text-slate-600 text-center">
+                      Perfect om platform te leren kennen
+                    </p>
+                  </div>
                 </div>
-                <h4 className="text-2xl font-bold text-white mb-4">Basic</h4>
-                <p className="text-5xl font-bold text-white mb-2">€0</p>
-                <p className="text-neutral-400 mb-6">/maand</p>
-                <ul className="space-y-3 mb-8 text-sm">
-                  <li className="flex items-center gap-2 text-neutral-300">
-                    <span className="text-neutral-500">✓</span>
-                    Profiel aanmaken
-                  </li>
-                  <li className="flex items-center gap-2 text-neutral-300">
-                    <span className="text-red-400">✗</span>
-                    <span className="line-through">
-                      Zichtbaar voor opdrachtgevers
-                    </span>
-                  </li>
-                </ul>
-                <p className="text-xs text-neutral-500 text-center">
-                  Perfect om platform te leren kennen
-                </p>
               </div>
 
-              {/* Workers Premium */}
-              <div className="bg-gradient-to-br from-accent-techGreen/20 to-green-600/20 rounded-2xl p-8 border-2 border-accent-techGreen relative shadow-glow-success">
-                <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-gradient-to-r from-accent-techGreen to-green-600 text-white px-6 py-1 rounded-full text-sm font-bold shadow-lg">
-                  🔨 Voor ZZP'ers
-                </div>
-                <div className="text-sm text-accent-techGreen font-bold mb-2">
-                  MEEST GEKOZEN
-                </div>
-                <h4 className="text-2xl font-bold text-white mb-4 flex items-center gap-2">
-                  Premium
-                  <span className="text-2xl">🏆</span>
-                </h4>
-                <p className="text-5xl font-bold text-white mb-2">€13</p>
-                <p className="text-neutral-300 mb-6">/maand</p>
-                <ul className="space-y-3 mb-8 text-sm">
-                  <li className="flex items-center gap-2 text-white">
-                    <span className="text-accent-techGreen">✓</span>
-                    <strong>Profiel zichtbaar voor alle opdrachtgevers</strong>
-                  </li>
-                  <li className="flex items-center gap-2 text-white">
-                    <span className="text-accent-techGreen">✓</span>
-                    Premium badge 🏆
-                  </li>
-                  <li className="flex items-center gap-2 text-white">
-                    <span className="text-accent-techGreen">✓</span>
-                    Team configuratie (duo/trio)
-                  </li>
-                  <li className="flex items-center gap-2 text-white">
-                    <span className="text-accent-techGreen">✓</span>
-                    "Skoczek" beschikbaarheid toggle
-                  </li>
-                  <li className="flex items-center gap-2 text-white">
-                    <span className="text-accent-techGreen">✓</span>
-                    Onbeperkt opdrachten ontvangen
-                  </li>
-                </ul>
-                <Link
-                  to="/register/worker"
-                  className="block text-center bg-gradient-to-r from-accent-techGreen to-green-600 text-white px-6 py-3 rounded-xl font-bold hover:scale-105 transition-transform shadow-lg"
+              {/* Workers Premium - 3D Geometric Card with Glow */}
+              <div className="group relative" style={{ perspective: "1000px" }}>
+                {/* Animated outer glow */}
+                <div className="absolute -inset-1 bg-gradient-to-r from-emerald-500 via-green-400 to-teal-500 rounded-2xl blur-lg opacity-50 group-hover:opacity-80 transition-all duration-500 animate-pulse" />
+
+                <div
+                  className="relative bg-gradient-to-br from-emerald-950/90 via-slate-900/95 to-teal-950/90 backdrop-blur-xl rounded-2xl p-8 border border-emerald-500/50 transition-all duration-500 group-hover:border-emerald-400 group-hover:-translate-y-2 shadow-2xl"
+                  style={{ transformStyle: "preserve-3d" }}
                 >
-                  Start als ZZP'er
-                </Link>
+                  {/* Geometric inner pattern */}
+                  <div className="absolute inset-0 rounded-2xl overflow-hidden">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-emerald-500/20 to-transparent rounded-full blur-2xl" />
+                    <div className="absolute bottom-0 left-0 w-24 h-24 bg-gradient-to-tr from-teal-500/20 to-transparent rounded-full blur-xl" />
+                  </div>
+
+                  <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-gradient-to-r from-emerald-500 via-green-400 to-teal-500 text-white px-6 py-1.5 rounded-full text-sm font-bold shadow-lg shadow-emerald-500/30">
+                    🔨 Voor ZZP'ers
+                  </div>
+
+                  <div className="relative mt-2">
+                    <div className="text-sm text-emerald-400 font-bold mb-2 tracking-widest">
+                      MEEST GEKOZEN ⭐
+                    </div>
+                    <h4 className="text-2xl font-bold text-white mb-4 flex items-center gap-2">
+                      Premium
+                      <span className="text-2xl">🏆</span>
+                    </h4>
+                    <p className="text-5xl font-bold bg-gradient-to-r from-emerald-300 via-white to-teal-300 bg-clip-text text-transparent mb-2">
+                      €13
+                    </p>
+                    <p className="text-emerald-200/80 mb-6">/maand</p>
+                    <ul className="space-y-3 mb-8 text-sm">
+                      <li className="flex items-center gap-2 text-white">
+                        <span className="w-5 h-5 rounded-full bg-emerald-500/30 border border-emerald-400/50 flex items-center justify-center text-xs text-emerald-400">
+                          ✓
+                        </span>
+                        <strong>
+                          Profiel zichtbaar voor alle opdrachtgevers
+                        </strong>
+                      </li>
+                      <li className="flex items-center gap-2 text-white">
+                        <span className="w-5 h-5 rounded-full bg-emerald-500/30 border border-emerald-400/50 flex items-center justify-center text-xs text-emerald-400">
+                          ✓
+                        </span>
+                        Premium badge 🏆
+                      </li>
+                      <li className="flex items-center gap-2 text-white">
+                        <span className="w-5 h-5 rounded-full bg-emerald-500/30 border border-emerald-400/50 flex items-center justify-center text-xs text-emerald-400">
+                          ✓
+                        </span>
+                        Team configuratie (duo/trio)
+                      </li>
+                      <li className="flex items-center gap-2 text-white">
+                        <span className="w-5 h-5 rounded-full bg-emerald-500/30 border border-emerald-400/50 flex items-center justify-center text-xs text-emerald-400">
+                          ✓
+                        </span>
+                        "Skoczek" beschikbaarheid toggle
+                      </li>
+                      <li className="flex items-center gap-2 text-white">
+                        <span className="w-5 h-5 rounded-full bg-emerald-500/30 border border-emerald-400/50 flex items-center justify-center text-xs text-emerald-400">
+                          ✓
+                        </span>
+                        Onbeperkt opdrachten ontvangen
+                      </li>
+                    </ul>
+                    <Link
+                      to="/register/worker"
+                      className="block text-center bg-gradient-to-r from-emerald-500 via-green-400 to-teal-500 text-white px-6 py-3 rounded-xl font-bold hover:scale-105 transition-transform shadow-lg shadow-emerald-500/30 hover:shadow-emerald-500/50"
+                    >
+                      Start als ZZP'er →
+                    </Link>
+                  </div>
+                </div>
               </div>
 
-              {/* Employers Premium */}
-              <div className="bg-gradient-to-br from-accent-cyber/20 to-blue-600/20 rounded-2xl p-8 border-2 border-accent-cyber relative shadow-glow-cyber">
-                <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-gradient-to-r from-accent-cyber to-blue-600 text-white px-6 py-1 rounded-full text-sm font-bold shadow-lg">
-                  🏢 Voor Bedrijven
-                </div>
-                <div className="text-sm text-accent-cyber font-bold mb-2">
-                  VOOR OPDRACHTGEVERS
-                </div>
-                <h4 className="text-2xl font-bold text-white mb-4">
-                  Basic / Premium
-                </h4>
-                <p className="text-4xl font-bold text-white mb-2">
-                  €13 <span className="text-2xl text-neutral-400">/ €25</span>
-                </p>
-                <p className="text-neutral-300 mb-6">/maand</p>
-                <ul className="space-y-3 mb-8 text-sm">
-                  <li className="flex items-center gap-2 text-white">
-                    <span className="text-accent-cyber">✓</span>
-                    Toegang tot alle ZZP'er profielen
-                  </li>
-                  <li className="flex items-center gap-2 text-white">
-                    <span className="text-accent-cyber">✓</span>
-                    Direct contact met professionals
-                  </li>
-                  <li className="flex items-center gap-2 text-white">
-                    <span className="text-accent-cyber">✓</span>
-                    <span className="text-accent-cyber font-medium">
-                      (Premium)
-                    </span>{" "}
-                    Filter op teams & beschikbaarheid
-                  </li>
-                  <li className="flex items-center gap-2 text-white">
-                    <span className="text-accent-cyber">✓</span>
-                    <span className="text-accent-cyber font-medium">
-                      (Premium)
-                    </span>{" "}
-                    Hogere prioriteit bij ZZP'ers
-                  </li>
-                  <li className="flex items-center gap-2 text-white">
-                    <span className="text-accent-cyber">✓</span>
-                    Geen commissie op opdrachten!
-                  </li>
-                </ul>
-                <Link
-                  to="/register/employer"
-                  className="block text-center bg-gradient-to-r from-accent-cyber to-blue-600 text-white px-6 py-3 rounded-xl font-bold hover:scale-105 transition-transform shadow-lg"
+              {/* Employers Premium - 3D Geometric Card with Glow */}
+              <div className="group relative" style={{ perspective: "1000px" }}>
+                {/* Animated outer glow */}
+                <div
+                  className="absolute -inset-1 bg-gradient-to-r from-cyan-500 via-blue-500 to-purple-500 rounded-2xl blur-lg opacity-50 group-hover:opacity-80 transition-all duration-500 animate-pulse"
+                  style={{ animationDelay: "0.5s" }}
+                />
+
+                <div
+                  className="relative bg-gradient-to-br from-cyan-950/90 via-slate-900/95 to-blue-950/90 backdrop-blur-xl rounded-2xl p-8 border border-cyan-500/50 transition-all duration-500 group-hover:border-cyan-400 group-hover:-translate-y-2 shadow-2xl"
+                  style={{ transformStyle: "preserve-3d" }}
                 >
-                  Registreer bedrijf
-                </Link>
+                  {/* Geometric inner pattern */}
+                  <div className="absolute inset-0 rounded-2xl overflow-hidden">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-cyan-500/20 to-transparent rounded-full blur-2xl" />
+                    <div className="absolute bottom-0 left-0 w-24 h-24 bg-gradient-to-tr from-blue-500/20 to-transparent rounded-full blur-xl" />
+                  </div>
+
+                  <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-gradient-to-r from-cyan-500 via-blue-500 to-purple-500 text-white px-6 py-1.5 rounded-full text-sm font-bold shadow-lg shadow-cyan-500/30">
+                    🏢 Voor Bedrijven
+                  </div>
+
+                  <div className="relative mt-2">
+                    <div className="text-sm text-cyan-400 font-bold mb-2 tracking-widest">
+                      VOOR OPDRACHTGEVERS
+                    </div>
+                    <h4 className="text-2xl font-bold text-white mb-4">
+                      Basic / Premium
+                    </h4>
+                    <p className="text-4xl font-bold bg-gradient-to-r from-cyan-300 via-white to-blue-300 bg-clip-text text-transparent mb-2">
+                      €13{" "}
+                      <span className="text-2xl text-cyan-400/70">/ €25</span>
+                    </p>
+                    <p className="text-cyan-200/80 mb-6">/maand</p>
+                    <ul className="space-y-3 mb-8 text-sm">
+                      <li className="flex items-center gap-2 text-white">
+                        <span className="w-5 h-5 rounded-full bg-cyan-500/30 border border-cyan-400/50 flex items-center justify-center text-xs text-cyan-400">
+                          ✓
+                        </span>
+                        Toegang tot alle ZZP'er profielen
+                      </li>
+                      <li className="flex items-center gap-2 text-white">
+                        <span className="w-5 h-5 rounded-full bg-cyan-500/30 border border-cyan-400/50 flex items-center justify-center text-xs text-cyan-400">
+                          ✓
+                        </span>
+                        Direct contact met professionals
+                      </li>
+                      <li className="flex items-center gap-2 text-white">
+                        <span className="w-5 h-5 rounded-full bg-cyan-500/30 border border-cyan-400/50 flex items-center justify-center text-xs text-cyan-400">
+                          ✓
+                        </span>
+                        <span className="text-cyan-400 font-medium">
+                          (Premium)
+                        </span>{" "}
+                        Filter op teams & beschikbaarheid
+                      </li>
+                      <li className="flex items-center gap-2 text-white">
+                        <span className="w-5 h-5 rounded-full bg-cyan-500/30 border border-cyan-400/50 flex items-center justify-center text-xs text-cyan-400">
+                          ✓
+                        </span>
+                        <span className="text-cyan-400 font-medium">
+                          (Premium)
+                        </span>{" "}
+                        Hogere prioriteit bij ZZP'ers
+                      </li>
+                      <li className="flex items-center gap-2 text-white">
+                        <span className="w-5 h-5 rounded-full bg-cyan-500/30 border border-cyan-400/50 flex items-center justify-center text-xs text-cyan-400">
+                          ✓
+                        </span>
+                        Geen commissie op opdrachten!
+                      </li>
+                    </ul>
+                    <Link
+                      to="/register/employer"
+                      className="block text-center bg-gradient-to-r from-cyan-500 via-blue-500 to-purple-500 text-white px-6 py-3 rounded-xl font-bold hover:scale-105 transition-transform shadow-lg shadow-cyan-500/30 hover:shadow-cyan-500/50"
+                    >
+                      Registreer bedrijf →
+                    </Link>
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -665,9 +811,205 @@ export const HomePage: React.FC = () => {
                 </span>
               </p>
             </div>
+
+            {/* NEW: Additional User Types - Accountants, Cleaning Companies, Regular Users */}
+            <div className="mt-16">
+              <h3 className="text-3xl md:text-4xl font-bold text-white mb-10 text-center">
+                Ook voor Boekhouders, Schoonmaakbedrijven & Particulieren
+              </h3>
+
+              <div className="grid md:grid-cols-3 gap-8">
+                {/* Accountants */}
+                <GlowCard variant="purple" size="md">
+                  <div className="relative">
+                    <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-gradient-to-r from-purple-500 to-indigo-600 text-white px-6 py-1 rounded-full text-sm font-bold shadow-lg z-20">
+                      📊 Voor Boekhouders
+                    </div>
+                    <div className="text-center mt-4">
+                      <div className="text-5xl mb-4">📊</div>
+                      <h4 className="text-2xl font-bold text-white mb-2">
+                        Boekhouders
+                      </h4>
+                      <p className="text-4xl font-bold text-white mb-1">
+                        €0{" "}
+                        <span className="text-xl text-neutral-300">/ €13</span>
+                      </p>
+                      <p className="text-neutral-300 mb-6 text-sm">
+                        /maand (Basic / Pro)
+                      </p>
+                    </div>
+                    <ul className="space-y-2 mb-6 text-sm">
+                      <li className="flex items-center gap-2 text-white">
+                        <span className="text-purple-400">✓</span>
+                        Facturatie systeem (PDF export)
+                      </li>
+                      <li className="flex items-center gap-2 text-white">
+                        <span className="text-purple-400">✓</span>
+                        Klantenbeheer & CRM
+                      </li>
+                      <li className="flex items-center gap-2 text-white">
+                        <span className="text-purple-400">✓</span>
+                        Urenregistratie & projecten
+                      </li>
+                      <li className="flex items-center gap-2 text-white">
+                        <span className="text-purple-400">✓</span>
+                        Financiële rapportages
+                      </li>
+                      <li className="flex items-center gap-2 text-neutral-200">
+                        <span className="text-purple-400">✓</span>
+                        <span className="text-purple-300">(Pro)</span> Onbeperkt
+                        klanten
+                      </li>
+                    </ul>
+                    <Link
+                      to="/register/accountant"
+                      className="block text-center bg-gradient-to-r from-purple-500 to-indigo-600 text-white px-6 py-3 rounded-xl font-bold hover:scale-105 transition-transform shadow-lg"
+                    >
+                      Start als Boekhouder
+                    </Link>
+                  </div>
+                </GlowCard>
+
+                {/* Cleaning Companies */}
+                <GlowCard variant="cyan" size="md">
+                  <div className="relative">
+                    <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-gradient-to-r from-teal-500 to-cyan-600 text-white px-6 py-1 rounded-full text-sm font-bold shadow-lg z-20">
+                      🧹 Schoonmaakbedrijven
+                    </div>
+                    <div className="text-center mt-4">
+                      <div className="text-5xl mb-4">🧹</div>
+                      <h4 className="text-2xl font-bold text-white mb-2">
+                        Schoonmaakbedrijven
+                      </h4>
+                      <p className="text-4xl font-bold text-white mb-1">
+                        €0{" "}
+                        <span className="text-xl text-neutral-300">/ €13</span>
+                      </p>
+                      <p className="text-neutral-300 mb-6 text-sm">
+                        /maand (Basic / Premium)
+                      </p>
+                    </div>
+                    <ul className="space-y-2 mb-6 text-sm">
+                      <li className="flex items-center gap-2 text-white">
+                        <span className="text-teal-400">✓</span>
+                        Projectbeheer & planning
+                      </li>
+                      <li className="flex items-center gap-2 text-white">
+                        <span className="text-teal-400">✓</span>
+                        Teambeheer & roosters
+                      </li>
+                      <li className="flex items-center gap-2 text-white">
+                        <span className="text-teal-400">✓</span>
+                        Klantenbeheer
+                      </li>
+                      <li className="flex items-center gap-2 text-white">
+                        <span className="text-teal-400">✓</span>
+                        Takenlijsten & checklists
+                      </li>
+                      <li className="flex items-center gap-2 text-neutral-200">
+                        <span className="text-teal-400">✓</span>
+                        <span className="text-teal-300">(Premium)</span>{" "}
+                        Onbeperkt projecten
+                      </li>
+                    </ul>
+                    <Link
+                      to="/register/cleaning-company"
+                      className="block text-center bg-gradient-to-r from-teal-500 to-cyan-600 text-white px-6 py-3 rounded-xl font-bold hover:scale-105 transition-transform shadow-lg"
+                    >
+                      Start als Schoonmaakbedrijf
+                    </Link>
+                  </div>
+                </GlowCard>
+
+                {/* Regular Users */}
+                <GlowCard variant="orange" size="md">
+                  <div className="relative">
+                    <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-gradient-to-r from-orange-500 to-red-500 text-white px-6 py-1 rounded-full text-sm font-bold shadow-lg z-20">
+                      👤 Particulieren
+                    </div>
+                    <div className="text-center mt-4">
+                      <div className="text-5xl mb-4">👤</div>
+                      <h4 className="text-2xl font-bold text-white mb-2">
+                        Particulieren
+                      </h4>
+                      <p className="text-4xl font-bold text-white mb-1">
+                        Gratis{" "}
+                        <span className="text-xl text-neutral-300">
+                          / €9,99
+                        </span>
+                      </p>
+                      <p className="text-neutral-300 mb-6 text-sm">
+                        /maand (Free / Premium)
+                      </p>
+                    </div>
+                    <ul className="space-y-2 mb-6 text-sm">
+                      <li className="flex items-center gap-2 text-white">
+                        <span className="text-orange-400">✓</span>
+                        Diensten aanvragen (klussen)
+                      </li>
+                      <li className="flex items-center gap-2 text-white">
+                        <span className="text-orange-400">✓</span>
+                        Meldingen & notificaties
+                      </li>
+                      <li className="flex items-center gap-2 text-white">
+                        <span className="text-orange-400">✓</span>
+                        Aanvraag geschiedenis
+                      </li>
+                      <li className="flex items-center gap-2 text-white">
+                        <span className="text-orange-400">✓</span>
+                        Contact met professionals
+                      </li>
+                      <li className="flex items-center gap-2 text-neutral-200">
+                        <span className="text-orange-400">✓</span>
+                        <span className="text-orange-300">(Premium)</span>{" "}
+                        Prioriteit & meer aanvragen
+                      </li>
+                    </ul>
+                    <Link
+                      to="/register/regular-user"
+                      className="block text-center bg-gradient-to-r from-orange-500 to-red-500 text-white px-6 py-3 rounded-xl font-bold hover:scale-105 transition-transform shadow-lg"
+                    >
+                      Start als Particulier
+                    </Link>
+                  </div>
+                </GlowCard>
+              </div>
+            </div>
           </div>
         </div>
       </section>
+
+      {/* ═══════════════════ MESH GRADIENT DIVIDER 3 ═══════════════════ */}
+      <div className="relative h-28 overflow-hidden">
+        <div className="absolute inset-0">
+          <div className="absolute inset-0 bg-gradient-to-r from-purple-500/10 via-pink-500/15 to-orange-500/10"></div>
+          <div className="absolute inset-0 bg-gradient-to-b from-transparent via-slate-900/50 to-primary-dark"></div>
+        </div>
+        <div className="absolute top-0 left-1/4 w-80 h-80 bg-purple-500/15 rounded-full blur-3xl -translate-y-1/2"></div>
+        <div className="absolute top-0 right-1/4 w-80 h-80 bg-orange-500/15 rounded-full blur-3xl -translate-y-1/2"></div>
+        {/* Geometric lines */}
+        <svg
+          className="absolute inset-0 w-full h-full opacity-10"
+          preserveAspectRatio="none"
+        >
+          <defs>
+            <linearGradient id="meshGrad3" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" stopColor="#a855f7" />
+              <stop offset="50%" stopColor="#ec4899" />
+              <stop offset="100%" stopColor="#f97316" />
+            </linearGradient>
+          </defs>
+          <line
+            x1="0"
+            y1="50%"
+            x2="100%"
+            y2="50%"
+            stroke="url(#meshGrad3)"
+            strokeWidth="1"
+            strokeDasharray="8 8"
+          />
+        </svg>
+      </div>
 
       {/* Benefits for Employers */}
       <section className="py-24 bg-primary-dark">
@@ -676,9 +1018,9 @@ export const HomePage: React.FC = () => {
             {/* Real Photo - Employers Benefits */}
             <div className="rounded-2xl overflow-hidden border-4 border-accent-cyber/30 shadow-2xl transform hover:scale-105 transition-transform">
               <img
-                src="https://images.unsplash.com/photo-1600880292203-757bb62b4baf?w=700&h=500&fit=crop"
-                alt="Employer finding the perfect team member"
-                className="w-full h-full object-cover"
+                src="/home-team.png"
+                alt="ZZP Werkplaats team van gecertificeerde professionals"
+                className="w-full h-auto block"
               />
             </div>
             <div>
@@ -689,9 +1031,9 @@ export const HomePage: React.FC = () => {
               {/* Additional Photo - Business Team */}
               <div className="mb-8 rounded-xl overflow-hidden border-2 border-blue-500/30 shadow-xl">
                 <img
-                  src="https://images.unsplash.com/photo-1553484771-371a605b060b?w=600&h=300&fit=crop"
-                  alt="Business team collaboration"
-                  className="w-full h-48 object-cover"
+                  src="/home-employer.jpg"
+                  alt="ZZP Werkplaats - professionele werkgever dashboard"
+                  className="w-full h-auto block"
                 />
               </div>
 
@@ -717,7 +1059,7 @@ export const HomePage: React.FC = () => {
                         "Geverifieerde professionals"
                       )}
                     </strong>
-                    <span className="text-neutral-400">
+                    <span className="text-neutral-200">
                       {t(
                         "home.benefits.employers.benefit1.description",
                         "Alle ZZP'ers zijn getest op vaardigheden en betrouwbaarheid"
@@ -746,7 +1088,7 @@ export const HomePage: React.FC = () => {
                         "Snel zoeken en vinden"
                       )}
                     </strong>
-                    <span className="text-neutral-400">
+                    <span className="text-neutral-200">
                       {t(
                         "home.benefits.employers.benefit2.description",
                         "Filter op vakgebied, ervaring en beschikbaarheid"
@@ -775,7 +1117,7 @@ export const HomePage: React.FC = () => {
                         "Flexibel abonnement"
                       )}
                     </strong>
-                    <span className="text-neutral-400">
+                    <span className="text-neutral-200">
                       {t(
                         "home.benefits.employers.benefit3.description",
                         "Flexible subscription plans starting at €13/month"
@@ -795,6 +1137,15 @@ export const HomePage: React.FC = () => {
         </div>
       </section>
 
+      {/* ═══════════════════ MESH GRADIENT DIVIDER 4 ═══════════════════ */}
+      <div className="relative h-24 overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-r from-blue-500/10 via-indigo-500/15 to-violet-500/10"></div>
+        <div className="absolute inset-0 bg-gradient-to-b from-primary-dark via-transparent to-primary-navy/20"></div>
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl"></div>
+        {/* Animated shimmer line */}
+        <div className="absolute top-1/2 left-0 right-0 h-px bg-gradient-to-r from-transparent via-indigo-400/50 to-transparent -translate-y-1/2"></div>
+      </div>
+
       {/* FAQ Section - Platform Info */}
       <section className="py-24 bg-primary-navy/20">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -802,7 +1153,7 @@ export const HomePage: React.FC = () => {
             <h2 className="text-5xl font-bold text-white mb-4 font-heading">
               Veelgestelde vragen
             </h2>
-            <p className="text-xl text-neutral-400">
+            <p className="text-xl text-neutral-200">
               Alles wat je moet weten over ZZP Werkplaats
             </p>
           </div>
@@ -1130,16 +1481,171 @@ export const HomePage: React.FC = () => {
                 </p>
               </div>
             </details>
+
+            {/* FAQ 9 - Boekhouders */}
+            <details className="group bg-gradient-glass backdrop-blur-md rounded-xl border border-purple-500/20 hover:border-purple-500 transition-all">
+              <summary className="cursor-pointer p-6 font-bold text-white text-lg flex items-center justify-between">
+                <span>📊 Wat biedt het platform voor boekhouders?</span>
+                <span className="text-purple-400 group-open:rotate-180 transition-transform">
+                  ▼
+                </span>
+              </summary>
+              <div className="px-6 pb-6 text-neutral-300 leading-relaxed space-y-3">
+                <p>
+                  <strong className="text-white">
+                    Compleet boekhoudsysteem:
+                  </strong>
+                </p>
+                <ul className="space-y-2 ml-2">
+                  <li>
+                    ✓ <strong className="text-white">Facturatie:</strong> Maak
+                    professionele facturen (PDF export)
+                  </li>
+                  <li>
+                    ✓ <strong className="text-white">Klantenbeheer:</strong> CRM
+                    voor al je klanten
+                  </li>
+                  <li>
+                    ✓ <strong className="text-white">Urenregistratie:</strong>{" "}
+                    Track tijd per project
+                  </li>
+                  <li>
+                    ✓ <strong className="text-white">Rapportages:</strong>{" "}
+                    Financiële overzichten
+                  </li>
+                </ul>
+                <div className="mt-4 grid grid-cols-2 gap-3">
+                  <div className="bg-primary-navy/30 rounded-lg p-3 border border-purple-500/20 text-center">
+                    <p className="text-white font-bold">Basic: €0/maand</p>
+                    <p className="text-xs text-neutral-200">Max 5 klanten</p>
+                  </div>
+                  <div className="bg-purple-500/10 rounded-lg p-3 border border-purple-500/40 text-center">
+                    <p className="text-purple-400 font-bold">Pro: €13/maand</p>
+                    <p className="text-xs text-neutral-200">
+                      Onbeperkt klanten
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </details>
+
+            {/* FAQ 10 - Schoonmaakbedrijven */}
+            <details className="group bg-gradient-glass backdrop-blur-md rounded-xl border border-teal-500/20 hover:border-teal-500 transition-all">
+              <summary className="cursor-pointer p-6 font-bold text-white text-lg flex items-center justify-between">
+                <span>🧹 Wat biedt het platform voor schoonmaakbedrijven?</span>
+                <span className="text-teal-400 group-open:rotate-180 transition-transform">
+                  ▼
+                </span>
+              </summary>
+              <div className="px-6 pb-6 text-neutral-300 leading-relaxed space-y-3">
+                <p>
+                  <strong className="text-white">
+                    Compleet beheer voor schoonmaakbedrijven:
+                  </strong>
+                </p>
+                <ul className="space-y-2 ml-2">
+                  <li>
+                    ✓ <strong className="text-white">Projectbeheer:</strong>{" "}
+                    Plan en beheer alle klussen
+                  </li>
+                  <li>
+                    ✓ <strong className="text-white">Teambeheer:</strong>{" "}
+                    Roosters en medewerkers
+                  </li>
+                  <li>
+                    ✓ <strong className="text-white">Klantenbeheer:</strong>{" "}
+                    Alle klantgegevens op één plek
+                  </li>
+                  <li>
+                    ✓ <strong className="text-white">Takenlijsten:</strong>{" "}
+                    Checklists per project
+                  </li>
+                  <li>
+                    ✓ <strong className="text-white">Statistieken:</strong>{" "}
+                    Prestatie-overzichten
+                  </li>
+                </ul>
+                <div className="mt-4 grid grid-cols-2 gap-3">
+                  <div className="bg-primary-navy/30 rounded-lg p-3 border border-teal-500/20 text-center">
+                    <p className="text-white font-bold">Basic: €0/maand</p>
+                    <p className="text-xs text-neutral-200">Max 3 projecten</p>
+                  </div>
+                  <div className="bg-teal-500/10 rounded-lg p-3 border border-teal-500/40 text-center">
+                    <p className="text-teal-400 font-bold">
+                      Premium: €13/maand
+                    </p>
+                    <p className="text-xs text-neutral-200">
+                      Onbeperkt projecten
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </details>
+
+            {/* FAQ 11 - Particulieren */}
+            <details className="group bg-gradient-glass backdrop-blur-md rounded-xl border border-orange-500/20 hover:border-orange-500 transition-all">
+              <summary className="cursor-pointer p-6 font-bold text-white text-lg flex items-center justify-between">
+                <span>👤 Wat biedt het platform voor particulieren?</span>
+                <span className="text-orange-400 group-open:rotate-180 transition-transform">
+                  ▼
+                </span>
+              </summary>
+              <div className="px-6 pb-6 text-neutral-300 leading-relaxed space-y-3">
+                <p>
+                  <strong className="text-white">
+                    Voor huiseigenaren die hulp zoeken:
+                  </strong>
+                </p>
+                <ul className="space-y-2 ml-2">
+                  <li>
+                    ✓{" "}
+                    <strong className="text-white">Diensten aanvragen:</strong>{" "}
+                    Plaats klusjes en krijg reacties
+                  </li>
+                  <li>
+                    ✓ <strong className="text-white">Overzicht:</strong> Bekijk
+                    al je aanvragen en historie
+                  </li>
+                  <li>
+                    ✓ <strong className="text-white">Notificaties:</strong>{" "}
+                    Ontvang updates over je verzoeken
+                  </li>
+                  <li>
+                    ✓ <strong className="text-white">Contact:</strong> Praat
+                    direct met professionals
+                  </li>
+                </ul>
+                <div className="mt-4 grid grid-cols-2 gap-3">
+                  <div className="bg-primary-navy/30 rounded-lg p-3 border border-orange-500/20 text-center">
+                    <p className="text-white font-bold">Gratis</p>
+                    <p className="text-xs text-neutral-200">1 aanvraag/maand</p>
+                  </div>
+                  <div className="bg-orange-500/10 rounded-lg p-3 border border-orange-500/40 text-center">
+                    <p className="text-orange-400 font-bold">
+                      Premium: €9,99/maand
+                    </p>
+                    <p className="text-xs text-neutral-200">
+                      Onbeperkt + prioriteit
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </details>
           </div>
 
           {/* CTA after FAQ */}
-          <div className="text-center mt-12 space-y-4">
+          <div className="text-center mt-12 space-y-6">
+            <p className="text-xl text-white font-bold mb-4">
+              Kies je rol en start vandaag nog!
+            </p>
+
+            {/* Primary CTAs */}
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link
                 to="/register/worker"
                 className="inline-block bg-gradient-to-r from-accent-techGreen to-green-600 text-white px-10 py-4 rounded-xl font-bold text-lg hover:scale-105 transition-transform shadow-2xl"
               >
-                � Registreer als ZZP'er
+                🔨 Registreer als ZZP'er
               </Link>
               <Link
                 to="/register/employer"
@@ -1148,7 +1654,30 @@ export const HomePage: React.FC = () => {
                 🏢 Registreer als bedrijf
               </Link>
             </div>
-            <p className="text-neutral-400">
+
+            {/* Secondary CTAs for new user types */}
+            <div className="flex flex-wrap gap-3 justify-center">
+              <Link
+                to="/register/accountant"
+                className="inline-block bg-gradient-to-r from-purple-500 to-indigo-600 text-white px-6 py-3 rounded-lg font-bold hover:scale-105 transition-transform shadow-lg"
+              >
+                📊 Boekhouder
+              </Link>
+              <Link
+                to="/register/cleaning-company"
+                className="inline-block bg-gradient-to-r from-teal-500 to-cyan-600 text-white px-6 py-3 rounded-lg font-bold hover:scale-105 transition-transform shadow-lg"
+              >
+                🧹 Schoonmaakbedrijf
+              </Link>
+              <Link
+                to="/register/regular-user"
+                className="inline-block bg-gradient-to-r from-orange-500 to-red-500 text-white px-6 py-3 rounded-lg font-bold hover:scale-105 transition-transform shadow-lg"
+              >
+                👤 Particulier
+              </Link>
+            </div>
+
+            <p className="text-neutral-200">
               Nog vragen?{" "}
               <a
                 href="/contact"
@@ -1174,30 +1703,31 @@ export const HomePage: React.FC = () => {
           <p className="text-2xl mb-12 text-neutral-300 animate-fade-in">
             {t(
               "home.cta.description",
-              "Of je nu ZZP'er bent die meer opdrachten wil, of een opdrachtgever die betrouwbare professionals zoekt - word vandaag nog lid!"
+              "Of je nu ZZP'er, opdrachtgever, boekhouder, schoonmaakbedrijf of particulier bent - word vandaag nog lid!"
             )}
           </p>
 
           {/* Real Photo - Success & Team */}
-          <div className="mb-12 grid md:grid-cols-2 gap-6">
-            <div className="rounded-full overflow-hidden border-4 border-green-500/40 shadow-2xl transform hover:scale-105 transition-transform aspect-square">
+          <div className="mb-12 grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">
+            <div className="rounded-2xl overflow-hidden border-4 border-green-500/40 shadow-2xl transform hover:scale-105 transition-transform">
               <img
-                src="https://images.unsplash.com/photo-1552581234-26160f608093?w=500&h=500&fit=crop"
-                alt="Success and celebration"
-                className="w-full h-full object-cover"
+                src="/home-certyfikat.png"
+                alt="ZZP Werkplaats gecertificeerde professional"
+                className="w-full h-auto block"
               />
             </div>
 
-            <div className="rounded-full overflow-hidden border-4 border-blue-500/40 shadow-2xl transform hover:scale-105 transition-transform aspect-square">
+            <div className="rounded-2xl overflow-hidden border-4 border-blue-500/40 shadow-2xl transform hover:scale-105 transition-transform">
               <img
-                src="https://images.unsplash.com/photo-1600880292089-90a7e086ee0c?w=500&h=500&fit=crop"
-                alt="Team collaboration success"
-                className="w-full h-full object-cover"
+                src="/home-team.png"
+                alt="ZZP Werkplaats team van professionals"
+                className="w-full h-auto block"
               />
             </div>
           </div>
 
-          <div className="flex flex-col sm:flex-row gap-6 justify-center">
+          {/* Primary CTAs */}
+          <div className="flex flex-col sm:flex-row gap-6 justify-center mb-6">
             <Link
               to="/register/worker"
               className="group relative bg-gradient-success text-white px-12 py-5 rounded-xl font-bold text-lg transition-all shadow-glow-success hover:shadow-glow-success hover:scale-105"
@@ -1212,6 +1742,28 @@ export const HomePage: React.FC = () => {
               className="group relative bg-primary-navy/50 backdrop-blur-md text-white px-12 py-5 rounded-xl font-bold text-lg transition-all shadow-3d hover:shadow-glow-cyber hover:scale-105 border-2 border-accent-cyber/30 hover:border-accent-cyber"
             >
               {t("home.cta.employer", "🏢 Ik ben opdrachtgever")}
+            </Link>
+          </div>
+
+          {/* Secondary CTAs for all user types */}
+          <div className="flex flex-wrap gap-4 justify-center">
+            <Link
+              to="/register/accountant"
+              className="bg-gradient-to-r from-purple-500 to-indigo-600 text-white px-8 py-3 rounded-lg font-bold hover:scale-105 transition-transform shadow-lg"
+            >
+              📊 Boekhouder
+            </Link>
+            <Link
+              to="/register/cleaning-company"
+              className="bg-gradient-to-r from-teal-500 to-cyan-600 text-white px-8 py-3 rounded-lg font-bold hover:scale-105 transition-transform shadow-lg"
+            >
+              🧹 Schoonmaakbedrijf
+            </Link>
+            <Link
+              to="/register/regular-user"
+              className="bg-gradient-to-r from-orange-500 to-red-500 text-white px-8 py-3 rounded-lg font-bold hover:scale-105 transition-transform shadow-lg"
+            >
+              👤 Particulier
             </Link>
           </div>
         </div>

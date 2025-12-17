@@ -1,18 +1,18 @@
 import React from 'react';
-import { useStore } from '../context/StoreContext';
-import { UserRole, TaskStatus, Priority } from '../types';
+import { useTeamStore } from '../context/TeamStoreContext';
+import { TeamUserRole, TaskStatus, Priority } from '../types';
 import { CheckCircle, Clock, AlertCircle, Briefcase, MapPin, Navigation, Calendar, AlertTriangle, ArrowRight } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 
 export const Dashboard = ({ setActivePage }: { setActivePage: (p: string) => void }) => {
-  const { currentUser, tasks, projects, t } = useStore();
+  const { currentUser, tasks, projects, t } = useTeamStore();
 
   if (!currentUser) return null;
 
   // Filter tasks based on role
-  const myTasks = currentUser.role === UserRole.ADMIN 
+  const myTasks = currentUser?.role === TeamUserRole.ADMIN 
     ? tasks 
-    : tasks.filter(task => task.assignedToIds.includes(currentUser.id));
+    : tasks.filter(task => task.assignedToIds.includes(currentUser?.id || ''));
 
   const stats = {
     todo: myTasks.filter(t => t.status === TaskStatus.TODO).length,
@@ -49,8 +49,8 @@ export const Dashboard = ({ setActivePage }: { setActivePage: (p: string) => voi
     if (!activeTask) return (
       <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100 text-center py-12">
          <CheckCircle size={48} className="text-green-500 mx-auto mb-4" />
-         <h3 className="text-xl font-bold text-slate-800">Geen taken beschikbaar</h3>
-         <p className="text-slate-500">Goed gedaan! Je hebt momenteel geen actieve taken.</p>
+         <h3 className="text-xl font-bold text-slate-800">{t('noTasks')}</h3>
+         <p className="text-slate-500">{t('done')}</p>
       </div>
     );
 
@@ -102,7 +102,7 @@ export const Dashboard = ({ setActivePage }: { setActivePage: (p: string) => voi
           <h2 className="text-2xl font-bold text-slate-800">{t('dashboard')}</h2>
           <p className="text-slate-500 text-sm">Welkom terug, {currentUser.name}</p>
         </div>
-        {currentUser.role === UserRole.ADMIN && (
+        {currentUser?.role === TeamUserRole.ADMIN && (
           <button 
             onClick={() => setActivePage('projects')}
             className="bg-safety-500 hover:bg-safety-600 text-white px-4 py-2 rounded-lg font-medium transition-colors shadow-sm"
@@ -122,9 +122,9 @@ export const Dashboard = ({ setActivePage }: { setActivePage: (p: string) => voi
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Main Focus Area */}
         <div className="lg:col-span-2 space-y-6">
-           {currentUser.role === UserRole.WORKER && <WorkerFocusCard />}
+           {currentUser?.role === TeamUserRole.WORKER && <WorkerFocusCard />}
            
-           {currentUser.role === UserRole.ADMIN && (
+           {currentUser?.role === TeamUserRole.ADMIN && (
              <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100">
                <h3 className="font-bold text-slate-800 mb-4 flex items-center"><AlertTriangle size={18} className="text-red-500 mr-2"/> {t('urgentTasks')}</h3>
                <div className="space-y-3">
@@ -217,19 +217,23 @@ export const Dashboard = ({ setActivePage }: { setActivePage: (p: string) => voi
 
            {/* Quick Project Links */}
            <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100">
-             <h3 className="font-bold text-slate-800 mb-4">Active Projects</h3>
+             <h3 className="font-bold text-slate-800 mb-4">{t('projects')}</h3>
              <div className="space-y-3">
-               {projects.map(p => (
+               {projects.map(p => {
+                 const projectTasks = tasks.filter(t => t.projectId === p.id);
+                 const doneTasks = projectTasks.filter(t => t.status === TaskStatus.DONE).length;
+                 const progress = projectTasks.length > 0 ? (doneTasks / projectTasks.length) * 100 : 0;
+                 return (
                  <div key={p.id} onClick={() => setActivePage('projects')} className="cursor-pointer group">
                    <div className="flex justify-between items-center mb-1">
                      <span className="text-sm font-medium text-slate-700 group-hover:text-primary-600">{p.title}</span>
                      <span className="text-[10px] bg-slate-100 px-1.5 py-0.5 rounded text-slate-500">{p.postalCode}</span>
                    </div>
                    <div className="w-full bg-slate-100 rounded-full h-1.5">
-                      <div className="bg-safety-500 h-1.5 rounded-full" style={{ width: `${Math.random() * 100}%` }}></div>
+                      <div className="bg-safety-500 h-1.5 rounded-full" style={{ width: `${progress}%` }}></div>
                    </div>
                  </div>
-               ))}
+               )})}
              </div>
            </div>
         </div>

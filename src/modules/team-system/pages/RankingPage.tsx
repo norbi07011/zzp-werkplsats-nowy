@@ -1,5 +1,6 @@
 import React from "react";
 import { useStore } from "../context/StoreContext";
+import { TeamUserRole } from "../types";
 import { Trophy, Medal, Star, Users } from "lucide-react";
 import {
   BarChart,
@@ -14,9 +15,9 @@ import {
 export const RankingPage = () => {
   const { users, t, isLoading } = useStore();
 
-  // Sort users by completed tasks desc
+  // Sort users by completed tasks desc - filter workers only
   const sortedUsers = [...users]
-    .filter((u) => u.role === "WORKER")
+    .filter((u) => u.role === TeamUserRole.WORKER)
     .sort((a, b) => b.completedTasksCount - a.completedTasksCount);
   const top3 = sortedUsers.slice(0, 3);
 
@@ -42,7 +43,7 @@ export const RankingPage = () => {
           <h2 className="text-3xl font-extrabold text-slate-800 mb-2">
             {t("leaderboard")}
           </h2>
-          <p className="text-slate-500">Who is the BouwMaster of the month?</p>
+          <p className="text-slate-500">{t("points")}</p>
         </div>
         <div className="flex flex-col items-center justify-center py-16 bg-white rounded-xl border border-slate-100">
           <Users size={64} className="text-slate-300 mb-4" />
@@ -64,7 +65,7 @@ export const RankingPage = () => {
         <h2 className="text-3xl font-extrabold text-slate-800 mb-2">
           {t("leaderboard")}
         </h2>
-        <p className="text-slate-500">Who is the BouwMaster of the month?</p>
+        <p className="text-slate-500">{t("points")}</p>
       </div>
 
       {/* Podium */}

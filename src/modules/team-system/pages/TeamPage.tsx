@@ -9,16 +9,18 @@
 import React, { useState } from "react";
 import { useTeamStore } from "../context/TeamStoreContext";
 import { TeamUserRole, TeamMember } from "../types";
-
-
-
-
-
-
-
-
-
-
+import {
+  XCircle,
+  Search,
+  Plus,
+  Phone,
+  Mail,
+  Euro,
+  Edit2,
+  Trash2,
+  Users,
+  CheckCircle,
+} from "lucide-react";
 
 export const TeamPage = () => {
   const { currentUser, users, addUser, updateUser, deleteUser, t } =

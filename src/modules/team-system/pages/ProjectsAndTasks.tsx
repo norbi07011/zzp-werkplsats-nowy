@@ -62,6 +62,9 @@ export const ProjectsAndTasks = () => {
     addTask,
     updateTask,
     addProject,
+    addWorkLog,
+    updateWorkLog,
+    addComment,
     addTaskTemplate,
     updateTaskTemplate,
     deleteTaskTemplate,
@@ -389,27 +392,23 @@ export const ProjectsAndTasks = () => {
   };
 
   // Detailed View Logic Handlers
-  const handleToggleTimer = (task: Task) => {
+  const handleToggleTimer = async (task: Task) => {
     if (!currentUser) return;
     const activeLog = task.workLogs.find(
       (l) => l.userId === currentUser.id && !l.endTime
     );
 
     if (activeLog) {
-      // Stop Timer
-      const updatedLogs = task.workLogs.map((l) =>
-        l.id === activeLog.id ? { ...l, endTime: new Date().toISOString() } : l
-      );
-      updateTask({ ...task, workLogs: updatedLogs });
+      // Stop Timer - save to database
+      await updateWorkLog(task.id, activeLog.id, new Date().toISOString());
     } else {
-      // Start Timer
-      const newLog: WorkLog = {
-        id: Date.now().toString(),
+      // Start Timer - save to database
+      const newLog = {
         userId: currentUser.id,
         startTime: new Date().toISOString(),
-        description: workLogNote,
+        description: workLogNote || undefined,
       };
-      updateTask({ ...task, workLogs: [...task.workLogs, newLog] });
+      await addWorkLog(task.id, newLog);
       setWorkLogNote("");
     }
   };
@@ -428,16 +427,10 @@ export const ProjectsAndTasks = () => {
     setUsedMatUnit("pcs");
   };
 
-  const handleAddComment = (task: Task) => {
+  const handleAddComment = async (task: Task) => {
     if (!currentUser || !newComment.trim()) return;
-    const comment: Comment = {
-      id: Date.now().toString(),
-      userId: currentUser.id,
-      userName: currentUser.name,
-      text: newComment,
-      timestamp: Date.now(),
-    };
-    updateTask({ ...task, comments: [...task.comments, comment] });
+    // Save to database via Supabase
+    await addComment(task.id, newComment);
     setNewComment("");
   };
 

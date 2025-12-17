@@ -167,17 +167,17 @@ export const ExperienceCertificatePage: React.FC = () => {
             <div className="bg-gradient-glass backdrop-blur-md rounded-2xl p-6 border border-yellow-500/30">
               <div className="text-4xl mb-3">📝</div>
               <div className="text-2xl font-bold text-white mb-2">60 Vragen</div>
-              <p className="text-neutral-400 text-sm">Online examen, 70% slagingspercentage</p>
+              <p className="text-neutral-200 text-sm">Online examen, 70% slagingspercentage</p>
             </div>
             <div className="bg-gradient-glass backdrop-blur-md rounded-2xl p-6 border border-yellow-500/30">
               <div className="text-4xl mb-3">⏱️</div>
               <div className="text-2xl font-bold text-white mb-2">90 Minuten</div>
-              <p className="text-neutral-400 text-sm">Ruim de tijd om rustig na te denken</p>
+              <p className="text-neutral-200 text-sm">Ruim de tijd om rustig na te denken</p>
             </div>
             <div className="bg-gradient-glass backdrop-blur-md rounded-2xl p-6 border border-yellow-500/30">
               <div className="text-4xl mb-3">🏆</div>
               <div className="text-2xl font-bold text-white mb-2">€230</div>
-              <p className="text-neutral-400 text-sm">+ 1 jaar Premium gratis (€156 waarde)</p>
+              <p className="text-neutral-200 text-sm">+ 1 jaar Premium gratis (€156 waarde)</p>
             </div>
           </div>
         </div>
@@ -298,7 +298,7 @@ export const ExperienceCertificatePage: React.FC = () => {
                 <span className="text-3xl font-bold text-green-400">€436+</span>
               </div>
             </div>
-            <p className="text-center text-neutral-400 mt-6 text-sm">
+            <p className="text-center text-neutral-200 mt-6 text-sm">
               Je betaalt <strong className="text-white">€230</strong>, maar krijgt <strong className="text-green-400">€436+ waarde</strong>. Dat is een <strong className="text-yellow-400">90% voordeel</strong>!
             </p>
           </div>
@@ -592,7 +592,7 @@ export const ExperienceCertificatePage: React.FC = () => {
                   min={new Date().toISOString().split('T')[0]}
                   className="w-full px-4 py-3 bg-primary-navy/50 border border-white/20 rounded-xl text-white focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500"
                 />
-                <p className="text-neutral-400 text-sm mt-2">We proberen je voorkeur te respecteren, maar kunnen dit niet garanderen.</p>
+                <p className="text-neutral-200 text-sm mt-2">We proberen je voorkeur te respecteren, maar kunnen dit niet garanderen.</p>
               </div>
 
               {/* Motivation */}
@@ -617,7 +617,7 @@ export const ExperienceCertificatePage: React.FC = () => {
                 {isSubmitting ? 'Bezig met verzenden...' : 'Meld Je Aan voor ZZP Examen →'}
               </button>
 
-              <p className="text-neutral-400 text-sm text-center">
+              <p className="text-neutral-200 text-sm text-center">
                 Door je aan te melden ga je akkoord met onze <Link to="/legal" className="text-yellow-400 hover:underline">voorwaarden en privacybeleid</Link>.
               </p>
             </form>
@@ -746,7 +746,7 @@ export const ExperienceCertificatePage: React.FC = () => {
       {/* Legal Footer */}
       <section className="py-12 bg-primary-navy/50">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <p className="text-sm text-neutral-400 leading-relaxed">
+          <p className="text-sm text-neutral-200 leading-relaxed">
             Door het aanmeldingsformulier in te dienen, gaat u akkoord met onze verwerkingsvoorwaarden en privacybeleid. 
             Uw gegevens worden uitsluitend gebruikt voor de organisatie van het examen en worden niet gedeeld met derden zonder uw toestemming. 
             Het examen is optioneel - u kunt ook zonder certificaat gebruik maken van ons platform.

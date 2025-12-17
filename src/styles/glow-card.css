@@ -1,0 +1,280 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   GLOW CARD - Premium Interactive Card Effects
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+:root {
+  /* Glow Card Variables */
+  --glow-sens: 30;
+  --glow-blend: plus-lighter;
+  --glow-color: 40deg 80% 80%;
+  --glow-boost: 0%;
+  --card-bg: linear-gradient(
+    135deg,
+    rgba(15, 23, 42, 0.95) 0%,
+    rgba(30, 41, 59, 0.9) 50%,
+    rgba(15, 23, 42, 0.95) 100%
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Base Card Styles
+   ───────────────────────────────────────────────────────────────────────────── */
+
+.glow-card {
+  --pads: 40px;
+  --color-sens: calc(var(--glow-sens) + 20);
+  --pointer-angle: 45deg;
+  --pointer-d: 100;
+
+  position: relative;
+  isolation: isolate;
+  transform: translate3d(0, 0, 0.01px);
+  border: 1px solid rgb(255 255 255 / 15%);
+  background: var(--card-bg);
+  background-repeat: no-repeat;
+  transition: all 0.3s ease;
+
+  /* Premium shadow stack */
+  box-shadow: rgba(0, 0, 0, 0.1) 0px 1px 2px, rgba(0, 0, 0, 0.1) 0px 2px 4px,
+    rgba(0, 0, 0, 0.1) 0px 4px 8px, rgba(0, 0, 0, 0.15) 0px 8px 16px,
+    rgba(0, 0, 0, 0.15) 0px 16px 32px, rgba(0, 0, 0, 0.1) 0px 32px 64px;
+}
+
+.glow-card:hover {
+  border-color: rgb(255 255 255 / 25%);
+  transform: translate3d(0, -4px, 0.01px);
+  box-shadow: rgba(0, 0, 0, 0.15) 0px 2px 4px, rgba(0, 0, 0, 0.15) 0px 4px 8px,
+    rgba(0, 0, 0, 0.15) 0px 8px 16px, rgba(0, 0, 0, 0.2) 0px 16px 32px,
+    rgba(0, 0, 0, 0.2) 0px 32px 64px, rgba(0, 0, 0, 0.15) 0px 48px 96px;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Glow Border Animation
+   ───────────────────────────────────────────────────────────────────────────── */
+
+.glow-card-border {
+  transition: opacity 0.25s ease-out;
+}
+
+.glow-card:not(:hover) .glow-card-border,
+.glow-card:not(:hover) .glow-card-mesh,
+.glow-card:not(:hover) .glow-card-glow {
+  opacity: 0 !important;
+  transition: opacity 0.75s ease-in-out;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Variant Specific Styles
+   ───────────────────────────────────────────────────────────────────────────── */
+
+/* Cyan Variant */
+.glow-card-cyan {
+  --glow-color: 190deg 100% 70%;
+  --card-bg: linear-gradient(
+    135deg,
+    rgba(8, 47, 73, 0.95) 0%,
+    rgba(14, 116, 144, 0.3) 50%,
+    rgba(8, 47, 73, 0.95) 100%
+  );
+  border-color: rgba(6, 182, 212, 0.3);
+}
+
+.glow-card-cyan:hover {
+  border-color: rgba(6, 182, 212, 0.5);
+}
+
+/* Emerald Variant */
+.glow-card-emerald {
+  --glow-color: 160deg 100% 70%;
+  --card-bg: linear-gradient(
+    135deg,
+    rgba(6, 78, 59, 0.95) 0%,
+    rgba(16, 185, 129, 0.3) 50%,
+    rgba(6, 78, 59, 0.95) 100%
+  );
+  border-color: rgba(16, 185, 129, 0.3);
+}
+
+.glow-card-emerald:hover {
+  border-color: rgba(16, 185, 129, 0.5);
+}
+
+/* Purple Variant */
+.glow-card-purple {
+  --glow-color: 280deg 100% 75%;
+  --card-bg: linear-gradient(
+    135deg,
+    rgba(59, 7, 100, 0.95) 0%,
+    rgba(139, 92, 246, 0.3) 50%,
+    rgba(59, 7, 100, 0.95) 100%
+  );
+  border-color: rgba(139, 92, 246, 0.3);
+}
+
+.glow-card-purple:hover {
+  border-color: rgba(139, 92, 246, 0.5);
+}
+
+/* Orange Variant */
+.glow-card-orange {
+  --glow-color: 30deg 100% 65%;
+  --card-bg: linear-gradient(
+    135deg,
+    rgba(124, 45, 18, 0.95) 0%,
+    rgba(249, 115, 22, 0.3) 50%,
+    rgba(124, 45, 18, 0.95) 100%
+  );
+  border-color: rgba(249, 115, 22, 0.3);
+}
+
+.glow-card-orange:hover {
+  border-color: rgba(249, 115, 22, 0.5);
+}
+
+/* Pink Variant */
+.glow-card-pink {
+  --glow-color: 330deg 100% 75%;
+  --card-bg: linear-gradient(
+    135deg,
+    rgba(131, 24, 67, 0.95) 0%,
+    rgba(236, 72, 153, 0.3) 50%,
+    rgba(131, 24, 67, 0.95) 100%
+  );
+  border-color: rgba(236, 72, 153, 0.3);
+}
+
+.glow-card-pink:hover {
+  border-color: rgba(236, 72, 153, 0.5);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Holographic Shimmer Animation
+   ───────────────────────────────────────────────────────────────────────────── */
+
+@keyframes holographic-shimmer {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.glow-card-holographic {
+  background: linear-gradient(
+    125deg,
+    rgba(255, 110, 199, 0.1) 0%,
+    rgba(120, 115, 245, 0.1) 25%,
+    rgba(74, 222, 128, 0.1) 50%,
+    rgba(56, 189, 248, 0.1) 75%,
+    rgba(255, 110, 199, 0.1) 100%
+  );
+  background-size: 400% 400%;
+  animation: holographic-shimmer 8s ease infinite;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Mesh Gradient Patterns
+   ───────────────────────────────────────────────────────────────────────────── */
+
+.mesh-gradient-1 {
+  background: radial-gradient(
+      at 80% 55%,
+      hsla(268, 100%, 76%, 0.15) 0px,
+      transparent 50%
+    ),
+    radial-gradient(at 69% 34%, hsla(349, 100%, 74%, 0.15) 0px, transparent 50%),
+    radial-gradient(at 8% 6%, hsla(136, 100%, 78%, 0.15) 0px, transparent 50%),
+    radial-gradient(at 41% 38%, hsla(192, 100%, 64%, 0.15) 0px, transparent 50%);
+}
+
+.mesh-gradient-2 {
+  background: radial-gradient(
+      at 86% 85%,
+      hsla(186, 100%, 74%, 0.15) 0px,
+      transparent 50%
+    ),
+    radial-gradient(at 82% 18%, hsla(52, 100%, 65%, 0.15) 0px, transparent 50%),
+    radial-gradient(at 51% 4%, hsla(12, 100%, 72%, 0.15) 0px, transparent 50%),
+    radial-gradient(at 20% 70%, hsla(280, 100%, 70%, 0.15) 0px, transparent 50%);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Interactive Glow Utilities
+   ───────────────────────────────────────────────────────────────────────────── */
+
+/* For applying glow to any element */
+.interactive-glow {
+  position: relative;
+  overflow: hidden;
+}
+
+.interactive-glow::before {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  background: conic-gradient(
+    from var(--pointer-angle, 0deg),
+    transparent 0deg,
+    rgba(139, 92, 246, 0.5) 60deg,
+    rgba(6, 182, 212, 0.5) 120deg,
+    rgba(16, 185, 129, 0.5) 180deg,
+    rgba(236, 72, 153, 0.5) 240deg,
+    rgba(249, 115, 22, 0.5) 300deg,
+    transparent 360deg
+  );
+  border-radius: inherit;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  z-index: -1;
+}
+
+.interactive-glow:hover::before {
+  opacity: 1;
+  animation: spin-glow 3s linear infinite;
+}
+
+@keyframes spin-glow {
+  from {
+    --pointer-angle: 0deg;
+  }
+  to {
+    --pointer-angle: 360deg;
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Responsive Adjustments
+   ───────────────────────────────────────────────────────────────────────────── */
+
+@media (max-width: 768px) {
+  .glow-card {
+    --pads: 20px;
+  }
+
+  .glow-card-glow {
+    display: none; /* Disable glow on mobile for performance */
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Performance Optimizations
+   ───────────────────────────────────────────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  .glow-card,
+  .glow-card-border,
+  .glow-card-mesh,
+  .glow-card-glow {
+    transition: none;
+    animation: none;
+  }
+
+  .glow-card-holographic {
+    animation: none;
+    background-position: 50% 50%;
+  }
+}

@@ -53,6 +53,10 @@ interface TeamStoreContextType {
   addTask: (task: Omit<Task, "id" | "comments" | "workLogs">) => Promise<void>;
   updateTask: (task: Task) => Promise<void>;
   deleteTask: (taskId: string) => Promise<void>;
+  // Work Logs & Comments - Supabase
+  addWorkLog: (taskId: string, workLog: Omit<WorkLog, "id">) => Promise<void>;
+  updateWorkLog: (taskId: string, workLogId: string, endTime: string) => Promise<void>;
+  addComment: (taskId: string, text: string) => Promise<void>;
   // Chat - Supabase with real-time
   addChatMessage: (text: string) => Promise<void>;
   // User Management
@@ -529,8 +533,8 @@ export const TeamStoreProvider: React.FC<{ children: ReactNode }> = ({
               title: t.title,
               description: t.description || "",
               assignedToIds: t.assigned_to || [],
-              status: (t.status as TaskStatus) || TaskStatus.TODO,
-              priority: (t.priority as Priority) || Priority.MEDIUM,
+              status: (t.status?.toUpperCase() as TaskStatus) || TaskStatus.TODO,
+              priority: (t.priority?.toUpperCase() as Priority) || Priority.MEDIUM,
               dueDate: t.due_date || new Date().toISOString(),
               estimatedHours: t.estimated_hours || undefined,
               toolsRequired: t.tools_required || [],
@@ -576,8 +580,8 @@ export const TeamStoreProvider: React.FC<{ children: ReactNode }> = ({
           project_id: task.projectId,
           title: task.title,
           description: task.description,
-          status: task.status,
-          priority: task.priority,
+          status: task.status.toLowerCase(),
+          priority: task.priority.toLowerCase(),
           due_date: task.dueDate,
           estimated_hours: task.estimatedHours || null,
           assigned_to: task.assignedToIds,
@@ -606,8 +610,8 @@ export const TeamStoreProvider: React.FC<{ children: ReactNode }> = ({
         .update({
           title: updatedTask.title,
           description: updatedTask.description,
-          status: updatedTask.status,
-          priority: updatedTask.priority,
+          status: updatedTask.status.toLowerCase(),
+          priority: updatedTask.priority.toLowerCase(),
           due_date: updatedTask.dueDate,
           estimated_hours: updatedTask.estimatedHours || null,
           assigned_to: updatedTask.assignedToIds,
@@ -654,6 +658,97 @@ export const TeamStoreProvider: React.FC<{ children: ReactNode }> = ({
     } catch (error) {
       console.error("Error deleting task:", error);
       toast.error("Nie udało się usunąć zadania");
+    }
+  };
+
+  // ================================================================
+  // WORK LOGS - Supabase Integration
+  // ================================================================
+  const addWorkLog = async (taskId: string, workLog: Omit<WorkLog, "id">) => {
+    if (!authUser?.id) return;
+
+    try {
+      const { error } = await supabase.from("team_task_work_logs").insert({
+        task_id: taskId,
+        user_id: authUser.id,
+        start_time: workLog.startTime,
+        end_time: workLog.endTime || null,
+        description: workLog.description || null,
+      });
+
+      if (error) throw error;
+
+      // Refresh tasks to get updated work logs
+      const task = tasks.find((t) => t.id === taskId);
+      if (task) {
+        await refreshTasks(task.projectId);
+      }
+    } catch (error) {
+      console.error("Error adding work log:", error);
+      toast.error("Nie udało się dodać wpisu czasu pracy");
+    }
+  };
+
+  const updateWorkLog = async (
+    taskId: string,
+    workLogId: string,
+    endTime: string
+  ) => {
+    try {
+      const startTime = tasks
+        .find((t) => t.id === taskId)
+        ?.workLogs.find((w) => w.id === workLogId)?.startTime;
+
+      if (!startTime) return;
+
+      const start = new Date(startTime).getTime();
+      const end = new Date(endTime).getTime();
+      const durationMinutes = Math.round((end - start) / (1000 * 60));
+
+      const { error } = await supabase
+        .from("team_task_work_logs")
+        .update({
+          end_time: endTime,
+          duration_minutes: durationMinutes,
+        })
+        .eq("id", workLogId);
+
+      if (error) throw error;
+
+      // Refresh tasks to get updated work logs
+      const task = tasks.find((t) => t.id === taskId);
+      if (task) {
+        await refreshTasks(task.projectId);
+      }
+    } catch (error) {
+      console.error("Error updating work log:", error);
+      toast.error("Nie udało się zaktualizować wpisu czasu pracy");
+    }
+  };
+
+  // ================================================================
+  // COMMENTS - Supabase Integration
+  // ================================================================
+  const addComment = async (taskId: string, text: string) => {
+    if (!authUser?.id || !text.trim()) return;
+
+    try {
+      const { error } = await supabase.from("team_task_comments").insert({
+        task_id: taskId,
+        user_id: authUser.id,
+        comment: text,
+      });
+
+      if (error) throw error;
+
+      // Refresh tasks to get updated comments
+      const task = tasks.find((t) => t.id === taskId);
+      if (task) {
+        await refreshTasks(task.projectId);
+      }
+    } catch (error) {
+      console.error("Error adding comment:", error);
+      toast.error("Nie udało się dodać komentarza");
     }
   };
 
@@ -757,6 +852,57 @@ export const TeamStoreProvider: React.FC<{ children: ReactNode }> = ({
     };
   }, [selectedTeamId, authUser?.id]);
 
+  // Real-time subscription for tasks (INSERT, UPDATE, DELETE)
+  useEffect(() => {
+    if (!selectedTeamId) return;
+
+    const channel = supabase
+      .channel(`team-tasks-${selectedTeamId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "team_tasks",
+        },
+        () => {
+          // Refresh tasks when any change happens
+          refreshTasks();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [selectedTeamId, refreshTasks]);
+
+  // Real-time subscription for projects (INSERT, UPDATE, DELETE)
+  useEffect(() => {
+    if (!selectedTeamId) return;
+
+    const channel = supabase
+      .channel(`team-projects-${selectedTeamId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "team_projects",
+          filter: `team_id=eq.${selectedTeamId}`,
+        },
+        () => {
+          // Refresh projects when any change happens
+          refreshProjects();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [selectedTeamId, refreshProjects]);
+
   // Load data when team is selected
   useEffect(() => {
     if (selectedTeamId) {
@@ -820,6 +966,9 @@ export const TeamStoreProvider: React.FC<{ children: ReactNode }> = ({
         addTask,
         updateTask,
         deleteTask,
+        addWorkLog,
+        updateWorkLog,
+        addComment,
         addChatMessage,
         addUser,
         updateUser,

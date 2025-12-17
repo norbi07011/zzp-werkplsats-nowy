@@ -22,7 +22,7 @@ export const ChatPage = () => {
     <div className="flex flex-col h-[calc(100vh-140px)] md:h-[calc(100vh-100px)] bg-white rounded-xl shadow border border-slate-200 overflow-hidden">
       <div className="bg-slate-50 p-4 border-b border-slate-200">
         <h2 className="font-bold text-slate-700">{t('chat')}</h2>
-        <p className="text-xs text-slate-400">Company wide channel</p>
+        <p className="text-xs text-slate-400">{t('team')}</p>
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-4">

@@ -1,4 +1,6 @@
 /* Theme Variables */
+@import "./glow-card.css";
+
 :root {
   /* Dark Theme (Default) */
   --bg-primary: #0a0e1a;

@@ -1,22 +1,27 @@
-import React, { useState } from 'react';
-import { useTranslation } from 'react-i18next';
-import { Logo } from '../../src/components/common/Logo';
+import React, { useState } from "react";
+import { useTranslation } from "react-i18next";
+import { Logo } from "../../src/components/common/Logo";
 
 export const ContactPage: React.FC = () => {
   const { t } = useTranslation();
   const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    phone: '',
-    subject: '',
-    message: '',
+    name: "",
+    email: "",
+    phone: "",
+    subject: "",
+    message: "",
   });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     // TODO: Send to backend
-    console.log('Contact form submitted:', formData);
-    alert(t('contact.form.success', 'Bedankt! We nemen binnen 24 uur contact met u op.'));
+    console.log("Contact form submitted:", formData);
+    alert(
+      t(
+        "contact.form.success",
+        "Bedankt! We nemen binnen 24 uur contact met u op."
+      )
+    );
   };
 
   return (
@@ -28,10 +33,12 @@ export const ContactPage: React.FC = () => {
           <div className="flex justify-center mb-6">
             <Logo size="lg" showText={true} className="filter drop-shadow-lg" />
           </div>
-          
-          <h1 className="text-5xl font-bold mb-6">{t('contact.hero.title', 'Contact')}</h1>
+
+          <h1 className="text-5xl font-bold mb-6">
+            {t("contact.hero.title", "Contact")}
+          </h1>
           <p className="text-xl text-blue-100">
-            {t('contact.hero.subtitle', 'Heeft u vragen? We helpen u graag!')}
+            {t("contact.hero.subtitle", "Heeft u vragen? We helpen u graag!")}
           </p>
         </div>
       </section>
@@ -41,93 +48,136 @@ export const ContactPage: React.FC = () => {
           {/* Contact Form */}
           <div>
             <h2 className="text-3xl font-bold mb-6">
-              {t('contact.form.title', 'Stuur ons een bericht')}
+              {t("contact.form.title", "Stuur ons een bericht")}
             </h2>
             <form onSubmit={handleSubmit} className="space-y-6">
               <div>
-                <label htmlFor="contact-name" className="block text-sm font-medium text-gray-700 mb-2">
-                  {t('contact.form.name', 'Naam')} *
+                <label
+                  htmlFor="contact-name"
+                  className="block text-sm font-medium text-gray-700 mb-2"
+                >
+                  {t("contact.form.name", "Naam")} *
                 </label>
                 <input
                   id="contact-name"
                   type="text"
                   required
                   value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  placeholder={t('contact.form.namePlaceholder', 'Uw naam')}
+                  onChange={(e) =>
+                    setFormData({ ...formData, name: e.target.value })
+                  }
+                  placeholder={t("contact.form.namePlaceholder", "Uw naam")}
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               </div>
 
               <div>
-                <label htmlFor="contact-email" className="block text-sm font-medium text-gray-700 mb-2">
-                  {t('contact.form.email', 'E-mail')} *
+                <label
+                  htmlFor="contact-email"
+                  className="block text-sm font-medium text-gray-700 mb-2"
+                >
+                  {t("contact.form.email", "E-mail")} *
                 </label>
                 <input
                   id="contact-email"
                   type="email"
                   required
                   value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  placeholder={t('contact.form.emailPlaceholder', 'uw@email.com')}
+                  onChange={(e) =>
+                    setFormData({ ...formData, email: e.target.value })
+                  }
+                  placeholder={t(
+                    "contact.form.emailPlaceholder",
+                    "uw@email.com"
+                  )}
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               </div>
 
               <div>
-                <label htmlFor="contact-phone" className="block text-sm font-medium text-gray-700 mb-2">
-                  {t('contact.form.phone', 'Telefoon')}
+                <label
+                  htmlFor="contact-phone"
+                  className="block text-sm font-medium text-gray-700 mb-2"
+                >
+                  {t("contact.form.phone", "Telefoon")}
                 </label>
                 <input
                   id="contact-phone"
                   type="tel"
                   value={formData.phone}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  placeholder={t('contact.form.phonePlaceholder', '+31 20 123 4567')}
+                  onChange={(e) =>
+                    setFormData({ ...formData, phone: e.target.value })
+                  }
+                  placeholder={t(
+                    "contact.form.phonePlaceholder",
+                    "+31 20 123 4567"
+                  )}
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               </div>
 
               <div>
-                <label htmlFor="contact-subject" className="block text-sm font-medium text-gray-700 mb-2">
-                  {t('contact.form.subject', 'Onderwerp')} *
+                <label
+                  htmlFor="contact-subject"
+                  className="block text-sm font-medium text-gray-700 mb-2"
+                >
+                  {t("contact.form.subject", "Onderwerp")} *
                 </label>
                 <select
                   id="contact-subject"
                   required
                   value={formData.subject}
-                  onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, subject: e.target.value })
+                  }
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
                   <option value="">
-                    {t('contact.form.selectSubject', 'Selecteer een onderwerp...')}
+                    {t(
+                      "contact.form.selectSubject",
+                      "Selecteer een onderwerp..."
+                    )}
                   </option>
                   <option value="general">
-                    {t('contact.form.subjects.general', 'Algemene vraag')}
+                    {t("contact.form.subjects.general", "Algemene vraag")}
                   </option>
                   <option value="certificate">
-                    {t('contact.form.subjects.certificate', 'Certificaat aanvraag')}
+                    {t(
+                      "contact.form.subjects.certificate",
+                      "Certificaat aanvraag"
+                    )}
                   </option>
                   <option value="employer">
-                    {t('contact.form.subjects.employer', 'Voor opdrachtgevers')}
+                    {t("contact.form.subjects.employer", "Voor opdrachtgevers")}
                   </option>
                   <option value="technical">
-                    {t('contact.form.subjects.technical', 'Technische ondersteuning')}
+                    {t(
+                      "contact.form.subjects.technical",
+                      "Technische ondersteuning"
+                    )}
                   </option>
                 </select>
               </div>
 
               <div>
-                <label htmlFor="contact-message" className="block text-sm font-medium text-gray-700 mb-2">
-                  {t('contact.form.message', 'Bericht')} *
+                <label
+                  htmlFor="contact-message"
+                  className="block text-sm font-medium text-gray-700 mb-2"
+                >
+                  {t("contact.form.message", "Bericht")} *
                 </label>
                 <textarea
                   id="contact-message"
                   required
                   rows={6}
                   value={formData.message}
-                  onChange={(e) => setFormData({ ...formData, message: e.target.value })}
-                  placeholder={t('contact.form.messagePlaceholder', 'Uw bericht...')}
+                  onChange={(e) =>
+                    setFormData({ ...formData, message: e.target.value })
+                  }
+                  placeholder={t(
+                    "contact.form.messagePlaceholder",
+                    "Uw bericht..."
+                  )}
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               </div>
@@ -136,7 +186,7 @@ export const ContactPage: React.FC = () => {
                 type="submit"
                 className="w-full bg-blue-600 text-white px-6 py-3 rounded-lg font-bold hover:bg-blue-700 transition-colors"
               >
-                {t('contact.form.submit', 'Verstuur bericht')}
+                {t("contact.form.submit", "Verstuur bericht")}
               </button>
             </form>
           </div>
@@ -144,7 +194,7 @@ export const ContactPage: React.FC = () => {
           {/* Contact Info */}
           <div>
             <h2 className="text-3xl font-bold mb-6">
-              {t('contact.info.title', 'Bezoek ons')}
+              {t("contact.info.title", "Bezoek ons")}
             </h2>
 
             <div className="space-y-6">
@@ -163,14 +213,14 @@ export const ContactPage: React.FC = () => {
                 </svg>
                 <div>
                   <h3 className="font-bold text-lg mb-1">
-                    {t('contact.info.address.title', 'Adres werkplaats')}
+                    {t("contact.info.address.title", "Kantooradres")}
                   </h3>
                   <p className="text-gray-600">
-                    {t('contact.info.address.line1', 'Industrieweg 123')}
+                    Schietlood 14-A
                     <br />
-                    {t('contact.info.address.line2', '1234 AB Amsterdam')}
+                    2495 AN Den Haag
                     <br />
-                    {t('contact.info.address.line3', 'Nederland')}
+                    Nederland 🇳🇱
                   </p>
                 </div>
               </div>
@@ -190,12 +240,12 @@ export const ContactPage: React.FC = () => {
                 </svg>
                 <div>
                   <h3 className="font-bold text-lg mb-1">
-                    {t('contact.info.hours.title', 'Openingstijden')}
+                    {t("contact.info.hours.title", "Openingstijden")}
                   </h3>
                   <p className="text-gray-600">
-                    {t('contact.info.hours.weekdays', 'Ma-Vr: 09:00 - 17:00')}
+                    {t("contact.info.hours.weekdays", "Ma-Vr: 09:00 - 17:00")}
                     <br />
-                    {t('contact.info.hours.weekend', 'Za-Zo: Gesloten')}
+                    {t("contact.info.hours.weekend", "Za-Zo: Gesloten")}
                   </p>
                 </div>
               </div>
@@ -211,9 +261,11 @@ export const ContactPage: React.FC = () => {
                 </svg>
                 <div>
                   <h3 className="font-bold text-lg mb-1">
-                    {t('contact.info.phone.title', 'Telefoon')}
+                    {t("contact.info.phone.title", "Contact")}
                   </h3>
-                  <p className="text-gray-600">+31 20 123 4567</p>
+                  <p className="text-gray-600">
+                    Via e-mail of contactformulier
+                  </p>
                 </div>
               </div>
 
@@ -229,18 +281,76 @@ export const ContactPage: React.FC = () => {
                 </svg>
                 <div>
                   <h3 className="font-bold text-lg mb-1">
-                    {t('contact.info.email.title', 'E-mail')}
+                    {t("contact.info.email.title", "E-mail")}
                   </h3>
                   <p className="text-gray-600">info@zzpwerkplaats.nl</p>
                 </div>
               </div>
             </div>
 
-            {/* Map Placeholder */}
-            <div className="mt-8 bg-gray-200 rounded-lg h-64 flex items-center justify-center">
-              <p className="text-gray-500">
-                {t('contact.info.map', '[Google Maps integratie - TODO]')}
-              </p>
+            {/* Google Maps - Locatie */}
+            <div className="mt-8 rounded-lg overflow-hidden border border-blue-200 shadow-lg">
+              <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-4">
+                <h4 className="text-lg font-bold text-white flex items-center gap-2">
+                  📍 Onze Locatie - Den Haag
+                </h4>
+              </div>
+              <iframe
+                src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d2454.8574775697547!2d4.2812!3d52.0396!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x47c5b5c3d7b4a9e7%3A0x0!2sSchietlood%2014-A%2C%202495%20AN%20Den%20Haag%2C%20Netherlands!5e0!3m2!1sen!2snl!4v1702656000000!5m2!1sen!2snl"
+                width="100%"
+                height="300"
+                style={{ border: 0 }}
+                allowFullScreen
+                loading="lazy"
+                referrerPolicy="no-referrer-when-downgrade"
+                title="ZZP Werkplaats locatie - Schietlood 14-A, Den Haag"
+                className="w-full"
+              />
+              <div className="bg-gray-50 p-4 border-t border-gray-200">
+                <div className="flex items-center justify-between flex-wrap gap-4">
+                  <div>
+                    <p className="font-bold text-gray-800">Schietlood 14-A</p>
+                    <p className="text-gray-600 text-sm">
+                      2495 AN Den Haag, Nederland
+                    </p>
+                  </div>
+                  <a
+                    href="https://www.google.com/maps/search/?api=1&query=Schietlood+14-A+2495+AN+Den+Haag+Netherlands"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg font-bold hover:bg-blue-700 transition-colors text-sm"
+                  >
+                    <svg
+                      className="w-4 h-4"
+                      fill="currentColor"
+                      viewBox="0 0 20 20"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                    Open in Google Maps
+                  </a>
+                </div>
+              </div>
+            </div>
+
+            {/* Additional Info */}
+            <div className="mt-6 bg-gradient-to-br from-green-50 to-emerald-100 rounded-lg p-6 border border-green-200">
+              <div className="flex items-start gap-4">
+                <div className="text-3xl">🏢</div>
+                <div>
+                  <h4 className="text-lg font-bold text-green-800 mb-2">
+                    Bezoek op afspraak
+                  </h4>
+                  <p className="text-gray-600 text-sm">
+                    U bent welkom op ons kantoor in Den Haag. Maak vooraf een
+                    afspraak via het contactformulier of e-mail.
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
         </div>
