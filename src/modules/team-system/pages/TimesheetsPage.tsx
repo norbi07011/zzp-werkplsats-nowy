@@ -20,7 +20,7 @@ import {
   AlertCircle,
   User,
   Briefcase,
-  Euro,
+  Wallet,
   Filter,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -66,7 +66,7 @@ export const TimesheetsPage = () => {
 
     setIsLoading(true);
     try {
-      let query = supabase
+      let query = (supabase as any)
         .from("team_timesheets")
         .select(`
           *,
@@ -106,7 +106,7 @@ export const TimesheetsPage = () => {
 
   const handleApprove = async (id: string) => {
     try {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from("team_timesheets")
         .update({ 
           status: "approved",
@@ -130,7 +130,7 @@ export const TimesheetsPage = () => {
     if (!reason) return;
 
     try {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from("team_timesheets")
         .update({ 
           status: "rejected",
@@ -226,7 +226,7 @@ export const TimesheetsPage = () => {
         </div>
         <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex items-center">
           <div className="p-3 bg-green-100 text-green-600 rounded-full mr-4">
-            <Euro size={24} />
+            <Wallet size={24} />
           </div>
           <div>
             <p className="text-sm text-slate-500">Łączna kwota</p>

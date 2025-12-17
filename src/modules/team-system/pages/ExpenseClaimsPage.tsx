@@ -17,16 +17,16 @@ import {
   XCircle,
   AlertCircle,
   User,
-  Euro,
+  Wallet,
   Filter,
   FileText,
   Download,
   Eye,
-  Fuel,
+  Activity,
   Wrench,
   Package,
-  Car,
-  Utensils,
+  MapPin,
+  FileText as MealIcon,
   MoreHorizontal,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -56,11 +56,11 @@ interface ExpenseClaim {
 }
 
 const EXPENSE_CATEGORIES = [
-  { id: "fuel", label: "Paliwo", icon: Fuel, color: "bg-amber-100 text-amber-600" },
+  { id: "fuel", label: "Paliwo", icon: Activity, color: "bg-amber-100 text-amber-600" },
   { id: "materials", label: "Materiały", icon: Package, color: "bg-blue-100 text-blue-600" },
   { id: "tools", label: "Narzędzia", icon: Wrench, color: "bg-purple-100 text-purple-600" },
-  { id: "transport", label: "Transport", icon: Car, color: "bg-green-100 text-green-600" },
-  { id: "meals", label: "Posiłki", icon: Utensils, color: "bg-orange-100 text-orange-600" },
+  { id: "transport", label: "Transport", icon: MapPin, color: "bg-green-100 text-green-600" },
+  { id: "meals", label: "Posiłki", icon: MealIcon, color: "bg-orange-100 text-orange-600" },
   { id: "other", label: "Inne", icon: MoreHorizontal, color: "bg-slate-100 text-slate-600" },
 ];
 
@@ -78,7 +78,7 @@ export const ExpenseClaimsPage = () => {
 
     setIsLoading(true);
     try {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from("team_expense_claims")
         .select(`
           *,
@@ -113,7 +113,7 @@ export const ExpenseClaimsPage = () => {
 
   const handleApprove = async (id: string) => {
     try {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from("team_expense_claims")
         .update({
           status: "approved",
@@ -137,7 +137,7 @@ export const ExpenseClaimsPage = () => {
     if (!reason) return;
 
     try {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from("team_expense_claims")
         .update({
           status: "rejected",
@@ -159,7 +159,7 @@ export const ExpenseClaimsPage = () => {
     const reference = prompt("Podaj referencję płatności (opcjonalnie):");
 
     try {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from("team_expense_claims")
         .update({
           status: "paid",
@@ -218,7 +218,7 @@ export const ExpenseClaimsPage = () => {
       case "paid":
         return (
           <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-            <Euro size={12} className="mr-1" /> Wypłacone
+            <Wallet size={12} className="mr-1" /> Wypłacone
           </span>
         );
       default:
@@ -300,7 +300,7 @@ export const ExpenseClaimsPage = () => {
         </div>
         <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex items-center">
           <div className="p-3 bg-blue-100 text-blue-600 rounded-full mr-4">
-            <Euro size={24} />
+            <Wallet size={24} />
           </div>
           <div>
             <p className="text-sm text-slate-500">Wypłacone</p>
@@ -439,7 +439,7 @@ export const ExpenseClaimsPage = () => {
                           className="p-2 bg-blue-100 text-blue-600 rounded-lg hover:bg-blue-200 transition-colors"
                           title="Oznacz jako wypłacone"
                         >
-                          <Euro size={16} />
+                          <Wallet size={16} />
                         </button>
                       )}
                     </div>
