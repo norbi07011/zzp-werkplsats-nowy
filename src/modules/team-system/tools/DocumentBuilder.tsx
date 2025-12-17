@@ -440,6 +440,7 @@ export function DocumentBuilder() {
   );
   const [formError, setFormError] = useState<string | null>(null);
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
+  const [isSavingTemplate, setIsSavingTemplate] = useState(false);
 
   const [showClientModal, setShowClientModal] = useState(false);
   const [showTemplateModal, setShowTemplateModal] = useState(false);
@@ -456,31 +457,36 @@ export function DocumentBuilder() {
   // PDF Generation is now handled directly in handleDownloadPDF
   // No useEffect needed - removes React DOM conflicts
 
-  // Financial Calculations
+  // Financial Calculations - with NaN protection
   const calculateFinancials = () => {
+    // Helper to safely get number (prevents NaN)
+    const safeNum = (val: any): number => {
+      const num = Number(val);
+      return isNaN(num) ? 0 : num;
+    };
+
     // 1. Revenue
     const revenue = activeQuote.items.reduce(
-      (acc, item) => acc + item.quantity * item.pricePerUnit,
+      (acc, item) => acc + safeNum(item.quantity) * safeNum(item.pricePerUnit),
       0
     );
 
     // 2. Direct Costs
     const materialCosts = activeQuote.materials.reduce(
-      (acc, item) => acc + item.quantity * (item.estimatedCost || 0),
+      (acc, item) => acc + safeNum(item.quantity) * safeNum(item.estimatedCost),
       0
     );
     const toolCosts = activeQuote.tools.reduce(
-      (acc, item) => acc + item.quantity * (item.estimatedCost || 0),
+      (acc, item) => acc + safeNum(item.quantity) * safeNum(item.estimatedCost),
       0
     );
     const baseDirectCosts = materialCosts + toolCosts;
 
     // 3. Risk Cost
-    const riskCost = (baseDirectCosts * (activeQuote.riskBuffer || 0)) / 100;
+    const riskCost = (baseDirectCosts * safeNum(activeQuote.riskBuffer)) / 100;
 
     // 4. Labor Cost (Theoretical - What you PAY yourself)
-    const laborCosts =
-      (activeQuote.estimatedHours || 0) * (activeQuote.hourlyRate || 0);
+    const laborCosts = safeNum(activeQuote.estimatedHours) * safeNum(activeQuote.hourlyRate);
 
     // 5. Total Costs (Theoretical)
     const totalTheoreticalCosts = baseDirectCosts + riskCost + laborCosts;
@@ -494,9 +500,10 @@ export function DocumentBuilder() {
 
     // 8. Effective Hourly Rate (Real earning per hour)
     // (Revenue - MaterialCosts - ToolCosts - Risk) / Hours
+    const hours = safeNum(activeQuote.estimatedHours);
     const effectiveHourlyRate =
-      activeQuote.estimatedHours > 0
-        ? (revenue - baseDirectCosts - riskCost) / activeQuote.estimatedHours
+      hours > 0
+        ? (revenue - baseDirectCosts - riskCost) / hours
         : 0;
 
     return {
@@ -527,9 +534,10 @@ export function DocumentBuilder() {
     setFormError(null);
   };
 
-  // Helper: Validate Form
+  // Helper: Validate Form - shows ALL errors at once
   const validateForm = () => {
     const errors = new Set<string>();
+    const errorMessages: string[] = [];
 
     console.log("[VALIDATE] Checking form...", {
       clientName: activeQuote.client.name,
@@ -537,26 +545,33 @@ export function DocumentBuilder() {
       itemsCount: activeQuote.items.length,
     });
 
-    if (!activeQuote.client.name.trim()) errors.add("client.name");
-    if (!activeQuote.referenceNumber.trim()) errors.add("referenceNumber");
+    if (!activeQuote.client.name.trim()) {
+      errors.add("client.name");
+      errorMessages.push("• Nazwa klienta jest wymagana");
+    }
+    if (!activeQuote.referenceNumber.trim()) {
+      errors.add("referenceNumber");
+      errorMessages.push("• Numer oferty jest wymagany");
+    }
 
-    activeQuote.items.forEach((item) => {
+    let itemsWithoutDesc = 0;
+    activeQuote.items.forEach((item, idx) => {
       if (!item.description.trim()) {
         errors.add(`item-${item.id}-desc`);
+        itemsWithoutDesc++;
       }
     });
+    if (itemsWithoutDesc > 0) {
+      errorMessages.push(`• ${itemsWithoutDesc} pozycji bez opisu`);
+    }
 
     console.log("[VALIDATE] Errors found:", Array.from(errors));
 
     setValidationErrors(errors);
     if (errors.size > 0) {
-      const errorMsg = errors.has("client.name")
-        ? "⚠️ Uzupełnij nazwę klienta (zakładka Dane Klienta)"
-        : errors.has("referenceNumber")
-        ? "⚠️ Uzupełnij numer oferty (na górze formularza)"
-        : "⚠️ Uzupełnij brakujące opisy pozycji";
-      setFormError(errorMsg);
-      toast.error(errorMsg);
+      const fullErrorMsg = "⚠️ Popraw błędy:\n" + errorMessages.join("\n");
+      setFormError(fullErrorMsg);
+      toast.error(fullErrorMsg, { duration: 5000 });
       return false;
     }
     return true;
@@ -737,18 +752,29 @@ export function DocumentBuilder() {
 
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-      const url = URL.createObjectURL(e.target.files[0]);
-      const newImage: ProjectImage = {
-        id: Date.now().toString(),
-        url,
-        caption: "",
-        description: "", // Init new field
-        annotations: [],
+      const file = e.target.files[0];
+      
+      // Konwertuj do Base64 zamiast blob URL (blob URLs znikają po odświeżeniu strony)
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64String = reader.result as string;
+        const newImage: ProjectImage = {
+          id: Date.now().toString(),
+          url: base64String,
+          caption: "",
+          description: "", // Init new field
+          annotations: [],
+        };
+        setActiveQuote((prev) => ({
+          ...prev,
+          images: [...prev.images, newImage],
+        }));
       };
-      setActiveQuote((prev) => ({
-        ...prev,
-        images: [...prev.images, newImage],
-      }));
+      reader.onerror = () => {
+        console.error("Błąd odczytu pliku obrazu");
+        toast.error("Nie udało się załadować zdjęcia");
+      };
+      reader.readAsDataURL(file);
     }
   };
 
@@ -796,6 +822,16 @@ export function DocumentBuilder() {
     }
   };
 
+  // Helper function to sanitize HTML (prevent XSS in PDF)
+  const sanitizeHTML = (html: string): string => {
+    return html
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
+  };
+
   // Helper function to build print-ready HTML
   const buildPrintHTML = (previewContainer: HTMLElement) => {
     // Get all stylesheets from the current page
@@ -817,12 +853,15 @@ export function DocumentBuilder() {
       }
     });
 
+    // Sanitize the reference number for title
+    const safeRefNumber = sanitizeHTML(activeQuote.referenceNumber);
+
     return `
       <!DOCTYPE html>
       <html>
       <head>
         <meta charset="UTF-8">
-        <title>Oferta ${activeQuote.referenceNumber}</title>
+        <title>Oferta ${safeRefNumber}</title>
         <style>
           ${cssText}
           
@@ -1096,9 +1135,7 @@ export function DocumentBuilder() {
     // Zapisz nazwę przed zamknięciem modala
     const templateName = newTemplateName.trim();
     setNewTemplateName("");
-
-    // NIE zamykamy modala natychmiast - poczekamy na zakończenie operacji
-    // setShowSaveTemplateModal(false); // OPÓŹNIONE
+    setIsSavingTemplate(true);
 
     const newTemplate: QuoteTemplate = {
       id: Date.now().toString(),
@@ -1126,8 +1163,8 @@ export function DocumentBuilder() {
         setTemplates((prev) => [...prev, savedTemplate]);
         setIsOnline(true); // Sukces = jesteśmy online
 
-        // ZAMKNIJ MODAL PO SUKCESIE - użyj setTimeout aby uniknąć race condition
-        setTimeout(() => setShowSaveTemplateModal(false), 50);
+        // ZAMKNIJ MODAL PO SUKCESIE
+        setShowSaveTemplateModal(false);
 
         toast.success(
           currentLang === Language.PL
@@ -1140,7 +1177,7 @@ export function DocumentBuilder() {
         setTemplates((prev) => [...prev, newTemplate]);
 
         // ZAMKNIJ MODAL PO BŁĘDZIE
-        setTimeout(() => setShowSaveTemplateModal(false), 50);
+        setShowSaveTemplateModal(false);
 
         toast.warning(
           currentLang === Language.PL
@@ -1149,6 +1186,8 @@ export function DocumentBuilder() {
                 ")"
             : "⚠️ Lokaal opgeslagen (databasefout)"
         );
+      } finally {
+        setIsSavingTemplate(false);
       }
     } else {
       // Nie zalogowany - zapisz lokalnie
@@ -1156,7 +1195,8 @@ export function DocumentBuilder() {
       setTemplates((prev) => [...prev, newTemplate]);
 
       // ZAMKNIJ MODAL PO ZAPISIE LOKALNYM
-      setTimeout(() => setShowSaveTemplateModal(false), 50);
+      setShowSaveTemplateModal(false);
+      setIsSavingTemplate(false);
 
       toast.info(
         currentLang === Language.PL
@@ -2101,19 +2141,29 @@ export function DocumentBuilder() {
                 placeholder={t.templateName}
                 className="w-full border-2 border-gray-200 rounded-lg px-4 py-2 mb-4 outline-none focus:border-blue-500"
                 autoFocus
+                disabled={isSavingTemplate}
               />
               <div className="flex gap-2 justify-end">
                 <button
                   onClick={() => setShowSaveTemplateModal(false)}
-                  className="px-4 py-2 text-gray-500 hover:bg-gray-100 rounded-lg"
+                  className="px-4 py-2 text-gray-500 hover:bg-gray-100 rounded-lg disabled:opacity-50"
+                  disabled={isSavingTemplate}
                 >
                   {t.cancel}
                 </button>
                 <button
                   onClick={handleSaveAsTemplate}
-                  className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg font-bold"
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg font-bold disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                  disabled={isSavingTemplate}
                 >
-                  {t.save}
+                  {isSavingTemplate ? (
+                    <>
+                      <RefreshCw size={16} className="animate-spin" />
+                      Zapisywanie...
+                    </>
+                  ) : (
+                    t.save
+                  )}
                 </button>
               </div>
             </div>
