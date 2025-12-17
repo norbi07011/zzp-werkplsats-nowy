@@ -332,7 +332,7 @@ const TeamSystemContent = () => {
 
   // Full layout with sidebar (always - this is a standalone page)
   return (
-    <div className="min-h-screen bg-slate-100 flex">
+    <div className="min-h-screen bg-slate-100 flex flex-col md:flex-row">
       {/* Desktop Sidebar */}
       <aside
         className={`hidden md:flex flex-col bg-gradient-to-b from-slate-900 via-blue-900 to-indigo-900 transition-all duration-300 ${
@@ -341,14 +341,6 @@ const TeamSystemContent = () => {
       >
         <SidebarContent />
       </aside>
-
-      {/* Mobile Menu Button - positioned above MobileBottomNav (h-16 + safe area) */}
-      <button
-        onClick={() => setMobileMenuOpen(true)}
-        className="md:hidden fixed bottom-24 left-4 z-50 w-14 h-14 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full shadow-lg shadow-blue-500/30 flex items-center justify-center text-white"
-      >
-        <Menu size={24} />
-      </button>
 
       {/* Mobile Sidebar Overlay */}
       {mobileMenuOpen && (
@@ -364,7 +356,7 @@ const TeamSystemContent = () => {
       )}
 
       {/* Main Content */}
-      <main className="flex-1 overflow-auto">
+      <main className="flex-1 overflow-auto pb-20 md:pb-0">
         {/* Mobile Header */}
         <div className="md:hidden bg-white border-b border-slate-200 px-4 py-3 sticky top-0 z-40">
           <div className="flex items-center gap-3">
@@ -375,7 +367,7 @@ const TeamSystemContent = () => {
                   { size: 16, className: "text-white" }
                 )}
             </div>
-            <div>
+            <div className="flex-1">
               <h1 className="font-bold text-slate-800">
                 {tabs.find((t) => t.id === activeTab)?.label}
               </h1>
@@ -402,6 +394,76 @@ const TeamSystemContent = () => {
           {activeTab === "tools" && <DocumentBuilder />}
         </div>
       </main>
+
+      {/* Mobile Bottom Tab Navigation */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 z-40 safe-area-bottom">
+        <div className="flex items-center justify-around h-16">
+          {/* Dashboard */}
+          <button
+            onClick={() => handleTabChange("dashboard")}
+            className={`flex flex-col items-center justify-center flex-1 py-2 transition-all ${
+              activeTab === "dashboard"
+                ? "text-blue-600"
+                : "text-slate-500 hover:text-slate-700"
+            }`}
+          >
+            <LayoutDashboard size={20} />
+            <span className="text-[10px] font-medium mt-1">Dashboard</span>
+          </button>
+
+          {/* Projekty */}
+          <button
+            onClick={() => handleTabChange("projects")}
+            className={`flex flex-col items-center justify-center flex-1 py-2 transition-all ${
+              activeTab === "projects"
+                ? "text-blue-600"
+                : "text-slate-500 hover:text-slate-700"
+            }`}
+          >
+            <FolderKanban size={20} />
+            <span className="text-[10px] font-medium mt-1">Projekty</span>
+          </button>
+
+          {/* Zespół */}
+          <button
+            onClick={() => handleTabChange("team")}
+            className={`flex flex-col items-center justify-center flex-1 py-2 transition-all ${
+              activeTab === "team"
+                ? "text-blue-600"
+                : "text-slate-500 hover:text-slate-700"
+            }`}
+          >
+            <Users size={20} />
+            <span className="text-[10px] font-medium mt-1">Zespół</span>
+          </button>
+
+          {/* Chat */}
+          <button
+            onClick={() => handleTabChange("chat")}
+            className={`flex flex-col items-center justify-center flex-1 py-2 transition-all ${
+              activeTab === "chat"
+                ? "text-blue-600"
+                : "text-slate-500 hover:text-slate-700"
+            }`}
+          >
+            <MessageCircle size={20} />
+            <span className="text-[10px] font-medium mt-1">Czat</span>
+          </button>
+
+          {/* Więcej (Menu) */}
+          <button
+            onClick={() => setMobileMenuOpen(true)}
+            className={`flex flex-col items-center justify-center flex-1 py-2 transition-all ${
+              ["calendar", "ranking", "orderbuilder", "tools"].includes(activeTab)
+                ? "text-blue-600"
+                : "text-slate-500 hover:text-slate-700"
+            }`}
+          >
+            <Menu size={20} />
+            <span className="text-[10px] font-medium mt-1">Więcej</span>
+          </button>
+        </div>
+      </nav>
     </div>
   );
 };
