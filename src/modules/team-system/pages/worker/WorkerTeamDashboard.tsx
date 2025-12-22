@@ -7,23 +7,24 @@
  */
 
 import React, { useState, useEffect, useCallback } from "react";
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+import {
+  BarChart3,
+  CheckSquare,
+  Briefcase,
+  MessageSquare,
+  Calendar,
+  Clock,
+  Users,
+  Send,
+  AlertTriangle,
+  Building2,
+  CheckCircle,
+  MapPin,
+  Navigation,
+  Pause,
+  Play,
+  User,
+} from "lucide-react";
 import { useAuth } from "../../../../../contexts/AuthContext";
 import { supabase } from "../../../../lib/supabase";
 import { toast } from "sonner";
