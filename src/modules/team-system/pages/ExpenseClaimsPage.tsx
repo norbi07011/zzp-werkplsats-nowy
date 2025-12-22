@@ -56,19 +56,51 @@ interface ExpenseClaim {
 }
 
 const EXPENSE_CATEGORIES = [
-  { id: "fuel", label: "Paliwo", icon: Activity, color: "bg-amber-100 text-amber-600" },
-  { id: "materials", label: "Materiały", icon: Package, color: "bg-blue-100 text-blue-600" },
-  { id: "tools", label: "Narzędzia", icon: Wrench, color: "bg-purple-100 text-purple-600" },
-  { id: "transport", label: "Transport", icon: MapPin, color: "bg-green-100 text-green-600" },
-  { id: "meals", label: "Posiłki", icon: MealIcon, color: "bg-orange-100 text-orange-600" },
-  { id: "other", label: "Inne", icon: MoreHorizontal, color: "bg-slate-100 text-slate-600" },
+  {
+    id: "fuel",
+    label: "Paliwo",
+    icon: Activity,
+    color: "bg-amber-100 text-amber-600",
+  },
+  {
+    id: "materials",
+    label: "Materiały",
+    icon: Package,
+    color: "bg-blue-100 text-blue-600",
+  },
+  {
+    id: "tools",
+    label: "Narzędzia",
+    icon: Wrench,
+    color: "bg-purple-100 text-purple-600",
+  },
+  {
+    id: "transport",
+    label: "Transport",
+    icon: MapPin,
+    color: "bg-green-100 text-green-600",
+  },
+  {
+    id: "meals",
+    label: "Posiłki",
+    icon: MealIcon,
+    color: "bg-orange-100 text-orange-600",
+  },
+  {
+    id: "other",
+    label: "Inne",
+    icon: MoreHorizontal,
+    color: "bg-slate-100 text-slate-600",
+  },
 ];
 
 export const ExpenseClaimsPage = () => {
   const { selectedTeamId, users, projects, t, currentUser } = useTeamStore();
   const [expenses, setExpenses] = useState<ExpenseClaim[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [filterStatus, setFilterStatus] = useState<"all" | "pending" | "approved" | "rejected" | "paid">("all");
+  const [filterStatus, setFilterStatus] = useState<
+    "all" | "pending" | "approved" | "rejected" | "paid"
+  >("all");
   const [filterCategory, setFilterCategory] = useState<string>("all");
   const [filterUserId, setFilterUserId] = useState<string>("all");
   const [showAddModal, setShowAddModal] = useState(false);
@@ -80,12 +112,14 @@ export const ExpenseClaimsPage = () => {
     try {
       const { data, error } = await (supabase as any)
         .from("team_expense_claims")
-        .select(`
+        .select(
+          `
           *,
           profiles!team_expense_claims_user_id_fkey(full_name),
           team_projects(title),
           approver:profiles!team_expense_claims_approved_by_fkey(full_name)
-        `)
+        `
+        )
         .eq("team_id", selectedTeamId)
         .order("created_at", { ascending: false });
 
@@ -180,17 +214,26 @@ export const ExpenseClaimsPage = () => {
   // Filter expenses
   let filteredExpenses = expenses;
   if (filterStatus !== "all") {
-    filteredExpenses = filteredExpenses.filter((e) => e.status === filterStatus);
+    filteredExpenses = filteredExpenses.filter(
+      (e) => e.status === filterStatus
+    );
   }
   if (filterCategory !== "all") {
-    filteredExpenses = filteredExpenses.filter((e) => e.category === filterCategory);
+    filteredExpenses = filteredExpenses.filter(
+      (e) => e.category === filterCategory
+    );
   }
   if (filterUserId !== "all") {
-    filteredExpenses = filteredExpenses.filter((e) => e.user_id === filterUserId);
+    filteredExpenses = filteredExpenses.filter(
+      (e) => e.user_id === filterUserId
+    );
   }
 
   // Calculate totals
-  const totalAmount = filteredExpenses.reduce((sum, e) => sum + (e.amount || 0), 0);
+  const totalAmount = filteredExpenses.reduce(
+    (sum, e) => sum + (e.amount || 0),
+    0
+  );
   const pendingAmount = filteredExpenses
     .filter((e) => e.status === "pending")
     .reduce((sum, e) => sum + (e.amount || 0), 0);
@@ -231,15 +274,21 @@ export const ExpenseClaimsPage = () => {
   };
 
   const getCategoryInfo = (category: string) => {
-    return EXPENSE_CATEGORIES.find((c) => c.id === category) || EXPENSE_CATEGORIES[5];
+    return (
+      EXPENSE_CATEGORIES.find((c) => c.id === category) || EXPENSE_CATEGORIES[5]
+    );
   };
 
   if (!selectedTeamId) {
     return (
       <div className="flex flex-col items-center justify-center h-64 bg-white rounded-xl border border-slate-100">
         <Receipt size={64} className="text-slate-300 mb-4" />
-        <h3 className="text-xl font-semibold text-slate-600 mb-2">Wybierz zespół</h3>
-        <p className="text-slate-400">Rozliczenia kosztów wymagają wybrania zespołu.</p>
+        <h3 className="text-xl font-semibold text-slate-600 mb-2">
+          Wybierz zespół
+        </h3>
+        <p className="text-slate-400">
+          Rozliczenia kosztów wymagają wybrania zespołu.
+        </p>
       </div>
     );
   }
@@ -257,8 +306,12 @@ export const ExpenseClaimsPage = () => {
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-slate-800">Rozliczenia Kosztów</h2>
-          <p className="text-slate-500 text-sm">Zarządzaj wnioskami o zwrot wydatków</p>
+          <h2 className="text-2xl font-bold text-slate-800">
+            Rozliczenia Kosztów
+          </h2>
+          <p className="text-slate-500 text-sm">
+            Zarządzaj wnioskami o zwrot wydatków
+          </p>
         </div>
         <button
           onClick={() => setShowAddModal(true)}
@@ -277,7 +330,9 @@ export const ExpenseClaimsPage = () => {
           </div>
           <div>
             <p className="text-sm text-slate-500">Łącznie</p>
-            <p className="text-2xl font-bold text-slate-800">€{totalAmount.toFixed(2)}</p>
+            <p className="text-2xl font-bold text-slate-800">
+              €{totalAmount.toFixed(2)}
+            </p>
           </div>
         </div>
         <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex items-center">
@@ -286,7 +341,9 @@ export const ExpenseClaimsPage = () => {
           </div>
           <div>
             <p className="text-sm text-slate-500">Oczekujące</p>
-            <p className="text-2xl font-bold text-slate-800">€{pendingAmount.toFixed(2)}</p>
+            <p className="text-2xl font-bold text-slate-800">
+              €{pendingAmount.toFixed(2)}
+            </p>
           </div>
         </div>
         <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex items-center">
@@ -295,7 +352,9 @@ export const ExpenseClaimsPage = () => {
           </div>
           <div>
             <p className="text-sm text-slate-500">Zatwierdzone</p>
-            <p className="text-2xl font-bold text-slate-800">€{approvedAmount.toFixed(2)}</p>
+            <p className="text-2xl font-bold text-slate-800">
+              €{approvedAmount.toFixed(2)}
+            </p>
           </div>
         </div>
         <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex items-center">
@@ -304,7 +363,9 @@ export const ExpenseClaimsPage = () => {
           </div>
           <div>
             <p className="text-sm text-slate-500">Wypłacone</p>
-            <p className="text-2xl font-bold text-slate-800">€{paidAmount.toFixed(2)}</p>
+            <p className="text-2xl font-bold text-slate-800">
+              €{paidAmount.toFixed(2)}
+            </p>
           </div>
         </div>
       </div>
@@ -377,16 +438,24 @@ export const ExpenseClaimsPage = () => {
                     {getStatusBadge(expense.status)}
                   </div>
 
-                  <h3 className="font-semibold text-slate-800 mb-1">{expense.title}</h3>
+                  <h3 className="font-semibold text-slate-800 mb-1">
+                    {expense.title}
+                  </h3>
                   {expense.description && (
-                    <p className="text-sm text-slate-500 mb-3 line-clamp-2">{expense.description}</p>
+                    <p className="text-sm text-slate-500 mb-3 line-clamp-2">
+                      {expense.description}
+                    </p>
                   )}
 
                   <div className="flex items-center gap-2 text-sm text-slate-500 mb-3">
                     <User size={14} />
                     <span>{expense.user_name}</span>
                     <span className="mx-1">•</span>
-                    <span>{format(parseISO(expense.expense_date), "d MMM yyyy", { locale: pl })}</span>
+                    <span>
+                      {format(parseISO(expense.expense_date), "d MMM yyyy", {
+                        locale: pl,
+                      })}
+                    </span>
                   </div>
 
                   {expense.project_title && (
@@ -448,7 +517,8 @@ export const ExpenseClaimsPage = () => {
                   {expense.rejection_reason && (
                     <div className="mt-3 p-2 bg-red-50 rounded-lg">
                       <p className="text-xs text-red-600">
-                        <strong>Powód odrzucenia:</strong> {expense.rejection_reason}
+                        <strong>Powód odrzucenia:</strong>{" "}
+                        {expense.rejection_reason}
                       </p>
                     </div>
                   )}
@@ -456,7 +526,8 @@ export const ExpenseClaimsPage = () => {
                   {expense.payment_reference && (
                     <div className="mt-3 p-2 bg-blue-50 rounded-lg">
                       <p className="text-xs text-blue-600">
-                        <strong>Ref. płatności:</strong> {expense.payment_reference}
+                        <strong>Ref. płatności:</strong>{" "}
+                        {expense.payment_reference}
                       </p>
                     </div>
                   )}

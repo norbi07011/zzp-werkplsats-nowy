@@ -66,10 +66,24 @@ export function useSupabaseExpenses(
 
       if (fetchError) throw fetchError;
 
-      // Type assertion: database types (null) -> app types (undefined)
-      const typedData = data as unknown as Expense[];
-      setExpenses(typedData || []);
-      calculateReport(typedData || []);
+      // Convert database types (string/null) to app types (number/undefined)
+      // PostgreSQL NUMERIC returns as string, we need to convert to number
+      const typedData: Expense[] = (data || []).map(
+        (row: Record<string, unknown>) => ({
+          ...row,
+          amount:
+            typeof row.amount === "string"
+              ? parseFloat(row.amount)
+              : (row.amount as number) || 0,
+          vat_amount:
+            typeof row.vat_amount === "string"
+              ? parseFloat(row.vat_amount)
+              : (row.vat_amount as number) || 0,
+        })
+      ) as Expense[];
+
+      setExpenses(typedData);
+      calculateReport(typedData);
     } catch (err) {
       console.error("Error fetching expenses:", err);
       setError(err instanceof Error ? err.message : "Failed to fetch expenses");

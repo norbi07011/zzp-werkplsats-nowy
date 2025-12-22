@@ -55,7 +55,11 @@ interface TeamStoreContextType {
   deleteTask: (taskId: string) => Promise<void>;
   // Work Logs & Comments - Supabase
   addWorkLog: (taskId: string, workLog: Omit<WorkLog, "id">) => Promise<void>;
-  updateWorkLog: (taskId: string, workLogId: string, endTime: string) => Promise<void>;
+  updateWorkLog: (
+    taskId: string,
+    workLogId: string,
+    endTime: string
+  ) => Promise<void>;
   addComment: (taskId: string, text: string) => Promise<void>;
   // Chat - Supabase with real-time
   addChatMessage: (text: string) => Promise<void>;
@@ -533,19 +537,22 @@ export const TeamStoreProvider: React.FC<{ children: ReactNode }> = ({
               title: t.title,
               description: t.description || "",
               assignedToIds: t.assigned_to || [],
-              status: (t.status?.toUpperCase() as TaskStatus) || TaskStatus.TODO,
-              priority: (t.priority?.toUpperCase() as Priority) || Priority.MEDIUM,
+              status:
+                (t.status?.toUpperCase() as TaskStatus) || TaskStatus.TODO,
+              priority:
+                (t.priority?.toUpperCase() as Priority) || Priority.MEDIUM,
               dueDate: t.due_date || new Date().toISOString(),
               estimatedHours: t.estimated_hours || undefined,
               toolsRequired: t.tools_required || [],
-              materialsRequired: (t.materials_required as Material[]) || [],
+              materialsRequired:
+                (t.materials_required as unknown as Material[]) || [],
               materialsUsed: [],
               comments: (comments || []).map((c) => ({
                 id: c.id,
                 userId: c.user_id,
                 userName: (c.profiles as any)?.full_name || "Użytkownik",
                 text: c.comment,
-                timestamp: new Date(c.created_at).getTime(),
+                timestamp: new Date(c.created_at || new Date()).getTime(),
               })),
               photos: t.photos || [],
               workLogs: (workLogs || []).map((w) => ({
@@ -586,7 +593,9 @@ export const TeamStoreProvider: React.FC<{ children: ReactNode }> = ({
           estimated_hours: task.estimatedHours || null,
           assigned_to: task.assignedToIds,
           tools_required: task.toolsRequired,
-          materials_required: task.materialsRequired,
+          materials_required: JSON.parse(
+            JSON.stringify(task.materialsRequired)
+          ),
           photos: task.photos || [],
           created_by: authUser.id,
         })
@@ -616,7 +625,9 @@ export const TeamStoreProvider: React.FC<{ children: ReactNode }> = ({
           estimated_hours: updatedTask.estimatedHours || null,
           assigned_to: updatedTask.assignedToIds,
           tools_required: updatedTask.toolsRequired,
-          materials_required: updatedTask.materialsRequired,
+          materials_required: JSON.parse(
+            JSON.stringify(updatedTask.materialsRequired)
+          ),
           photos: updatedTask.photos || [],
           actual_hours:
             updatedTask.workLogs?.reduce((sum, w) => {
@@ -773,7 +784,7 @@ export const TeamStoreProvider: React.FC<{ children: ReactNode }> = ({
         userId: m.sender_id,
         userName: (m.profiles as any)?.full_name || "Użytkownik",
         text: m.message,
-        timestamp: new Date(m.created_at).getTime(),
+        timestamp: new Date(m.created_at || new Date()).getTime(),
       }));
 
       setChatMessages(mappedMessages);
@@ -783,12 +794,12 @@ export const TeamStoreProvider: React.FC<{ children: ReactNode }> = ({
   }, [selectedTeamId]);
 
   const addChatMessage = async (text: string) => {
-    if (!currentUser || !selectedTeamId) return;
+    if (!currentUser || !selectedTeamId || !authUser?.id) return;
 
     try {
       const { error } = await supabase.from("team_chat_messages").insert({
         team_id: selectedTeamId,
-        sender_id: authUser?.id,
+        sender_id: authUser.id,
         message: text,
       });
 

@@ -14,6 +14,512 @@ export type Database = {
   };
   public: {
     Tables: {
+      // ============================================
+      // ACCOUNTANT TEAMS SYSTEM - Added 2025-12-19
+      // ============================================
+      accountant_teams: {
+        Row: {
+          id: string;
+          owner_id: string;
+          name: string;
+          description: string | null;
+          color_hex: string | null;
+          icon: string | null;
+          avatar_url: string | null;
+          max_members: number | null;
+          is_active: boolean | null;
+          settings: Json | null;
+          created_at: string | null;
+          updated_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          owner_id: string;
+          name: string;
+          description?: string | null;
+          color_hex?: string | null;
+          icon?: string | null;
+          avatar_url?: string | null;
+          max_members?: number | null;
+          is_active?: boolean | null;
+          settings?: Json | null;
+          created_at?: string | null;
+          updated_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          owner_id?: string;
+          name?: string;
+          description?: string | null;
+          color_hex?: string | null;
+          icon?: string | null;
+          avatar_url?: string | null;
+          max_members?: number | null;
+          is_active?: boolean | null;
+          settings?: Json | null;
+          created_at?: string | null;
+          updated_at?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "accountant_teams_owner_id_fkey";
+            columns: ["owner_id"];
+            isOneToOne: false;
+            referencedRelation: "accountants";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
+      accountant_team_members: {
+        Row: {
+          id: string;
+          team_id: string;
+          accountant_id: string;
+          role: string | null;
+          specialization: string | null;
+          notes: string | null;
+          status: string | null;
+          joined_at: string | null;
+          left_at: string | null;
+          permissions: Json | null;
+          created_at: string | null;
+          updated_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          team_id: string;
+          accountant_id: string;
+          role?: string | null;
+          specialization?: string | null;
+          notes?: string | null;
+          status?: string | null;
+          joined_at?: string | null;
+          left_at?: string | null;
+          permissions?: Json | null;
+          created_at?: string | null;
+          updated_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          team_id?: string;
+          accountant_id?: string;
+          role?: string | null;
+          specialization?: string | null;
+          notes?: string | null;
+          status?: string | null;
+          joined_at?: string | null;
+          left_at?: string | null;
+          permissions?: Json | null;
+          created_at?: string | null;
+          updated_at?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "accountant_team_members_team_id_fkey";
+            columns: ["team_id"];
+            isOneToOne: false;
+            referencedRelation: "accountant_teams";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "accountant_team_members_accountant_id_fkey";
+            columns: ["accountant_id"];
+            isOneToOne: false;
+            referencedRelation: "accountants";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
+      accountant_team_memberships: {
+        Row: {
+          id: string;
+          team_id: string;
+          accountant_id: string;
+          role: string | null;
+          specialization: string | null;
+          notes: string | null;
+          status: string | null;
+          joined_at: string | null;
+          left_at: string | null;
+          permissions: Json | null;
+          created_at: string | null;
+          updated_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          team_id: string;
+          accountant_id: string;
+          role?: string | null;
+          specialization?: string | null;
+          notes?: string | null;
+          status?: string | null;
+          joined_at?: string | null;
+          left_at?: string | null;
+          permissions?: Json | null;
+          created_at?: string | null;
+          updated_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          team_id?: string;
+          accountant_id?: string;
+          role?: string | null;
+          specialization?: string | null;
+          notes?: string | null;
+          status?: string | null;
+          joined_at?: string | null;
+          left_at?: string | null;
+          permissions?: Json | null;
+          created_at?: string | null;
+          updated_at?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "accountant_team_memberships_team_id_fkey";
+            columns: ["team_id"];
+            isOneToOne: false;
+            referencedRelation: "accountant_teams";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "accountant_team_memberships_accountant_id_fkey";
+            columns: ["accountant_id"];
+            isOneToOne: false;
+            referencedRelation: "accountants";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
+      accountant_team_invitations: {
+        Row: {
+          id: string;
+          team_id: string;
+          invited_by: string;
+          invited_accountant_id: string | null;
+          invited_email: string;
+          token: string | null;
+          message: string | null;
+          proposed_role: string | null;
+          status: string | null;
+          expires_at: string | null;
+          responded_at: string | null;
+          decline_reason: string | null;
+          created_at: string | null;
+          updated_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          team_id: string;
+          invited_by: string;
+          invited_accountant_id?: string | null;
+          invited_email: string;
+          token?: string | null;
+          message?: string | null;
+          proposed_role?: string | null;
+          status?: string | null;
+          expires_at?: string | null;
+          responded_at?: string | null;
+          decline_reason?: string | null;
+          created_at?: string | null;
+          updated_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          team_id?: string;
+          invited_by?: string;
+          invited_accountant_id?: string | null;
+          invited_email?: string;
+          token?: string | null;
+          message?: string | null;
+          proposed_role?: string | null;
+          status?: string | null;
+          expires_at?: string | null;
+          responded_at?: string | null;
+          decline_reason?: string | null;
+          created_at?: string | null;
+          updated_at?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "accountant_team_invitations_team_id_fkey";
+            columns: ["team_id"];
+            isOneToOne: false;
+            referencedRelation: "accountant_teams";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "accountant_team_invitations_invited_by_fkey";
+            columns: ["invited_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "accountant_team_invitations_invited_accountant_id_fkey";
+            columns: ["invited_accountant_id"];
+            isOneToOne: false;
+            referencedRelation: "accountants";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
+      accountant_team_tasks: {
+        Row: {
+          id: string;
+          team_id: string;
+          created_by: string;
+          assigned_to: string | null;
+          title: string;
+          description: string | null;
+          status: string | null;
+          priority: string | null;
+          category: string | null;
+          due_date: string | null;
+          start_date: string | null;
+          completed_at: string | null;
+          client_id: string | null;
+          client_type: string | null;
+          client_name: string | null;
+          tags: string[] | null;
+          notes: string | null;
+          estimated_time: number | null;
+          actual_time: number | null;
+          attachments: Json | null;
+          created_at: string | null;
+          updated_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          team_id: string;
+          created_by: string;
+          assigned_to?: string | null;
+          title: string;
+          description?: string | null;
+          status?: string | null;
+          priority?: string | null;
+          category?: string | null;
+          due_date?: string | null;
+          start_date?: string | null;
+          completed_at?: string | null;
+          client_id?: string | null;
+          client_type?: string | null;
+          client_name?: string | null;
+          tags?: string[] | null;
+          notes?: string | null;
+          estimated_time?: number | null;
+          actual_time?: number | null;
+          attachments?: Json | null;
+          created_at?: string | null;
+          updated_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          team_id?: string;
+          created_by?: string;
+          assigned_to?: string | null;
+          title?: string;
+          description?: string | null;
+          status?: string | null;
+          priority?: string | null;
+          category?: string | null;
+          due_date?: string | null;
+          start_date?: string | null;
+          completed_at?: string | null;
+          client_id?: string | null;
+          client_type?: string | null;
+          client_name?: string | null;
+          tags?: string[] | null;
+          notes?: string | null;
+          estimated_time?: number | null;
+          actual_time?: number | null;
+          attachments?: Json | null;
+          created_at?: string | null;
+          updated_at?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "accountant_team_tasks_team_id_fkey";
+            columns: ["team_id"];
+            isOneToOne: false;
+            referencedRelation: "accountant_teams";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "accountant_team_tasks_created_by_fkey";
+            columns: ["created_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "accountant_team_tasks_assigned_to_fkey";
+            columns: ["assigned_to"];
+            isOneToOne: false;
+            referencedRelation: "accountants";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
+      accountant_team_messages: {
+        Row: {
+          id: string;
+          team_id: string;
+          sender_id: string;
+          content: string;
+          message_type: string | null;
+          attachments: Json | null;
+          reply_to: string | null;
+          reactions: Json | null;
+          is_edited: boolean | null;
+          edited_at: string | null;
+          is_deleted: boolean | null;
+          deleted_at: string | null;
+          created_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          team_id: string;
+          sender_id: string;
+          content: string;
+          message_type?: string | null;
+          attachments?: Json | null;
+          reply_to?: string | null;
+          reactions?: Json | null;
+          is_edited?: boolean | null;
+          edited_at?: string | null;
+          is_deleted?: boolean | null;
+          deleted_at?: string | null;
+          created_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          team_id?: string;
+          sender_id?: string;
+          content?: string;
+          message_type?: string | null;
+          attachments?: Json | null;
+          reply_to?: string | null;
+          reactions?: Json | null;
+          is_edited?: boolean | null;
+          edited_at?: string | null;
+          is_deleted?: boolean | null;
+          deleted_at?: string | null;
+          created_at?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "accountant_team_messages_team_id_fkey";
+            columns: ["team_id"];
+            isOneToOne: false;
+            referencedRelation: "accountant_teams";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "accountant_team_messages_sender_id_fkey";
+            columns: ["sender_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "accountant_team_messages_reply_to_fkey";
+            columns: ["reply_to"];
+            isOneToOne: false;
+            referencedRelation: "accountant_team_messages";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
+      accountant_team_events: {
+        Row: {
+          id: string;
+          team_id: string;
+          created_by: string;
+          title: string;
+          description: string | null;
+          location: string | null;
+          event_type: string | null;
+          start_time: string;
+          end_time: string;
+          all_day: boolean | null;
+          is_recurring: boolean | null;
+          recurrence_rule: string | null;
+          attendees: string[] | null;
+          client_id: string | null;
+          client_type: string | null;
+          client_name: string | null;
+          status: string | null;
+          color: string | null;
+          reminders: number[] | null;
+          created_at: string | null;
+          updated_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          team_id: string;
+          created_by: string;
+          title: string;
+          description?: string | null;
+          location?: string | null;
+          event_type?: string | null;
+          start_time: string;
+          end_time: string;
+          all_day?: boolean | null;
+          is_recurring?: boolean | null;
+          recurrence_rule?: string | null;
+          attendees?: string[] | null;
+          client_id?: string | null;
+          client_type?: string | null;
+          client_name?: string | null;
+          status?: string | null;
+          color?: string | null;
+          reminders?: number[] | null;
+          created_at?: string | null;
+          updated_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          team_id?: string;
+          created_by?: string;
+          title?: string;
+          description?: string | null;
+          location?: string | null;
+          event_type?: string | null;
+          start_time?: string;
+          end_time?: string;
+          all_day?: boolean | null;
+          is_recurring?: boolean | null;
+          recurrence_rule?: string | null;
+          attendees?: string[] | null;
+          client_id?: string | null;
+          client_type?: string | null;
+          client_name?: string | null;
+          status?: string | null;
+          color?: string | null;
+          reminders?: number[] | null;
+          created_at?: string | null;
+          updated_at?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "accountant_team_events_team_id_fkey";
+            columns: ["team_id"];
+            isOneToOne: false;
+            referencedRelation: "accountant_teams";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "accountant_team_events_created_by_fkey";
+            columns: ["created_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
+      // ============================================
+      // END ACCOUNTANT TEAMS SYSTEM
+      // ============================================
       accountant_forms: {
         Row: {
           accountant_id: string;

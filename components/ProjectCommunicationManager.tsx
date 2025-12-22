@@ -71,7 +71,7 @@ export function ProjectCommunicationManager({
 
       // ✅ Load real projects from Supabase using raw client
       const { data: projectsData, error: fetchError } = await supabaseRaw
-        .from("communication_projects")
+        .from("project_communication_rooms")
         .select("*")
         .eq("created_by", user.id)
         .order("created_at", { ascending: false });
@@ -86,7 +86,7 @@ export function ProjectCommunicationManager({
           description: p.description || "",
           employer_id: p.employer_id || p.created_by,
           employer_name: p.employer_name || "Twoja Firma",
-          status: p.status,
+          status: p.is_archived ? "archived" : "active",
           created_at: p.created_at,
           members_count: 1, // TODO: count from project_members
         })
@@ -107,12 +107,12 @@ export function ProjectCommunicationManager({
     try {
       // ✅ Create real project in Supabase
       const { data: newProject, error: createError } = await supabaseRaw
-        .from("communication_projects")
+        .from("project_communication_rooms")
         .insert({
           name: createForm.name,
           description: createForm.description,
           created_by: user.id,
-          status: "active",
+          is_archived: false,
         })
         .select()
         .single();

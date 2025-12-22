@@ -1,9 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { supabase } from "../src/lib/supabase";
 
-
-
-
 interface Project {
   id: string;
   name: string;
@@ -65,10 +62,10 @@ export function AssignCompanyToProjectModal({
       const { data: projectsData, error: projectsError } = await (
         supabase as any
       )
-        .from("communication_projects")
-        .select("id, name, description, status")
+        .from("project_communication_rooms")
+        .select("id, name, description, is_archived")
         .in("id", projectIds)
-        .eq("status", "active")
+        .eq("is_archived", false)
         .order("name");
 
       if (projectsError) throw projectsError;

@@ -81,10 +81,28 @@ export function useSupabaseKilometers(
 
       if (fetchError) throw fetchError;
 
-      // Type assertion: database types (null) -> app types (undefined)
-      const typedData = data as unknown as KilometerEntry[];
-      setEntries(typedData || []);
-      calculateReport(typedData || []);
+      // Convert database types (string/null) to app types (number/undefined)
+      // PostgreSQL NUMERIC returns as string, we need to convert to number
+      const typedData: KilometerEntry[] = (data || []).map(
+        (row: Record<string, unknown>) => ({
+          ...row,
+          kilometers:
+            typeof row.kilometers === "string"
+              ? parseFloat(row.kilometers)
+              : (row.kilometers as number) || 0,
+          rate:
+            typeof row.rate === "string"
+              ? parseFloat(row.rate)
+              : (row.rate as number) || 0,
+          amount:
+            typeof row.amount === "string"
+              ? parseFloat(row.amount)
+              : (row.amount as number) || 0,
+        })
+      ) as KilometerEntry[];
+
+      setEntries(typedData);
+      calculateReport(typedData);
     } catch (err) {
       console.error("Error fetching kilometers:", err);
       setError(

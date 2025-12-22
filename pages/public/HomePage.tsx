@@ -203,7 +203,7 @@ export const HomePage: React.FC = () => {
           </p>
 
           {/* Real Photos - How It Works Process */}
-          <div className="mb-16 grid md:grid-cols-2 gap-6">
+          <div className="mb-16 grid md:grid-cols-2 gap-6 items-start">
             <div className="rounded-2xl overflow-hidden border-4 border-accent-techGreen/30 shadow-2xl transform hover:scale-105 transition-transform bg-black">
               <img
                 src="/home-pricing.jpg"
@@ -218,14 +218,17 @@ export const HomePage: React.FC = () => {
             </div>
 
             <div className="rounded-2xl overflow-hidden border-4 border-accent-cyber/30 shadow-2xl transform hover:scale-105 transition-transform">
-              <img
-                src="/home-certyfikat.png"
-                alt="ZZP Werkplaats gecertificeerde professional"
-                className="w-full h-auto block"
+              <video
+                src="/,,.mp4"
+                autoPlay
+                loop
+                playsInline
+                controls
+                className="w-full block"
               />
               <div className="bg-gradient-to-r from-blue-600 to-cyan-600 p-4 text-center">
                 <p className="text-white font-bold">
-                  ✅ Gecertificeerd en geverifieerd!
+                  🎬 Ontdek ZZP Werkplaats - Jouw Succes Begint Hier!
                 </p>
               </div>
             </div>

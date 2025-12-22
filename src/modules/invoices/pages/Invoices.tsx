@@ -15,7 +15,12 @@ import {
 import { Button } from "../components/ui/button";
 import { Card } from "../components/ui/card";
 import { Badge } from "../components/ui/badge";
-import { formatCurrency, formatDate, generateInvoicePDF } from "../lib";
+import {
+  formatCurrency,
+  formatDate,
+  generateInvoicePDF,
+  TEMPLATE_STYLE_PRESETS,
+} from "../lib";
 import { useAuth } from "../../../../contexts/AuthContext";
 
 interface InvoicesProps {
@@ -79,8 +84,63 @@ export default function Invoices({ onNavigate }: InvoicesProps) {
       return;
     }
 
+    // 🔍 DEBUG: Log invoice data to trace template mismatch
+    console.log("📄 [PDF-GEN] Invoice data from database:", {
+      id: invoice.id,
+      invoice_number: invoice.invoice_number,
+      template_name: invoice.template_name,
+      paper_texture: invoice.paper_texture,
+      primary_color: invoice.primary_color,
+      secondary_color: invoice.secondary_color,
+      background_color: invoice.background_color,
+    });
+
     try {
-      await generateInvoicePDF(invoice, company, true);
+      // Use invoice's custom colors if available, fallback to preset
+      const templateName = invoice.template_name || "classic";
+      const presetStyle =
+        TEMPLATE_STYLE_PRESETS[templateName] || TEMPLATE_STYLE_PRESETS.classic;
+
+      // Override with invoice's custom style settings if they exist
+      const templateStyle = {
+        ...presetStyle,
+        // Colors
+        primaryColor: invoice.primary_color || presetStyle.primaryColor,
+        secondaryColor: invoice.secondary_color || presetStyle.secondaryColor,
+        textColor: invoice.text_color || "#1e293b",
+        backgroundColor: invoice.background_color || "#ffffff",
+        // Typography
+        fontFamily: invoice.font_family || "Inter",
+        fontSize: invoice.font_size_scale || 1.0,
+        lineHeight: invoice.line_height || 1.5,
+        // Layout
+        headerAlign: invoice.header_align || "left",
+        globalMargin: invoice.global_margin || 20,
+        borderRadius: invoice.border_radius || 8,
+        // Design features from invoice
+        logo_url: invoice.logo_url || undefined,
+        logo_size: invoice.logo_size || 80,
+        holographic_logo: invoice.holographic_logo || false,
+        paper_texture: invoice.paper_texture || "plain",
+        show_qr_code: invoice.show_qr_code ?? true,
+        show_product_frames: invoice.show_product_frames || false,
+        show_signature_line: invoice.show_signature_line || false,
+        show_watermark: invoice.show_watermark || false,
+        watermark_url: invoice.watermark_url || undefined,
+        // Template structure
+        blocks: invoice.blocks || [],
+        labels: invoice.labels || {},
+      };
+
+      // 🔍 DEBUG: Log final templateStyle passed to PDF generator
+      console.log("🎨 [PDF-GEN] Final templateStyle:", {
+        paper_texture: templateStyle.paper_texture,
+        primaryColor: templateStyle.primaryColor,
+        secondaryColor: templateStyle.secondaryColor,
+        backgroundColor: templateStyle.backgroundColor,
+      });
+
+      await generateInvoicePDF(invoice, company, true, templateStyle);
       alert("PDF generated");
     } catch (error) {
       alert("Failed to generate PDF");

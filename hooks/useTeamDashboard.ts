@@ -95,9 +95,9 @@ export function useTeamDashboard() {
     try {
       console.log("🔍 Fetching projects for user:", user.id);
 
-      // ✅ FIX: Use 'communication_projects' - correct table that exists in database
+      // ✅ FIX: Use 'project_communication_rooms' - correct table that exists in database
       const { data: projectsData, error: projectsError } = await supabaseRaw
-        .from("communication_projects")
+        .from("project_communication_rooms")
         .select("*")
         .eq("created_by", user.id)
         .order("created_at", { ascending: false });
@@ -111,9 +111,9 @@ export function useTeamDashboard() {
 
       setProjects(projectsData || []);
 
-      // Calculate basic stats
+      // Calculate basic stats - use is_archived instead of status
       const activeCount = (projectsData || []).filter(
-        (p: any) => p.status === "active"
+        (p: any) => !p.is_archived
       ).length;
 
       setStats((prev) => ({

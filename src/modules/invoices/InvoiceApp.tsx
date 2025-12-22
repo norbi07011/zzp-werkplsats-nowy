@@ -29,11 +29,12 @@ import {
 // Pages
 import Dashboard from "./pages/Dashboard";
 import Invoices from "./pages/Invoices";
+import PageLoader from "./components/PageLoader";
 import InvoiceForm from "./pages/InvoiceForm";
 import Clients from "./pages/Clients";
 import Products from "./pages/Products";
 import Expenses from "./pages/Expenses";
-import BTWAangifte from "./pages/BTWAangifte";
+import BTWAangifte from "./pages/BTWAangifteNew";
 import Kilometers from "./pages/Kilometers";
 import Reports from "./pages/Reports";
 import Settings from "./pages/Settings";
@@ -66,6 +67,15 @@ export default function InvoiceApp() {
   const [editInvoiceId, setEditInvoiceId] = useState<string | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
+
+  // Show loading animation for 2 seconds on page entry
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setInitialLoading(false);
+    }, 2000);
+    return () => clearTimeout(timer);
+  }, []);
 
   // Validate page parameter
   const isValidPage = (page: string): page is Page => {
@@ -128,6 +138,13 @@ export default function InvoiceApp() {
     { id: "reports" as Page, label: "Raporty", icon: TrendingUp },
     { id: "settings" as Page, label: "Ustawienia", icon: SettingsIcon },
   ];
+
+  // Show PageLoader animation on initial page load
+  console.log("🔄 InvoiceApp - initialLoading:", initialLoading);
+  if (initialLoading) {
+    console.log("✨ SHOWING PAGELOADER ANIMATION!");
+    return <PageLoader />;
+  }
 
   if (!user) {
     return (

@@ -106,6 +106,9 @@ export interface Product {
   name: string;
   description?: string;
 
+  // Product image
+  image_url?: string; // URL to product image
+
   // Pricing
   unit_price: number; // Net price
   vat_rate: number; // VAT percentage (0, 9, 21)
@@ -169,6 +172,37 @@ export interface Invoice {
   // Template
   template_name: string; // 'classic', 'modern', 'minimal', 'professional'
 
+  // ========== CUSTOM STYLE COLORS ==========
+  primary_color?: string;
+  secondary_color?: string;
+  text_color?: string;
+  background_color?: string;
+
+  // ========== TYPOGRAPHY ==========
+  font_family?: string;
+  font_size_scale?: number;
+  line_height?: number;
+
+  // ========== LAYOUT ==========
+  header_align?: "left" | "center" | "right";
+  global_margin?: number;
+  border_radius?: number;
+
+  // ========== DESIGN FEATURES ==========
+  logo_url?: string;
+  logo_size?: number;
+  holographic_logo?: boolean;
+  paper_texture?: string;
+  show_qr_code?: boolean;
+  show_product_frames?: boolean;
+  show_signature_line?: boolean;
+  show_watermark?: boolean;
+  watermark_url?: string;
+
+  // ========== TEMPLATE STRUCTURE ==========
+  blocks?: any[];
+  labels?: Record<string, string>;
+
   // Lines (populated from invoice_invoice_lines)
   lines?: InvoiceLine[];
 
@@ -189,6 +223,9 @@ export interface InvoiceLine {
 
   // Product reference (optional)
   product_id?: string;
+
+  // Product image (optional - from linked product)
+  image_url?: string;
 
   // Line data
   description: string;
@@ -224,6 +261,37 @@ export interface CreateInvoiceData {
   template_name: InvoiceTemplate;
   is_reverse_charge: boolean;
   lines: Omit<InvoiceLine, "id" | "invoice_id" | "created_at">[];
+
+  // ========== CUSTOM STYLE COLORS ==========
+  primary_color?: string;
+  secondary_color?: string;
+  text_color?: string;
+  background_color?: string;
+
+  // ========== TYPOGRAPHY ==========
+  font_family?: string;
+  font_size_scale?: number;
+  line_height?: number;
+
+  // ========== LAYOUT ==========
+  header_align?: "left" | "center" | "right";
+  global_margin?: number;
+  border_radius?: number;
+
+  // ========== DESIGN FEATURES ==========
+  logo_url?: string;
+  logo_size?: number;
+  holographic_logo?: boolean;
+  paper_texture?: string;
+  show_qr_code?: boolean;
+  show_product_frames?: boolean;
+  show_signature_line?: boolean;
+  show_watermark?: boolean;
+  watermark_url?: string;
+
+  // ========== TEMPLATE STRUCTURE ==========
+  blocks?: any[];
+  labels?: Record<string, string>;
 
   // ========== PRODUCT_GALLERY TEMPLATE FIELDS ==========
   gallery_images?: Array<{ url: string; caption?: string }>;

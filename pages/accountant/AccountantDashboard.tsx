@@ -5,6 +5,11 @@ import { useAuth } from "../../contexts/AuthContext";
 import { useIsMobile } from "../../src/hooks/useIsMobile";
 import { SupportTicketModal } from "../../src/components/SupportTicketModal";
 import { AccountantSettingsPanel } from "../../components/settings/AccountantSettingsPanel";
+import { AccountantServicesManager } from "../../src/components/accountant/AccountantServicesManager";
+import {
+  AccountantTeamDashboard,
+  PendingInvitations,
+} from "../../src/modules/accountant-team";
 import { geocodeAddress } from "../../services/geocoding";
 import { getAccountantReviews } from "../../src/services/accountantReviewService";
 import {
@@ -353,7 +358,7 @@ export default function AccountantDashboard() {
   const loadMessages = async (userId: string) => {
     try {
       // Bidirectional query: both sent and received messages
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from("messages")
         .select(
           `
@@ -480,7 +485,7 @@ export default function AccountantDashboard() {
 
       console.log("✅ MARKING AS READ:", { count: messagesToMark.length });
 
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from("messages")
         .update({ is_read: true })
         .in("id", messagesToMark);
@@ -506,7 +511,7 @@ export default function AccountantDashboard() {
         content: messageInput.substring(0, 50),
       });
 
-      const { error } = await supabase.from("messages").insert({
+      const { error } = await (supabase as any).from("messages").insert({
         sender_id: user.id,
         recipient_id: selectedConversation.partnerId,
         subject: "Chat message",
@@ -575,7 +580,7 @@ export default function AccountantDashboard() {
 
   const handleMarkAsRead = async (messageId: string) => {
     try {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from("messages")
         .update({ is_read: true })
         .eq("id", messageId);
@@ -599,7 +604,7 @@ export default function AccountantDashboard() {
 
     setSaving(true);
     try {
-      const { error } = await supabase.from("messages").insert({
+      const { error } = await (supabase as any).from("messages").insert({
         sender_id: user.id,
         recipient_id: selectedMessage.sender_id,
         subject: `Re: ${selectedMessage.subject}`,
@@ -1037,6 +1042,16 @@ export default function AccountantDashboard() {
 
   const renderOverview = () => (
     <div className="space-y-6">
+      {/* Team Invitations - show pending invitations at the top */}
+      {accountant?.id && (
+        <PendingInvitations
+          accountantId={accountant.id}
+          onInvitationAccepted={(teamId) => {
+            setActiveTab("team");
+          }}
+        />
+      )}
+
       {/* Stats Cards - 4 karty (usunięto "Zgłoszenia") */}
       <div
         className={`grid ${
@@ -2770,238 +2785,64 @@ export default function AccountantDashboard() {
     </div>
   );
 
-  const renderTeam = () => (
-    <div className="bg-white rounded-lg shadow p-6">
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-2xl font-bold">👥 Drużyna Księgowa</h2>
-        <button
-          onClick={() => setIsCommunicationOpen(true)}
-          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
-        >
-          <Users className="w-4 h-4" />
-          Zaproś członka
-        </button>
-      </div>
+  // ============================================
+  // 🚧 DRUŻYNA KSIĘGOWYCH - NOWY SYSTEM
+  // ============================================
+  // TODO: Implementacja nowego systemu drużyny księgowych
+  // - Tworzenie drużyn między księgowymi
+  // - Organizator zadań dla drużyny
+  // - System zapraszania innych księgowych
+  // ============================================
+  const [showTeamDashboard, setShowTeamDashboard] = useState(false);
 
-      {/* Statystyki zespołu */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-        <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-4 border border-blue-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-blue-600 font-medium">Członkowie</p>
-              <p className="text-2xl font-bold text-blue-900">4</p>
-            </div>
-            <Users className="w-8 h-8 text-blue-500" />
-          </div>
-        </div>
-        <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-4 border border-green-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-green-600 font-medium">Aktywni</p>
-              <p className="text-2xl font-bold text-green-900">3</p>
-            </div>
-            <User className="w-8 h-8 text-green-500" />
-          </div>
-        </div>
-        <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg p-4 border border-purple-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-purple-600 font-medium">Klienci</p>
-              <p className="text-2xl font-bold text-purple-900">24</p>
-            </div>
-            <Briefcase className="w-8 h-8 text-purple-500" />
-          </div>
-        </div>
-        <div className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-lg p-4 border border-orange-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-orange-600 font-medium">Zaproszenia</p>
-              <p className="text-2xl font-bold text-orange-900">2</p>
-            </div>
-            <Bell className="w-8 h-8 text-orange-500" />
-          </div>
-        </div>
-      </div>
+  const renderTeam = () => {
+    // Jeśli dashboard drużyny jest otwarty, pokaż go w pełnym ekranie
+    if (showTeamDashboard && accountant && user) {
+      return (
+        <AccountantTeamDashboard
+          accountantId={accountant.id}
+          accountantName={
+            (user as any).user_metadata?.full_name ||
+            accountant.company_name ||
+            "Księgowy"
+          }
+          accountantEmail={user.email || ""}
+          accountantAvatar={(user as any).user_metadata?.avatar_url}
+          profileId={user.id}
+          onClose={() => setShowTeamDashboard(false)}
+        />
+      );
+    }
 
-      {/* Lista członków zespołu */}
-      <div className="space-y-3">
-        {/* Ty (właściciel) */}
-        <div className="border-2 border-blue-200 rounded-lg p-4 bg-blue-50">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="w-14 h-14 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white font-bold text-lg">
-                {accountant?.company_name?.charAt(0) || "K"}
-              </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <h3 className="font-bold text-lg">
-                    {accountant?.company_name || "Księgowy"}
-                  </h3>
-                  <span className="px-2 py-1 bg-blue-600 text-white text-xs font-medium rounded">
-                    Właściciel
-                  </span>
-                </div>
-                <p className="text-sm text-gray-600">{accountant?.email}</p>
-                <p className="text-xs text-gray-500 mt-1">
-                  Zarządza zespołem i klientami
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="w-3 h-3 bg-green-500 rounded-full"></span>
-              <span className="text-sm text-gray-600">Online</span>
-            </div>
-          </div>
+    // Pokazuj przycisk do otwarcia dashboardu drużyny
+    return (
+      <div className="bg-white rounded-lg shadow p-6">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-2xl font-bold">👥 Drużyna Księgowych</h2>
         </div>
 
-        {/* Członek 1 */}
-        <div className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="w-14 h-14 bg-gradient-to-br from-purple-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold text-lg">
-                AK
-              </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <h3 className="font-bold text-lg">Anna Kowalska</h3>
-                  <span className="px-2 py-1 bg-green-100 text-green-700 text-xs font-medium rounded">
-                    Księgowa
-                  </span>
-                </div>
-                <p className="text-sm text-gray-600">anna.kowalska@biuro.pl</p>
-                <p className="text-xs text-gray-500 mt-1">
-                  12 klientów • Specjalizacja: VAT
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center gap-3">
-              <span className="w-3 h-3 bg-green-500 rounded-full"></span>
-              <button className="px-3 py-1 text-sm border border-gray-300 rounded-lg hover:bg-gray-50">
-                Edytuj
-              </button>
-            </div>
+        <div className="flex flex-col items-center justify-center py-12 text-center">
+          <div className="w-24 h-24 bg-gradient-to-br from-indigo-100 to-purple-100 rounded-full flex items-center justify-center mb-6">
+            <Users className="w-12 h-12 text-indigo-500" />
           </div>
-        </div>
-
-        {/* Członek 2 */}
-        <div className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="w-14 h-14 bg-gradient-to-br from-green-500 to-green-600 rounded-full flex items-center justify-center text-white font-bold text-lg">
-                MW
-              </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <h3 className="font-bold text-lg">Marek Wiśniewski</h3>
-                  <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs font-medium rounded">
-                    Asystent
-                  </span>
-                </div>
-                <p className="text-sm text-gray-600">marek.w@biuro.pl</p>
-                <p className="text-xs text-gray-500 mt-1">
-                  8 klientów • Specjalizacja: PIT
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center gap-3">
-              <span className="w-3 h-3 bg-yellow-500 rounded-full"></span>
-              <button className="px-3 py-1 text-sm border border-gray-300 rounded-lg hover:bg-gray-50">
-                Edytuj
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Członek 3 */}
-        <div className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="w-14 h-14 bg-gradient-to-br from-orange-500 to-orange-600 rounded-full flex items-center justify-center text-white font-bold text-lg">
-                KN
-              </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <h3 className="font-bold text-lg">Katarzyna Nowak</h3>
-                  <span className="px-2 py-1 bg-purple-100 text-purple-700 text-xs font-medium rounded">
-                    Konsultant
-                  </span>
-                </div>
-                <p className="text-sm text-gray-600">k.nowak@biuro.pl</p>
-                <p className="text-xs text-gray-500 mt-1">
-                  4 klientów • Specjalizacja: ZUS
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center gap-3">
-              <span className="w-3 h-3 bg-gray-400 rounded-full"></span>
-              <button className="px-3 py-1 text-sm border border-gray-300 rounded-lg hover:bg-gray-50">
-                Edytuj
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Oczekujące zaproszenie */}
-        <div className="border border-dashed border-gray-300 rounded-lg p-4 bg-gray-50">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="w-14 h-14 bg-gray-200 rounded-full flex items-center justify-center text-gray-400 font-bold text-lg">
-                ?
-              </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <h3 className="font-bold text-lg text-gray-700">
-                    Jan Kowalczyk
-                  </h3>
-                  <span className="px-2 py-1 bg-yellow-100 text-yellow-700 text-xs font-medium rounded">
-                    Oczekuje
-                  </span>
-                </div>
-                <p className="text-sm text-gray-600">jan.kowalczyk@email.com</p>
-                <p className="text-xs text-gray-500 mt-1">
-                  Zaproszenie wysłane 2 dni temu
-                </p>
-              </div>
-            </div>
-            <div className="flex gap-2">
-              <button className="px-3 py-1 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-                Przypomnij
-              </button>
-              <button className="px-3 py-1 text-sm border border-gray-300 rounded-lg hover:bg-gray-50">
-                Anuluj
-              </button>
-            </div>
-          </div>
+          <h3 className="text-xl font-semibold text-gray-800 mb-2">
+            System drużyny księgowych
+          </h3>
+          <p className="text-gray-500 max-w-md mb-6">
+            Współpracuj z innymi księgowymi, zarządzaj zadaniami, komunikuj się
+            przez chat i dziel się dokumentami.
+          </p>
+          <button
+            onClick={() => setShowTeamDashboard(true)}
+            className="px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl hover:from-indigo-700 hover:to-purple-700 transition-all shadow-lg hover:shadow-xl flex items-center gap-2"
+          >
+            <Users className="w-5 h-5" />
+            Otwórz panel drużyny
+          </button>
         </div>
       </div>
-
-      {/* Info o rolach */}
-      <div className="mt-6 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg">
-        <h4 className="font-semibold text-blue-900 mb-3 flex items-center gap-2">
-          <Users className="w-5 h-5" />
-          Role w zespole
-        </h4>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
-          <div>
-            <span className="font-medium text-blue-900">Właściciel:</span>
-            <span className="text-blue-700 ml-1">
-              Pełny dostęp, zarządzanie zespołem
-            </span>
-          </div>
-          <div>
-            <span className="font-medium text-green-900">Księgowa:</span>
-            <span className="text-green-700 ml-1">
-              Obsługa klientów, dokumenty
-            </span>
-          </div>
-          <div>
-            <span className="font-medium text-purple-900">Konsultant:</span>
-            <span className="text-purple-700 ml-1">Porady, konsultacje</span>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
+    );
+  };
 
   if (loading) {
     return (
@@ -4307,20 +4148,9 @@ export default function AccountantDashboard() {
             </TabPanel>
 
             <TabPanel isActive={activeTab === "services"}>
-              <div className="bg-white rounded-lg shadow p-6">
-                <h2 className="text-2xl font-bold mb-6">💼 Usługi</h2>
-                <div className="text-center text-gray-400 py-12">
-                  <p>Brak usług</p>
-                </div>
-              </div>
-            </TabPanel>
-
-            <TabPanel isActive={activeTab === "submissions"}>
-              {renderSubmissions()}
-            </TabPanel>
-
-            <TabPanel isActive={activeTab === "forms"}>
-              {renderForms()}
+              {accountant?.id && (
+                <AccountantServicesManager accountantId={accountant.id} />
+              )}
             </TabPanel>
 
             <TabPanel isActive={activeTab === "team"}>{renderTeam()}</TabPanel>

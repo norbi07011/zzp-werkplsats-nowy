@@ -73,6 +73,12 @@ import type {
   GalleryImage,
   BlockType,
 } from "../types/InvoiceDesign";
+import {
+  GRADIENT_STYLES,
+  getGradientCategories,
+  getGradientsByCategory,
+  type GradientStyle,
+} from "../lib/gradient-styles";
 
 // ============================================
 // VIEW MODES & TABS
@@ -82,75 +88,70 @@ type ViewMode = "LIBRARY" | "TEMPLATE_SELECTOR" | "BUILDER";
 type BuilderTab = "INSERT" | "CONTENT" | "DESIGN" | "LAYOUT" | "SETTINGS";
 
 // Template Category Info (used in Template Selector and Library)
+// =====================================================
+// SZABLONY FAKTUR I WERKBONÓW
+// =====================================================
 const TEMPLATE_INFO: Record<
   string,
   { icon: React.ReactNode; label: string; description: string }
 > = {
-  standard: {
-    icon: <FileText size={24} />,
-    label: "Standardowa",
-    description: "Podstawowa faktura VAT z tabelą pozycji",
-  },
-  product: {
-    icon: <Box size={24} />,
-    label: "Produktowa",
-    description: "Faktura z galerią zdjęć produktów",
-  },
-  service: {
-    icon: <Briefcase size={24} />,
-    label: "Usługowa",
-    description: "Faktura usługowa z ewidencją godzin",
-  },
-  creditnota: {
-    icon: <ArrowLeft size={24} />,
-    label: "Creditnota",
-    description: "Nota korygująca z ujemnymi kwotami",
-  },
-  werkbon: {
-    icon: <CheckCircle size={24} />,
-    label: "Werkbon",
-    description: "Karta pracy z checklistą zadań",
-  },
-  voorschot: {
-    icon: <Coins size={24} />,
-    label: "Voorschot",
-    description: "Faktura zaliczkowa z harmonogramem",
-  },
-  herhalingsfactuur: {
+  // FAKTURY
+  work_hours: {
     icon: <Clock size={24} />,
-    label: "Cykliczna",
-    description: "Faktura cykliczna (abonament)",
-  },
-  proforma: {
-    icon: <FileCheck size={24} />,
-    label: "Pro-forma",
-    description: "Faktura pro forma (nieoficjalna)",
-  },
-  btw_schuif: {
-    icon: <ArrowRight size={24} />,
-    label: "BTW-Schuif",
-    description: "Faktura UE z odwrotnym obciążeniem",
-  },
-  samenvattende: {
-    icon: <LayoutGrid size={24} />,
-    label: "Zbiorcza",
-    description: "Faktura zbiorcza za okres",
+    label: "⏱️ Godzinówka / Praca",
+    description: "Faktura za pracę z rozliczeniem godzin i stawek",
   },
   product_gallery: {
     icon: <ImageIcon size={24} />,
-    label: "Produkty z Galerią",
-    description: "Faktura produktowa z dużą galerią zdjęć (6 foto)",
+    label: "📸 Produkty ze zdjęciami",
+    description: "Faktura produktowa z galerią zdjęć, cenami i opisami",
   },
-  work_services: {
-    icon: <Wrench size={24} />,
-    label: "Za Pracę i Usługi",
-    description: "Faktura za wykonaną pracę z godzinami + materiały",
+  // WERKBON
+  werkbon: {
+    icon: <FileText size={24} />,
+    label: "📋 Werkbon / Karta Godzin",
+    description: "Uniwersalny werkbon do rejestracji czasu pracy",
   },
 };
 
+// Category Groups for organizing templates in Library view
+const TEMPLATE_CATEGORY_GROUPS: {
+  id: string;
+  label: string;
+  icon: React.ReactNode;
+  description: string;
+  color: string;
+  categories: string[];
+}[] = [
+  {
+    id: "invoices",
+    label: "📄 Faktury",
+    icon: <FileText size={20} />,
+    description: "Szablony faktur do rozliczeń za pracę i produkty",
+    color: "from-blue-500 to-indigo-600",
+    categories: ["work_hours", "product_gallery"],
+  },
+  {
+    id: "timesheets",
+    label: "⏱️ Karty Godzin",
+    icon: <Clock size={20} />,
+    description: "Werkbon do rejestracji czasu pracy",
+    color: "from-orange-500 to-amber-600",
+    categories: ["werkbon"],
+  },
+];
+
 // Extended Design Interface
 interface ExtendedDesign extends Omit<InvoiceDesign, "id" | "name"> {
-  paper_texture: "plain" | "dots" | "lines" | "grain";
+  paper_texture:
+    | "plain"
+    | "dots"
+    | "lines"
+    | "grain"
+    | "holographic"
+    | "gradient_tri"
+    | "gradient_geo"
+    | "gradient_soft";
   global_margin: number;
   border_radius: number;
   line_height: number;
@@ -231,12 +232,28 @@ export const Documents: React.FC = () => {
     loading: designsLoading,
     error: designsError,
     createDesign,
+    updateDesign,
     deleteDesign: deleteDesignAsync,
   } = useSupabaseInvoiceDesigns(user?.id || "");
 
+  // Track if we're editing an existing design or creating new
+  const [editingDesignId, setEditingDesignId] = useState<string | null>(null);
+
   const saveInvoiceDesign = async (design: Omit<any, "id">) => {
     try {
-      await createDesign(design as any);
+      if (editingDesignId) {
+        // UPDATE existing design
+        console.log(
+          "[saveInvoiceDesign] Updating existing design:",
+          editingDesignId
+        );
+        await updateDesign(editingDesignId, design as any);
+      } else {
+        // CREATE new design
+        console.log("[saveInvoiceDesign] Creating new design:", design.name);
+        await createDesign(design as any);
+      }
+      setEditingDesignId(null); // Reset after save
     } catch (err) {
       console.error("Failed to save design:", err);
     }
@@ -286,33 +303,33 @@ export const Documents: React.FC = () => {
         .order("template_category", { ascending: true });
 
       if (!error && data) {
-        // Map database schema to InvoiceDesign type
+        // Map database schema to InvoiceDesign type - use actual values from DB
         const templates = data.map((t) => ({
           id: t.id,
           user_id: t.user_id,
-          name: t.design_name,
-          type: "TIMESHEET" as const,
-          primary_color: "#f97316",
-          secondary_color: "#f1f5f9",
-          text_color: "#1e293b",
-          background_color: "#ffffff",
-          font_family: "Inter" as const,
-          font_size_scale: 1.0,
-          line_height: 1.5,
-          header_align: "left" as const,
-          global_margin: 15,
-          border_radius: 0,
-          paper_texture: "plain" as const,
-          logo_size: 80,
-          holographic_logo: false,
-          show_qr_code: true,
-          show_product_frames: false,
-          show_signature_line: false,
-          show_watermark: false,
-          show_page_numbers: false,
+          name: t.name, // Correct column name
+          type: t.type || "INVOICE",
+          primary_color: t.primary_color || "#0ea5e9",
+          secondary_color: t.secondary_color || "#f1f5f9",
+          text_color: t.text_color || "#1e293b",
+          background_color: t.background_color || "#ffffff",
+          font_family: t.font_family || "Inter",
+          font_size_scale: t.font_size_scale || 1.0,
+          line_height: t.line_height || 1.5,
+          header_align: t.header_align || "left",
+          global_margin: t.global_margin || 15,
+          border_radius: t.border_radius || 0,
+          paper_texture: t.paper_texture || "plain",
+          logo_size: t.logo_size || 80,
+          holographic_logo: t.holographic_logo ?? false,
+          show_qr_code: t.show_qr_code ?? true,
+          show_product_frames: t.show_product_frames ?? false,
+          show_signature_line: t.show_signature_line ?? false,
+          show_watermark: t.show_watermark ?? false,
+          show_page_numbers: t.show_page_numbers ?? false,
           blocks: (t.blocks as any) || [],
-          labels: {
-            title: "WERKBON",
+          labels: t.labels || {
+            title: "DOKUMENT",
             invoiceNo: "Nr",
             from: "Od",
             to: "Do",
@@ -588,6 +605,7 @@ export const Documents: React.FC = () => {
       typeName = "Nowy List";
     }
     setDesignName(typeName);
+    setEditingDesignId(null); // New document - not editing existing
     setIsTypeModalOpen(false);
     setViewMode("BUILDER");
     setActiveTab("INSERT");
@@ -637,6 +655,7 @@ export const Documents: React.FC = () => {
 
     setCurrentDesign(clonedDesign);
     setDesignName(`Moja ${template.name}`);
+    setEditingDesignId(null); // NEW design based on template
     setViewMode("BUILDER");
     setActiveTab("DESIGN"); // Start in DESIGN tab for customization
   };
@@ -652,8 +671,13 @@ export const Documents: React.FC = () => {
   ) => {
     const file = ref.current?.files?.[0];
     if (file) {
-      const objectUrl = URL.createObjectURL(file);
-      setCurrentDesign((prev) => ({ ...prev, [field]: objectUrl }));
+      // Convert to base64 for persistent storage (blob URLs are temporary)
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const base64 = e.target?.result as string;
+        setCurrentDesign((prev) => ({ ...prev, [field]: base64 }));
+      };
+      reader.readAsDataURL(file);
     }
   };
 
@@ -1328,6 +1352,91 @@ export const Documents: React.FC = () => {
         {/* === DESIGN TAB === */}
         {activeTab === "DESIGN" && (
           <div className="space-y-6">
+            {/* Gradient Style Selector */}
+            <div>
+              <label className="text-xs font-bold text-slate-400 uppercase mb-3 flex items-center gap-2">
+                <Sparkles size={12} />
+                Styl Gradientu
+              </label>
+              <div className="space-y-3">
+                {/* Category tabs */}
+                <div className="flex flex-wrap gap-1">
+                  {getGradientCategories().map((cat) => (
+                    <button
+                      key={cat.id}
+                      onClick={() => {
+                        // Show gradients for this category
+                        const first = getGradientsByCategory(cat.id)[0];
+                        if (first) {
+                          setCurrentDesign((p) => ({
+                            ...p,
+                            primary_color: first.primaryColor,
+                            secondary_color: first.secondaryColor,
+                          }));
+                        }
+                      }}
+                      className="px-2 py-1 text-[10px] rounded-md bg-slate-100 hover:bg-slate-200 text-slate-600 capitalize transition-colors"
+                    >
+                      {cat.id === "gradient"
+                        ? "🎨 Modern"
+                        : cat.id === "geometric"
+                        ? "📐 Geometric"
+                        : cat.id === "holographic"
+                        ? "✨ Holographic"
+                        : cat.id === "duotone"
+                        ? "🎭 Duotone"
+                        : cat.id === "vibrant"
+                        ? "🌈 Vibrant"
+                        : cat.id === "neon"
+                        ? "💡 Neon"
+                        : cat.nameNL}
+                    </button>
+                  ))}
+                </div>
+                {/* Gradient previews */}
+                <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-1">
+                  {GRADIENT_STYLES.map((gradient) => (
+                    <button
+                      key={gradient.id}
+                      onClick={() => {
+                        setCurrentDesign((p) => ({
+                          ...p,
+                          primary_color: gradient.primaryColor,
+                          secondary_color: gradient.secondaryColor,
+                          background_color: gradient.secondaryColor,
+                        }));
+                      }}
+                      className={`relative overflow-hidden rounded-lg border-2 transition-all ${
+                        currentDesign.primary_color === gradient.primaryColor
+                          ? "border-ocean-500 ring-2 ring-ocean-200 scale-[1.02]"
+                          : "border-slate-200 hover:border-slate-300 hover:scale-[1.01]"
+                      }`}
+                      title={gradient.nameNL}
+                    >
+                      {/* Gradient preview */}
+                      <div
+                        className="h-10 w-full"
+                        style={{ background: gradient.cssGradient }}
+                      />
+                      {/* Label */}
+                      <div className="px-2 py-1 bg-white">
+                        <span className="text-[9px] font-medium text-slate-600 truncate block">
+                          {gradient.nameNL}
+                        </span>
+                      </div>
+                      {/* Selected indicator */}
+                      {currentDesign.primary_color ===
+                        gradient.primaryColor && (
+                        <div className="absolute top-1 right-1 w-4 h-4 rounded-full bg-ocean-500 flex items-center justify-center">
+                          <CheckCircle size={10} className="text-white" />
+                        </div>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
             {/* Colors */}
             <div>
               <label className="text-xs font-bold text-slate-400 uppercase mb-3 block">
@@ -1452,6 +1561,58 @@ export const Documents: React.FC = () => {
                     }}
                     title={t.label}
                   />
+                ))}
+              </div>
+            </div>
+
+            {/* Premium Gradient Effects */}
+            <div>
+              <label className="text-xs font-bold text-slate-400 uppercase mb-3 block">
+                ✨ Efekty Premium
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  {
+                    id: "holographic",
+                    bg: "linear-gradient(135deg, #ff6b6b 0%, #feca57 25%, #48dbfb 50%, #ff9ff3 75%, #ff6b6b 100%)",
+                    label: "🌈 Holograficzny",
+                  },
+                  {
+                    id: "gradient_tri",
+                    bg: "linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%)",
+                    label: "💜 Trzykolorowy",
+                  },
+                  {
+                    id: "gradient_geo",
+                    bg: "conic-gradient(from 45deg, #12c2e9, #c471ed, #f64f59, #12c2e9)",
+                    label: "🔷 Geometryczny",
+                  },
+                  {
+                    id: "gradient_soft",
+                    bg: "linear-gradient(180deg, rgba(255,255,255,0) 0%, rgba(99,102,241,0.1) 50%, rgba(168,85,247,0.15) 100%)",
+                    label: "🌊 Miękki",
+                  },
+                ].map((t) => (
+                  <button
+                    key={t.id}
+                    onClick={() =>
+                      setCurrentDesign((p) => ({
+                        ...p,
+                        paper_texture: t.id as any,
+                      }))
+                    }
+                    className={`h-14 rounded-lg border-2 transition-all relative overflow-hidden flex items-center justify-center text-xs font-medium ${
+                      currentDesign.paper_texture === t.id
+                        ? "border-ocean-500 ring-2 ring-ocean-200"
+                        : "border-slate-200 hover:border-slate-300"
+                    }`}
+                    style={{ background: t.bg }}
+                    title={t.label}
+                  >
+                    <span className="bg-white/80 backdrop-blur-sm px-2 py-1 rounded text-slate-700">
+                      {t.label}
+                    </span>
+                  </button>
                 ))}
               </div>
             </div>
@@ -1841,6 +2002,57 @@ export const Documents: React.FC = () => {
                 style={{
                   backgroundImage:
                     "repeating-linear-gradient(0deg, transparent, transparent 19px, #000 20px)",
+                }}
+              ></div>
+            )}
+
+            {/* Premium Gradient Effects */}
+            {currentDesign.paper_texture === "holographic" && (
+              <div
+                className="absolute inset-0 pointer-events-none opacity-20"
+                style={{
+                  background:
+                    "linear-gradient(135deg, #ff6b6b 0%, #feca57 25%, #48dbfb 50%, #ff9ff3 75%, #ff6b6b 100%)",
+                  backgroundSize: "400% 400%",
+                  animation: "holographicShift 8s ease infinite",
+                }}
+              ></div>
+            )}
+            {currentDesign.paper_texture === "gradient_tri" && (
+              <div
+                className="absolute inset-0 pointer-events-none opacity-15"
+                style={{
+                  background:
+                    "linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%)",
+                }}
+              ></div>
+            )}
+            {currentDesign.paper_texture === "gradient_geo" && (
+              <div
+                className="absolute inset-0 pointer-events-none"
+                style={{
+                  background:
+                    "conic-gradient(from 45deg at 50% 50%, rgba(18,194,233,0.15), rgba(196,113,237,0.15), rgba(246,79,89,0.15), rgba(18,194,233,0.15))",
+                }}
+              >
+                <div
+                  className="absolute inset-0 opacity-30"
+                  style={{
+                    backgroundImage: `
+                      linear-gradient(60deg, transparent 48%, rgba(99,102,241,0.1) 50%, transparent 52%),
+                      linear-gradient(-60deg, transparent 48%, rgba(168,85,247,0.1) 50%, transparent 52%)
+                    `,
+                    backgroundSize: "60px 100px",
+                  }}
+                ></div>
+              </div>
+            )}
+            {currentDesign.paper_texture === "gradient_soft" && (
+              <div
+                className="absolute inset-0 pointer-events-none"
+                style={{
+                  background:
+                    "linear-gradient(180deg, rgba(255,255,255,0) 0%, rgba(99,102,241,0.08) 50%, rgba(168,85,247,0.12) 100%)",
                 }}
               ></div>
             )}
@@ -2678,252 +2890,153 @@ export const Documents: React.FC = () => {
         </div>
       </div>
 
-      {/* Predefined Templates Section */}
+      {/* Predefined Templates Section - GROUPED BY CATEGORY */}
       {predefinedTemplates.length > 0 && (
-        <div className="mb-12">
-          <div className="flex justify-between items-end mb-6">
+        <div className="mb-12 space-y-10">
+          <div className="flex justify-between items-end mb-2">
             <div>
               <h3 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
                 <Sparkles className="text-yellow-500" /> Gotowe Szablony
               </h3>
               <p className="text-sm text-slate-500 mt-1">
-                {predefinedTemplates.length} profesjonalnych szablonów z
-                zablokowanymi układami
+                {predefinedTemplates.length} profesjonalnych szablonów
+                pogrupowanych według kategorii
               </p>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
-            {predefinedTemplates.map((template, index) => (
-              <button
-                key={template.id}
-                onClick={() => handleSelectTemplate(template)}
-                className="group relative w-full min-h-[300px] rounded-2xl overflow-hidden bg-gradient-to-br from-slate-800 to-slate-900 border-2 border-slate-700 hover:border-ocean-400 hover:shadow-xl transition-all text-left flex flex-col"
-              >
-                {/* Color Header */}
-                <div
-                  className="h-3 flex-shrink-0"
-                  style={{ backgroundColor: template.primary_color }}
-                ></div>
+          {/* Render each category group */}
+          {TEMPLATE_CATEGORY_GROUPS.map((group) => {
+            // Filter templates that belong to this category group
+            const groupTemplates = predefinedTemplates.filter(
+              (t) =>
+                t.template_category &&
+                group.categories.includes(t.template_category)
+            );
 
-                {/* Document Preview Thumbnail */}
-                <div className="flex-1 flex items-center justify-center p-4 relative z-10">
-                  <div className="bg-white w-full max-w-[140px] h-40 shadow-lg rounded p-2 overflow-hidden transform transition-transform duration-500 group-hover:scale-105 opacity-95 group-hover:opacity-100 border border-slate-200">
-                    {/* Header with color bar */}
-                    <div className="flex items-center gap-1 mb-2">
+            // Skip empty groups
+            if (groupTemplates.length === 0) return null;
+
+            return (
+              <div key={group.id} className="space-y-4">
+                {/* Category Header */}
+                <div
+                  className={`flex items-center gap-4 p-4 rounded-2xl bg-gradient-to-r ${group.color} shadow-lg`}
+                >
+                  <div className="w-12 h-12 bg-white/20 backdrop-blur rounded-xl flex items-center justify-center text-white">
+                    {group.icon}
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="text-lg font-bold text-white">
+                      {group.label}
+                    </h4>
+                    <p className="text-sm text-white/70">{group.description}</p>
+                  </div>
+                  <div className="px-3 py-1 bg-white/20 rounded-full text-white text-sm font-bold">
+                    {groupTemplates.length}{" "}
+                    {groupTemplates.length === 1
+                      ? "szablon"
+                      : groupTemplates.length < 5
+                      ? "szablony"
+                      : "szablonów"}
+                  </div>
+                </div>
+
+                {/* Templates Grid for this category */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 pl-4">
+                  {groupTemplates.map((template) => (
+                    <button
+                      key={template.id}
+                      onClick={() => handleSelectTemplate(template)}
+                      className="group relative w-full min-h-[280px] rounded-2xl overflow-hidden bg-gradient-to-br from-slate-800 to-slate-900 border-2 border-slate-700 hover:border-ocean-400 hover:shadow-xl transition-all text-left flex flex-col"
+                    >
+                      {/* Color Header */}
                       <div
-                        className="h-2 w-2 rounded-sm flex-shrink-0"
+                        className="h-3 flex-shrink-0"
                         style={{ backgroundColor: template.primary_color }}
                       ></div>
-                      <div className="h-1 bg-slate-200 flex-1 rounded"></div>
-                      <div className="h-1 bg-slate-200 w-1/4 rounded"></div>
-                    </div>
 
-                    {/* Category-specific preview */}
-                    <div className="space-y-1 text-[6px]">
-                      {/* Info section */}
-                      <div className="flex gap-1">
-                        <div className="w-3 h-3 bg-slate-100 rounded flex items-center justify-center text-[8px]">
-                          {TEMPLATE_INFO[
-                            template.template_category || "standard"
-                          ]?.icon && (
-                            <span className="scale-[0.3] text-slate-400">
+                      {/* Document Preview Thumbnail */}
+                      <div className="flex-1 flex items-center justify-center p-4 relative z-10">
+                        <div className="bg-white w-full max-w-[130px] h-36 shadow-lg rounded p-2 overflow-hidden transform transition-transform duration-500 group-hover:scale-105 opacity-95 group-hover:opacity-100 border border-slate-200">
+                          {/* Header with color bar */}
+                          <div className="flex items-center gap-1 mb-2">
+                            <div
+                              className="h-2 w-2 rounded-sm flex-shrink-0"
+                              style={{
+                                backgroundColor: template.primary_color,
+                              }}
+                            ></div>
+                            <div className="h-1 bg-slate-200 flex-1 rounded"></div>
+                            <div className="h-1 bg-slate-200 w-1/4 rounded"></div>
+                          </div>
+
+                          {/* Simplified preview lines */}
+                          <div className="space-y-1">
+                            <div className="h-0.5 bg-slate-300 w-3/4 rounded"></div>
+                            <div className="h-0.5 bg-slate-200 w-1/2 rounded"></div>
+                            <div className="h-0.5 bg-slate-200 w-2/3 rounded"></div>
+                            <div className="mt-2 p-1 border border-slate-200 rounded">
+                              <div className="h-0.5 bg-slate-300 w-full rounded mb-0.5"></div>
+                              <div className="h-0.5 bg-slate-200 w-full rounded"></div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Template Info */}
+                      <div className="p-4 pt-0 flex-shrink-0 relative z-20 bg-gradient-to-t from-slate-900 via-slate-900/95 to-transparent">
+                        <div className="bg-slate-800/80 backdrop-blur-sm rounded-xl p-3 border border-slate-700/50">
+                          <div className="flex items-center gap-2 mb-1">
+                            <div
+                              className="w-8 h-8 rounded-lg flex items-center justify-center text-white flex-shrink-0 shadow-lg"
+                              style={{
+                                backgroundColor:
+                                  template.primary_color || "#0ea5e9",
+                              }}
+                            >
                               {
                                 TEMPLATE_INFO[
                                   template.template_category || "standard"
                                 ]?.icon
                               }
-                            </span>
-                          )}
-                        </div>
-                        <div className="flex-1 space-y-0.5">
-                          <div className="h-0.5 bg-slate-300 w-3/4 rounded"></div>
-                          <div className="h-0.5 bg-slate-200 w-1/2 rounded"></div>
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <h4 className="font-bold text-sm text-white group-hover:text-ocean-400 transition-colors truncate">
+                                {template.name}
+                              </h4>
+                              <p className="text-[10px] text-slate-400 uppercase font-semibold">
+                                {
+                                  TEMPLATE_INFO[
+                                    template.template_category || "standard"
+                                  ]?.label
+                                }
+                              </p>
+                            </div>
+                          </div>
                         </div>
                       </div>
 
-                      {/* Table preview for most templates */}
-                      {(template.template_category === "standard" ||
-                        template.template_category === "service" ||
-                        template.template_category === "product") && (
-                        <div className="border border-slate-200 rounded-sm p-1 space-y-0.5 bg-slate-50/50">
-                          <div className="flex gap-1 pb-0.5 border-b border-slate-200">
-                            <div className="h-0.5 bg-slate-400 w-1/3 rounded"></div>
-                            <div className="h-0.5 bg-slate-400 w-1/4 rounded"></div>
-                            <div className="h-0.5 bg-slate-400 w-1/4 rounded"></div>
-                          </div>
-                          <div className="flex gap-1">
-                            <div className="h-0.5 bg-slate-200 w-1/3 rounded"></div>
-                            <div className="h-0.5 bg-slate-200 w-1/4 rounded"></div>
-                            <div className="h-0.5 bg-slate-300 w-1/4 rounded"></div>
-                          </div>
-                          <div className="flex gap-1">
-                            <div className="h-0.5 bg-slate-200 w-1/3 rounded"></div>
-                            <div className="h-0.5 bg-slate-200 w-1/4 rounded"></div>
-                            <div className="h-0.5 bg-slate-300 w-1/4 rounded"></div>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Checklist preview for werkbon */}
-                      {template.template_category === "werkbon" && (
-                        <div className="space-y-0.5 pl-1">
-                          <div className="flex items-center gap-1">
-                            <div className="w-1 h-1 border border-green-400 rounded-sm bg-green-100"></div>
-                            <div className="h-0.5 bg-slate-300 w-2/3 rounded"></div>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <div className="w-1 h-1 border border-green-400 rounded-sm bg-green-100"></div>
-                            <div className="h-0.5 bg-slate-300 w-1/2 rounded"></div>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <div className="w-1 h-1 border border-slate-300 rounded-sm"></div>
-                            <div className="h-0.5 bg-slate-200 w-2/3 rounded"></div>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Credit note preview */}
-                      {template.template_category === "creditnota" && (
-                        <div className="border border-red-200 rounded-sm p-1 bg-red-50/30">
-                          <div className="flex justify-between items-center mb-0.5">
-                            <div className="h-0.5 bg-red-300 w-1/3 rounded"></div>
-                            <div className="h-0.5 bg-red-400 w-1/4 rounded"></div>
-                          </div>
-                          <div className="h-0.5 bg-slate-200 w-2/3 rounded"></div>
-                        </div>
-                      )}
-
-                      {/* Summary preview for samenvattende */}
-                      {template.template_category === "samenvattende" && (
-                        <div className="grid grid-cols-2 gap-1">
-                          <div className="border border-slate-200 rounded-sm p-0.5 bg-slate-50">
-                            <div className="h-0.5 bg-slate-400 w-2/3 rounded mb-0.5"></div>
-                            <div className="h-0.5 bg-slate-200 w-1/2 rounded"></div>
-                          </div>
-                          <div className="border border-slate-200 rounded-sm p-0.5 bg-slate-50">
-                            <div className="h-0.5 bg-slate-400 w-2/3 rounded mb-0.5"></div>
-                            <div className="h-0.5 bg-slate-200 w-1/2 rounded"></div>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Payment schedule for voorschot */}
-                      {template.template_category === "voorschot" && (
-                        <div className="space-y-0.5 border border-blue-200 rounded-sm p-1 bg-blue-50/20">
-                          <div className="flex justify-between">
-                            <div className="h-0.5 bg-blue-300 w-1/3 rounded"></div>
-                            <div className="h-0.5 bg-blue-400 w-1/5 rounded"></div>
-                          </div>
-                          <div className="flex justify-between">
-                            <div className="h-0.5 bg-slate-200 w-1/3 rounded"></div>
-                            <div className="h-0.5 bg-slate-300 w-1/5 rounded"></div>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Recurring info for herhalingsfactuur */}
-                      {template.template_category === "herhalingsfactuur" && (
-                        <div className="border border-purple-200 rounded-sm p-1 bg-purple-50/20">
-                          <div className="flex items-center gap-1 mb-0.5">
-                            <div className="w-1 h-1 rounded-full bg-purple-400"></div>
-                            <div className="h-0.5 bg-purple-300 w-1/2 rounded"></div>
-                          </div>
-                          <div className="h-0.5 bg-slate-200 w-2/3 rounded"></div>
-                        </div>
-                      )}
-
-                      {/* Footer totals */}
-                      <div className="mt-1 pt-1 border-t border-slate-200 flex justify-between items-center">
-                        <div className="h-0.5 bg-slate-300 w-1/4 rounded"></div>
-                        <div
-                          className="h-1 w-1/3 rounded"
-                          style={{
-                            backgroundColor: template.primary_color + "40",
-                          }}
-                        ></div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Template Info */}
-                <div className="p-4 pt-0 flex-shrink-0 relative z-20 bg-gradient-to-t from-slate-900 via-slate-900/95 to-transparent">
-                  <div className="bg-slate-800/80 backdrop-blur-sm rounded-xl p-3 border border-slate-700/50">
-                    <div className="flex items-center gap-2 mb-2">
-                      <div
-                        className="w-10 h-10 rounded-lg flex items-center justify-center text-white flex-shrink-0 shadow-lg"
-                        style={{
-                          backgroundColor: template.primary_color || "#0ea5e9",
-                        }}
-                      >
-                        {
-                          TEMPLATE_INFO[
-                            template.template_category || "standard"
-                          ]?.icon
-                        }
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <h4 className="font-bold text-sm text-white group-hover:text-ocean-400 transition-colors truncate">
-                          {template.name}
-                        </h4>
-                        <p className="text-[10px] text-slate-400 uppercase font-semibold">
-                          {TEMPLATE_INFO[
-                            template.template_category || "standard"
-                          ]?.label || template.template_category}
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Block Preview List */}
-                    <div className="space-y-1 mt-2">
-                      {template.blocks?.slice(0, 3).map((block, idx) => (
-                        <div
-                          key={idx}
-                          className="flex items-center gap-1.5 text-[10px] text-slate-300"
-                        >
-                          <div className="w-1 h-1 rounded-full bg-slate-500"></div>
-                          <span className="truncate">
-                            {block.type === "heading_h1" && "📋 Nagłówek"}
-                            {block.type === "info_grid" && "📊 Dane"}
-                            {block.type === "table_simple" && "📝 Tabela"}
-                            {block.type === "price_list" && "💰 Cennik"}
-                            {block.type === "qr" && "📱 QR"}
-                            {block.type === "signature" && "✍️ Podpis"}
-                            {block.type === "materials_table" && "🔧 Materiały"}
-                            {block.type === "checklist" && "✅ Zadania"}
+                      {/* Footer Badges */}
+                      <div className="p-3 pt-0 flex items-center justify-between">
+                        <div className="flex items-center gap-1">
+                          <span className="px-2 py-0.5 rounded-full bg-green-500/20 text-green-400 text-[9px] font-bold">
+                            Kolory ✓
                           </span>
                         </div>
-                      ))}
-                      {(template.blocks?.length || 0) > 3 && (
-                        <div className="text-[9px] text-slate-500 italic pl-3">
-                          +{(template.blocks?.length || 0) - 3} więcej
+                        <div className="text-[10px] text-slate-500">
+                          {template.blocks?.length || 0} bloków
                         </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
+                      </div>
 
-                {/* Footer Badges */}
-                <div className="mt-auto p-4 pt-0 flex items-center justify-between border-t border-slate-700">
-                  <div className="flex items-center gap-1.5">
-                    <span className="px-2 py-1 rounded-full bg-green-500/20 text-green-400 text-[10px] font-bold flex items-center gap-1">
-                      <CheckCircle size={10} /> Kolory
-                    </span>
-                    <span className="px-2 py-1 rounded-full bg-red-500/20 text-red-400 text-[10px] font-bold flex items-center gap-1">
-                      <Ban size={10} /> Układ
-                    </span>
-                  </div>
-                  <div className="text-xs text-slate-400 font-semibold">
-                    {template.blocks?.length || 0} bloków
-                  </div>
+                      {/* Hover Overlay */}
+                      <div className="absolute inset-0 bg-gradient-to-br from-ocean-500/0 to-blue-600/0 group-hover:from-ocean-500/20 group-hover:to-blue-600/20 transition-all pointer-events-none"></div>
+                    </button>
+                  ))}
                 </div>
-
-                {/* Hover Overlay */}
-                <div className="absolute inset-0 bg-gradient-to-br from-ocean-500/0 to-blue-600/0 group-hover:from-ocean-500/20 group-hover:to-blue-600/20 transition-all pointer-events-none"></div>
-              </button>
-            ))}
-          </div>
+              </div>
+            );
+          })}
         </div>
       )}
 
@@ -2996,6 +3109,7 @@ export const Documents: React.FC = () => {
                         blocks: [],
                       } as ExtendedDesign);
                       setDesignName(design.name);
+                      setEditingDesignId(design.id); // Editing existing design
                       setViewMode("BUILDER");
                     }}
                     className="flex-1 py-2 rounded-xl border-none bg-gradient-to-br from-[#fc00ff] to-[#00dbde] text-white font-bold shadow-lg text-sm hover:brightness-110 transition-all"

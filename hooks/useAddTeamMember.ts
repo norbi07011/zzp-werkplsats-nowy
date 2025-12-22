@@ -33,9 +33,10 @@ export function useAddTeamMember() {
 
     try {
       const { data, error: fetchError } = await supabase
-        .from("communication_projects")
-        .select("id, name, description, created_by, status, created_at")
+        .from("project_communication_rooms")
+        .select("id, name, description, created_by, is_archived, created_at")
         .eq("created_by", user.id)
+        .eq("is_archived", false)
         .order("created_at", { ascending: false });
 
       if (fetchError) throw fetchError;

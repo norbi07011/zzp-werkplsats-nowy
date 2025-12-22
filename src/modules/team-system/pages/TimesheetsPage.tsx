@@ -8,7 +8,15 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useTeamStore } from "../context/TeamStoreContext";
 import { supabase } from "../../../lib/supabase";
-import { format, parseISO, startOfWeek, endOfWeek, eachDayOfInterval, addWeeks, subWeeks } from "date-fns";
+import {
+  format,
+  parseISO,
+  startOfWeek,
+  endOfWeek,
+  eachDayOfInterval,
+  addWeeks,
+  subWeeks,
+} from "date-fns";
 import { pl } from "date-fns/locale";
 import {
   Clock,
@@ -54,7 +62,9 @@ export const TimesheetsPage = () => {
   const [timesheets, setTimesheets] = useState<Timesheet[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [currentWeek, setCurrentWeek] = useState(new Date());
-  const [filterStatus, setFilterStatus] = useState<"all" | "pending" | "approved" | "rejected">("all");
+  const [filterStatus, setFilterStatus] = useState<
+    "all" | "pending" | "approved" | "rejected"
+  >("all");
   const [filterUserId, setFilterUserId] = useState<string>("all");
 
   const weekStart = startOfWeek(currentWeek, { weekStartsOn: 1 });
@@ -68,12 +78,14 @@ export const TimesheetsPage = () => {
     try {
       let query = (supabase as any)
         .from("team_timesheets")
-        .select(`
+        .select(
+          `
           *,
           profiles!team_timesheets_user_id_fkey(full_name),
           team_projects(title),
           team_tasks(title)
-        `)
+        `
+        )
         .eq("team_id", selectedTeamId)
         .gte("date", format(weekStart, "yyyy-MM-dd"))
         .lte("date", format(weekEnd, "yyyy-MM-dd"))
@@ -108,10 +120,10 @@ export const TimesheetsPage = () => {
     try {
       const { error } = await (supabase as any)
         .from("team_timesheets")
-        .update({ 
+        .update({
           status: "approved",
           approved_by: currentUser?.id,
-          approved_at: new Date().toISOString()
+          approved_at: new Date().toISOString(),
         })
         .eq("id", id);
 
@@ -132,9 +144,9 @@ export const TimesheetsPage = () => {
     try {
       const { error } = await (supabase as any)
         .from("team_timesheets")
-        .update({ 
+        .update({
           status: "rejected",
-          rejection_reason: reason
+          rejection_reason: reason,
         })
         .eq("id", id);
 
@@ -151,16 +163,28 @@ export const TimesheetsPage = () => {
   // Filter timesheets
   let filteredTimesheets = timesheets;
   if (filterStatus !== "all") {
-    filteredTimesheets = filteredTimesheets.filter(t => t.status === filterStatus);
+    filteredTimesheets = filteredTimesheets.filter(
+      (t) => t.status === filterStatus
+    );
   }
   if (filterUserId !== "all") {
-    filteredTimesheets = filteredTimesheets.filter(t => t.user_id === filterUserId);
+    filteredTimesheets = filteredTimesheets.filter(
+      (t) => t.user_id === filterUserId
+    );
   }
 
   // Calculate totals
-  const totalHours = filteredTimesheets.reduce((sum, t) => sum + (t.total_hours || 0), 0);
-  const totalAmount = filteredTimesheets.reduce((sum, t) => sum + (t.total_amount || 0), 0);
-  const pendingCount = filteredTimesheets.filter(t => t.status === "pending").length;
+  const totalHours = filteredTimesheets.reduce(
+    (sum, t) => sum + (t.total_hours || 0),
+    0
+  );
+  const totalAmount = filteredTimesheets.reduce(
+    (sum, t) => sum + (t.total_amount || 0),
+    0
+  );
+  const pendingCount = filteredTimesheets.filter(
+    (t) => t.status === "pending"
+  ).length;
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -189,8 +213,12 @@ export const TimesheetsPage = () => {
     return (
       <div className="flex flex-col items-center justify-center h-64 bg-white rounded-xl border border-slate-100">
         <Clock size={64} className="text-slate-300 mb-4" />
-        <h3 className="text-xl font-semibold text-slate-600 mb-2">Wybierz zespół</h3>
-        <p className="text-slate-400">Karty czasu pracy wymagają wybrania zespołu.</p>
+        <h3 className="text-xl font-semibold text-slate-600 mb-2">
+          Wybierz zespół
+        </h3>
+        <p className="text-slate-400">
+          Karty czasu pracy wymagają wybrania zespołu.
+        </p>
       </div>
     );
   }
@@ -208,8 +236,12 @@ export const TimesheetsPage = () => {
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-slate-800">Karty Czasu Pracy</h2>
-          <p className="text-slate-500 text-sm">Zarządzaj godzinami pracy zespołu</p>
+          <h2 className="text-2xl font-bold text-slate-800">
+            Karty Czasu Pracy
+          </h2>
+          <p className="text-slate-500 text-sm">
+            Zarządzaj godzinami pracy zespołu
+          </p>
         </div>
       </div>
 
@@ -221,7 +253,9 @@ export const TimesheetsPage = () => {
           </div>
           <div>
             <p className="text-sm text-slate-500">Łączny czas</p>
-            <p className="text-2xl font-bold text-slate-800">{totalHours.toFixed(1)}h</p>
+            <p className="text-2xl font-bold text-slate-800">
+              {totalHours.toFixed(1)}h
+            </p>
           </div>
         </div>
         <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex items-center">
@@ -230,7 +264,9 @@ export const TimesheetsPage = () => {
           </div>
           <div>
             <p className="text-sm text-slate-500">Łączna kwota</p>
-            <p className="text-2xl font-bold text-slate-800">€{totalAmount.toFixed(2)}</p>
+            <p className="text-2xl font-bold text-slate-800">
+              €{totalAmount.toFixed(2)}
+            </p>
           </div>
         </div>
         <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex items-center">
@@ -248,7 +284,9 @@ export const TimesheetsPage = () => {
           </div>
           <div>
             <p className="text-sm text-slate-500">Wpisów</p>
-            <p className="text-2xl font-bold text-slate-800">{filteredTimesheets.length}</p>
+            <p className="text-2xl font-bold text-slate-800">
+              {filteredTimesheets.length}
+            </p>
           </div>
         </div>
       </div>
@@ -265,7 +303,8 @@ export const TimesheetsPage = () => {
           <div className="flex items-center gap-2 px-4 py-2 bg-slate-50 rounded-lg">
             <Calendar size={16} className="text-slate-500" />
             <span className="font-medium text-slate-700">
-              {format(weekStart, "d MMM", { locale: pl })} - {format(weekEnd, "d MMM yyyy", { locale: pl })}
+              {format(weekStart, "d MMM", { locale: pl })} -{" "}
+              {format(weekEnd, "d MMM yyyy", { locale: pl })}
             </span>
           </div>
           <button
@@ -302,8 +341,10 @@ export const TimesheetsPage = () => {
             className="border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
           >
             <option value="all">Wszyscy pracownicy</option>
-            {users.map(u => (
-              <option key={u.id} value={u.id}>{u.name}</option>
+            {users.map((u) => (
+              <option key={u.id} value={u.id}>
+                {u.name}
+              </option>
             ))}
           </select>
         </div>
@@ -315,30 +356,54 @@ export const TimesheetsPage = () => {
           <table className="w-full">
             <thead className="bg-slate-50 border-b border-slate-100">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Data</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Pracownik</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Projekt / Zadanie</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Czas</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Godziny</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Kwota</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Status</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Akcje</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                  Data
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                  Pracownik
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                  Projekt / Zadanie
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                  Czas
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                  Godziny
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                  Kwota
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                  Status
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                  Akcje
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {filteredTimesheets.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-4 py-12 text-center text-slate-500">
+                  <td
+                    colSpan={8}
+                    className="px-4 py-12 text-center text-slate-500"
+                  >
                     <Clock size={48} className="mx-auto text-slate-300 mb-4" />
                     <p>Brak kart czasu pracy w tym okresie</p>
                   </td>
                 </tr>
               ) : (
                 filteredTimesheets.map((ts) => (
-                  <tr key={ts.id} className="hover:bg-slate-50 transition-colors">
+                  <tr
+                    key={ts.id}
+                    className="hover:bg-slate-50 transition-colors"
+                  >
                     <td className="px-4 py-3">
                       <span className="font-medium text-slate-800">
-                        {format(parseISO(ts.date), "EEEE, d MMM", { locale: pl })}
+                        {format(parseISO(ts.date), "EEEE, d MMM", {
+                          locale: pl,
+                        })}
                       </span>
                     </td>
                     <td className="px-4 py-3">
@@ -351,21 +416,30 @@ export const TimesheetsPage = () => {
                     </td>
                     <td className="px-4 py-3">
                       <div>
-                        <p className="font-medium text-slate-700">{ts.project_title || "-"}</p>
+                        <p className="font-medium text-slate-700">
+                          {ts.project_title || "-"}
+                        </p>
                         {ts.task_title && (
-                          <p className="text-xs text-slate-500">{ts.task_title}</p>
+                          <p className="text-xs text-slate-500">
+                            {ts.task_title}
+                          </p>
                         )}
                       </div>
                     </td>
                     <td className="px-4 py-3 text-slate-600">
-                      {ts.start_time?.slice(0, 5)} - {ts.end_time?.slice(0, 5) || "..."}
+                      {ts.start_time?.slice(0, 5)} -{" "}
+                      {ts.end_time?.slice(0, 5) || "..."}
                     </td>
                     <td className="px-4 py-3">
-                      <span className="font-semibold text-slate-800">{ts.total_hours?.toFixed(1)}h</span>
+                      <span className="font-semibold text-slate-800">
+                        {ts.total_hours?.toFixed(1)}h
+                      </span>
                     </td>
                     <td className="px-4 py-3">
                       {ts.total_amount ? (
-                        <span className="font-semibold text-green-600">€{ts.total_amount.toFixed(2)}</span>
+                        <span className="font-semibold text-green-600">
+                          €{ts.total_amount.toFixed(2)}
+                        </span>
                       ) : (
                         <span className="text-slate-400">-</span>
                       )}
@@ -400,21 +474,25 @@ export const TimesheetsPage = () => {
       </div>
 
       {/* Notes */}
-      {filteredTimesheets.some(t => t.notes) && (
+      {filteredTimesheets.some((t) => t.notes) && (
         <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100">
           <h3 className="font-semibold text-slate-800 mb-3">Notatki</h3>
           <div className="space-y-2">
-            {filteredTimesheets.filter(t => t.notes).map(ts => (
-              <div key={ts.id} className="p-3 bg-slate-50 rounded-lg">
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="font-medium text-slate-700">{ts.user_name}</span>
-                  <span className="text-xs text-slate-400">
-                    {format(parseISO(ts.date), "d MMM", { locale: pl })}
-                  </span>
+            {filteredTimesheets
+              .filter((t) => t.notes)
+              .map((ts) => (
+                <div key={ts.id} className="p-3 bg-slate-50 rounded-lg">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="font-medium text-slate-700">
+                      {ts.user_name}
+                    </span>
+                    <span className="text-xs text-slate-400">
+                      {format(parseISO(ts.date), "d MMM", { locale: pl })}
+                    </span>
+                  </div>
+                  <p className="text-sm text-slate-600">{ts.notes}</p>
                 </div>
-                <p className="text-sm text-slate-600">{ts.notes}</p>
-              </div>
-            ))}
+              ))}
           </div>
         </div>
       )}

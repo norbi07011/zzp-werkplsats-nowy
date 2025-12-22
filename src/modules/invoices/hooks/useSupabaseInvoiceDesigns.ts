@@ -71,10 +71,24 @@ export function useSupabaseInvoiceDesigns(
     try {
       setError(null);
 
+      // CRITICAL: Remove any id field to let database generate new UUID
+      // Also remove fields that should not be copied from templates
+      const {
+        id: _id,
+        created_at: _createdAt,
+        updated_at: _updatedAt,
+        ...cleanData
+      } = data as any;
+
+      console.log("[createDesign] Inserting new design:", {
+        name: cleanData.name,
+        type: cleanData.type,
+      });
+
       const { data: design, error: createError } = await supabase
         .from("invoice_designs")
         .insert({
-          ...data,
+          ...cleanData,
           user_id: userId,
         })
         .select()

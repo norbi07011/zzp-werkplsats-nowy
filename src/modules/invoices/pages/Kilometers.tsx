@@ -4,7 +4,7 @@ import { useSupabaseKilometers, useSupabaseVehicles } from "../hooks";
 import type { KilometerEntry, TripType, Vehicle } from "../types";
 import { Modal } from "../components/Modal";
 import { VehicleManager } from "../components/VehicleManager";
-import { PageLoader } from "../components/PageLoader";
+import PageLoader from "../components/PageLoader";
 import { TruckAnimation } from "../components/TruckAnimation";
 import { VehicleAnimation } from "../components/VehicleAnimations";
 import { TiltCard } from "../components/TiltCard";
@@ -101,6 +101,16 @@ export const Kilometers: React.FC<KilometersProps> = ({ onNavigate }) => {
     "default:",
     defaultVehicle?.name || "BRAK"
   );
+
+  // Initial loading animation (minimum 2 seconds)
+  const [initialLoading, setInitialLoading] = useState(true);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setInitialLoading(false);
+    }, 2000);
+    return () => clearTimeout(timer);
+  }, []);
 
   // Modal States
   const [isTripModalOpen, setIsTripModalOpen] = useState(false);
@@ -789,7 +799,8 @@ export const Kilometers: React.FC<KilometersProps> = ({ onNavigate }) => {
     );
   };
 
-  if (isLoading) {
+  // Show loading animation for minimum 2 seconds
+  if (initialLoading || isLoading) {
     return <PageLoader />;
   }
 

@@ -92,42 +92,46 @@ import {
 import { toast } from "sonner";
 
 // --- UTILITY: Image Compression ---
-const compressImage = (file: File, maxWidth: number = 1200, quality: number = 0.7): Promise<string> => {
+const compressImage = (
+  file: File,
+  maxWidth: number = 1200,
+  quality: number = 0.7
+): Promise<string> => {
   return new Promise((resolve, reject) => {
     const img = new Image();
-    const canvas = document.createElement('canvas');
+    const canvas = document.createElement("canvas");
     const reader = new FileReader();
-    
+
     reader.onload = (e) => {
       img.onload = () => {
         // Calculate new dimensions (maintain aspect ratio)
         let width = img.width;
         let height = img.height;
-        
+
         if (width > maxWidth) {
           height = Math.round((height * maxWidth) / width);
           width = maxWidth;
         }
-        
+
         canvas.width = width;
         canvas.height = height;
-        
-        const ctx = canvas.getContext('2d');
+
+        const ctx = canvas.getContext("2d");
         if (!ctx) {
-          reject(new Error('Canvas context not available'));
+          reject(new Error("Canvas context not available"));
           return;
         }
-        
+
         ctx.drawImage(img, 0, 0, width, height);
-        
+
         // Convert to JPEG with compression (smaller than PNG)
-        const compressedBase64 = canvas.toDataURL('image/jpeg', quality);
+        const compressedBase64 = canvas.toDataURL("image/jpeg", quality);
         resolve(compressedBase64);
       };
-      img.onerror = () => reject(new Error('Failed to load image'));
+      img.onerror = () => reject(new Error("Failed to load image"));
       img.src = e.target?.result as string;
     };
-    reader.onerror = () => reject(new Error('Failed to read file'));
+    reader.onerror = () => reject(new Error("Failed to read file"));
     reader.readAsDataURL(file);
   });
 };
@@ -138,8 +142,10 @@ const safeLocalStorageSet = (key: string, value: string): boolean => {
     localStorage.setItem(key, value);
     return true;
   } catch (error) {
-    if (error instanceof DOMException && error.name === 'QuotaExceededError') {
-      console.warn(`[DocumentBuilder] localStorage quota exceeded for key: ${key}`);
+    if (error instanceof DOMException && error.name === "QuotaExceededError") {
+      console.warn(
+        `[DocumentBuilder] localStorage quota exceeded for key: ${key}`
+      );
       // Try to clear old data and retry
       try {
         // Remove the largest item (usually the quote with images)
@@ -161,31 +167,31 @@ const prepareQuoteForLocalStorage = (quote: Quote): Quote => {
   // For localStorage, we keep only small images (thumbnails)
   // Large images will only be in memory/Supabase
   const MAX_IMAGE_SIZE = 50000; // 50KB per image max for localStorage
-  
+
   return {
     ...quote,
-    images: quote.images.map(img => {
+    images: quote.images.map((img) => {
       if (img.url && img.url.length > MAX_IMAGE_SIZE) {
         // Store just a placeholder, image will be re-uploaded
-        return { ...img, url: '' };
+        return { ...img, url: "" };
       }
       return img;
     }),
-    items: quote.items.map(item => {
-      if (item.imageUrl && item.imageUrl.length > MAX_IMAGE_SIZE) {
-        return { ...item, imageUrl: '' };
+    items: quote.items.map((item) => {
+      if (item.image && item.image.length > MAX_IMAGE_SIZE) {
+        return { ...item, image: "" };
       }
       return item;
     }),
-    materials: quote.materials.map(item => {
+    materials: quote.materials.map((item) => {
       if (item.imageUrl && item.imageUrl.length > MAX_IMAGE_SIZE) {
-        return { ...item, imageUrl: '' };
+        return { ...item, imageUrl: "" };
       }
       return item;
     }),
-    tools: quote.tools.map(item => {
+    tools: quote.tools.map((item) => {
       if (item.imageUrl && item.imageUrl.length > MAX_IMAGE_SIZE) {
-        return { ...item, imageUrl: '' };
+        return { ...item, imageUrl: "" };
       }
       return item;
     }),
@@ -460,14 +466,21 @@ export function DocumentBuilder() {
     // Przygotuj quote do zapisu - usuń duże zdjęcia które przekraczają limit
     const quoteForStorage = prepareQuoteForLocalStorage(activeQuote);
     const jsonData = JSON.stringify(quoteForStorage);
-    
+
     // Użyj bezpiecznego zapisu z obsługą błędów
     const saved = safeLocalStorageSet(STORAGE_KEYS.ACTIVE_QUOTE, jsonData);
-    
+
     if (!saved) {
       // Jeśli nadal nie można zapisać, zapisz bez zdjęć
-      const minimalQuote = { ...activeQuote, images: [], items: activeQuote.items.map(i => ({ ...i, imageUrl: '' })) };
-      safeLocalStorageSet(STORAGE_KEYS.ACTIVE_QUOTE, JSON.stringify(minimalQuote));
+      const minimalQuote = {
+        ...activeQuote,
+        images: [],
+        items: activeQuote.items.map((i) => ({ ...i, imageUrl: "" })),
+      };
+      safeLocalStorageSet(
+        STORAGE_KEYS.ACTIVE_QUOTE,
+        JSON.stringify(minimalQuote)
+      );
     }
   }, [activeQuote]);
 
@@ -593,7 +606,8 @@ export function DocumentBuilder() {
     const riskCost = (baseDirectCosts * safeNum(activeQuote.riskBuffer)) / 100;
 
     // 4. Labor Cost (Theoretical - What you PAY yourself)
-    const laborCosts = safeNum(activeQuote.estimatedHours) * safeNum(activeQuote.hourlyRate);
+    const laborCosts =
+      safeNum(activeQuote.estimatedHours) * safeNum(activeQuote.hourlyRate);
 
     // 5. Total Costs (Theoretical)
     const totalTheoreticalCosts = baseDirectCosts + riskCost + laborCosts;
@@ -609,9 +623,7 @@ export function DocumentBuilder() {
     // (Revenue - MaterialCosts - ToolCosts - Risk) / Hours
     const hours = safeNum(activeQuote.estimatedHours);
     const effectiveHourlyRate =
-      hours > 0
-        ? (revenue - baseDirectCosts - riskCost) / hours
-        : 0;
+      hours > 0 ? (revenue - baseDirectCosts - riskCost) / hours : 0;
 
     return {
       revenue,
@@ -717,9 +729,17 @@ export function DocumentBuilder() {
   ) => {
     if (e.target.files && e.target.files[0]) {
       try {
-        const compressedBase64 = await compressImage(e.target.files[0], 800, 0.6);
+        const compressedBase64 = await compressImage(
+          e.target.files[0],
+          800,
+          0.6
+        );
         handleUpdateItem(id, "image", compressedBase64);
-        console.log(`[DocumentBuilder] Item image compressed: ${Math.round(compressedBase64.length / 1024)}KB`);
+        console.log(
+          `[DocumentBuilder] Item image compressed: ${Math.round(
+            compressedBase64.length / 1024
+          )}KB`
+        );
       } catch (error) {
         console.error("Błąd kompresji obrazu:", error);
         toast.error("Nie udało się załadować obrazu");
@@ -777,9 +797,17 @@ export function DocumentBuilder() {
     if (e.target.files && e.target.files[0]) {
       try {
         // Kompresuj obraz (max 800px, jakość 60%)
-        const compressedBase64 = await compressImage(e.target.files[0], 800, 0.6);
+        const compressedBase64 = await compressImage(
+          e.target.files[0],
+          800,
+          0.6
+        );
         handleUpdateResource(type, id, "imageUrl", compressedBase64);
-        console.log(`[DocumentBuilder] Resource image compressed: ${Math.round(compressedBase64.length / 1024)}KB`);
+        console.log(
+          `[DocumentBuilder] Resource image compressed: ${Math.round(
+            compressedBase64.length / 1024
+          )}KB`
+        );
       } catch (error) {
         console.error("Błąd kompresji obrazu:", error);
         toast.error("Nie udało się załadować obrazu");
@@ -859,12 +887,12 @@ export function DocumentBuilder() {
   const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
-      
+
       try {
         // Kompresuj zdjęcie przed zapisem (max 1200px szerokości, jakość 70%)
         // To zmniejsza rozmiar z ~5MB do ~100-200KB
         const compressedBase64 = await compressImage(file, 1200, 0.7);
-        
+
         const newImage: ProjectImage = {
           id: Date.now().toString(),
           url: compressedBase64,
@@ -876,8 +904,12 @@ export function DocumentBuilder() {
           ...prev,
           images: [...prev.images, newImage],
         }));
-        
-        console.log(`[DocumentBuilder] Photo uploaded, compressed size: ${Math.round(compressedBase64.length / 1024)}KB`);
+
+        console.log(
+          `[DocumentBuilder] Photo uploaded, compressed size: ${Math.round(
+            compressedBase64.length / 1024
+          )}KB`
+        );
       } catch (error) {
         console.error("Błąd kompresji/odczytu pliku obrazu:", error);
         toast.error("Nie udało się załadować zdjęcia");
@@ -1709,7 +1741,7 @@ export function DocumentBuilder() {
             >
               <ArrowLeft size={20} /> Powrót do Drużyny
             </button>
-            
+
             <button
               onClick={() => {
                 setView("dashboard");

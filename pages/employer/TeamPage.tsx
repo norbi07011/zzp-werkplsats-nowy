@@ -470,7 +470,9 @@ const TeamSystemContent = () => {
           <button
             onClick={() => setMobileMenuOpen(true)}
             className={`flex flex-col items-center justify-center flex-1 py-2 transition-all ${
-              ["calendar", "ranking", "orderbuilder", "tools"].includes(activeTab)
+              ["calendar", "ranking", "orderbuilder", "tools"].includes(
+                activeTab
+              )
                 ? "text-blue-600"
                 : "text-slate-500 hover:text-slate-700"
             }`}

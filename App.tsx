@@ -240,9 +240,6 @@ const RegularUserDashboard = lazy(() => import("./pages/RegularUserDashboard"));
 // ✅ Invoice Module (LAZY LOADED) - faktury, BTW, koszty, kilometry
 const InvoiceApp = lazy(() => import("./src/modules/invoices/InvoiceApp"));
 
-// ✅ Shared Kilometers Page (LAZY LOADED) - available for ALL panels
-const KilometersPage = lazy(() => import("./pages/shared/KilometersPage"));
-
 function App() {
   return (
     <EnhancedErrorBoundary>
@@ -432,15 +429,7 @@ function App() {
                               </ProtectedRoute>
                             }
                           />
-                          {/* 🚗 Kilometers - Accountant's private mileage tracking */}
-                          <Route
-                            path="/accountant/kilometers"
-                            element={
-                              <ProtectedRoute requiredRole="accountant">
-                                <KilometersPage />
-                              </ProtectedRoute>
-                            }
-                          />
+
                           {/* 💳 Subscription - Accountant subscription management */}
                           <Route
                             path="/accountant/subscription"
@@ -568,11 +557,6 @@ function App() {
                             path="documentation"
                             element={<Navigate to="/admin" replace />}
                           />
-                          {/* 🚗 Kilometers - Admin's private mileage tracking */}
-                          <Route
-                            path="kilometers"
-                            element={<KilometersPage />}
-                          />
                         </Route>
 
                         {/* Employer routes (LAZY LOADED) */}
@@ -622,11 +606,6 @@ function App() {
                               </ProtectedRoute>
                             }
                           />
-                          {/* 🚗 Kilometers - Employer's private mileage tracking */}
-                          <Route
-                            path="kilometers"
-                            element={<KilometersPage />}
-                          />
                         </Route>
 
                         {/* 👥 Team - Zarządzanie zespołem (osobny layout - poza AuthenticatedLayout) */}
@@ -673,11 +652,6 @@ function App() {
                             path="subscription-selection"
                             element={<WorkerSubscriptionSelectionPage />}
                           />
-                          {/* 🚗 Kilometers - Worker's private mileage tracking */}
-                          <Route
-                            path="kilometers"
-                            element={<KilometersPage />}
-                          />
                         </Route>
 
                         {/* Regular User routes (DEDICATED DASHBOARD) 🆕 */}
@@ -712,11 +686,6 @@ function App() {
                             element={
                               <CleaningCompanySubscriptionSelectionPage />
                             }
-                          />
-                          {/* 🚗 Kilometers - Cleaning Company's private mileage tracking */}
-                          <Route
-                            path="kilometers"
-                            element={<KilometersPage />}
                           />
                         </Route>
 

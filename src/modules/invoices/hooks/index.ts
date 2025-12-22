@@ -13,3 +13,18 @@ export { useSupabaseBTW } from "./useSupabaseBTW.js";
 export { useSupabaseKilometers } from "./useSupabaseKilometers.js";
 export { useSupabaseVehicles } from "./useSupabaseVehicles.js";
 export { useSupabaseInvoiceDesigns } from "./useSupabaseInvoiceDesigns.js";
+
+// Advanced BTW hooks
+export {
+  useKOR,
+  useBTWHealthScore,
+  useBTWAnalytics,
+  useBTWDeadlines,
+} from "./useBTWAdvanced.js";
+export type {
+  KORStatus,
+  KORCalculation,
+  BTWHealthScore,
+  BTWAnalytics,
+  BTWDeadline,
+} from "./useBTWAdvanced.js";

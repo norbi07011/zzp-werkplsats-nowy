@@ -130,20 +130,6 @@ const ALL_TABS: TabConfig[] = [
     roles: ["accountant"],
   },
   {
-    id: "submissions",
-    label: "Zgłoszenia",
-    icon: ClipboardList,
-    description: "Zgłoszenia od klientów",
-    roles: ["accountant"],
-  },
-  {
-    id: "forms",
-    label: "Formularze",
-    icon: FileText,
-    description: "Formularze, dokumenty",
-    roles: ["accountant"],
-  },
-  {
     id: "team",
     label: "Drużyna",
     icon: Users,
@@ -429,8 +415,8 @@ export const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
             )}
           </div>
 
-          {/* Faktury Link - For accountant, worker, cleaning_company and employer */}
-          {user.role !== "regular_user" && user.role !== "admin" && (
+          {/* Faktury Link - For all roles except regular_user */}
+          {user.role !== "regular_user" && (
             <Link
               to="/faktury"
               onClick={() =>
