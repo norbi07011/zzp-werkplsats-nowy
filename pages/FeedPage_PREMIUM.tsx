@@ -470,22 +470,23 @@ export default function FeedPagePremium() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-purple-50">
       {/* ===== HEADER WITH GLASSMORPHISM ===== */}
-      <div className="sticky top-0 z-50 backdrop-blur-xl bg-white/80 border-b border-white/20 shadow-lg">
-        <div className="container mx-auto px-4 py-4">
+      {/* Na mobile: relative zamiast sticky, na desktop: sticky */}
+      <div className="relative md:sticky md:top-0 z-40 md:z-50 backdrop-blur-xl bg-white/95 md:bg-white/80 border-b border-white/20 shadow-lg">
+        <div className="container mx-auto px-4 py-3 md:py-4">
           <div className="flex items-center justify-between max-w-7xl mx-auto">
-            <div className="flex items-center gap-6">
-              <h1 className="text-3xl font-black bg-gradient-to-r from-amber-600 via-orange-500 to-red-500 bg-clip-text text-transparent">
-                Feed
+            <div className="flex items-center gap-4 md:gap-6">
+              <h1 className="text-2xl md:text-3xl font-black bg-gradient-to-r from-amber-600 via-orange-500 to-red-500 bg-clip-text text-transparent">
+                Karmić
               </h1>
             </div>
 
-            {/* Search */}
-            <div className="flex items-center gap-4">
+            {/* Search - ukryty na mobile, widoczny na desktop */}
+            <div className="hidden md:flex items-center gap-4">
               <div className="relative">
                 <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
                 <input
                   type="text"
-                  placeholder="Zoeken..."
+                  placeholder="Aby wyszukać..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="pl-12 pr-4 py-3 w-80 bg-white/60 backdrop-blur-sm border border-white/40 rounded-full focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all"
@@ -498,20 +499,30 @@ export default function FeedPagePremium() {
                   className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-amber-600 to-orange-600 text-white rounded-full font-bold shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300"
                 >
                   <Plus className="w-5 h-5" />
-                  Nieuw Post
+                  Nowy Post
                 </button>
               )}
             </div>
+
+            {/* Mobile: przycisk dodawania */}
+            {canCreatePost && (
+              <button
+                onClick={() => setShowCreatePost(true)}
+                className="md:hidden flex items-center justify-center w-10 h-10 bg-gradient-to-r from-amber-600 to-orange-600 text-white rounded-full shadow-lg"
+              >
+                <Plus className="w-5 h-5" />
+              </button>
+            )}
           </div>
         </div>
 
-        {/* ===== FILTER TABS ===== */}
-        <div className="border-t border-white/20">
+        {/* ===== FILTER TABS - STICKY NA MOBILE ===== */}
+        <div className="sticky top-0 z-50 md:relative md:z-auto border-t border-white/20 bg-white/95 md:bg-transparent backdrop-blur-xl md:backdrop-blur-none">
           <div className="max-w-7xl mx-auto px-4">
             <div className="flex gap-2 overflow-x-auto scrollbar-hide py-3">
               <button
                 onClick={() => setActiveFilter("all")}
-                className={`px-6 py-2 rounded-full font-bold whitespace-nowrap transition-all ${
+                className={`px-4 md:px-6 py-2 rounded-full font-bold whitespace-nowrap transition-all text-sm md:text-base ${
                   activeFilter === "all"
                     ? "bg-gradient-to-r from-amber-600 to-orange-600 text-white shadow-lg"
                     : "bg-white/60 text-gray-700 hover:bg-white/80"
@@ -521,7 +532,7 @@ export default function FeedPagePremium() {
               </button>
               <button
                 onClick={() => setActiveFilter("service_requests")}
-                className={`px-6 py-2 rounded-full font-bold whitespace-nowrap transition-all ${
+                className={`px-4 md:px-6 py-2 rounded-full font-bold whitespace-nowrap transition-all text-sm md:text-base ${
                   activeFilter === "service_requests"
                     ? "bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg"
                     : "bg-white/60 text-gray-700 hover:bg-white/80"
@@ -531,7 +542,7 @@ export default function FeedPagePremium() {
               </button>
               <button
                 onClick={() => setActiveFilter("announcements")}
-                className={`px-6 py-2 rounded-full font-bold whitespace-nowrap transition-all ${
+                className={`px-4 md:px-6 py-2 rounded-full font-bold whitespace-nowrap transition-all text-sm md:text-base ${
                   activeFilter === "announcements"
                     ? "bg-gradient-to-r from-blue-600 to-cyan-600 text-white shadow-lg"
                     : "bg-white/60 text-gray-700 hover:bg-white/80"
@@ -541,7 +552,7 @@ export default function FeedPagePremium() {
               </button>
               <button
                 onClick={() => setActiveFilter("jobs")}
-                className={`px-6 py-2 rounded-full font-bold whitespace-nowrap transition-all ${
+                className={`px-4 md:px-6 py-2 rounded-full font-bold whitespace-nowrap transition-all text-sm md:text-base ${
                   activeFilter === "jobs"
                     ? "bg-gradient-to-r from-green-600 to-emerald-600 text-white shadow-lg"
                     : "bg-white/60 text-gray-700 hover:bg-white/80"
@@ -551,20 +562,20 @@ export default function FeedPagePremium() {
               </button>
               <button
                 onClick={() => setActiveFilter("ads")}
-                className={`px-6 py-2 rounded-full font-bold whitespace-nowrap transition-all ${
+                className={`px-4 md:px-6 py-2 rounded-full font-bold whitespace-nowrap transition-all text-sm md:text-base ${
                   activeFilter === "ads"
                     ? "bg-gradient-to-r from-red-600 to-orange-600 text-white shadow-lg"
                     : "bg-white/60 text-gray-700 hover:bg-white/80"
                 }`}
               >
-                📣 Reklamy
+                📣 Reklama
               </button>
             </div>
           </div>
         </div>
 
-        {/* 🔥 NOWE: ZAAWANSOWANE FILTRY */}
-        <div className="border-t border-white/10 bg-gradient-to-b from-white/5 to-transparent">
+        {/* 🔥 ZAAWANSOWANE FILTRY - tylko na desktop lub po kliknięciu na mobile */}
+        <div className="hidden md:block border-t border-white/10 bg-gradient-to-b from-white/5 to-transparent">
           <div className="max-w-7xl mx-auto px-4 py-4">
             {/* Wyszukiwarka + przycisk filtrów */}
             <div className="flex gap-3 mb-4">
@@ -727,16 +738,39 @@ export default function FeedPagePremium() {
         </div>
       </div>
 
+      {/* ===== MOBILE: SEARCH BAR (pod sticky tabs) ===== */}
+      <div className="md:hidden px-4 py-3 bg-white/80 backdrop-blur-sm border-b border-gray-100">
+        <div className="relative">
+          <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Lokalizacja, słowa kluczowe..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all text-sm"
+          />
+        </div>
+        <div className="flex justify-end mt-2">
+          <button
+            onClick={() => setShowFilters(!showFilters)}
+            className="text-sm text-gray-600 font-medium flex items-center gap-1"
+          >
+            <Filter size={16} />
+            Filtry
+          </button>
+        </div>
+      </div>
+
       {/* ===== STORIES CAROUSEL ===== */}
-      <div className="container mx-auto px-4 mt-6 max-w-7xl">
+      <div className="container mx-auto px-4 mt-4 md:mt-6 max-w-7xl">
         <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide">
           {/* Add Story Button */}
           {canCreatePost && (
             <button className="flex-shrink-0 group">
               <div className="relative">
-                <div className="w-20 h-20 rounded-full bg-gradient-to-br from-amber-500 to-orange-600 p-0.5">
+                <div className="w-16 md:w-20 h-16 md:h-20 rounded-full bg-gradient-to-br from-amber-500 to-orange-600 p-0.5">
                   <div className="w-full h-full rounded-full bg-white flex items-center justify-center">
-                    <Plus className="w-8 h-8 text-amber-600" />
+                    <Plus className="w-6 md:w-8 h-6 md:h-8 text-amber-600" />
                   </div>
                 </div>
                 <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-amber-600 rounded-full border-2 border-white flex items-center justify-center">
