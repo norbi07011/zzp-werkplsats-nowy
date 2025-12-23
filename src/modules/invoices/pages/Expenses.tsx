@@ -29,6 +29,10 @@ import {
   Calendar,
   Edit3,
   Download,
+  Upload,
+  Globe,
+  Building2,
+  ImageIcon,
 } from "lucide-react";
 
 // 3D Tilt Card Component
@@ -113,6 +117,16 @@ export default function Expenses({ onNavigate }: ExpensesProps) {
     is_deductible: boolean;
     deductible_percentage: number;
     notes?: string;
+    // EU Purchase
+    is_eu_purchase: boolean;
+    eu_country_code: string;
+    supplier_vat_number: string;
+    is_reverse_charge: boolean;
+    // Fixed Asset
+    is_asset: boolean;
+    asset_depreciation_years: number;
+    // Receipt
+    receipt_url: string;
   }>({
     date: new Date().toISOString().split("T")[0],
     category: "software",
@@ -123,6 +137,16 @@ export default function Expenses({ onNavigate }: ExpensesProps) {
     payment_method: "bank_transfer",
     is_deductible: true,
     deductible_percentage: 100,
+    // EU Purchase defaults
+    is_eu_purchase: false,
+    eu_country_code: "",
+    supplier_vat_number: "",
+    is_reverse_charge: false,
+    // Asset defaults
+    is_asset: false,
+    asset_depreciation_years: 5,
+    // Receipt
+    receipt_url: "",
   });
 
   // Filter by month, category and search
@@ -176,6 +200,16 @@ export default function Expenses({ onNavigate }: ExpensesProps) {
         is_deductible: expense.is_deductible,
         deductible_percentage: expense.deductible_percentage,
         notes: expense.notes,
+        // EU Purchase
+        is_eu_purchase: expense.is_eu_purchase || false,
+        eu_country_code: expense.eu_country_code || "",
+        supplier_vat_number: expense.supplier_vat_number || "",
+        is_reverse_charge: expense.is_reverse_charge || false,
+        // Asset
+        is_asset: expense.is_asset || false,
+        asset_depreciation_years: expense.asset_depreciation_years || 5,
+        // Receipt
+        receipt_url: expense.receipt_url || "",
       });
     } else {
       setEditingExpense(null);
@@ -189,6 +223,16 @@ export default function Expenses({ onNavigate }: ExpensesProps) {
         payment_method: "bank_transfer",
         is_deductible: true,
         deductible_percentage: 100,
+        // EU Purchase defaults
+        is_eu_purchase: false,
+        eu_country_code: "",
+        supplier_vat_number: "",
+        is_reverse_charge: false,
+        // Asset defaults
+        is_asset: false,
+        asset_depreciation_years: 5,
+        // Receipt
+        receipt_url: "",
       });
     }
     setIsDialogOpen(true);
@@ -836,6 +880,257 @@ export default function Expenses({ onNavigate }: ExpensesProps) {
                     <option value="25">25%</option>
                     <option value="0">0% (prywatny)</option>
                   </select>
+                </div>
+              </div>
+
+              {/* ============================================= */}
+              {/* EU PURCHASE SECTION */}
+              {/* ============================================= */}
+              <div className="bg-blue-50 p-5 rounded-xl border border-blue-200">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-10 h-10 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center">
+                    <Globe size={20} />
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-slate-800">Zakup z UE</h4>
+                    <p className="text-xs text-slate-500">Reverse charge / ICL</p>
+                  </div>
+                </div>
+
+                <div
+                  className={`flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all mb-4 ${
+                    formData.is_eu_purchase
+                      ? "bg-blue-100 border-blue-400"
+                      : "bg-white border-slate-200 hover:bg-slate-50"
+                  }`}
+                  onClick={() =>
+                    setFormData({
+                      ...formData,
+                      is_eu_purchase: !formData.is_eu_purchase,
+                      is_reverse_charge: !formData.is_eu_purchase ? true : formData.is_reverse_charge,
+                    })
+                  }
+                >
+                  <div
+                    className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${
+                      formData.is_eu_purchase
+                        ? "bg-blue-500 border-blue-500"
+                        : "border-slate-300"
+                    }`}
+                  >
+                    {formData.is_eu_purchase && (
+                      <CheckCircle2 size={12} className="text-white" />
+                    )}
+                  </div>
+                  <span className="font-medium text-slate-700">
+                    🇪🇺 Zakup z innego kraju UE
+                  </span>
+                </div>
+
+                {formData.is_eu_purchase && (
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-500 uppercase mb-1.5">
+                        Kraj UE
+                      </label>
+                      <select
+                        value={formData.eu_country_code}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            eu_country_code: e.target.value,
+                          })
+                        }
+                        className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 focus:ring-2 focus:ring-blue-500 outline-none font-medium"
+                      >
+                        <option value="">Wybierz kraj...</option>
+                        <option value="DE">🇩🇪 Niemcy</option>
+                        <option value="BE">🇧🇪 Belgia</option>
+                        <option value="FR">🇫🇷 Francja</option>
+                        <option value="AT">🇦🇹 Austria</option>
+                        <option value="IT">🇮🇹 Włochy</option>
+                        <option value="ES">🇪🇸 Hiszpania</option>
+                        <option value="PL">🇵🇱 Polska</option>
+                        <option value="IE">🇮🇪 Irlandia</option>
+                        <option value="LU">🇱🇺 Luksemburg</option>
+                        <option value="OTHER">Inny kraj UE</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-slate-500 uppercase mb-1.5">
+                        Nr VAT Dostawcy
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.supplier_vat_number}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            supplier_vat_number: e.target.value.toUpperCase(),
+                          })
+                        }
+                        className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 focus:ring-2 focus:ring-blue-500 outline-none font-medium"
+                        placeholder="DE123456789"
+                      />
+                    </div>
+                    <div className="col-span-2">
+                      <div
+                        className={`flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all ${
+                          formData.is_reverse_charge
+                            ? "bg-amber-50 border-amber-300"
+                            : "bg-white border-slate-200"
+                        }`}
+                        onClick={() =>
+                          setFormData({
+                            ...formData,
+                            is_reverse_charge: !formData.is_reverse_charge,
+                          })
+                        }
+                      >
+                        <div
+                          className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${
+                            formData.is_reverse_charge
+                              ? "bg-amber-500 border-amber-500"
+                              : "border-slate-300"
+                          }`}
+                        >
+                          {formData.is_reverse_charge && (
+                            <CheckCircle2 size={12} className="text-white" />
+                          )}
+                        </div>
+                        <div>
+                          <span className="font-medium text-slate-700">
+                            ⚡ Reverse Charge (odwrotne obciążenie)
+                          </span>
+                          <p className="text-xs text-slate-500">
+                            VAT rozliczany przez nabywcę (art. 28b)
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* ============================================= */}
+              {/* FIXED ASSET / DEPRECIATION SECTION */}
+              {/* ============================================= */}
+              <div className="bg-purple-50 p-5 rounded-xl border border-purple-200">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-10 h-10 rounded-xl bg-purple-100 text-purple-600 flex items-center justify-center">
+                    <Building2 size={20} />
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-slate-800">Środek Trwały</h4>
+                    <p className="text-xs text-slate-500">Amortyzacja (&gt;€450)</p>
+                  </div>
+                </div>
+
+                <div
+                  className={`flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all mb-4 ${
+                    formData.is_asset
+                      ? "bg-purple-100 border-purple-400"
+                      : "bg-white border-slate-200 hover:bg-slate-50"
+                  }`}
+                  onClick={() =>
+                    setFormData({
+                      ...formData,
+                      is_asset: !formData.is_asset,
+                    })
+                  }
+                >
+                  <div
+                    className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${
+                      formData.is_asset
+                        ? "bg-purple-500 border-purple-500"
+                        : "border-slate-300"
+                    }`}
+                  >
+                    {formData.is_asset && (
+                      <CheckCircle2 size={12} className="text-white" />
+                    )}
+                  </div>
+                  <span className="font-medium text-slate-700">
+                    🏢 To jest środek trwały (do amortyzacji)
+                  </span>
+                </div>
+
+                {formData.is_asset && (
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1.5">
+                      Lata amortyzacji
+                    </label>
+                    <select
+                      value={formData.asset_depreciation_years}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          asset_depreciation_years: parseInt(e.target.value),
+                        })
+                      }
+                      className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 focus:ring-2 focus:ring-purple-500 outline-none font-medium"
+                    >
+                      <option value="3">3 lata (sprzęt IT)</option>
+                      <option value="5">5 lat (standard)</option>
+                      <option value="7">7 lat (meble, wyposażenie)</option>
+                      <option value="10">10 lat (maszyny)</option>
+                      <option value="20">20 lat (budynki)</option>
+                    </select>
+                    <p className="text-xs text-purple-600 mt-2">
+                      💡 Roczna amortyzacja: {(formData.amount / formData.asset_depreciation_years).toFixed(2)} €
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* ============================================= */}
+              {/* RECEIPT UPLOAD SECTION */}
+              {/* ============================================= */}
+              <div className="bg-amber-50 p-5 rounded-xl border border-amber-200">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-600 flex items-center justify-center">
+                    <ImageIcon size={20} />
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-slate-800">Paragon / Faktura</h4>
+                    <p className="text-xs text-slate-500">Załącz dowód zakupu</p>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1.5">
+                    URL do paragonu / faktury
+                  </label>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={formData.receipt_url}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          receipt_url: e.target.value,
+                        })
+                      }
+                      className="flex-1 bg-white border border-slate-200 rounded-xl px-4 py-3 focus:ring-2 focus:ring-amber-500 outline-none font-medium"
+                      placeholder="https://storage.example.com/receipt.pdf"
+                    />
+                    <button
+                      type="button"
+                      className="px-4 py-3 bg-amber-100 hover:bg-amber-200 rounded-xl text-amber-700 font-bold flex items-center gap-2 transition-colors"
+                    >
+                      <Upload size={18} />
+                    </button>
+                  </div>
+                  {formData.receipt_url && (
+                    <a
+                      href={formData.receipt_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 text-sm text-amber-600 hover:text-amber-700 mt-2"
+                    >
+                      📎 Podgląd załącznika
+                    </a>
+                  )}
                 </div>
               </div>
 

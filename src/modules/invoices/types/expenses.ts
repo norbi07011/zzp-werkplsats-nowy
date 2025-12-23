@@ -56,6 +56,16 @@ export interface Expense {
   // Notes
   notes?: string;
   
+  // EU Purchase (reverse charge)
+  is_eu_purchase?: boolean;
+  eu_country_code?: string;
+  supplier_vat_number?: string;
+  is_reverse_charge?: boolean;
+  
+  // Fixed Asset (depreciation)
+  is_asset?: boolean;
+  asset_depreciation_years?: number;
+  
   // Timestamps
   created_at: string;
   updated_at: string;

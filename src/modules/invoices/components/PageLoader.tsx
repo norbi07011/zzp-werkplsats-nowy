@@ -3,7 +3,7 @@
 const PageLoader = () => {
   return (
     <div className="fixed inset-0 z-50 bg-[#1e1e1e] flex items-center justify-center overflow-hidden">
-       <style>{`
+      <style>{`
           .loader-wrapper {
             position: relative;
             display: flex;
@@ -74,13 +74,13 @@ const PageLoader = () => {
             65% { opacity: 0; }
           }
        `}</style>
-       
-       <div className="loader-wrapper">
-          <div className="loader-text">ZZP Werkplaats</div>
-          <div className="loader-scanline" />
-       </div>
+
+      <div className="loader-wrapper">
+        <div className="loader-text">ZZP Werkplaats</div>
+        <div className="loader-scanline" />
+      </div>
     </div>
   );
-}
+};
 
 export default PageLoader;
