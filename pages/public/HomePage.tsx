@@ -221,6 +221,7 @@ export const HomePage: React.FC = () => {
               <video
                 src="/,,.mp4"
                 autoPlay
+                muted
                 loop
                 playsInline
                 controls
