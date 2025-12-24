@@ -14,7 +14,13 @@ const supabaseServiceAny = supabaseService as any;
 // =====================================================
 
 export type PostType = "job_offer" | "ad" | "announcement" | "service_request";
-export type AuthorType = "employer" | "accountant" | "admin" | "regular_user";
+export type AuthorType =
+  | "worker"
+  | "employer"
+  | "accountant"
+  | "cleaning_company"
+  | "admin"
+  | "regular_user";
 export type UserType =
   | "worker"
   | "employer"
@@ -554,7 +560,7 @@ export async function hasUserLikedPost(
     .from("post_likes")
     .select("id")
     .eq("post_id", postId)
-    .eq("user_id", profileId) // Use user_id for RLS compatibility
+    .eq("profile_id", profileId) // 🔥 FIXED: Use profile_id which is auth.uid()
     .maybeSingle(); // 🔥 FIXED: Use maybeSingle() to avoid 406 when no like exists
 
   if (error) throw error;
@@ -572,7 +578,7 @@ export async function getUserReaction(
     .from("post_likes")
     .select("reaction_type")
     .eq("post_id", postId)
-    .eq("user_id", profileId) // FIXED: Use user_id consistently
+    .eq("profile_id", profileId) // FIXED: Use profile_id which is auth.uid()
     .maybeSingle();
 
   if (error) {
@@ -1090,13 +1096,19 @@ export async function reactToPost(
   profileId: string,
   reactionType: ReactionType
 ): Promise<void> {
-  // Sprawdź czy user już zareagował
-  const { data: existing } = await supabaseAny
+  // Sprawdź czy user już zareagował - używamy maybeSingle() zamiast single()
+  // żeby uniknąć błędu 406 gdy nie ma rekordu
+  const { data: existing, error: selectError } = await supabaseAny
     .from("post_likes")
     .select("id, reaction_type")
     .eq("post_id", postId)
     .eq("profile_id", profileId)
-    .single();
+    .maybeSingle();
+
+  // Ignoruj błąd "no rows" - to normalne gdy user jeszcze nie zareagował
+  if (selectError && selectError.code !== "PGRST116") {
+    console.error("Error checking existing reaction:", selectError);
+  }
 
   if (existing) {
     // Update istniejącej reakcji
@@ -1382,13 +1394,18 @@ export async function reactToComment(
   profileId: string,
   reactionType: ReactionType
 ): Promise<void> {
-  // Sprawdź czy user już zareagował
-  const { data: existing } = await supabaseAny
+  // Sprawdź czy user już zareagował - używamy maybeSingle() zamiast single()
+  const { data: existing, error: selectError } = await supabaseAny
     .from("comment_reactions")
     .select("id, reaction_type")
     .eq("comment_id", commentId)
     .eq("profile_id", profileId)
-    .single();
+    .maybeSingle();
+
+  // Ignoruj błąd "no rows"
+  if (selectError && selectError.code !== "PGRST116") {
+    console.error("Error checking existing comment reaction:", selectError);
+  }
 
   if (existing) {
     // Update istniejącej reakcji

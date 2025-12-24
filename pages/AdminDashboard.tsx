@@ -657,16 +657,16 @@ export const AdminDashboard: React.FC = () => {
       },
     },
     {
-      title: "Generator Certyfikatów (NEW)",
+      title: "Certificate Master 13.0",
       description:
-        "Generuj profesjonalne certyfikaty PDF dla pracowników z QR weryfikacją",
+        "Zaawansowany designer certyfikatów z drukiem PDF/kartą ID i integracją QR",
       path: "/admin/certificates/generate",
-      icon: "🎖️",
+      icon: "🏆",
       color: "premium" as const,
       stats: {
         label: "Generated",
         value: (stats.generatedCertificates || 0).toString(),
-        trend: "A4 Landscape PDF",
+        trend: "A4 + ID Card",
       },
     },
     {

@@ -33,12 +33,12 @@ import VerifyCertificatePage from "./pages/public/VerifyCertificatePage";
 // Accountant pages
 import AccountantRegistration from "./pages/AccountantRegistration";
 import AccountantDashboard from "./pages/accountant/AccountantDashboard";
-import AccountantProfilePage from "./pages/public/AccountantProfilePage";
+import AccountantProfilePage from "./pages/public/AccountantPublicProfilePageModern"; // 🆕 MODERN DESIGN
 import AccountantSearchPage from "./pages/public/AccountantSearchPage";
 import EmployerSearchPage from "./pages/public/EmployerSearchPage";
-import EmployerPublicProfilePage from "./pages/public/EmployerPublicProfilePage";
-import WorkerPublicProfilePage from "./pages/public/WorkerPublicProfilePage";
-import CleaningCompanyPublicProfilePage from "./pages/public/CleaningCompanyPublicProfilePage";
+import EmployerPublicProfilePage from "./pages/public/EmployerPublicProfilePageModern"; // 🆕 MODERN DESIGN
+import WorkerPublicProfilePage from "./pages/public/WorkerPublicProfilePageModern"; // 🆕 MODERN DESIGN
+import CleaningCompanyPublicProfilePage from "./pages/public/CleaningCompanyPublicProfilePageModern"; // 🆕 MODERN DESIGN
 import AdminPublicProfilePage from "./pages/public/AdminPublicProfilePage";
 import FeedPage from "./pages/FeedPage_PREMIUM"; // 🚀 ULTRA-PREMIUM FEED 2025
 import { Settings } from "./pages/Settings";
@@ -73,9 +73,7 @@ const TestScheduler = lazy(() => import("./pages/Admin/TestSchedulerPageNew"));
 const CertificatesManager = lazy(
   () => import("./pages/Admin/CertificatesManager")
 );
-const CertificateGenerator = lazy(
-  () => import("./pages/Admin/CertificateGenerator")
-);
+const CertificateMaster = lazy(() => import("./pages/Admin/CertificateMaster"));
 const GeneratedCertificatesList = lazy(
   () => import("./pages/Admin/GeneratedCertificatesList")
 );
@@ -232,6 +230,7 @@ const WorkerSubscriptionPage = lazy(() =>
 
 // Regular User pages (LAZY LOADED) 🆕
 const RegularUserDashboard = lazy(() => import("./pages/RegularUserDashboard"));
+const RequestDetailsPage = lazy(() => import("./pages/RequestDetailsPage"));
 
 // Cleaning Company pages (LAZY LOADED) ✨ NOWE
 // ❌ REMOVED: CleaningDashboard, CleaningReviewsPage, CleaningPortfolioPage - moved to archiwum
@@ -531,7 +530,7 @@ function App() {
                           />
                           <Route
                             path="certificates/generate"
-                            element={<CertificateGenerator />}
+                            element={<CertificateMaster />}
                           />
                           <Route
                             path="certificates/generated"
@@ -665,6 +664,16 @@ function App() {
                         >
                           <Route index element={<RegularUserDashboard />} />
                         </Route>
+
+                        {/* Request Details (Accessible by all authenticated users) */}
+                        <Route
+                          path="/request/:id"
+                          element={
+                            <ProtectedRoute>
+                              <RequestDetailsPage />
+                            </ProtectedRoute>
+                          }
+                        />
 
                         {/* Cleaning Company routes (DEDICATED DASHBOARD) */}
                         <Route

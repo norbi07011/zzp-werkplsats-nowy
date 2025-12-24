@@ -16,7 +16,7 @@ import { supabase } from "@/lib/supabase";
 import { useIsMobile } from "../src/hooks/useIsMobile";
 import workerProfileService from "../services/workerProfileService";
 import { Animated3DProfileBackground } from "../components/Animated3DProfileBackground";
-import { getJobs } from "../src/services/job";
+import { getJobs, getJobOffersFromPosts } from "../src/services/job";
 import { SupportTicketModal } from "../src/components/SupportTicketModal";
 import { geocodeAddress } from "../services/geocoding";
 import type { WorkerProfileData } from "../services/workerProfileService";
@@ -666,11 +666,44 @@ export default function WorkerDashboard() {
       // const apps = await workerProfileService.getApplications(user.id);
       setApplications([]); // Mock: empty until DB fixed
 
-      // Load available jobs (active/published jobs)
+      // Load available jobs (active job_offer posts from employers)
       try {
-        const jobsData = await getJobs({ status: "active" });
-        setJobs(jobsData || []);
-        console.log("✅ [WORKER-DASH] Loaded jobs:", jobsData?.length || 0);
+        // First try to get job offers from posts table (main source)
+        const jobOfferPosts = await getJobOffersFromPosts();
+
+        if (jobOfferPosts && jobOfferPosts.length > 0) {
+          // Map posts to Job format for display
+          const mappedJobs = jobOfferPosts.map((post: any) => ({
+            id: post.id,
+            title: post.title,
+            description: post.content,
+            category: post.category || "general",
+            location: post.location || "Heel Nederland",
+            company: post.author?.full_name || "Anonimowy",
+            companyLogo: post.author?.avatar_url,
+            salary: "Negocjowalna",
+            type: "freelance",
+            postedAt: post.created_at,
+            views: post.views_count || 0,
+            applications: post.comments_count || 0,
+            isNew:
+              new Date(post.created_at) >
+              new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
+          }));
+          setJobs(mappedJobs);
+          console.log(
+            "✅ [WORKER-DASH] Loaded job offers from posts:",
+            mappedJobs.length
+          );
+        } else {
+          // Fallback to legacy jobs table
+          const jobsData = await getJobs({ status: "active" });
+          setJobs(jobsData || []);
+          console.log(
+            "✅ [WORKER-DASH] Loaded jobs from legacy table:",
+            jobsData?.length || 0
+          );
+        }
       } catch (error) {
         console.warn("[WORKER-DASH] Could not load jobs:", error);
         setJobs([]);
@@ -732,11 +765,10 @@ export default function WorkerDashboard() {
         );
       }
 
-      // Load jobs (mock for now)
-      setJobs(MOCK_JOBS.slice(0, 6));
-
       // Load messages
       await loadMessages(user.id);
+
+      // ✅ Jobs are already loaded above from getJobs() - no need to overwrite with mock data
 
       setLoading(false);
     } catch (err) {

@@ -339,3 +339,50 @@ export async function getWorkerStats() {
     topRated: topRatedWorkers || [],
   };
 }
+
+/**
+ * Check if worker has valid VCA certificate
+ * VCA = Veiligheid, gezondheid en milieu Checklist Aannemers (Dutch safety certification)
+ */
+export async function checkWorkerVCA(workerId: string): Promise<boolean> {
+  const { data, error } = await supabase
+    .from("certificates")
+    .select("id, certificate_type, expiry_date, verified")
+    .eq("worker_id", workerId)
+    .ilike("certificate_type", "%VCA%")
+    .eq("verified", true)
+    .gte("expiry_date", new Date().toISOString().split("T")[0])
+    .limit(1);
+
+  if (error) {
+    console.error("Error checking VCA certificate:", error);
+    return false;
+  }
+
+  return data && data.length > 0;
+}
+
+/**
+ * Batch check VCA certificates for multiple workers
+ */
+export async function batchCheckWorkersVCA(
+  workerIds: string[]
+): Promise<Record<string, boolean>> {
+  if (workerIds.length === 0) return {};
+
+  const { data, error } = await supabase
+    .from("certificates")
+    .select("worker_id, certificate_type, expiry_date, verified")
+    .in("worker_id", workerIds)
+    .ilike("certificate_type", "%VCA%")
+    .eq("verified", true)
+    .gte("expiry_date", new Date().toISOString().split("T")[0]);
+
+  if (error) {
+    console.error("Error batch checking VCA certificates:", error);
+    return workerIds.reduce((acc, id) => ({ ...acc, [id]: false }), {});
+  }
+
+  const vcaMap = new Set((data || []).map((cert) => cert.worker_id));
+  return workerIds.reduce((acc, id) => ({ ...acc, [id]: vcaMap.has(id) }), {});
+}

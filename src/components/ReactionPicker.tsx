@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import { Heart } from "../../components/icons";
 import type { ReactionType } from "../services/feedService";
 
@@ -23,17 +23,47 @@ interface ReactionPickerProps {
   onClose: () => void;
 }
 
-// Emoji mapping
+// Emoji mapping with Dutch labels
 const REACTIONS = [
-  { type: "like" as const, emoji: "👍", label: "Like", color: "text-blue-600" },
-  { type: "love" as const, emoji: "❤️", label: "Love", color: "text-red-600" },
-  { type: "wow" as const, emoji: "😮", label: "Wow", color: "text-yellow-600" },
-  { type: "sad" as const, emoji: "😢", label: "Sad", color: "text-gray-600" },
+  {
+    type: "like" as const,
+    emoji: "👍",
+    label: "Leuk",
+    labelEn: "Like",
+    color: "text-blue-600",
+    bgColor: "bg-blue-50",
+  },
+  {
+    type: "love" as const,
+    emoji: "❤️",
+    label: "Geweldig",
+    labelEn: "Love",
+    color: "text-red-600",
+    bgColor: "bg-red-50",
+  },
+  {
+    type: "wow" as const,
+    emoji: "😮",
+    label: "Wow",
+    labelEn: "Wow",
+    color: "text-yellow-600",
+    bgColor: "bg-yellow-50",
+  },
+  {
+    type: "sad" as const,
+    emoji: "😢",
+    label: "Verdrietig",
+    labelEn: "Sad",
+    color: "text-gray-600",
+    bgColor: "bg-gray-100",
+  },
   {
     type: "angry" as const,
     emoji: "😡",
-    label: "Angry",
+    label: "Boos",
+    labelEn: "Angry",
     color: "text-orange-600",
+    bgColor: "bg-orange-50",
   },
 ];
 
@@ -45,6 +75,16 @@ export function ReactionPicker({
   onClose,
 }: ReactionPickerProps) {
   const pickerRef = useRef<HTMLDivElement>(null);
+  const [isAnimatingOut, setIsAnimatingOut] = useState(false);
+
+  // Close with animation
+  const handleClose = useCallback(() => {
+    setIsAnimatingOut(true);
+    setTimeout(() => {
+      setIsAnimatingOut(false);
+      onClose();
+    }, 150);
+  }, [onClose]);
 
   // Close picker when clicking outside
   useEffect(() => {
@@ -52,15 +92,24 @@ export function ReactionPicker({
 
     const handleClickOutside = (e: MouseEvent) => {
       if (pickerRef.current && !pickerRef.current.contains(e.target as Node)) {
-        onClose();
+        handleClose();
       }
     };
 
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [isOpen, onClose]);
+    // Close on Escape key
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") handleClose();
+    };
 
-  if (!isOpen) return null;
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isOpen, handleClose]);
+
+  if (!isOpen && !isAnimatingOut) return null;
 
   const handleReactionClick = (reactionType: ReactionType) => {
     if (currentReaction === reactionType) {
@@ -70,47 +119,81 @@ export function ReactionPicker({
       // Different reaction = change
       onReact(reactionType);
     }
-    onClose();
+    handleClose();
   };
 
   return (
     <div
       ref={pickerRef}
-      className="absolute bottom-full left-0 mb-2 bg-white rounded-full shadow-2xl border border-gray-200 px-2 py-2 flex items-center gap-1 animate-in fade-in slide-in-from-bottom-2 duration-200 z-50"
+      className={`
+        absolute bottom-full left-1/2 -translate-x-1/2 mb-3
+        bg-white/95 backdrop-blur-xl rounded-2xl
+        shadow-2xl shadow-slate-900/20 
+        border border-white/60
+        px-2 py-2 flex items-center gap-1
+        transition-all duration-200 ease-out
+        ${
+          isAnimatingOut
+            ? "opacity-0 scale-95 translate-y-2"
+            : "opacity-100 scale-100 translate-y-0 animate-in fade-in zoom-in-95 slide-in-from-bottom-3"
+        }
+      `}
+      style={{ zIndex: 9999 }}
     >
-      {REACTIONS.map((reaction) => {
-        const isSelected = currentReaction === reaction.type;
+      {/* Decorative gradient glow */}
+      <div className="absolute -inset-1 bg-gradient-to-r from-blue-400/20 via-purple-400/20 to-pink-400/20 rounded-3xl blur-lg opacity-60" />
 
-        return (
-          <button
-            key={reaction.type}
-            onClick={() => handleReactionClick(reaction.type)}
-            className={`
-              group relative flex items-center justify-center
-              w-12 h-12 rounded-full
-              transition-all duration-200
-              hover:scale-125 hover:bg-gray-100
-              ${isSelected ? "bg-blue-50 scale-110" : ""}
-            `}
-            title={reaction.label}
-          >
-            {/* Emoji */}
-            <span className="text-2xl leading-none select-none">
-              {reaction.emoji}
-            </span>
+      <div className="relative flex items-center gap-0.5">
+        {REACTIONS.map((reaction, index) => {
+          const isSelected = currentReaction === reaction.type;
 
-            {/* Selected indicator (ring) */}
-            {isSelected && (
-              <div className="absolute inset-0 rounded-full ring-2 ring-blue-500 ring-offset-2 animate-pulse" />
-            )}
+          return (
+            <button
+              key={reaction.type}
+              onClick={() => handleReactionClick(reaction.type)}
+              className={`
+                group relative flex items-center justify-center
+                w-11 h-11 sm:w-12 sm:h-12 rounded-full
+                transition-all duration-200 ease-out
+                hover:scale-125 hover:-translate-y-1
+                active:scale-110
+                ${
+                  isSelected
+                    ? `${reaction.bgColor} scale-110 ring-2 ring-offset-1 ring-blue-400/50`
+                    : "hover:bg-gray-100/80"
+                }
+              `}
+              style={{
+                animationDelay: `${index * 50}ms`,
+                animation:
+                  isOpen && !isAnimatingOut
+                    ? "bounce-in 0.4s ease-out forwards"
+                    : undefined,
+              }}
+              title={reaction.label}
+              aria-label={reaction.label}
+            >
+              {/* Emoji with bounce animation */}
+              <span
+                className={`
+                  text-2xl sm:text-[28px] leading-none select-none
+                  transition-transform duration-200
+                  ${isSelected ? "scale-110" : "group-hover:scale-110"}
+                `}
+              >
+                {reaction.emoji}
+              </span>
 
-            {/* Hover tooltip */}
-            <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-xs px-2 py-1 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-              {reaction.label}
-            </div>
-          </button>
-        );
-      })}
+              {/* Hover tooltip - hidden on mobile */}
+              <div className="hidden sm:block absolute -top-9 left-1/2 -translate-x-1/2 bg-slate-900/90 backdrop-blur text-white text-xs px-2.5 py-1.5 rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-all duration-150 pointer-events-none shadow-lg">
+                {reaction.label}
+                {/* Arrow */}
+                <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-slate-900/90" />
+              </div>
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -140,13 +223,48 @@ export function ReactionButton({
   isLoading = false,
 }: ReactionButtonProps) {
   const [showPicker, setShowPicker] = useState(false);
+  const [isAnimating, setIsAnimating] = useState(false);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const longPressTimer = useRef<NodeJS.Timeout | null>(null);
 
   const handleReact = (reactionType: ReactionType) => {
+    setIsAnimating(true);
     onReactionChange(reactionType);
+    setTimeout(() => setIsAnimating(false), 300);
   };
 
   const handleUnreact = () => {
+    setIsAnimating(true);
     onReactionChange(null);
+    setTimeout(() => setIsAnimating(false), 300);
+  };
+
+  // Quick tap = toggle like, long press = show picker
+  const handleClick = () => {
+    if (showPicker) {
+      setShowPicker(false);
+      return;
+    }
+    // Simple click toggles like reaction
+    if (userReaction) {
+      handleUnreact();
+    } else {
+      handleReact("like");
+    }
+  };
+
+  // Long press to show picker (mobile-friendly)
+  const handleMouseDown = () => {
+    longPressTimer.current = setTimeout(() => {
+      setShowPicker(true);
+    }, 500);
+  };
+
+  const handleMouseUp = () => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
   };
 
   // Find current reaction emoji
@@ -156,36 +274,66 @@ export function ReactionButton({
     <div className="relative">
       {/* Main Button */}
       <button
-        onClick={() => setShowPicker(!showPicker)}
+        ref={buttonRef}
+        onClick={handleClick}
+        onMouseDown={handleMouseDown}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseUp}
+        onTouchStart={handleMouseDown}
+        onTouchEnd={handleMouseUp}
+        onContextMenu={(e) => {
+          e.preventDefault();
+          setShowPicker(true);
+        }}
         disabled={isLoading}
         className={`
-          group/like flex items-center gap-2
-          transition-all transform hover:scale-110
+          group/like flex items-center gap-1.5 sm:gap-2 px-2 py-1.5 rounded-full
+          transition-all duration-200 ease-out
+          hover:bg-slate-100/80 active:scale-95
           disabled:opacity-50 disabled:cursor-not-allowed
           ${
             userReaction
               ? currentReactionData?.color || "text-blue-600"
-              : "text-gray-600 hover:text-red-600"
+              : "text-slate-600 hover:text-red-500"
           }
+          ${isAnimating ? "scale-110" : ""}
         `}
+        title="Klik = Leuk, Lang drukken = Meer reacties"
       >
         {/* Emoji or Heart icon */}
         {userReaction && currentReactionData ? (
-          <span className="text-2xl leading-none animate-in zoom-in duration-200">
+          <span
+            className={`
+            text-xl sm:text-2xl leading-none select-none
+            transition-transform duration-300
+            ${isAnimating ? "animate-bounce" : ""}
+          `}
+          >
             {currentReactionData.emoji}
           </span>
         ) : (
           <Heart
-            className={`w-6 h-6 transition-all ${
-              userReaction
-                ? "fill-red-600 scale-110"
-                : "group-hover/like:fill-red-600"
-            }`}
+            className={`
+              w-5 h-5 sm:w-6 sm:h-6 transition-all duration-200
+              ${
+                isAnimating
+                  ? "fill-red-500 scale-125"
+                  : "group-hover/like:fill-red-400/50"
+              }
+            `}
           />
         )}
 
-        {/* Count */}
-        <span className="font-bold">{likesCount}</span>
+        {/* Count with animation */}
+        <span
+          className={`
+          text-xs sm:text-sm font-semibold tabular-nums
+          transition-all duration-200
+          ${userReaction ? currentReactionData?.color : "text-slate-600"}
+        `}
+        >
+          {likesCount}
+        </span>
       </button>
 
       {/* Reaction Picker Popup */}
@@ -204,7 +352,7 @@ export function ReactionButton({
 // REACTION COUNTS DISPLAY COMPONENT
 // =====================================================
 // Displays emoji counts: "👍 12  ❤️ 5  😮 2" (only non-zero)
-// Shows tooltips on hover
+// Shows tooltips on hover with smooth animations
 // =====================================================
 
 interface ReactionCountsDisplayProps {
@@ -219,58 +367,90 @@ interface ReactionCountsDisplayProps {
   } | null;
   /** Optional click handler (e.g., for employer to see who reacted) */
   onClick?: () => void;
+  /** Compact mode for smaller display */
+  compact?: boolean;
 }
 
 export function ReactionCountsDisplay({
   reactions,
   onClick,
+  compact = false,
 }: ReactionCountsDisplayProps) {
   if (!reactions || reactions.total === 0) return null;
 
+  // Get non-zero reactions for stacked emoji display
+  const activeReactions = REACTIONS.filter(
+    (r) =>
+      reactions[r.type as keyof typeof reactions] &&
+      (reactions[r.type as keyof typeof reactions] as number) > 0
+  );
+
+  if (activeReactions.length === 0) return null;
+
   return (
     <div
-      className={`flex items-center gap-3 text-sm ${
-        onClick ? "cursor-pointer hover:underline" : ""
-      }`}
+      className={`
+        flex items-center gap-2 text-sm
+        ${onClick ? "cursor-pointer hover:opacity-80 transition-opacity" : ""}
+      `}
       onClick={onClick}
     >
-      {/* Like */}
-      {reactions.like && reactions.like > 0 && (
-        <div className="flex items-center gap-1 text-blue-600 font-semibold">
-          <span className="text-base">👍</span>
-          <span>{reactions.like}</span>
-        </div>
-      )}
+      {/* Stacked Emoji Icons */}
+      <div className="flex items-center -space-x-1">
+        {activeReactions.slice(0, 3).map((reaction, index) => (
+          <div
+            key={reaction.type}
+            className={`
+              w-5 h-5 sm:w-6 sm:h-6 rounded-full flex items-center justify-center
+              ${reaction.bgColor} border-2 border-white shadow-sm
+              transition-transform hover:scale-110 hover:z-10
+            `}
+            style={{ zIndex: 3 - index }}
+            title={reaction.label}
+          >
+            <span className="text-xs sm:text-sm">{reaction.emoji}</span>
+          </div>
+        ))}
+      </div>
 
-      {/* Love */}
-      {reactions.love && reactions.love > 0 && (
-        <div className="flex items-center gap-1 text-red-600 font-semibold">
-          <span className="text-base">❤️</span>
-          <span>{reactions.love}</span>
-        </div>
-      )}
+      {/* Total Count */}
+      <span className="text-xs sm:text-sm text-slate-600 font-medium">
+        {reactions.total}
+      </span>
 
-      {/* Wow */}
-      {reactions.wow && reactions.wow > 0 && (
-        <div className="flex items-center gap-1 text-yellow-600 font-semibold">
-          <span className="text-base">😮</span>
-          <span>{reactions.wow}</span>
-        </div>
-      )}
-
-      {/* Sad */}
-      {reactions.sad && reactions.sad > 0 && (
-        <div className="flex items-center gap-1 text-gray-600 font-semibold">
-          <span className="text-base">😢</span>
-          <span>{reactions.sad}</span>
-        </div>
-      )}
-
-      {/* Angry */}
-      {reactions.angry && reactions.angry > 0 && (
-        <div className="flex items-center gap-1 text-orange-600 font-semibold">
-          <span className="text-base">😡</span>
-          <span>{reactions.angry}</span>
+      {/* Detailed counts on hover - desktop only */}
+      {!compact && (
+        <div className="hidden sm:flex items-center gap-2 ml-1 text-xs text-slate-500">
+          {reactions.like && reactions.like > 0 && (
+            <span className="flex items-center gap-0.5">
+              <span>👍</span>
+              <span>{reactions.like}</span>
+            </span>
+          )}
+          {reactions.love && reactions.love > 0 && (
+            <span className="flex items-center gap-0.5">
+              <span>❤️</span>
+              <span>{reactions.love}</span>
+            </span>
+          )}
+          {reactions.wow && reactions.wow > 0 && (
+            <span className="flex items-center gap-0.5">
+              <span>😮</span>
+              <span>{reactions.wow}</span>
+            </span>
+          )}
+          {reactions.sad && reactions.sad > 0 && (
+            <span className="flex items-center gap-0.5">
+              <span>😢</span>
+              <span>{reactions.sad}</span>
+            </span>
+          )}
+          {reactions.angry && reactions.angry > 0 && (
+            <span className="flex items-center gap-0.5">
+              <span>😡</span>
+              <span>{reactions.angry}</span>
+            </span>
+          )}
         </div>
       )}
     </div>

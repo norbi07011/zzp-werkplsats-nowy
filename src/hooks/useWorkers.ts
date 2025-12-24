@@ -1,8 +1,20 @@
-import { useState, useEffect } from 'react';
-import { fetchWorkers, getWorkerStats, verifyWorker, unverifyWorker, deleteWorker, WorkerWithProfile } from '../services/workers';
+import { useState, useEffect } from "react";
+import {
+  fetchWorkers,
+  getWorkerStats,
+  verifyWorker,
+  unverifyWorker,
+  deleteWorker,
+  batchCheckWorkersVCA,
+  WorkerWithProfile,
+} from "../services/workers";
+
+export interface WorkerWithVCA extends WorkerWithProfile {
+  hasVca: boolean;
+}
 
 interface UseWorkersReturn {
-  workers: WorkerWithProfile[];
+  workers: WorkerWithVCA[];
   stats: {
     total: number;
     verified: number;
@@ -12,16 +24,20 @@ interface UseWorkersReturn {
   loading: boolean;
   error: string | null;
   refreshWorkers: () => Promise<void>;
-  verifyWorkerById: (workerId: string, verificationDocs: any) => Promise<boolean>;
+  verifyWorkerById: (
+    workerId: string,
+    verificationDocs: any
+  ) => Promise<boolean>;
   unverifyWorkerById: (workerId: string) => Promise<boolean>;
   deleteWorkerById: (workerId: string) => Promise<boolean>;
 }
 
 /**
  * Custom hook for managing workers in admin panel
+ * ✅ Includes VCA certificate check
  */
 export function useWorkers(): UseWorkersReturn {
-  const [workers, setWorkers] = useState<WorkerWithProfile[]>([]);
+  const [workers, setWorkers] = useState<WorkerWithVCA[]>([]);
   const [stats, setStats] = useState<{
     total: number;
     verified: number;
@@ -31,7 +47,7 @@ export function useWorkers(): UseWorkersReturn {
     total: 0,
     verified: 0,
     unverified: 0,
-    topRated: []
+    topRated: [],
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -42,13 +58,24 @@ export function useWorkers(): UseWorkersReturn {
       setError(null);
       const [workersData, statsData] = await Promise.all([
         fetchWorkers(),
-        getWorkerStats()
+        getWorkerStats(),
       ]);
-      setWorkers(workersData);
+
+      // Batch check VCA certificates for all workers
+      const workerIds = workersData.map((w) => w.id);
+      const vcaMap = await batchCheckWorkersVCA(workerIds);
+
+      // Merge VCA status with worker data
+      const workersWithVca: WorkerWithVCA[] = workersData.map((w) => ({
+        ...w,
+        hasVca: vcaMap[w.id] || false,
+      }));
+
+      setWorkers(workersWithVca);
       setStats(statsData);
     } catch (err: any) {
-      console.error('Error loading workers:', err);
-      setError(err.message || 'Failed to load workers');
+      console.error("Error loading workers:", err);
+      setError(err.message || "Failed to load workers");
     } finally {
       setLoading(false);
     }
@@ -62,7 +89,10 @@ export function useWorkers(): UseWorkersReturn {
     await loadWorkers();
   };
 
-  const verifyWorkerById = async (workerId: string, verificationDocs: any): Promise<boolean> => {
+  const verifyWorkerById = async (
+    workerId: string,
+    verificationDocs: any
+  ): Promise<boolean> => {
     try {
       const success = await verifyWorker(workerId, verificationDocs);
       if (success) {
@@ -70,8 +100,8 @@ export function useWorkers(): UseWorkersReturn {
       }
       return success;
     } catch (err: any) {
-      console.error('Error verifying worker:', err);
-      setError(err.message || 'Failed to verify worker');
+      console.error("Error verifying worker:", err);
+      setError(err.message || "Failed to verify worker");
       return false;
     }
   };
@@ -84,8 +114,8 @@ export function useWorkers(): UseWorkersReturn {
       }
       return success;
     } catch (err: any) {
-      console.error('Error unverifying worker:', err);
-      setError(err.message || 'Failed to unverify worker');
+      console.error("Error unverifying worker:", err);
+      setError(err.message || "Failed to unverify worker");
       return false;
     }
   };
@@ -98,8 +128,8 @@ export function useWorkers(): UseWorkersReturn {
       }
       return success;
     } catch (err: any) {
-      console.error('Error deleting worker:', err);
-      setError(err.message || 'Failed to delete worker');
+      console.error("Error deleting worker:", err);
+      setError(err.message || "Failed to delete worker");
       return false;
     }
   };
@@ -112,6 +142,6 @@ export function useWorkers(): UseWorkersReturn {
     refreshWorkers,
     verifyWorkerById,
     unverifyWorkerById,
-    deleteWorkerById
+    deleteWorkerById,
   };
 }

@@ -17,8 +17,15 @@
  */
 
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { Link } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { supabase } from "../src/lib/supabase";
+import {
+  StoriesBarPro,
+  StoryViewerPro,
+  CreateStoryEditor,
+  type AuthorGroup,
+} from "../components/stories";
 // @ts-ignore
 const supabaseAny = supabase as any;
 import {
@@ -31,6 +38,8 @@ import {
   sharePost,
   reactToPost,
   unreactToPost,
+  reactToComment,
+  unreactToComment,
   type Post,
   type PostComment,
   type PostType,
@@ -73,6 +82,9 @@ import {
   Users,
   Mail,
   Phone,
+  Check,
+  Clock,
+  DollarSign,
 } from "../components/icons";
 import { LoadingOverlay } from "../components/Loading";
 import { ShareModal } from "../components/ShareModal";
@@ -84,16 +96,6 @@ import {
 // =====================================================
 // TYPES
 // =====================================================
-
-interface Story {
-  id: string;
-  user_id: string;
-  user_name: string;
-  user_avatar?: string;
-  media_url: string;
-  created_at: string;
-  is_seen: boolean;
-}
 
 interface TrendingPost extends Post {
   trending_score: number;
@@ -108,6 +110,13 @@ export default function FeedPagePremium() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreatePost, setShowCreatePost] = useState(false);
+
+  // Stories state (PRO version)
+  const [showCreateStoryEditor, setShowCreateStoryEditor] = useState(false);
+  const [viewingAuthorId, setViewingAuthorId] = useState<string | null>(null);
+  const [viewingStoryId, setViewingStoryId] = useState<string | null>(null);
+  const [storyAuthorGroups, setStoryAuthorGroups] = useState<AuthorGroup[]>([]);
+
   const [searchQuery, setSearchQuery] = useState("");
   const [activeFilter, setActiveFilter] = useState<
     "all" | "announcements" | "jobs" | "ads" | "service_requests"
@@ -129,10 +138,6 @@ export default function FeedPagePremium() {
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const observerTarget = useRef<HTMLDivElement>(null);
-
-  // Stories
-  const [stories, setStories] = useState<Story[]>([]);
-  const [showStories, setShowStories] = useState(false);
 
   // Trending
   const [trending, setTrending] = useState<TrendingPost[]>([]);
@@ -251,7 +256,6 @@ export default function FeedPagePremium() {
   useEffect(() => {
     if (user?.id) {
       loadFeed();
-      loadStories();
       loadTrending();
     }
   }, [user?.id, activeFilter]);
@@ -334,21 +338,6 @@ export default function FeedPagePremium() {
   const loadMorePosts = async () => {
     // Infinite scroll logic
     setPage((prev) => prev + 1);
-  };
-
-  const loadStories = async () => {
-    // Mock stories - integrate with real API
-    setStories([
-      {
-        id: "1",
-        user_id: "1",
-        user_name: "Anna Kowalska",
-        user_avatar: undefined,
-        media_url: "",
-        created_at: new Date().toISOString(),
-        is_seen: false,
-      },
-    ]);
   };
 
   const loadTrending = async () => {
@@ -438,10 +427,52 @@ export default function FeedPagePremium() {
           .eq("profile_id", user.id)
           .single();
         if (accountantData) actualUserId = accountantData.id;
-      } else if (currentUserRole === "admin") {
-        // Admin uses profile_id directly
+      } else if (currentUserRole === "cleaning_company") {
+        const { data: cleaningData } = await supabase
+          .from("cleaning_companies")
+          .select("id")
+          .eq("profile_id", user.id)
+          .single();
+        if (cleaningData) actualUserId = cleaningData.id;
+      } else if (
+        currentUserRole === "admin" ||
+        currentUserRole === "regular_user"
+      ) {
+        // Admin and regular_user use profile_id directly
         actualUserId = user.id;
       }
+
+      // Optimistic update - update local state immediately
+      setPosts((prevPosts) =>
+        prevPosts.map((post) => {
+          if (post.id !== postId) return post;
+
+          // Clone the post to update
+          const updatedPost = { ...post };
+
+          // Get previous reaction type (if any) for this user
+          const prevReactionType = post.user_reaction || null;
+
+          // Update likes_count for total count
+          if (prevReactionType && reactionType === null) {
+            // Removing reaction - decrement likes_count
+            updatedPost.likes_count = Math.max(
+              0,
+              (updatedPost.likes_count || 0) - 1
+            );
+          } else if (!prevReactionType && reactionType !== null) {
+            // Adding new reaction - increment likes_count
+            updatedPost.likes_count = (updatedPost.likes_count || 0) + 1;
+          }
+          // If changing reaction type (e.g., like -> love), likes_count stays the same
+
+          // Update user's current reaction
+          updatedPost.user_reaction = reactionType;
+          updatedPost.user_has_liked = reactionType !== null;
+
+          return updatedPost;
+        })
+      );
 
       if (reactionType === null) {
         // Remove reaction
@@ -456,10 +487,11 @@ export default function FeedPagePremium() {
           reactionType
         );
       }
-      // Reload feed to show updated counts
-      await loadFeed();
+      // No need to reload feed - we updated locally!
     } catch (error) {
       console.error("Error changing reaction:", error);
+      // On error, reload feed to sync with database
+      await loadFeed();
     }
   };
 
@@ -468,172 +500,265 @@ export default function FeedPagePremium() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-purple-50">
-      {/* ===== HEADER WITH GLASSMORPHISM ===== */}
-      {/* Na mobile: relative zamiast sticky, na desktop: sticky */}
-      <div className="relative md:sticky md:top-0 z-40 md:z-50 backdrop-blur-xl bg-white/95 md:bg-white/80 border-b border-white/20 shadow-lg">
-        <div className="container mx-auto px-4 py-3 md:py-4">
-          <div className="flex items-center justify-between max-w-7xl mx-auto">
-            <div className="flex items-center gap-4 md:gap-6">
-              <h1 className="text-2xl md:text-3xl font-black bg-gradient-to-r from-amber-600 via-orange-500 to-red-500 bg-clip-text text-transparent">
-                Karmić
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-purple-50/20 relative overflow-hidden">
+      {/* ═══════════════════════════════════════════════════════════════════ */}
+      {/* 🌈 HOLOGRAPHIC GRADIENT SHAPES - NOWOCZESNE TŁO                     */}
+      {/* ═══════════════════════════════════════════════════════════════════ */}
+
+      {/* Aurora Blob - Top Right */}
+      <div className="fixed top-0 right-0 w-[800px] h-[800px] pointer-events-none z-0">
+        <div
+          className="absolute top-[-200px] right-[-200px] w-[600px] h-[600px] rounded-full bg-gradient-to-br from-violet-400/20 via-fuchsia-300/15 to-pink-400/20 blur-3xl animate-pulse"
+          style={{ animationDuration: "8s" }}
+        />
+        <div
+          className="absolute top-[100px] right-[50px] w-[300px] h-[300px] rounded-full bg-gradient-to-br from-cyan-300/20 via-blue-400/15 to-indigo-400/20 blur-2xl animate-pulse"
+          style={{ animationDuration: "6s", animationDelay: "1s" }}
+        />
+      </div>
+
+      {/* Geometric Gradient - Bottom Left */}
+      <div className="fixed bottom-0 left-0 w-[700px] h-[700px] pointer-events-none z-0">
+        <div
+          className="absolute bottom-[-300px] left-[-200px] w-[500px] h-[500px] rounded-full bg-gradient-to-tr from-amber-300/20 via-orange-400/15 to-rose-400/20 blur-3xl animate-pulse"
+          style={{ animationDuration: "10s" }}
+        />
+        <div
+          className="absolute bottom-[50px] left-[100px] w-[250px] h-[250px] rounded-full bg-gradient-to-tr from-emerald-300/15 via-teal-400/10 to-cyan-400/15 blur-2xl animate-pulse"
+          style={{ animationDuration: "7s", animationDelay: "2s" }}
+        />
+      </div>
+
+      {/* Floating Orbs - Middle */}
+      <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[1000px] h-[1000px] pointer-events-none z-0">
+        <div
+          className="absolute top-[200px] left-[100px] w-[150px] h-[150px] rounded-full bg-gradient-to-br from-purple-400/10 to-pink-400/10 blur-2xl animate-bounce"
+          style={{ animationDuration: "15s" }}
+        />
+        <div
+          className="absolute top-[400px] right-[150px] w-[100px] h-[100px] rounded-full bg-gradient-to-br from-blue-400/10 to-cyan-400/10 blur-xl animate-bounce"
+          style={{ animationDuration: "12s", animationDelay: "3s" }}
+        />
+      </div>
+
+      {/* Mesh Gradient Overlay */}
+      <div className="fixed inset-0 pointer-events-none z-0 opacity-30">
+        <svg className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient
+              id="holographic"
+              x1="0%"
+              y1="0%"
+              x2="100%"
+              y2="100%"
+            >
+              <stop offset="0%" stopColor="#a855f7" stopOpacity="0.1" />
+              <stop offset="25%" stopColor="#ec4899" stopOpacity="0.05" />
+              <stop offset="50%" stopColor="#f97316" stopOpacity="0.08" />
+              <stop offset="75%" stopColor="#06b6d4" stopOpacity="0.05" />
+              <stop offset="100%" stopColor="#8b5cf6" stopOpacity="0.1" />
+            </linearGradient>
+          </defs>
+          <rect width="100%" height="100%" fill="url(#holographic)" />
+        </svg>
+      </div>
+
+      {/* ═══════════════════════════════════════════════════════════════════ */}
+      {/* 🎨 NOWOCZESNY HEADER - CLEAN & MINIMAL                              */}
+      {/* ═══════════════════════════════════════════════════════════════════ */}
+      <header className="sticky top-0 z-50 bg-white/70 backdrop-blur-2xl border-b border-white/40 shadow-lg shadow-slate-200/20">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 relative">
+          {/* Header Gradient Line */}
+          <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-violet-500/50 to-transparent" />
+
+          {/* ===== ROW 1: Logo + Search + CTA ===== */}
+          <div className="flex items-center justify-between h-14 sm:h-16 gap-2 sm:gap-4">
+            {/* Logo with Holographic Effect */}
+            <div className="relative group flex-shrink-0">
+              <div className="absolute -inset-2 bg-gradient-to-r from-orange-500 via-pink-500 to-violet-500 rounded-xl opacity-0 group-hover:opacity-20 blur-lg transition-opacity duration-500" />
+              <h1 className="relative text-xl sm:text-2xl font-black bg-gradient-to-r from-orange-500 via-rose-500 to-violet-500 bg-clip-text text-transparent whitespace-nowrap">
+                ZZP Feed
               </h1>
             </div>
 
-            {/* Search - ukryty na mobile, widoczny na desktop */}
-            <div className="hidden md:flex items-center gap-4">
-              <div className="relative">
-                <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="Aby wyszukać..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-12 pr-4 py-3 w-80 bg-white/60 backdrop-blur-sm border border-white/40 rounded-full focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all"
-                />
+            {/* Search Bar - Glassmorphism z holograficznym akcentem */}
+            <div className="flex-1 max-w-2xl mx-2 sm:mx-4 hidden sm:block">
+              <div className="relative group">
+                {/* Holographic glow on focus */}
+                <div className="absolute -inset-1 bg-gradient-to-r from-violet-500/20 via-fuchsia-500/20 to-orange-500/20 rounded-2xl opacity-0 group-focus-within:opacity-100 blur-lg transition-opacity duration-300" />
+                <div className="relative">
+                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 group-focus-within:text-violet-500 transition-colors" />
+                  <input
+                    type="text"
+                    placeholder="Szukaj ogłoszeń, lokalizacji, słów kluczowych..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full pl-12 pr-4 py-3 bg-white/60 backdrop-blur-sm border border-white/60 rounded-2xl text-slate-800 placeholder-slate-400 focus:bg-white/90 focus:border-violet-300 focus:ring-4 focus:ring-violet-500/10 transition-all shadow-sm"
+                  />
+                </div>
               </div>
+            </div>
 
-              {canCreatePost && (
+            {/* CTA Button - Vibrant Gradient */}
+            {canCreatePost && (
+              <div className="relative group flex-shrink-0">
+                {/* Animated glow effect */}
+                <div
+                  className="absolute -inset-1 bg-gradient-to-r from-orange-500 via-pink-500 to-violet-500 rounded-xl sm:rounded-2xl opacity-50 group-hover:opacity-70 blur-lg transition-all duration-300 animate-pulse"
+                  style={{ animationDuration: "3s" }}
+                />
                 <button
                   onClick={() => setShowCreatePost(true)}
-                  className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-amber-600 to-orange-600 text-white rounded-full font-bold shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300"
+                  className="relative flex items-center gap-1 sm:gap-2 px-3 sm:px-6 py-2 sm:py-3 bg-gradient-to-r from-orange-500 via-rose-500 to-violet-500 text-white rounded-xl font-bold shadow-xl hover:-translate-y-1 transition-all whitespace-nowrap text-sm sm:text-base"
                 >
-                  <Plus className="w-5 h-5" />
-                  Nowy Post
+                  <Plus className="w-4 h-4 sm:w-5 sm:h-5" />
+                  <span className="hidden xs:inline sm:inline">Nowy Post</span>
                 </button>
-              )}
-            </div>
-
-            {/* Mobile: przycisk dodawania */}
-            {canCreatePost && (
-              <button
-                onClick={() => setShowCreatePost(true)}
-                className="md:hidden flex items-center justify-center w-10 h-10 bg-gradient-to-r from-amber-600 to-orange-600 text-white rounded-full shadow-lg"
-              >
-                <Plus className="w-5 h-5" />
-              </button>
+              </div>
             )}
           </div>
-        </div>
 
-        {/* ===== FILTER TABS - STICKY NA MOBILE ===== */}
-        <div className="sticky top-0 z-50 md:relative md:z-auto border-t border-white/20 bg-white/95 md:bg-transparent backdrop-blur-xl md:backdrop-blur-none">
-          <div className="max-w-7xl mx-auto px-4">
-            <div className="flex gap-2 overflow-x-auto scrollbar-hide py-3">
-              <button
-                onClick={() => setActiveFilter("all")}
-                className={`px-4 md:px-6 py-2 rounded-full font-bold whitespace-nowrap transition-all text-sm md:text-base ${
-                  activeFilter === "all"
-                    ? "bg-gradient-to-r from-amber-600 to-orange-600 text-white shadow-lg"
-                    : "bg-white/60 text-gray-700 hover:bg-white/80"
-                }`}
-              >
-                📋 Wszystko
-              </button>
-              <button
-                onClick={() => setActiveFilter("service_requests")}
-                className={`px-4 md:px-6 py-2 rounded-full font-bold whitespace-nowrap transition-all text-sm md:text-base ${
-                  activeFilter === "service_requests"
-                    ? "bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg"
-                    : "bg-white/60 text-gray-700 hover:bg-white/80"
-                }`}
-              >
-                🏡 Zlecenia prywatne
-              </button>
-              <button
-                onClick={() => setActiveFilter("announcements")}
-                className={`px-4 md:px-6 py-2 rounded-full font-bold whitespace-nowrap transition-all text-sm md:text-base ${
-                  activeFilter === "announcements"
-                    ? "bg-gradient-to-r from-blue-600 to-cyan-600 text-white shadow-lg"
-                    : "bg-white/60 text-gray-700 hover:bg-white/80"
-                }`}
-              >
-                📢 Ogłoszenia
-              </button>
-              <button
-                onClick={() => setActiveFilter("jobs")}
-                className={`px-4 md:px-6 py-2 rounded-full font-bold whitespace-nowrap transition-all text-sm md:text-base ${
-                  activeFilter === "jobs"
-                    ? "bg-gradient-to-r from-green-600 to-emerald-600 text-white shadow-lg"
-                    : "bg-white/60 text-gray-700 hover:bg-white/80"
-                }`}
-              >
-                💼 Praca
-              </button>
-              <button
-                onClick={() => setActiveFilter("ads")}
-                className={`px-4 md:px-6 py-2 rounded-full font-bold whitespace-nowrap transition-all text-sm md:text-base ${
-                  activeFilter === "ads"
-                    ? "bg-gradient-to-r from-red-600 to-orange-600 text-white shadow-lg"
-                    : "bg-white/60 text-gray-700 hover:bg-white/80"
-                }`}
-              >
-                📣 Reklama
-              </button>
-            </div>
+          {/* ===== ROW 2: Stories (compact) ===== */}
+          <div className="py-2 sm:py-3 border-t border-white/30">
+            <StoriesBarPro
+              onCreateStory={() => setShowCreateStoryEditor(true)}
+              onViewStory={(authorId, storyId) => {
+                setViewingAuthorId(authorId);
+                setViewingStoryId(storyId || null);
+              }}
+            />
           </div>
         </div>
+      </header>
 
-        {/* 🔥 ZAAWANSOWANE FILTRY - tylko na desktop lub po kliknięciu na mobile */}
-        <div className="hidden md:block border-t border-white/10 bg-gradient-to-b from-white/5 to-transparent">
-          <div className="max-w-7xl mx-auto px-4 py-4">
-            {/* Wyszukiwarka + przycisk filtrów */}
-            <div className="flex gap-3 mb-4">
-              <div className="flex-1 relative">
-                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5 flex items-center justify-center">
-                  <Search size={18} className="max-w-full max-h-full" />
+      {/* ═══════════════════════════════════════════════════════════════════ */}
+      {/* 🎯 NAVIGATION BAR - KATEGORIE Z HOLOGRAFICZNYM EFEKTEM              */}
+      {/* ═══════════════════════════════════════════════════════════════════ */}
+      <nav className="sticky top-14 sm:top-16 z-40 bg-white/80 backdrop-blur-2xl border-b border-white/40 shadow-lg shadow-slate-200/10">
+        {/* Subtle gradient line */}
+        <div className="absolute bottom-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-pink-500/30 to-transparent" />
+
+        <div className="max-w-7xl mx-auto px-2 sm:px-6">
+          <div className="flex items-center justify-between gap-2 sm:gap-4 py-2 sm:py-3">
+            {/* Kategorie - Nowoczesne przyciski z efektami */}
+            <div
+              className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto scrollbar-hide -mx-1 px-1 flex-1"
+              style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
+            >
+              {[
+                {
+                  id: "all",
+                  label: "Wszystko",
+                  icon: "📋",
+                  color: "from-slate-600 via-slate-500 to-slate-600",
+                  glow: "shadow-slate-500/30",
+                },
+                {
+                  id: "service_requests",
+                  label: "Zlecenia",
+                  icon: "🏠",
+                  color: "from-violet-500 via-purple-500 to-fuchsia-500",
+                  glow: "shadow-purple-500/40",
+                },
+                {
+                  id: "announcements",
+                  label: "Ogłoszenia",
+                  icon: "📢",
+                  color: "from-cyan-500 via-blue-500 to-indigo-500",
+                  glow: "shadow-blue-500/40",
+                },
+                {
+                  id: "jobs",
+                  label: "Praca",
+                  icon: "💼",
+                  color: "from-emerald-500 via-green-500 to-teal-500",
+                  glow: "shadow-green-500/40",
+                },
+                {
+                  id: "ads",
+                  label: "Reklamy",
+                  icon: "📣",
+                  color: "from-orange-500 via-rose-500 to-pink-500",
+                  glow: "shadow-rose-500/40",
+                },
+              ].map((cat) => (
+                <div key={cat.id} className="relative group">
+                  {/* Holographic glow behind active button */}
+                  {activeFilter === cat.id && (
+                    <div
+                      className={`absolute -inset-1 bg-gradient-to-r ${cat.color} rounded-2xl opacity-40 blur-lg animate-pulse`}
+                      style={{ animationDuration: "2s" }}
+                    />
+                  )}
+                  <button
+                    onClick={() => setActiveFilter(cat.id as any)}
+                    className={`relative flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold whitespace-nowrap transition-all duration-300 ${
+                      activeFilter === cat.id
+                        ? `bg-gradient-to-r ${cat.color} text-white shadow-xl ${cat.glow} scale-105 border border-white/30`
+                        : "bg-white/60 backdrop-blur-sm text-slate-600 border border-slate-200/50 hover:bg-white/90 hover:text-slate-800 hover:border-slate-300 hover:shadow-md hover:-translate-y-0.5"
+                    }`}
+                  >
+                    <span className="text-base sm:text-lg">{cat.icon}</span>
+                    <span className="hidden xs:inline sm:inline">
+                      {cat.label}
+                    </span>
+                  </button>
                 </div>
-                <input
-                  type="text"
-                  placeholder="Szukaj ogłoszeń, lokalizacji, słów kluczowych..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-12 pr-4 py-3 bg-white/80 backdrop-blur-sm border-2 border-white/20 rounded-2xl text-gray-800 placeholder-gray-500 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
+              ))}
+            </div>
+
+            {/* Przycisk Filtrów - Nowoczesny z efektem */}
+            <div className="relative group flex-shrink-0">
+              {(showFilters ||
+                selectedCity !== "all" ||
+                selectedCategory !== "all") && (
+                <div
+                  className="absolute -inset-1 bg-gradient-to-r from-blue-500 via-indigo-500 to-violet-500 rounded-xl sm:rounded-2xl opacity-40 blur-lg animate-pulse"
+                  style={{ animationDuration: "2s" }}
                 />
-              </div>
+              )}
               <button
                 onClick={() => setShowFilters(!showFilters)}
-                className={`px-6 py-3 rounded-2xl font-bold flex items-center gap-2 transition-all relative ${
-                  showFilters
-                    ? "bg-blue-600 text-white shadow-lg"
-                    : "bg-white/80 text-gray-700 hover:bg-white"
+                className={`relative flex items-center gap-1.5 sm:gap-2 px-3 sm:px-5 py-2 sm:py-2.5 rounded-lg sm:rounded-xl font-bold transition-all duration-300 whitespace-nowrap text-xs sm:text-sm ${
+                  showFilters ||
+                  selectedCity !== "all" ||
+                  selectedCategory !== "all"
+                    ? "bg-gradient-to-r from-blue-500 via-indigo-500 to-violet-500 text-white shadow-xl shadow-blue-500/30 border border-white/30"
+                    : "bg-white/60 backdrop-blur-sm text-slate-600 border border-slate-200/50 hover:bg-white/90 hover:border-slate-300 hover:shadow-md hover:-translate-y-0.5"
                 }`}
               >
-                <Filter size={20} />
-                Filtry
-                {/* Licznik aktywnych filtrów */}
-                {(selectedCity !== "all" ||
-                  selectedCategory !== "all" ||
-                  searchQuery.trim()) && (
-                  <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold w-6 h-6 rounded-full flex items-center justify-center animate-pulse">
+                <Filter className="w-4 h-4 sm:w-5 sm:h-5" />
+                <span className="hidden sm:inline">Filtry</span>
+                {(selectedCity !== "all" || selectedCategory !== "all") && (
+                  <span className="w-5 h-5 bg-white text-indigo-600 text-xs font-bold rounded-full flex items-center justify-center shadow-sm">
                     {
                       [
                         selectedCity !== "all",
                         selectedCategory !== "all",
-                        searchQuery.trim(),
                       ].filter(Boolean).length
                     }
                   </span>
                 )}
               </button>
             </div>
+          </div>
 
-            {/* Panel filtrów (rozwijany) */}
-            {showFilters && (
-              <div className="bg-white/90 backdrop-blur-md rounded-2xl p-4 sm:p-6 shadow-2xl border border-white/20 space-y-4 animate-in slide-in-from-top duration-200 max-h-[70vh] overflow-y-auto overscroll-contain">
-                {/* Rząd 1: Miasto + Kategoria */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {/* ===== PANEL FILTRÓW (rozwijany) z glassmorphism ===== */}
+          {showFilters && (
+            <div className="pb-3 sm:pb-4 animate-in slide-in-from-top-2 duration-200">
+              <div className="bg-white/70 backdrop-blur-xl rounded-xl sm:rounded-2xl p-3 sm:p-5 border border-white/50 shadow-lg space-y-3 sm:space-y-4">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-4">
                   {/* Miasto */}
                   <div>
-                    <label className="block text-sm font-bold text-gray-700 mb-2">
+                    <label className="block text-sm font-bold text-slate-700 mb-2">
                       🏙️ Miasto
                     </label>
                     <select
                       value={selectedCity}
                       onChange={(e) => setSelectedCity(e.target.value)}
-                      className="w-full px-4 py-3 bg-white border-2 border-gray-200 rounded-xl text-gray-800 font-medium focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                      className="w-full px-4 py-3 bg-white/80 backdrop-blur-sm border border-slate-200/50 rounded-xl text-slate-800 font-medium focus:ring-4 focus:ring-indigo-500/20 focus:border-indigo-400 transition-all"
                     >
-                      <option value="all">🌍 Wszystkie miasta</option>
+                      <option value="all">Wszystkie miasta</option>
                       {cities
                         .filter((c) => c !== "all")
                         .map((city) => (
@@ -646,15 +771,15 @@ export default function FeedPagePremium() {
 
                   {/* Kategoria */}
                   <div>
-                    <label className="block text-sm font-bold text-gray-700 mb-2">
+                    <label className="block text-sm font-bold text-slate-700 mb-2">
                       📂 Kategoria
                     </label>
                     <select
                       value={selectedCategory}
                       onChange={(e) => setSelectedCategory(e.target.value)}
-                      className="w-full px-4 py-3 bg-white border-2 border-gray-200 rounded-xl text-gray-800 font-medium focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                      className="w-full px-4 py-3 bg-white/80 backdrop-blur-sm border border-slate-200/50 rounded-xl text-slate-800 font-medium focus:ring-4 focus:ring-indigo-500/20 focus:border-indigo-400 transition-all"
                     >
-                      <option value="all">📋 Wszystkie kategorie</option>
+                      <option value="all">Wszystkie kategorie</option>
                       {categories
                         .filter((c) => c !== "all")
                         .map((category) => (
@@ -664,59 +789,36 @@ export default function FeedPagePremium() {
                         ))}
                     </select>
                   </div>
-                </div>
 
-                {/* Rząd 2: Sortowanie */}
-                <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-2">
-                    🔄 Sortowanie
-                  </label>
-                  <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2">
-                    <button
-                      onClick={() => setSortBy("newest")}
-                      className={`px-3 sm:px-4 py-2.5 min-h-[44px] rounded-xl font-bold transition-all text-sm sm:text-base ${
-                        sortBy === "newest"
-                          ? "bg-blue-600 text-white shadow-lg"
-                          : "bg-white border-2 border-gray-200 text-gray-700 hover:border-blue-500"
-                      }`}
-                    >
-                      🕐 Najnowsze
-                    </button>
-                    <button
-                      onClick={() => setSortBy("popular")}
-                      className={`px-3 sm:px-4 py-2.5 min-h-[44px] rounded-xl font-bold transition-all text-sm sm:text-base ${
-                        sortBy === "popular"
-                          ? "bg-blue-600 text-white shadow-lg"
-                          : "bg-white border-2 border-gray-200 text-gray-700 hover:border-blue-500"
-                      }`}
-                    >
-                      ⭐ Popularne
-                    </button>
-                    <button
-                      onClick={() => setSortBy("price_low")}
-                      className={`px-3 sm:px-4 py-2.5 min-h-[44px] rounded-xl font-bold transition-all text-sm sm:text-base ${
-                        sortBy === "price_low"
-                          ? "bg-blue-600 text-white shadow-lg"
-                          : "bg-white border-2 border-gray-200 text-gray-700 hover:border-blue-500"
-                      }`}
-                    >
-                      💰 Cena: niższa
-                    </button>
-                    <button
-                      onClick={() => setSortBy("price_high")}
-                      className={`px-3 sm:px-4 py-2.5 min-h-[44px] rounded-xl font-bold transition-all text-sm sm:text-base ${
-                        sortBy === "price_high"
-                          ? "bg-blue-600 text-white shadow-lg"
-                          : "bg-white border-2 border-gray-200 text-gray-700 hover:border-blue-500"
-                      }`}
-                    >
-                      💎 Cena: wyższa
-                    </button>
+                  {/* Sortowanie */}
+                  <div>
+                    <label className="block text-sm font-bold text-slate-700 mb-2">
+                      🔄 Sortowanie
+                    </label>
+                    <div className="flex flex-wrap gap-2">
+                      {[
+                        { id: "newest", label: "Najnowsze", icon: "✨" },
+                        { id: "popular", label: "Popularne", icon: "🔥" },
+                      ].map((s) => (
+                        <button
+                          key={s.id}
+                          onClick={() => setSortBy(s.id as any)}
+                          className={`flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-bold transition-all ${
+                            sortBy === s.id
+                              ? "bg-gradient-to-r from-indigo-500 to-violet-500 text-white shadow-lg shadow-indigo-500/30"
+                              : "bg-white/80 backdrop-blur-sm border border-slate-200/50 text-slate-600 hover:bg-white hover:border-indigo-300 hover:shadow-md"
+                          }`}
+                        >
+                          <span>{s.icon}</span>
+                          {s.label}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 </div>
 
-                {/* Reset button */}
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 pt-4 border-t border-gray-200">
+                {/* Reset + Counter - Nowoczesny styl */}
+                <div className="flex items-center justify-between pt-4 border-t border-white/50">
                   <button
                     onClick={() => {
                       setSearchQuery("");
@@ -724,116 +826,78 @@ export default function FeedPagePremium() {
                       setSelectedCategory("all");
                       setSortBy("newest");
                     }}
-                    className="text-sm text-gray-600 hover:text-gray-800 font-medium min-h-[44px] px-3 py-2"
+                    className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold text-slate-500 hover:text-slate-700 hover:bg-white/60 transition-all"
                   >
                     🔄 Wyczyść filtry
                   </button>
-                  <div className="text-sm text-gray-600 font-bold">
-                    📊 Znaleziono: {filterPosts(posts).length} ogłoszeń
+                  <div className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-emerald-500/10 to-teal-500/10 rounded-xl border border-emerald-200/50">
+                    <span className="text-emerald-600 font-bold">📊</span>
+                    <span className="text-sm text-emerald-700 font-bold">
+                      {filterPosts(posts).length} wyników
+                    </span>
                   </div>
                 </div>
               </div>
-            )}
+            </div>
+          )}
+        </div>
+      </nav>
+
+      {/* ===== MOBILE SEARCH (pokazuje się tylko na mobile) - glassmorphism ===== */}
+      <div className="sm:hidden px-4 py-3 bg-white/80 backdrop-blur-xl border-b border-white/40">
+        <div className="relative group">
+          {/* Holographic glow on focus */}
+          <div className="absolute -inset-1 bg-gradient-to-r from-violet-500/20 via-fuchsia-500/20 to-orange-500/20 rounded-2xl opacity-0 group-focus-within:opacity-100 blur-lg transition-opacity duration-300" />
+          <div className="relative">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 group-focus-within:text-violet-500 transition-colors" />
+            <input
+              type="text"
+              placeholder="Szukaj..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-12 pr-4 py-3 bg-white/60 backdrop-blur-sm border border-white/60 rounded-2xl text-slate-800 placeholder-slate-400 focus:bg-white/90 focus:border-violet-300 focus:ring-4 focus:ring-violet-500/10 transition-all"
+            />
           </div>
         </div>
       </div>
 
-      {/* ===== MOBILE: SEARCH BAR (pod sticky tabs) ===== */}
-      <div className="md:hidden px-4 py-3 bg-white/80 backdrop-blur-sm border-b border-gray-100">
-        <div className="relative">
-          <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Lokalizacja, słowa kluczowe..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all text-sm"
-          />
-        </div>
-        <div className="flex justify-end mt-2">
-          <button
-            onClick={() => setShowFilters(!showFilters)}
-            className="text-sm text-gray-600 font-medium flex items-center gap-1"
-          >
-            <Filter size={16} />
-            Filtry
-          </button>
-        </div>
-      </div>
-
-      {/* ===== STORIES CAROUSEL ===== */}
-      <div className="container mx-auto px-4 mt-4 md:mt-6 max-w-7xl">
-        <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide">
-          {/* Add Story Button */}
-          {canCreatePost && (
-            <button className="flex-shrink-0 group">
-              <div className="relative">
-                <div className="w-16 md:w-20 h-16 md:h-20 rounded-full bg-gradient-to-br from-amber-500 to-orange-600 p-0.5">
-                  <div className="w-full h-full rounded-full bg-white flex items-center justify-center">
-                    <Plus className="w-6 md:w-8 h-6 md:h-8 text-amber-600" />
-                  </div>
-                </div>
-                <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-amber-600 rounded-full border-2 border-white flex items-center justify-center">
-                  <Plus className="w-4 h-4 text-white" />
-                </div>
-              </div>
-              <p className="text-xs text-center mt-2 font-medium text-gray-700">
-                Jouw verhaal
-              </p>
-            </button>
-          )}
-
-          {/* Stories */}
-          {stories.map((story) => (
-            <button key={story.id} className="flex-shrink-0 group">
-              <div
-                className={`w-20 h-20 rounded-full p-0.5 ${
-                  story.is_seen
-                    ? "bg-gray-300"
-                    : "bg-gradient-to-br from-purple-500 via-pink-500 to-red-500"
-                }`}
-              >
-                <div className="w-full h-full rounded-full bg-gradient-to-br from-blue-400 to-purple-600 flex items-center justify-center text-white font-bold text-2xl">
-                  {story.user_name.charAt(0)}
-                </div>
-              </div>
-              <p className="text-xs text-center mt-2 font-medium text-gray-700 truncate w-20">
-                {story.user_name.split(" ")[0]}
-              </p>
-            </button>
-          ))}
-        </div>
-      </div>
+      {/* ═══════════════════════════════════════════════════════════════════ */}
+      {/* USUNIĘTO: Zduplikowane filtry i searchbary                          */}
+      {/* ═══════════════════════════════════════════════════════════════════ */}
 
       {/* ===== MAIN 3-COLUMN LAYOUT ===== */}
-      <div className="container mx-auto px-4 mt-6 max-w-7xl">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          {/* ===== LEFT SIDEBAR - Trending ===== */}
+          {/* ===== LEFT SIDEBAR - Trending z glassmorphism ===== */}
           <aside className="hidden lg:block lg:col-span-3">
-            <div className="sticky top-24 space-y-6">
-              {/* Trending Widget */}
-              <div className="bg-white/80 backdrop-blur-xl rounded-3xl p-6 shadow-xl border border-white/40">
-                <div className="flex items-center gap-2 mb-4">
-                  <TrendingUp className="w-5 h-5 text-orange-600" />
-                  <h3 className="font-bold text-lg">🔥 Trending Nu</h3>
+            <div className="sticky top-36 space-y-6">
+              {/* Trending Widget - Glassmorphism */}
+              <div className="bg-white/70 backdrop-blur-2xl rounded-2xl p-5 shadow-lg shadow-slate-200/20 border border-white/50 relative overflow-hidden">
+                {/* Subtle gradient accent */}
+                <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-orange-500/10 to-pink-500/10 rounded-full blur-2xl" />
+
+                <div className="flex items-center gap-2 mb-4 relative">
+                  <div className="p-2 bg-gradient-to-br from-orange-500 to-rose-500 rounded-xl shadow-lg shadow-orange-500/30">
+                    <TrendingUp className="w-4 h-4 text-white" />
+                  </div>
+                  <h3 className="font-bold text-slate-800">Popularne</h3>
                 </div>
 
-                <div className="space-y-4">
+                <div className="space-y-3 relative">
                   {trending.slice(0, 5).map((post, index) => (
                     <div
                       key={post.id}
-                      className="flex items-start gap-3 group cursor-pointer hover:bg-amber-50 p-2 rounded-xl transition-all"
+                      className="flex items-start gap-3 group cursor-pointer hover:bg-white/60 p-2 -mx-2 rounded-xl transition-all"
                     >
-                      <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center text-white font-bold text-sm">
+                      <div className="flex-shrink-0 w-7 h-7 rounded-lg bg-gradient-to-br from-orange-500 via-rose-500 to-pink-500 flex items-center justify-center text-white font-bold text-sm shadow-md shadow-orange-500/30">
                         {index + 1}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold text-gray-900 line-clamp-2 group-hover:text-amber-600 transition-colors">
+                        <p className="text-sm font-medium text-slate-700 line-clamp-2 group-hover:text-orange-600 transition-colors">
                           {post.title || post.content.substring(0, 60)}
                         </p>
-                        <p className="text-xs text-gray-500 mt-1">
-                          {post.likes_count} likes • {post.comments_count}{" "}
-                          reacties
+                        <p className="text-xs text-slate-400 mt-1">
+                          {post.likes_count} ❤️ • {post.comments_count} 💬
                         </p>
                       </div>
                     </div>
@@ -861,28 +925,37 @@ export default function FeedPagePremium() {
               </div>
             )}
 
-            {/* Posts Masonry */}
-            <div className="space-y-6">
+            {/* Posts List */}
+            <div className="space-y-4">
               {filterPosts(posts).length === 0 ? (
-                <div className="text-center py-12">
-                  <div className="text-6xl mb-4">🔍</div>
-                  <h3 className="text-2xl font-bold text-gray-800 mb-2">
-                    Brak wyników
-                  </h3>
-                  <p className="text-gray-600 mb-6">
-                    Nie znaleziono ogłoszeń spełniających kryteria wyszukiwania
-                  </p>
-                  <button
-                    onClick={() => {
-                      setSearchQuery("");
-                      setSelectedCity("all");
-                      setSelectedCategory("all");
-                      setActiveFilter("all");
-                    }}
-                    className="bg-blue-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-blue-700 transition-all"
-                  >
-                    Wyczyść filtry
-                  </button>
+                <div className="text-center py-16 bg-white/70 backdrop-blur-2xl rounded-2xl shadow-lg shadow-slate-200/20 border border-white/50 relative overflow-hidden">
+                  {/* Decorative gradient */}
+                  <div className="absolute inset-0 bg-gradient-to-br from-violet-500/5 via-transparent to-orange-500/5" />
+
+                  <div className="relative">
+                    <div className="text-6xl mb-4">🔍</div>
+                    <h3 className="text-2xl font-bold text-slate-800 mb-2">
+                      Brak wyników
+                    </h3>
+                    <p className="text-slate-500 mb-6 max-w-sm mx-auto">
+                      Nie znaleziono ogłoszeń spełniających kryteria
+                      wyszukiwania
+                    </p>
+                    <button
+                      onClick={() => {
+                        setSearchQuery("");
+                        setSelectedCity("all");
+                        setSelectedCategory("all");
+                        setActiveFilter("all");
+                      }}
+                      className="relative group"
+                    >
+                      <div className="absolute -inset-1 bg-gradient-to-r from-orange-500 via-rose-500 to-violet-500 rounded-2xl opacity-50 group-hover:opacity-70 blur-lg transition-all" />
+                      <span className="relative flex items-center gap-2 bg-gradient-to-r from-orange-500 via-rose-500 to-violet-500 text-white px-6 py-3 rounded-xl font-bold shadow-xl">
+                        🔄 Wyczyść filtry
+                      </span>
+                    </button>
+                  </div>
                 </div>
               ) : (
                 filterPosts(posts).map((post) => (
@@ -892,7 +965,19 @@ export default function FeedPagePremium() {
                     onLike={() =>
                       handleLike(post.id, post.user_has_liked || false)
                     }
-                    onComment={loadFeed}
+                    onComment={() => {
+                      // Update local state with incremented comment count
+                      setPosts((prevPosts) =>
+                        prevPosts.map((p) =>
+                          p.id === post.id
+                            ? {
+                                ...p,
+                                comments_count: (p.comments_count || 0) + 1,
+                              }
+                            : p
+                        )
+                      );
+                    }}
                     onShare={loadFeed}
                     onReactionChange={(reactionType) =>
                       handleReactionChange(post.id, reactionType)
@@ -913,34 +998,104 @@ export default function FeedPagePremium() {
             </div>
           </main>
 
-          {/* ===== RIGHT SIDEBAR - Suggestions ===== */}
+          {/* ===== RIGHT SIDEBAR - Footer & Info z glassmorphism ===== */}
           <aside className="hidden lg:block lg:col-span-3">
-            <div className="sticky top-24 space-y-6">
-              {/* Footer Links */}
-              <div className="text-xs text-gray-500 space-y-2 px-4">
-                <div className="flex flex-wrap gap-2">
-                  <a href="#" className="hover:text-amber-600">
-                    Over
-                  </a>
-                  <span>•</span>
-                  <a href="#" className="hover:text-amber-600">
-                    Help
-                  </a>
-                  <span>•</span>
-                  <a href="#" className="hover:text-amber-600">
-                    Privacy
-                  </a>
-                  <span>•</span>
-                  <a href="#" className="hover:text-amber-600">
-                    Voorwaarden
-                  </a>
+            <div className="sticky top-36 space-y-6">
+              {/* Quick Stats Widget */}
+              <div className="bg-white/70 backdrop-blur-2xl rounded-2xl p-5 shadow-lg shadow-slate-200/20 border border-white/50 relative overflow-hidden">
+                {/* Subtle gradient accent */}
+                <div className="absolute top-0 left-0 w-32 h-32 bg-gradient-to-br from-cyan-500/10 to-blue-500/10 rounded-full blur-2xl" />
+
+                <div className="flex items-center gap-2 mb-4 relative">
+                  <div className="p-2 bg-gradient-to-br from-cyan-500 to-blue-500 rounded-xl shadow-lg shadow-cyan-500/30">
+                    <TrendingUp className="w-4 h-4 text-white" />
+                  </div>
+                  <h3 className="font-bold text-slate-800">Statystyki</h3>
                 </div>
-                <p className="text-gray-400">© 2025 ZZP Werkplaats</p>
+
+                <div className="space-y-3 relative">
+                  <div className="flex justify-between items-center p-3 bg-white/60 rounded-xl">
+                    <span className="text-slate-600 text-sm">
+                      Aktywne posty
+                    </span>
+                    <span className="font-bold text-slate-800">
+                      {posts.length}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center p-3 bg-white/60 rounded-xl">
+                    <span className="text-slate-600 text-sm">Twoje wyniki</span>
+                    <span className="font-bold text-emerald-600">
+                      {filterPosts(posts).length}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Footer Links - Glassmorphism */}
+              <div className="bg-white/50 backdrop-blur-xl rounded-2xl p-5 border border-white/40">
+                <div className="text-xs text-slate-500 space-y-3">
+                  <div className="flex flex-wrap gap-x-3 gap-y-1">
+                    <a
+                      href="#"
+                      className="hover:text-violet-600 transition-colors"
+                    >
+                      O nas
+                    </a>
+                    <span className="text-slate-300">•</span>
+                    <a
+                      href="#"
+                      className="hover:text-violet-600 transition-colors"
+                    >
+                      Pomoc
+                    </a>
+                    <span className="text-slate-300">•</span>
+                    <a
+                      href="#"
+                      className="hover:text-violet-600 transition-colors"
+                    >
+                      Prywatność
+                    </a>
+                    <span className="text-slate-300">•</span>
+                    <a
+                      href="#"
+                      className="hover:text-violet-600 transition-colors"
+                    >
+                      Regulamin
+                    </a>
+                  </div>
+                  <div className="pt-2 border-t border-white/50">
+                    <p className="text-slate-400 flex items-center gap-1">
+                      <span>✨</span> © 2025 ZZP Werkplaats
+                    </p>
+                  </div>
+                </div>
               </div>
             </div>
           </aside>
         </div>
       </div>
+
+      {/* ===== STORY MODALS (PRO) - MUST BE AT ROOT LEVEL ===== */}
+      {showCreateStoryEditor && (
+        <CreateStoryEditor
+          onClose={() => setShowCreateStoryEditor(false)}
+          onSuccess={() => {
+            setShowCreateStoryEditor(false);
+          }}
+        />
+      )}
+
+      {/* Story Viewer PRO */}
+      {viewingAuthorId && (
+        <StoryViewerProWrapper
+          authorId={viewingAuthorId}
+          storyId={viewingStoryId}
+          onClose={() => {
+            setViewingAuthorId(null);
+            setViewingStoryId(null);
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -969,12 +1124,14 @@ export function PostCardPremium({
   currentUserRole,
 }: PostCardPremiumProps) {
   const [showComments, setShowComments] = useState(false);
+  const [isCommentsAnimating, setIsCommentsAnimating] = useState(false);
   const [comments, setComments] = useState<PostComment[]>([]);
   const [loadingComments, setLoadingComments] = useState(false);
   const [commentText, setCommentText] = useState("");
   const [isSubmittingComment, setIsSubmittingComment] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
   const [currentFolders, setCurrentFolders] = useState<SaveFolder[]>([]);
+  const commentsRef = useRef<HTMLDivElement>(null);
 
   // Load saved folders for this post
   useEffect(() => {
@@ -1011,6 +1168,9 @@ export function PostCardPremium({
   };
 
   const handleShowComments = async () => {
+    // Start animation
+    setIsCommentsAnimating(true);
+
     if (!showComments && comments.length === 0) {
       setLoadingComments(true);
       try {
@@ -1022,7 +1182,18 @@ export function PostCardPremium({
         setLoadingComments(false);
       }
     }
-    setShowComments(!showComments);
+
+    if (showComments) {
+      // Closing - animate out first, then hide
+      setTimeout(() => {
+        setShowComments(false);
+        setIsCommentsAnimating(false);
+      }, 200);
+    } else {
+      // Opening
+      setShowComments(true);
+      setTimeout(() => setIsCommentsAnimating(false), 300);
+    }
   };
 
   const handleSubmitComment = async (e: React.FormEvent) => {
@@ -1062,8 +1233,18 @@ export function PostCardPremium({
           .eq("profile_id", authUserId)
           .single();
         actualUserId = data?.id || null;
-      } else if (currentUserRole === "admin") {
-        // Admin uses profile_id directly
+      } else if (currentUserRole === "cleaning_company") {
+        const { data } = await supabase
+          .from("cleaning_companies")
+          .select("id")
+          .eq("profile_id", authUserId)
+          .single();
+        actualUserId = data?.id || null;
+      } else if (
+        currentUserRole === "admin" ||
+        currentUserRole === "regular_user"
+      ) {
+        // Admin and regular_user use profile_id directly
         actualUserId = authUserId;
       }
 
@@ -1092,180 +1273,220 @@ export function PostCardPremium({
     }
   };
 
+  // Determine if this is a job/service post (hero image style)
+  const isHeroPost =
+    post.type === "job_offer" ||
+    post.type === "service_request" ||
+    post.type === "ad";
+  const hasMedia = post.media_urls && post.media_urls.length > 0;
+  const primaryImage = hasMedia ? post.media_urls![0] : null;
+  const mediaCount = post.media_urls?.length || 0;
+
+  // Generate public profile URL based on author type
+  const getProfileUrl = () => {
+    if (!post.author_profile_id) return null;
+
+    const profileId = post.author_profile_id;
+    switch (post.author_type) {
+      case "worker":
+        return `/worker/profile/${profileId}`;
+      case "employer":
+        return `/employer/profile/${profileId}`;
+      case "accountant":
+        return `/accountant/profile/${profileId}`;
+      case "cleaning_company":
+        return `/cleaning-company/profile/${profileId}`;
+      case "admin":
+        return `/admin/profile/${profileId}`;
+      case "regular_user":
+        return `/regular-user/profile/${profileId}`;
+      default:
+        return null;
+    }
+  };
+
+  const profileUrl = getProfileUrl();
+
   return (
-    <article className="group bg-white/90 backdrop-blur-xl rounded-3xl shadow-xl border border-white/40 overflow-hidden hover:shadow-2xl transition-all duration-500 transform hover:-translate-y-1">
-      {/* Post Header */}
-      <div className="p-6">
-        <div className="flex items-start justify-between mb-4">
-          <div className="flex items-center gap-4">
-            {/* Avatar with gradient ring */}
-            <div className="relative">
-              <div className="w-14 h-14 rounded-full bg-gradient-to-br from-amber-400 via-orange-500 to-red-500 p-0.5">
-                {post.author_avatar ? (
-                  <img
-                    src={post.author_avatar}
-                    alt={post.author_name || "User"}
-                    className="w-full h-full rounded-full object-cover bg-white"
-                  />
-                ) : (
-                  <div className="w-full h-full rounded-full bg-gradient-to-br from-blue-400 to-purple-600 flex items-center justify-center text-white font-bold text-xl">
-                    {post.author_name?.charAt(0) || "U"}
-                  </div>
-                )}
-              </div>
-              {/* Online indicator */}
-              <div className="absolute bottom-0 right-0 w-4 h-4 bg-green-500 border-2 border-white rounded-full"></div>
-            </div>
-
-            <div>
-              <div className="flex items-center gap-2">
-                <h3 className="font-bold text-gray-900 hover:text-amber-600 cursor-pointer transition-colors">
-                  {post.author_name || "Onbekend"}
-                </h3>
-                {/* Verified badge */}
-                <Award className="w-4 h-4 text-blue-500" />
-              </div>
-              <p className="text-sm text-gray-500 flex items-center gap-2">
-                <span>{formatDate(post.created_at)}</span>
-                <span>•</span>
-                <span className="flex items-center gap-1">
-                  <Eye className="w-3.5 h-3.5" />
-                  {post.views_count}
+    <article className="group relative bg-white/60 backdrop-blur-2xl rounded-2xl sm:rounded-[2rem] shadow-[0_4px_20px_rgba(0,0,0,0.04)] sm:shadow-[0_8px_40px_rgba(0,0,0,0.06)] border border-white/50 overflow-hidden hover:shadow-[0_20px_60px_rgba(0,0,0,0.1)] transition-all duration-500">
+      {/* ============================================= */}
+      {/* AUTHOR HEADER - Always visible for ALL posts */}
+      {/* ============================================= */}
+      <div className="flex items-center justify-between p-3 sm:p-4 md:p-5 border-b border-slate-100/50">
+        <div className="flex items-center gap-2 sm:gap-3">
+          {profileUrl ? (
+            <Link
+              to={profileUrl}
+              className="w-9 h-9 sm:w-11 sm:h-11 rounded-full bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center overflow-hidden ring-2 ring-white shadow-md hover:ring-4 hover:ring-orange-200 transition-all cursor-pointer active:scale-95"
+            >
+              {post.author_avatar ? (
+                <img
+                  src={post.author_avatar}
+                  alt={post.author_name || ""}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <span className="text-slate-500 font-bold text-xs sm:text-sm">
+                  {post.author_name?.charAt(0) || "?"}
                 </span>
-              </p>
+              )}
+            </Link>
+          ) : (
+            <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-full bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center overflow-hidden ring-2 ring-white shadow-md">
+              {post.author_avatar ? (
+                <img
+                  src={post.author_avatar}
+                  alt={post.author_name || ""}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <span className="text-slate-500 font-bold text-xs sm:text-sm">
+                  {post.author_name?.charAt(0) || "?"}
+                </span>
+              )}
             </div>
-          </div>
-
-          {/* More Options */}
-          <button className="p-2 hover:bg-gray-100 rounded-full transition-colors">
-            <MoreHorizontal className="w-5 h-5 text-gray-400" />
-          </button>
-        </div>
-
-        {/* Post Type Badge */}
-        <div className="mb-3">
-          <span
-            className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-bold ${
-              post.type === "job_offer"
-                ? "bg-gradient-to-r from-blue-500 to-blue-600 text-white"
-                : post.type === "ad"
-                ? "bg-gradient-to-r from-purple-500 to-pink-600 text-white"
-                : "bg-gradient-to-r from-amber-500 to-orange-600 text-white"
-            }`}
-          >
-            {post.type === "job_offer" && (
-              <>
-                <Briefcase className="w-3.5 h-3.5" /> Vacature
-              </>
+          )}
+          <div className="min-w-0 flex-1">
+            {profileUrl ? (
+              <Link
+                to={profileUrl}
+                className="font-semibold text-slate-800 hover:text-orange-600 transition-colors cursor-pointer text-sm sm:text-base block truncate"
+              >
+                {post.author_name || "Anoniem"}
+              </Link>
+            ) : (
+              <p className="font-semibold text-slate-800 text-sm sm:text-base truncate">
+                {post.author_name || "Anoniem"}
+              </p>
             )}
-            {post.type === "ad" && <>📣 Advertentie</>}
-            {post.type === "announcement" && <>📢 Aankondiging</>}
-          </span>
+            <p className="text-[10px] sm:text-xs text-slate-400 flex items-center gap-1 flex-wrap">
+              <span>{formatDate(post.created_at)}</span>
+              {post.author_type && (
+                <>
+                  <span className="text-slate-300">•</span>
+                  <span className="capitalize">
+                    {post.author_type === "worker" && "Pracownik"}
+                    {post.author_type === "employer" && "Pracodawca"}
+                    {post.author_type === "accountant" && "Księgowy"}
+                    {post.author_type === "cleaning_company" && "Firma sprząt."}
+                    {post.author_type === "admin" && "Admin"}
+                    {post.author_type === "regular_user" && "Użytkownik"}
+                  </span>
+                </>
+              )}
+            </p>
+          </div>
         </div>
+        <button className="p-1.5 sm:p-2 hover:bg-slate-100 rounded-xl transition-colors active:scale-95 flex-shrink-0">
+          <MoreHorizontal className="w-4 h-4 sm:w-5 sm:h-5 text-slate-400" />
+        </button>
+      </div>
 
-        {/* Post Title */}
-        {post.title && (
-          <h2 className="text-2xl font-black text-gray-900 mb-3 leading-tight">
+      {/* ============================================= */}
+      {/* HERO IMAGE SECTION (for job/service/ad posts) */}
+      {/* ============================================= */}
+      {isHeroPost && primaryImage && (
+        <div className="relative h-40 sm:h-52 md:h-64 overflow-hidden">
+          <img
+            src={primaryImage}
+            alt={post.title || "Post image"}
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+          />
+          {/* Gradient overlay */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
+
+          {/* Gallery indicator */}
+          {mediaCount > 1 && (
+            <div className="absolute top-2 right-2 sm:top-4 sm:right-4 px-2 sm:px-3 py-1 sm:py-1.5 bg-white/20 backdrop-blur-md rounded-full text-white text-xs sm:text-sm font-medium border border-white/30">
+              1/{mediaCount}
+            </div>
+          )}
+
+          {/* Title overlay on image */}
+          <div className="absolute bottom-0 left-0 right-0 p-3 sm:p-5 md:p-6">
+            {post.title && (
+              <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-white leading-tight drop-shadow-lg line-clamp-2">
+                {post.title}
+              </h2>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ============================================= */}
+      {/* CONTENT SECTION */}
+      {/* ============================================= */}
+      <div className="p-3 sm:p-5 md:p-6">
+        {/* Title for non-hero posts (hero posts have title on image) */}
+        {(!isHeroPost || !primaryImage) && post.title && (
+          <h2 className="text-lg sm:text-xl font-bold text-slate-800 mb-2 sm:mb-3 leading-tight">
             {post.title}
           </h2>
         )}
 
-        {/* Post Content */}
-        <p className="text-gray-700 whitespace-pre-wrap mb-4 leading-relaxed">
-          {post.content}
-        </p>
+        {/* Content text */}
+        {post.content && (
+          <p
+            className={`text-slate-600 leading-relaxed text-sm sm:text-base ${
+              isHeroPost && primaryImage
+                ? "text-xs sm:text-sm line-clamp-2"
+                : "mb-3 sm:mb-4"
+            }`}
+          >
+            {post.content}
+          </p>
+        )}
 
-        {/* Media Gallery with Modern Layout */}
-        {post.media_urls && post.media_urls.length > 0 && (
-          <div className="mb-4 -mx-6">
+        {/* Media for non-hero posts */}
+        {!isHeroPost && hasMedia && (
+          <div className="mt-3 sm:mt-4 rounded-xl sm:rounded-2xl overflow-hidden">
             <div
-              className={`grid gap-1 ${
-                post.media_urls.length === 1
+              className={`grid gap-0.5 sm:gap-1 ${
+                mediaCount === 1
                   ? "grid-cols-1"
-                  : post.media_urls.length === 2
-                  ? "grid-cols-2"
-                  : post.media_urls.length === 3
-                  ? "grid-cols-3"
-                  : post.media_urls.length === 4
+                  : mediaCount === 2
                   ? "grid-cols-2"
                   : "grid-cols-3"
               }`}
             >
-              {post.media_urls.slice(0, 5).map((mediaUrl, index) => {
-                const mediaType = post.media_types?.[index] || "image";
-                const isLastAndMore =
-                  index === 4 && post.media_urls!.length > 5;
-
-                return (
-                  <div
-                    key={index}
-                    className={`relative bg-black group/media cursor-pointer overflow-hidden ${
-                      post.media_urls!.length === 1
-                        ? "aspect-[16/10]"
-                        : post.media_urls!.length === 2
-                        ? "aspect-[4/5]"
-                        : "aspect-square"
-                    } ${
-                      index === 0 && post.media_urls!.length === 3
-                        ? "col-span-3"
-                        : ""
-                    }`}
-                  >
-                    {mediaType === "image" ? (
-                      <>
-                        <img
-                          src={mediaUrl}
-                          alt={`Media ${index + 1}`}
-                          className="w-full h-full object-cover group-hover/media:scale-110 transition-transform duration-500"
-                          onClick={() => window.open(mediaUrl, "_blank")}
-                        />
-                        {isLastAndMore && (
-                          <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
-                            <span className="text-white text-4xl font-black">
-                              +{post.media_urls!.length - 5}
-                            </span>
-                          </div>
-                        )}
-                      </>
-                    ) : (
-                      <video
-                        src={mediaUrl}
-                        controls
-                        className="w-full h-full object-cover"
-                        preload="metadata"
-                      />
-                    )}
-
-                    {/* Media Type Indicator */}
-                    <div className="absolute top-3 right-3 px-2.5 py-1 bg-black/70 backdrop-blur-sm text-white text-xs rounded-full flex items-center gap-1.5 opacity-0 group-hover/media:opacity-100 transition-opacity">
-                      {mediaType === "image" ? (
-                        <ImageIcon className="w-3 h-3" />
-                      ) : (
-                        <Video className="w-3 h-3" />
-                      )}
-                      <span className="capitalize">{mediaType}</span>
+              {post.media_urls!.slice(0, 4).map((url, idx) => (
+                <div
+                  key={idx}
+                  className={`relative aspect-square ${
+                    idx === 0 && mediaCount === 3 ? "col-span-2 row-span-2" : ""
+                  }`}
+                >
+                  <img
+                    src={url}
+                    alt=""
+                    className="w-full h-full object-cover"
+                  />
+                  {idx === 3 && mediaCount > 4 && (
+                    <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                      <span className="text-white text-xl sm:text-2xl font-bold">
+                        +{mediaCount - 4}
+                      </span>
                     </div>
-                  </div>
-                );
-              })}
+                  )}
+                </div>
+              ))}
             </div>
           </div>
         )}
 
-        {/* Service Request Card (Zlecenie Prywatne) */}
+        {/* ============================================= */}
+        {/* GLASSMORPHISM DETAILS CARD - SERVICE REQUEST */}
+        {/* ============================================= */}
         {post.type === "service_request" &&
           (post.request_category || post.category) && (
-            <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-2xl p-5 space-y-4 mb-4 border border-purple-200">
-              <div className="flex items-center gap-2 text-purple-900 font-bold">
-                <span className="text-xl">🏡</span>
-                <span>Szczegóły Zlecenia</span>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {/* Kategoria */}
-                <div className="flex items-center gap-2 text-sm text-gray-700 bg-white/60 rounded-lg px-3 py-2">
-                  <span className="font-semibold">🏷️ Kategoria:</span>
-                  <span className="capitalize">
+            <div className="mt-3 sm:mt-4 bg-white/40 backdrop-blur-xl rounded-xl sm:rounded-2xl p-3 sm:p-4 border border-white/60 shadow-sm">
+              <div className="space-y-2">
+                {/* Category */}
+                <div className="flex items-center gap-2 text-slate-700">
+                  <div className="w-5 h-5 rounded-full bg-blue-100 flex items-center justify-center">
+                    <span className="text-xs">🏷️</span>
+                  </div>
+                  <span className="text-sm">
                     {(post.request_category || post.category) === "plumbing" &&
                       "Hydraulika"}
                     {(post.request_category || post.category) ===
@@ -1282,651 +1503,674 @@ export function PostCardPremium({
                       "Malowanie"}
                     {(post.request_category || post.category) === "other" &&
                       "Inne"}
-                    {![
-                      "plumbing",
-                      "electrical",
-                      "cleaning",
-                      "moving",
-                      "repair",
-                      "gardening",
-                      "painting",
-                      "other",
-                    ].includes(post.request_category || post.category || "") &&
-                      (post.request_category || post.category)}
                   </span>
                 </div>
 
-                {/* Lokalizacja */}
-                <div className="flex items-center gap-2 text-sm text-gray-700 bg-white/60 rounded-lg px-3 py-2">
-                  <span className="font-semibold">📍 Miasto:</span>
-                  {post.request_location || post.location ? (
-                    <span>{post.request_location || post.location}</span>
-                  ) : (
-                    <span className="text-gray-400 italic">Nie podano</span>
-                  )}
-                </div>
+                {/* Urgency with checkmark */}
+                {(post.request_urgency === "urgent" ||
+                  post.request_urgency === "high") && (
+                  <div className="flex items-center gap-2 text-orange-600">
+                    <Check className="w-4 h-4" />
+                    <span className="text-sm font-medium">Szybki termin</span>
+                  </div>
+                )}
 
-                {/* Budżet */}
-                <div className="flex items-center gap-2 text-sm text-gray-700 bg-white/60 rounded-lg px-3 py-2">
-                  <span className="font-semibold">💰 Budżet:</span>
-                  {post.request_budget_min || post.request_budget_max ? (
-                    <span className="font-bold text-green-700">
+                {/* Location */}
+                {(post.request_location || post.location) && (
+                  <div className="flex items-center gap-2 text-slate-600">
+                    <MapPin className="w-4 h-4 text-slate-400" />
+                    <span className="text-sm">
+                      {post.request_location || post.location}
+                    </span>
+                  </div>
+                )}
+
+                {/* Budget */}
+                {(post.request_budget_min || post.request_budget_max) && (
+                  <div className="flex items-center gap-2 text-slate-600">
+                    <DollarSign className="w-4 h-4 text-slate-400" />
+                    <span className="text-sm">
                       {post.request_budget_min && post.request_budget_max
                         ? `€${post.request_budget_min} - €${post.request_budget_max}`
                         : post.request_budget_min
                         ? `od €${post.request_budget_min}`
                         : `do €${post.request_budget_max}`}
                     </span>
-                  ) : (
-                    <span className="text-gray-400 italic">Do negocjacji</span>
-                  )}
-                </div>
+                  </div>
+                )}
 
-                {/* Pilność */}
-                <div className="flex items-center gap-2 text-sm text-gray-700 bg-white/60 rounded-lg px-3 py-2">
-                  <span className="font-semibold">🔥 Pilność:</span>
-                  <span
-                    className={`px-2 py-0.5 rounded-full text-xs font-bold ${
-                      post.request_urgency === "urgent"
-                        ? "bg-red-100 text-red-700"
-                        : post.request_urgency === "high"
-                        ? "bg-orange-100 text-orange-700"
-                        : post.request_urgency === "normal"
-                        ? "bg-blue-100 text-blue-700"
-                        : "bg-gray-100 text-gray-700"
-                    }`}
-                  >
-                    {post.request_urgency === "urgent" && "⚡ Pilne!"}
-                    {post.request_urgency === "high" && "🔥 Wysoka"}
-                    {post.request_urgency === "normal" && "📋 Normalna"}
-                    {post.request_urgency === "low" && "⏰ Niska"}
-                    {!post.request_urgency && "📋 Normalna"}
-                  </span>
-                </div>
-
-                {/* Preferowana data */}
+                {/* Preferred Date */}
                 {post.request_preferred_date && (
-                  <div className="flex items-center gap-2 text-sm text-gray-700 bg-white/60 rounded-lg px-3 py-2 md:col-span-2">
-                    <span className="font-semibold">📅 Preferowana data:</span>
-                    <span className="font-semibold text-blue-700">
+                  <div className="flex items-center gap-2 text-slate-600">
+                    <Calendar className="w-4 h-4 text-slate-400" />
+                    <span className="text-sm">
+                      Preferowana data:{" "}
                       {new Date(post.request_preferred_date).toLocaleDateString(
-                        "pl-PL",
-                        {
-                          year: "numeric",
-                          month: "long",
-                          day: "numeric",
-                        }
+                        "pl-PL"
                       )}
                     </span>
                   </div>
                 )}
 
+                {/* Contact Method */}
+                {post.request_contact_method && (
+                  <div className="flex items-center gap-2 text-slate-600">
+                    <Check className="w-4 h-4 text-green-500" />
+                    <span className="text-sm">
+                      {post.request_contact_method === "phone" &&
+                        "Kontakt: Telefon"}
+                      {post.request_contact_method === "email" &&
+                        "Kontakt: Email"}
+                      {post.request_contact_method === "both" &&
+                        "Kontakt: Telefon lub Email"}
+                    </span>
+                  </div>
+                )}
+
                 {/* Status */}
-                <div className="flex items-center gap-2 text-sm text-gray-700 bg-white/60 rounded-lg px-3 py-2">
-                  <span className="font-semibold">📊 Status:</span>
-                  <span
-                    className={`px-2 py-0.5 rounded-full text-xs font-bold ${
-                      post.request_status === "open"
-                        ? "bg-green-100 text-green-700"
+                {post.request_status && post.request_status !== "open" && (
+                  <div
+                    className={`flex items-center gap-2 ${
+                      post.request_status === "completed"
+                        ? "text-green-600"
                         : post.request_status === "in_progress"
-                        ? "bg-blue-100 text-blue-700"
-                        : post.request_status === "completed"
-                        ? "bg-gray-100 text-gray-700"
-                        : "bg-red-100 text-red-700"
+                        ? "text-blue-600"
+                        : "text-slate-500"
                     }`}
                   >
-                    {post.request_status === "open" && "🟢 Otwarte"}
-                    {post.request_status === "in_progress" && "🔵 W trakcie"}
-                    {post.request_status === "completed" && "✅ Zakończone"}
-                    {post.request_status === "cancelled" && "❌ Anulowane"}
-                    {!post.request_status && "🟢 Otwarte"}
-                  </span>
-                </div>
+                    <span className="text-xs">
+                      {post.request_status === "in_progress" && "🔄"}
+                      {post.request_status === "completed" && "✅"}
+                      {post.request_status === "cancelled" && "❌"}
+                    </span>
+                    <span className="text-sm font-medium">
+                      {post.request_status === "in_progress" &&
+                        "W trakcie realizacji"}
+                      {post.request_status === "completed" && "Zakończone"}
+                      {post.request_status === "cancelled" && "Anulowane"}
+                    </span>
+                  </div>
+                )}
+
+                {/* Responses Count */}
+                {post.request_responses_count !== undefined &&
+                  post.request_responses_count > 0 && (
+                    <div className="flex items-center gap-2 text-slate-600">
+                      <Users className="w-4 h-4 text-slate-400" />
+                      <span className="text-sm">
+                        {post.request_responses_count} ofert od wykonawców
+                      </span>
+                    </div>
+                  )}
+              </div>
+
+              {/* CTA Button */}
+              <div className="mt-3 sm:mt-4 flex justify-end">
+                {post.author_phone ? (
+                  <a
+                    href={`https://wa.me/${post.author_phone.replace(
+                      /\D/g,
+                      ""
+                    )}?text=${encodeURIComponent(
+                      `Hej! Interesuje mnie: ${
+                        post.title || post.content.substring(0, 50)
+                      }`
+                    )}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-4 sm:px-5 py-2 bg-gradient-to-r from-slate-700 to-slate-800 text-white text-xs sm:text-sm font-semibold rounded-lg sm:rounded-xl hover:shadow-lg active:scale-95 sm:hover:scale-105 transition-all"
+                  >
+                    SKONTAKTUJ SIĘ
+                  </a>
+                ) : (
+                  <button className="px-4 sm:px-5 py-2 bg-gradient-to-r from-slate-600 to-slate-700 text-white text-xs sm:text-sm font-semibold rounded-lg sm:rounded-xl hover:shadow-lg active:scale-95 sm:hover:scale-105 transition-all">
+                    SKONTAKTUJ SIĘ
+                  </button>
+                )}
               </div>
             </div>
           )}
 
-        {/* Job Offer Card */}
+        {/* ============================================= */}
+        {/* GLASSMORPHISM DETAILS CARD - JOB OFFER */}
+        {/* ============================================= */}
         {post.type === "job_offer" && (
-          <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl p-5 space-y-4 mb-4 border border-blue-200">
-            <div className="flex items-center gap-2 text-blue-900 font-bold">
-              <Briefcase className="w-5 h-5" />
-              <span>Vacature Details</span>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div className="mt-3 sm:mt-4 bg-white/40 backdrop-blur-xl rounded-xl sm:rounded-2xl p-3 sm:p-4 border border-white/60 shadow-sm">
+            <div className="space-y-2">
+              {/* Category */}
               {(post.job_category || post.category) && (
-                <div className="flex items-center gap-2 text-sm text-gray-700 bg-white/60 rounded-lg px-3 py-2">
-                  <span className="font-semibold">Categorie:</span>
-                  <span>{post.job_category || post.category}</span>
+                <div className="flex items-center gap-2 text-slate-700">
+                  <div className="w-5 h-5 rounded-full bg-blue-100 flex items-center justify-center">
+                    <Briefcase className="w-3 h-3 text-blue-600" />
+                  </div>
+                  <span className="text-sm">
+                    {post.job_category || post.category}
+                  </span>
                 </div>
               )}
 
-              <div className="flex items-center gap-2 text-sm text-gray-700 bg-white/60 rounded-lg px-3 py-2">
-                <span className="font-semibold">💼 Type:</span>
-                {post.job_type ? (
-                  <span>
+              {/* Type with checkmark */}
+              {post.job_type && (
+                <div className="flex items-center gap-2 text-slate-600">
+                  <Check className="w-4 h-4 text-green-500" />
+                  <span className="text-sm">
                     {post.job_type === "full_time" && "Voltijd"}
                     {post.job_type === "part_time" && "Deeltijd"}
                     {post.job_type === "contract" && "Contract"}
                     {post.job_type === "temporary" && "Tijdelijk"}
                   </span>
-                ) : (
-                  <span className="text-gray-400 italic">
-                    Type pracy nie podany
-                  </span>
-                )}
-              </div>
+                </div>
+              )}
 
-              <div className="flex items-center gap-2 text-sm text-gray-700 bg-white/60 rounded-lg px-3 py-2">
-                <MapPin className="w-4 h-4" />
-                {post.job_location || post.location ? (
-                  <span>{post.job_location || post.location}</span>
-                ) : (
-                  <span className="text-gray-400 italic">
-                    Lokalizacja nie podana
+              {/* Location */}
+              {(post.job_location || post.location) && (
+                <div className="flex items-center gap-2 text-slate-600">
+                  <MapPin className="w-4 h-4 text-slate-400" />
+                  <span className="text-sm">
+                    {post.job_location || post.location}
                   </span>
-                )}
-              </div>
+                </div>
+              )}
 
-              <div className="flex items-center gap-2 text-sm text-gray-700 bg-white/60 rounded-lg px-3 py-2">
-                <span className="font-semibold">⏰ Uren/week:</span>
-                {post.job_hours_per_week ? (
-                  <span>{post.job_hours_per_week}</span>
-                ) : (
-                  <span className="text-gray-400 italic">
-                    Godziny nie podane
-                  </span>
-                )}
-              </div>
-
-              <div className="flex items-center gap-2 text-sm text-gray-700 bg-white/60 rounded-lg px-3 py-2">
-                <span className="font-semibold">📅 Start:</span>
-                {post.job_start_date ? (
-                  <span>
-                    {new Date(post.job_start_date).toLocaleDateString("nl-NL")}
-                  </span>
-                ) : (
-                  <span className="text-gray-400 italic">
-                    Data rozpoczęcia nie podana
-                  </span>
-                )}
-              </div>
-
+              {/* Salary */}
               {(post.job_salary_min || post.job_salary_max) && (
-                <div className="flex items-center gap-2 text-sm text-gray-700 bg-white/60 rounded-lg px-3 py-2 col-span-full">
-                  <span className="font-semibold">💰 Salaris:</span>
-                  <span className="text-green-700 font-bold">
+                <div className="flex items-center gap-2 text-slate-600">
+                  <DollarSign className="w-4 h-4 text-slate-400" />
+                  <span className="text-sm font-medium text-green-600">
                     €{post.job_salary_min || "?"} - €
                     {post.job_salary_max || "?"} /uur
                   </span>
                 </div>
               )}
-            </div>
 
-            {/* Benefits */}
-            <div className="space-y-2">
-              <span className="text-sm font-semibold text-gray-700">
-                🎁 Voordelen:
-              </span>
-              {post.job_benefits && post.job_benefits.length > 0 ? (
-                <div className="flex flex-wrap gap-2">
-                  {post.job_benefits.map((benefit, idx) => (
-                    <span
-                      key={idx}
-                      className="px-3 py-1 bg-gradient-to-r from-green-100 to-emerald-100 text-green-800 text-xs font-bold rounded-full"
-                    >
-                      {benefit}
-                    </span>
-                  ))}
+              {/* Hours per week */}
+              {post.job_hours_per_week && (
+                <div className="flex items-center gap-2 text-slate-600">
+                  <Clock className="w-4 h-4 text-slate-400" />
+                  <span className="text-sm">
+                    {post.job_hours_per_week} uur/week
+                  </span>
                 </div>
-              ) : (
-                <span className="text-gray-400 italic text-sm">
-                  Benefity nie podane
-                </span>
               )}
-            </div>
 
-            {/* Contact Info */}
-            <div className="space-y-2 pt-2 border-t border-blue-200">
-              <span className="text-sm font-semibold text-gray-700">
-                📞 Contact:
-              </span>
-              <div className="flex flex-wrap gap-3">
-                {post.job_contact_email ? (
-                  <a
-                    href={`mailto:${post.job_contact_email}`}
-                    className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-800 bg-white/60 rounded-lg px-3 py-2"
-                  >
-                    <Mail className="w-4 h-4" />
-                    {post.job_contact_email}
-                  </a>
-                ) : (
-                  <span className="flex items-center gap-2 text-sm text-gray-400 italic bg-white/60 rounded-lg px-3 py-2">
-                    <Mail className="w-4 h-4" />
-                    Email nie podany
+              {/* Start Date */}
+              {post.job_start_date && (
+                <div className="flex items-center gap-2 text-slate-600">
+                  <Calendar className="w-4 h-4 text-slate-400" />
+                  <span className="text-sm">
+                    Start:{" "}
+                    {new Date(post.job_start_date).toLocaleDateString("pl-PL")}
                   </span>
-                )}
-                {post.job_contact_phone ? (
-                  <a
-                    href={`tel:${post.job_contact_phone}`}
-                    className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-800 bg-white/60 rounded-lg px-3 py-2"
-                  >
-                    <Phone className="w-4 h-4" />
-                    {post.job_contact_phone}
-                  </a>
-                ) : (
-                  <span className="flex items-center gap-2 text-sm text-gray-400 italic bg-white/60 rounded-lg px-3 py-2">
-                    <Phone className="w-4 h-4" />
-                    Telefon nie podany
-                  </span>
-                )}
-              </div>
-            </div>
-
-            <button
-              onClick={async () => {
-                if (!currentUserId) {
-                  alert("Musisz być zalogowany, aby aplikować na ofertę pracy");
-                  return;
-                }
-
-                // Only workers can apply for jobs
-                if (currentUserRole !== "worker") {
-                  alert("Tylko pracownicy mogą aplikować na oferty pracy");
-                  return;
-                }
-
-                try {
-                  // Get worker ID from profile
-                  const { data: workerData, error: workerError } =
-                    await supabase
-                      .from("workers")
-                      .select("id")
-                      .eq("profile_id", currentUserId)
-                      .single();
-
-                  if (workerError || !workerData) {
-                    alert("Nie znaleziono profilu pracownika");
-                    return;
-                  }
-
-                  // Import application service
-                  const { applyForJob } = await import(
-                    "../src/services/application"
-                  );
-
-                  // Apply for the job
-                  await applyForJob(post.id, workerData.id);
-
-                  alert(
-                    `✅ Aplikacja wysłana!\n\nTwoja aplikacja na: "${
-                      post.title || "tę ofertę"
-                    }" została pomyślnie wysłana.\n\nPracodawca otrzyma powiadomienie.`
-                  );
-
-                  // Reload feed - need to call parent component's loadFeed
-                  window.location.reload();
-                } catch (error: any) {
-                  console.error("Error applying for job:", error);
-                  if (error.message?.includes("already applied")) {
-                    alert("⚠️ Już aplikowałeś na tę ofertę pracy");
-                  } else {
-                    alert(
-                      "❌ Błąd podczas wysyłania aplikacji. Spróbuj ponownie."
-                    );
-                  }
-                }
-              }}
-              className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold py-3 rounded-full hover:shadow-lg transform hover:scale-105 transition-all"
-            >
-              Solliciteren
-            </button>
-          </div>
-        )}
-
-        {/* Ad Card */}
-        {post.type === "ad" && (
-          <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-2xl p-5 space-y-4 mb-4 border border-purple-200">
-            <div className="flex items-center gap-2 text-purple-900 font-bold">
-              <span className="text-xl">📣</span>
-              <span>Advertentie Details</span>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div className="flex items-center gap-2 text-sm text-gray-700 bg-white/60 rounded-lg px-3 py-2">
-                <span className="font-semibold">📦 Type:</span>
-                {post.ad_type ? (
-                  <span>
-                    {post.ad_type === "product" && "🛍️ Produkt"}
-                    {post.ad_type === "service" && "🛠️ Usługa"}
-                    {post.ad_type === "event" && "🎉 Wydarzenie"}
-                    {post.ad_type === "promotion" && "🎁 Promocja"}
-                  </span>
-                ) : (
-                  <span className="text-gray-400 italic">
-                    Type reklamy nie podany
-                  </span>
-                )}
-              </div>
-
-              <div className="flex items-center gap-2 text-sm text-gray-700 bg-white/60 rounded-lg px-3 py-2">
-                <span className="font-semibold">💰 Budget:</span>
-                {post.ad_budget ? (
-                  <span className="text-green-700 font-bold">
-                    €{post.ad_budget}
-                  </span>
-                ) : (
-                  <span className="text-gray-400 italic">
-                    Budżet nie podany
-                  </span>
-                )}
-              </div>
-
-              <div className="flex items-center gap-2 text-sm text-gray-700 bg-white/60 rounded-lg px-3 py-2">
-                <span className="font-semibold">⏱️ Duur:</span>
-                {post.ad_duration_days ? (
-                  <span>{post.ad_duration_days} dagen</span>
-                ) : (
-                  <span className="text-gray-400 italic">
-                    Czas trwania nie podany
-                  </span>
-                )}
-              </div>
-
-              <div className="flex items-center gap-2 text-sm text-gray-700 bg-white/60 rounded-lg px-3 py-2">
-                <span className="font-semibold">🌐 Website:</span>
-                {post.ad_website ? (
-                  <a
-                    href={post.ad_website}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-blue-600 hover:underline truncate"
-                  >
-                    {post.ad_website}
-                  </a>
-                ) : (
-                  <span className="text-gray-400 italic">
-                    Strona www nie podana
-                  </span>
-                )}
-              </div>
-            </div>
-
-            {/* Target Audience */}
-            <div className="space-y-2">
-              <span className="text-sm font-semibold text-gray-700">
-                👥 Doelgroep:
-              </span>
-              {post.ad_target_audience && post.ad_target_audience.length > 0 ? (
-                <div className="flex flex-wrap gap-2">
-                  {post.ad_target_audience.map((audience, idx) => (
-                    <span
-                      key={idx}
-                      className="px-3 py-1 bg-gradient-to-r from-purple-100 to-pink-100 text-purple-800 text-xs font-bold rounded-full"
-                    >
-                      {audience}
-                    </span>
-                  ))}
                 </div>
-              ) : (
-                <span className="text-gray-400 italic text-sm">
-                  Grupa docelowa nie podana
-                </span>
+              )}
+
+              {/* Deadline */}
+              {post.job_deadline && (
+                <div className="flex items-center gap-2 text-orange-600">
+                  <Clock className="w-4 h-4" />
+                  <span className="text-sm font-medium">
+                    Aplikuj do:{" "}
+                    {new Date(post.job_deadline).toLocaleDateString("pl-PL")}
+                  </span>
+                </div>
+              )}
+
+              {/* Requirements */}
+              {post.job_requirements && post.job_requirements.length > 0 && (
+                <div className="mt-3 pt-3 border-t border-slate-200/50">
+                  <p className="text-xs text-slate-500 mb-2">Wymagania:</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {post.job_requirements.slice(0, 4).map((req, idx) => (
+                      <span
+                        key={idx}
+                        className="px-2 py-0.5 bg-slate-100 text-slate-600 text-xs rounded-full"
+                      >
+                        {req}
+                      </span>
+                    ))}
+                    {post.job_requirements.length > 4 && (
+                      <span className="px-2 py-0.5 bg-slate-200 text-slate-600 text-xs rounded-full">
+                        +{post.job_requirements.length - 4}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Benefits */}
+              {post.job_benefits && post.job_benefits.length > 0 && (
+                <div className="mt-3 pt-3 border-t border-slate-200/50">
+                  <p className="text-xs text-slate-500 mb-2">Benefity:</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {post.job_benefits.slice(0, 4).map((benefit, idx) => (
+                      <span
+                        key={idx}
+                        className="px-2 py-0.5 bg-green-100 text-green-700 text-xs rounded-full"
+                      >
+                        {benefit}
+                      </span>
+                    ))}
+                    {post.job_benefits.length > 4 && (
+                      <span className="px-2 py-0.5 bg-green-200 text-green-700 text-xs rounded-full">
+                        +{post.job_benefits.length - 4}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Contact Info */}
+              {(post.job_contact_email || post.job_contact_phone) && (
+                <div className="mt-3 pt-3 border-t border-slate-200/50">
+                  <p className="text-xs text-slate-500 mb-2">Kontakt:</p>
+                  <div className="space-y-1">
+                    {post.job_contact_email && (
+                      <div className="flex items-center gap-2 text-slate-600">
+                        <Mail className="w-3.5 h-3.5 text-slate-400" />
+                        <a
+                          href={`mailto:${post.job_contact_email}`}
+                          className="text-sm hover:text-blue-600 transition-colors"
+                        >
+                          {post.job_contact_email}
+                        </a>
+                      </div>
+                    )}
+                    {post.job_contact_phone && (
+                      <div className="flex items-center gap-2 text-slate-600">
+                        <Phone className="w-3.5 h-3.5 text-slate-400" />
+                        <a
+                          href={`tel:${post.job_contact_phone}`}
+                          className="text-sm hover:text-blue-600 transition-colors"
+                        >
+                          {post.job_contact_phone}
+                        </a>
+                      </div>
+                    )}
+                  </div>
+                </div>
               )}
             </div>
 
             {/* CTA Button */}
-            {post.ad_cta_url && post.ad_cta_text && (
-              <a
-                href={post.ad_cta_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="block w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold py-3 rounded-full hover:shadow-lg transform hover:scale-105 transition-all text-center"
+            <div className="mt-3 sm:mt-4 flex justify-end">
+              <button
+                onClick={async () => {
+                  if (!currentUserId) {
+                    alert(
+                      "Musisz być zalogowany, aby aplikować na ofertę pracy"
+                    );
+                    return;
+                  }
+                  if (currentUserRole !== "worker") {
+                    alert("Tylko pracownicy mogą aplikować na oferty pracy");
+                    return;
+                  }
+                  try {
+                    const { data: workerData } = await supabase
+                      .from("workers")
+                      .select("id")
+                      .eq("profile_id", currentUserId)
+                      .single();
+                    if (!workerData) {
+                      alert("Nie znaleziono profilu pracownika");
+                      return;
+                    }
+                    const { applyForJob } = await import(
+                      "../src/services/application"
+                    );
+                    await applyForJob(post.id, workerData.id);
+                    alert(`✅ Aplikacja wysłana!`);
+                    window.location.reload();
+                  } catch (error: any) {
+                    if (error.message?.includes("already applied")) {
+                      alert("⚠️ Już aplikowałeś na tę ofertę pracy");
+                    } else {
+                      alert("❌ Błąd podczas wysyłania aplikacji");
+                    }
+                  }
+                }}
+                className="px-4 sm:px-5 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-xs sm:text-sm font-semibold rounded-lg sm:rounded-xl hover:shadow-lg active:scale-95 sm:hover:scale-105 transition-all"
               >
-                {post.ad_cta_text}
-              </a>
-            )}
-
-            {/* Contact Info */}
-            <div className="space-y-2 pt-2 border-t border-purple-200">
-              <span className="text-sm font-semibold text-gray-700">
-                📞 Contact:
-              </span>
-              <div className="flex flex-wrap gap-3">
-                {post.ad_contact_email ? (
-                  <a
-                    href={`mailto:${post.ad_contact_email}`}
-                    className="flex items-center gap-2 text-sm text-purple-600 hover:text-purple-800 bg-white/60 rounded-lg px-3 py-2"
-                  >
-                    <Mail className="w-4 h-4" />
-                    {post.ad_contact_email}
-                  </a>
-                ) : (
-                  <span className="flex items-center gap-2 text-sm text-gray-400 italic bg-white/60 rounded-lg px-3 py-2">
-                    <Mail className="w-4 h-4" />
-                    Email nie podany
-                  </span>
-                )}
-                {post.ad_contact_phone ? (
-                  <a
-                    href={`tel:${post.ad_contact_phone}`}
-                    className="flex items-center gap-2 text-sm text-purple-600 hover:text-purple-800 bg-white/60 rounded-lg px-3 py-2"
-                  >
-                    <Phone className="w-4 h-4" />
-                    {post.ad_contact_phone}
-                  </a>
-                ) : (
-                  <span className="flex items-center gap-2 text-sm text-gray-400 italic bg-white/60 rounded-lg px-3 py-2">
-                    <Phone className="w-4 h-4" />
-                    Telefon nie podany
-                  </span>
-                )}
-              </div>
+                APLIKUJ
+              </button>
             </div>
           </div>
         )}
 
-        {/* Announcement Card */}
-        {post.type === "announcement" && (
-          <div
-            className={`rounded-2xl p-5 space-y-4 mb-4 border-2 ${
-              post.announcement_category === "urgent"
-                ? "bg-gradient-to-br from-red-50 to-orange-50 border-red-300"
-                : post.announcement_category === "warning"
-                ? "bg-gradient-to-br from-yellow-50 to-amber-50 border-yellow-300"
-                : post.announcement_category === "success"
-                ? "bg-gradient-to-br from-green-50 to-emerald-50 border-green-300"
-                : "bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-200"
-            }`}
-          >
-            <div className="flex items-center gap-2 font-bold">
-              <span className="text-xl">
-                {post.announcement_category === "urgent" && "🚨"}
-                {post.announcement_category === "warning" && "⚠️"}
-                {post.announcement_category === "success" && "✅"}
-                {(!post.announcement_category ||
-                  post.announcement_category === "info") &&
-                  "ℹ️"}
-              </span>
-              <span
-                className={
-                  post.announcement_category === "urgent"
-                    ? "text-red-900"
-                    : post.announcement_category === "warning"
-                    ? "text-yellow-900"
-                    : post.announcement_category === "success"
-                    ? "text-green-900"
-                    : "text-blue-900"
-                }
-              >
-                Aankondiging
-                {post.announcement_priority && (
-                  <span className="ml-2 text-xs">
-                    (
-                    {post.announcement_priority === "high" && "Hoge prioriteit"}
-                    {post.announcement_priority === "medium" &&
-                      "Gemiddelde prioriteit"}
-                    {post.announcement_priority === "low" && "Lage prioriteit"})
+        {/* ============================================= */}
+        {/* GLASSMORPHISM DETAILS CARD - AD */}
+        {/* ============================================= */}
+        {post.type === "ad" && (
+          <div className="mt-3 sm:mt-4 bg-white/40 backdrop-blur-xl rounded-xl sm:rounded-2xl p-3 sm:p-4 border border-white/60 shadow-sm">
+            <div className="space-y-2">
+              {/* Type */}
+              {post.ad_type && (
+                <div className="flex items-center gap-2 text-slate-700">
+                  <div className="w-5 h-5 rounded-full bg-purple-100 flex items-center justify-center">
+                    <span className="text-xs">
+                      {post.ad_type === "product" && "🛍️"}
+                      {post.ad_type === "service" && "🛠️"}
+                      {post.ad_type === "event" && "🎉"}
+                      {post.ad_type === "promotion" && "🎁"}
+                    </span>
+                  </div>
+                  <span className="text-sm">
+                    {post.ad_type === "product" && "Produkt"}
+                    {post.ad_type === "service" && "Usługa"}
+                    {post.ad_type === "event" && "Wydarzenie"}
+                    {post.ad_type === "promotion" && "Promocja"}
                   </span>
+                </div>
+              )}
+
+              {/* Website */}
+              {post.ad_website && (
+                <div className="flex items-center gap-2 text-slate-600">
+                  <Check className="w-4 h-4 text-green-500" />
+                  <span className="text-sm">Link do strony</span>
+                </div>
+              )}
+
+              {/* Duration */}
+              {post.ad_duration_days && (
+                <div className="flex items-center gap-2 text-slate-600">
+                  <Clock className="w-4 h-4 text-slate-400" />
+                  <span className="text-sm">{post.ad_duration_days} dni</span>
+                </div>
+              )}
+
+              {/* Location */}
+              {post.location && (
+                <div className="flex items-center gap-2 text-slate-600">
+                  <MapPin className="w-4 h-4 text-slate-400" />
+                  <span className="text-sm">{post.location}</span>
+                </div>
+              )}
+
+              {/* Category */}
+              {post.category && (
+                <div className="flex items-center gap-2 text-slate-600">
+                  <Briefcase className="w-4 h-4 text-slate-400" />
+                  <span className="text-sm">{post.category}</span>
+                </div>
+              )}
+
+              {/* Budget */}
+              {post.ad_budget && (
+                <div className="flex items-center gap-2 text-slate-600">
+                  <DollarSign className="w-4 h-4 text-slate-400" />
+                  <span className="text-sm">Budżet: €{post.ad_budget}</span>
+                </div>
+              )}
+
+              {/* Target Audience */}
+              {post.ad_target_audience &&
+                post.ad_target_audience.length > 0 && (
+                  <div className="mt-3 pt-3 border-t border-slate-200/50">
+                    <p className="text-xs text-slate-500 mb-2">
+                      Grupa docelowa:
+                    </p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {post.ad_target_audience.map((audience, idx) => (
+                        <span
+                          key={idx}
+                          className="px-2 py-0.5 bg-purple-100 text-purple-700 text-xs rounded-full"
+                        >
+                          {audience}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
                 )}
-              </span>
+
+              {/* Contact Info */}
+              {(post.ad_contact_email || post.ad_contact_phone) && (
+                <div className="mt-3 pt-3 border-t border-slate-200/50">
+                  <p className="text-xs text-slate-500 mb-2">Kontakt:</p>
+                  <div className="space-y-1">
+                    {post.ad_contact_email && (
+                      <div className="flex items-center gap-2 text-slate-600">
+                        <Mail className="w-3.5 h-3.5 text-slate-400" />
+                        <a
+                          href={`mailto:${post.ad_contact_email}`}
+                          className="text-sm hover:text-purple-600 transition-colors"
+                        >
+                          {post.ad_contact_email}
+                        </a>
+                      </div>
+                    )}
+                    {post.ad_contact_phone && (
+                      <div className="flex items-center gap-2 text-slate-600">
+                        <Phone className="w-3.5 h-3.5 text-slate-400" />
+                        <a
+                          href={`tel:${post.ad_contact_phone}`}
+                          className="text-sm hover:text-purple-600 transition-colors"
+                        >
+                          {post.ad_contact_phone}
+                        </a>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
 
-            {/* Tags */}
+            {/* CTA Button */}
+            <div className="mt-3 sm:mt-4 flex justify-end">
+              {post.ad_cta_url ? (
+                <a
+                  href={post.ad_cta_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-4 sm:px-5 py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white text-xs sm:text-sm font-semibold rounded-lg sm:rounded-xl hover:shadow-lg active:scale-95 sm:hover:scale-105 transition-all"
+                >
+                  {post.ad_cta_text || "ZOBACZ WIĘCEJ"}
+                </a>
+              ) : (
+                <button className="px-4 sm:px-5 py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white text-xs sm:text-sm font-semibold rounded-lg sm:rounded-xl hover:shadow-lg active:scale-95 sm:hover:scale-105 transition-all">
+                  SKONTAKTUJ SIĘ
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ============================================= */}
+        {/* GLASSMORPHISM DETAILS CARD - ANNOUNCEMENT */}
+        {/* ============================================= */}
+        {post.type === "announcement" && (
+          <div className="mt-3 sm:mt-4 bg-white/40 backdrop-blur-xl rounded-xl sm:rounded-2xl p-3 sm:p-4 border border-white/60 shadow-sm">
             <div className="space-y-2">
-              <span className="text-sm font-semibold text-gray-700">
-                🏷️ Tagi:
-              </span>
-              {post.announcement_tags && post.announcement_tags.length > 0 ? (
-                <div className="flex flex-wrap gap-2">
-                  {post.announcement_tags.map((tag, idx) => (
+              {/* Category indicator */}
+              <div className="flex items-center gap-2 text-slate-700">
+                <div
+                  className={`w-5 h-5 rounded-full flex items-center justify-center ${
+                    post.announcement_category === "urgent"
+                      ? "bg-red-100"
+                      : post.announcement_category === "warning"
+                      ? "bg-yellow-100"
+                      : post.announcement_category === "success"
+                      ? "bg-green-100"
+                      : "bg-blue-100"
+                  }`}
+                >
+                  <span className="text-xs">
+                    {post.announcement_category === "urgent" && "🚨"}
+                    {post.announcement_category === "warning" && "⚠️"}
+                    {post.announcement_category === "success" && "✅"}
+                    {(!post.announcement_category ||
+                      post.announcement_category === "info") &&
+                      "ℹ️"}
+                  </span>
+                </div>
+                <span className="text-sm font-medium">
+                  {post.announcement_category === "urgent" &&
+                    "Pilne ogłoszenie"}
+                  {post.announcement_category === "warning" && "Ostrzeżenie"}
+                  {post.announcement_category === "success" && "Sukces"}
+                  {(!post.announcement_category ||
+                    post.announcement_category === "info") &&
+                    "Informacja"}
+                </span>
+              </div>
+
+              {/* Pinned */}
+              {post.announcement_pinned && (
+                <div className="flex items-center gap-2 text-amber-600">
+                  <Check className="w-4 h-4" />
+                  <span className="text-sm font-medium">Przypięte</span>
+                </div>
+              )}
+
+              {/* Expiration */}
+              {post.announcement_expires_at && (
+                <div className="flex items-center gap-2 text-slate-600">
+                  <Calendar className="w-4 h-4 text-slate-400" />
+                  <span className="text-sm">
+                    Do{" "}
+                    {new Date(post.announcement_expires_at).toLocaleDateString(
+                      "pl-PL"
+                    )}
+                  </span>
+                </div>
+              )}
+
+              {/* Tags */}
+              {post.announcement_tags && post.announcement_tags.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 mt-2">
+                  {post.announcement_tags.slice(0, 3).map((tag, idx) => (
                     <span
                       key={idx}
-                      className="px-3 py-1 bg-white/80 text-gray-700 text-xs font-bold rounded-full border border-gray-200"
+                      className="px-2 py-0.5 bg-slate-100 text-slate-600 text-xs rounded-full"
                     >
                       #{tag}
                     </span>
                   ))}
-                </div>
-              ) : (
-                <span className="text-gray-400 italic text-sm">
-                  Tagi nie podane
-                </span>
-              )}
-            </div>
-
-            {/* Expiration Date */}
-            <div className="flex items-center gap-2 text-sm text-gray-700 bg-white/60 rounded-lg px-3 py-2 w-fit">
-              <Calendar className="w-4 h-4" />
-              <span className="font-semibold">Geldig tot:</span>
-              {post.announcement_expires_at ? (
-                <span>
-                  {new Date(post.announcement_expires_at).toLocaleDateString(
-                    "nl-NL"
-                  )}
-                </span>
-              ) : (
-                <span className="text-gray-400 italic">
-                  Brak daty wygaśnięcia
-                </span>
-              )}
-            </div>
-
-            {/* Target Roles */}
-            <div className="space-y-2">
-              <span className="text-sm font-semibold text-gray-700">
-                👥 Voor:
-              </span>
-              {post.announcement_target_roles &&
-              post.announcement_target_roles.length > 0 ? (
-                <div className="flex flex-wrap gap-2">
-                  {post.announcement_target_roles.map((role, idx) => (
-                    <span
-                      key={idx}
-                      className="px-3 py-1 bg-gradient-to-r from-amber-100 to-orange-100 text-amber-800 text-xs font-bold rounded-full"
-                    >
-                      {role === "worker" && "👷 Pracownicy ZZP"}
-                      {role === "cleaning_company" && "🧹 Firmy sprzątające"}
-                      {role === "employer" && "💼 Pracodawcy"}
-                      {role === "accountant" && "📊 Księgowi"}
-                      {role === "admin" && "⚙️ Administratorzy"}
+                  {post.announcement_tags.length > 3 && (
+                    <span className="px-2 py-0.5 bg-slate-200 text-slate-600 text-xs rounded-full">
+                      +{post.announcement_tags.length - 3}
                     </span>
-                  ))}
+                  )}
                 </div>
-              ) : (
-                <span className="text-gray-400 italic text-sm">
-                  Dla wszystkich użytkowników
-                </span>
               )}
-            </div>
 
-            {post.announcement_pinned && (
-              <div className="flex items-center gap-2 text-sm font-bold text-amber-700 bg-amber-100/80 rounded-lg px-3 py-2 w-fit">
-                📌 Przypięte ogłoszenie
-              </div>
-            )}
+              {/* Priority */}
+              {post.announcement_priority && (
+                <div
+                  className={`flex items-center gap-2 ${
+                    post.announcement_priority === "high"
+                      ? "text-red-600"
+                      : post.announcement_priority === "medium"
+                      ? "text-orange-600"
+                      : "text-slate-600"
+                  }`}
+                >
+                  <span className="text-xs">
+                    {post.announcement_priority === "high" && "⬆️"}
+                    {post.announcement_priority === "medium" && "➡️"}
+                    {post.announcement_priority === "low" && "⬇️"}
+                  </span>
+                  <span className="text-sm font-medium">
+                    Priorytet:{" "}
+                    {post.announcement_priority === "high"
+                      ? "Wysoki"
+                      : post.announcement_priority === "medium"
+                      ? "Średni"
+                      : "Niski"}
+                  </span>
+                </div>
+              )}
+
+              {/* Location */}
+              {post.location && (
+                <div className="flex items-center gap-2 text-slate-600">
+                  <MapPin className="w-4 h-4 text-slate-400" />
+                  <span className="text-sm">{post.location}</span>
+                </div>
+              )}
+
+              {/* Category */}
+              {post.category && (
+                <div className="flex items-center gap-2 text-slate-600">
+                  <Briefcase className="w-4 h-4 text-slate-400" />
+                  <span className="text-sm">{post.category}</span>
+                </div>
+              )}
+
+              {/* Target Roles */}
+              {post.announcement_target_roles &&
+                post.announcement_target_roles.length > 0 && (
+                  <div className="mt-3 pt-3 border-t border-slate-200/50">
+                    <p className="text-xs text-slate-500 mb-2">Dla:</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {post.announcement_target_roles.map((role, idx) => (
+                        <span
+                          key={idx}
+                          className="px-2 py-0.5 bg-amber-100 text-amber-700 text-xs rounded-full"
+                        >
+                          {role === "worker" && "👷 Pracownicy"}
+                          {role === "employer" && "💼 Pracodawcy"}
+                          {role === "accountant" && "📊 Księgowi"}
+                          {role === "cleaning_company" &&
+                            "🧹 Firmy sprzątające"}
+                          {role === "admin" && "⚙️ Administratorzy"}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+            </div>
           </div>
         )}
       </div>
 
-      {/* Reaction Counts Display (NEW) */}
+      {/* Reaction Counts Display */}
       {post.reactions && post.reactions.total > 0 && (
-        <div className="px-6 py-2 border-t border-gray-100">
+        <div className="px-3 sm:px-5 py-1.5 sm:py-2 border-t border-slate-100/50">
           <ReactionCountsDisplay reactions={post.reactions} />
         </div>
       )}
 
-      {/* Post Actions Bar */}
-      <div className="px-6 py-4 border-t border-gray-100 bg-gradient-to-r from-gray-50 to-white">
+      {/* Post Actions Bar - Minimalist */}
+      <div className="px-3 sm:px-5 py-2 sm:py-3 border-t border-slate-100/50 bg-white/30">
         <div className="flex items-center justify-between">
           {/* Left Actions */}
-          <div className="flex items-center gap-6">
-            {/* For SERVICE REQUESTS - WhatsApp Button instead of likes/comments */}
-            {post.type === "service_request" &&
-            (post.request_category || post.category) ? (
-              post.author_phone ? (
-                <a
-                  href={`https://wa.me/${post.author_phone.replace(
-                    /\D/g,
-                    ""
-                  )}?text=${encodeURIComponent(
-                    `Cześć! Zainteresowało mnie Twoje zlecenie: ${
-                      post.title || post.content.substring(0, 50)
-                    }`
-                  )}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-green-500 to-green-600 text-white font-bold rounded-full hover:shadow-lg transform hover:scale-105 transition-all"
-                >
-                  <svg
-                    className="w-6 h-6"
-                    fill="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.890-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z" />
-                  </svg>
-                  Kontakt WhatsApp
-                </a>
-              ) : (
-                <div className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-500 rounded-full text-sm">
-                  <svg
-                    className="w-5 h-5"
-                    fill="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.890-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z" />
-                  </svg>
-                  Brak numeru telefonu
-                </div>
-              )
-            ) : (
+          <div className="flex items-center gap-3 sm:gap-5">
+            {/* Skip WhatsApp for service_request - it's already in the card */}
+            {!(
+              post.type === "service_request" &&
+              (post.request_category || post.category)
+            ) && (
               <>
-                {/* Reaction Button (emoji picker) - only for non-service-requests */}
+                {/* Reaction Button */}
                 <ReactionButton
                   likesCount={post.likes_count}
                   userReaction={post.user_reaction}
                   onReactionChange={onReactionChange}
                 />
 
-                {/* Comment Button - only for non-service-requests */}
+                {/* Comment Button */}
                 <button
                   onClick={handleShowComments}
-                  className="flex items-center gap-2 text-gray-600 hover:text-blue-600 transition-all transform hover:scale-110"
+                  className="flex items-center gap-1 sm:gap-1.5 text-slate-500 hover:text-slate-700 active:scale-95 transition-all"
                 >
-                  <MessageSquare className="w-6 h-6" />
-                  <span className="font-bold">{post.comments_count}</span>
+                  <MessageSquare className="w-4 h-4 sm:w-5 sm:h-5" />
+                  <span className="text-xs sm:text-sm font-medium">
+                    {post.comments_count}
+                  </span>
                 </button>
               </>
             )}
 
-            {/* Share Button - for all posts */}
+            {/* Share Button */}
             <button
               onClick={() => setShowShareModal(true)}
-              className="flex items-center gap-2 text-gray-600 hover:text-green-600 transition-all transform hover:scale-110"
+              className="flex items-center gap-1 sm:gap-1.5 text-slate-500 hover:text-slate-700 active:scale-95 transition-all"
             >
-              <Share2 className="w-6 h-6" />
-              <span className="font-bold">{post.shares_count}</span>
+              <Share2 className="w-4 h-4 sm:w-5 sm:h-5" />
+              <span className="text-xs sm:text-sm font-medium">
+                {post.shares_count}
+              </span>
             </button>
           </div>
 
@@ -1991,55 +2235,146 @@ export function PostCardPremium({
         </div>
       </div>
 
-      {/* Comments Section */}
-      {showComments && (
-        <div className="px-6 py-4 border-t border-gray-100 bg-gray-50/50">
+      {/* Comment Preview - Shows last comment when collapsed */}
+      {!showComments && post.comments_count > 0 && comments.length > 0 && (
+        <button
+          onClick={handleShowComments}
+          className="w-full px-3 sm:px-5 py-2 border-t border-slate-100/50 bg-slate-50/30 hover:bg-slate-100/50 transition-colors text-left group"
+        >
+          <div className="flex items-start gap-2">
+            <div className="w-6 h-6 rounded-full bg-gradient-to-br from-blue-400 to-purple-600 flex items-center justify-center text-white text-[10px] font-bold flex-shrink-0">
+              {comments[comments.length - 1]?.user_name?.charAt(0) || "U"}
+            </div>
+            <div className="flex-1 min-w-0">
+              <span className="text-xs font-semibold text-slate-700">
+                {comments[comments.length - 1]?.user_name}
+              </span>
+              <span className="text-xs text-slate-600 ml-1.5 line-clamp-1">
+                {comments[comments.length - 1]?.content}
+              </span>
+            </div>
+            <span className="text-[10px] text-slate-400 group-hover:text-blue-500 transition-colors whitespace-nowrap">
+              Bekijk alle {post.comments_count} reacties →
+            </span>
+          </div>
+        </button>
+      )}
+
+      {/* Comments Section with Animation */}
+      <div
+        ref={commentsRef}
+        className={`
+          overflow-hidden transition-all duration-300 ease-out
+          ${showComments ? "max-h-[600px] opacity-100" : "max-h-0 opacity-0"}
+        `}
+      >
+        <div
+          className={`
+          px-3 sm:px-6 py-3 sm:py-4 border-t border-gray-100 bg-gradient-to-b from-slate-50/80 to-white
+          ${
+            isCommentsAnimating
+              ? "animate-in slide-in-from-top-2 fade-in duration-300"
+              : ""
+          }
+        `}
+        >
           {loadingComments ? (
-            <div className="text-center py-4 text-gray-600">
-              Reacties laden...
+            <div className="flex items-center justify-center gap-2 py-6 text-slate-500">
+              <div className="w-5 h-5 border-2 border-slate-300 border-t-blue-500 rounded-full animate-spin" />
+              <span className="text-sm">Reacties laden...</span>
             </div>
           ) : (
             <>
               {/* Comments List */}
-              <div className="space-y-4 mb-4 max-h-96 overflow-y-auto">
-                {comments.map((comment) => (
-                  <div
-                    key={comment.id}
-                    className="flex items-start gap-3 group/comment"
-                  >
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-purple-600 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
-                      {comment.user_name?.charAt(0) || "U"}
-                    </div>
-                    <div className="flex-1">
-                      <div className="bg-white rounded-2xl px-4 py-3 shadow-sm border border-gray-100">
-                        <p className="text-sm font-bold text-gray-900">
-                          {comment.user_name}
-                        </p>
-                        <p className="text-sm text-gray-700 mt-1">
-                          {comment.content}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-4 mt-2 px-4">
-                        <span className="text-xs text-gray-500">
-                          {formatDate(comment.created_at)}
-                        </span>
-                        <button className="text-xs text-gray-600 hover:text-red-600 font-semibold transition-colors">
-                          Vind ik leuk ({comment.likes_count})
-                        </button>
-                        <button className="text-xs text-gray-600 hover:text-blue-600 font-semibold transition-colors">
-                          Reageren
-                        </button>
-                      </div>
-                    </div>
+              <div className="space-y-3 sm:space-y-4 mb-3 sm:mb-4 max-h-80 sm:max-h-96 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent">
+                {comments.length === 0 ? (
+                  <div className="text-center py-6 text-slate-400">
+                    <MessageSquare className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                    <p className="text-sm">
+                      Nog geen reacties. Wees de eerste!
+                    </p>
                   </div>
-                ))}
+                ) : (
+                  comments.map((comment, index) => (
+                    <div
+                      key={comment.id}
+                      className="flex items-start gap-2 sm:gap-3 group/comment"
+                    >
+                      <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gradient-to-br from-blue-400 to-purple-600 flex items-center justify-center text-white font-bold text-xs sm:text-sm flex-shrink-0">
+                        {comment.user_name?.charAt(0) || "U"}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="bg-white rounded-xl sm:rounded-2xl px-3 sm:px-4 py-2 sm:py-3 shadow-sm border border-gray-100">
+                          <p className="text-xs sm:text-sm font-bold text-gray-900 truncate">
+                            {comment.user_name}
+                          </p>
+                          <p className="text-xs sm:text-sm text-gray-700 mt-1 break-words">
+                            {comment.content}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2 sm:gap-3 mt-1.5 sm:mt-2 px-2 sm:px-4">
+                          <span className="text-[10px] sm:text-xs text-gray-500">
+                            {formatDate(comment.created_at)}
+                          </span>
+                          {/* Comment Reaction Button */}
+                          <ReactionButton
+                            currentReaction={comment.user_reaction || null}
+                            reactionCounts={{
+                              like: comment.likes_count || 0,
+                              love: 0,
+                              wow: 0,
+                              sad: 0,
+                              angry: 0,
+                              total: comment.likes_count || 0,
+                            }}
+                            onReactionChange={async (reactionType) => {
+                              if (!currentUserId || !currentUserRole) return;
+                              try {
+                                if (reactionType === null) {
+                                  await unreactToComment(
+                                    comment.id,
+                                    currentUserId
+                                  );
+                                } else {
+                                  await reactToComment(
+                                    comment.id,
+                                    currentUserId,
+                                    currentUserRole as any,
+                                    currentUserId,
+                                    reactionType
+                                  );
+                                }
+                                // Reload comments to show updated counts
+                                const updatedComments = await getPostComments(
+                                  post.id
+                                );
+                                setComments(updatedComments);
+                              } catch (error) {
+                                console.error(
+                                  "Error reacting to comment:",
+                                  error
+                                );
+                              }
+                            }}
+                            size="sm"
+                            showCount={true}
+                            compact={true}
+                          />
+                          <button className="text-[10px] sm:text-xs text-gray-600 hover:text-blue-600 active:scale-95 font-semibold transition-all">
+                            Reageren
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
 
               {/* Comment Input */}
               {currentUserId && currentUserRole && (
-                <form onSubmit={handleSubmitComment} className="mt-4">
-                  <div className="flex items-start gap-3">
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-amber-400 to-orange-600 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
+                <form onSubmit={handleSubmitComment} className="mt-3 sm:mt-4">
+                  <div className="flex items-start gap-2 sm:gap-3">
+                    <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gradient-to-br from-amber-400 to-orange-600 flex items-center justify-center text-white font-bold text-xs sm:text-sm flex-shrink-0">
                       U
                     </div>
                     <div className="flex-1">
@@ -2049,15 +2384,15 @@ export function PostCardPremium({
                           onChange={(e) => setCommentText(e.target.value)}
                           placeholder="Schrijf een reactie..."
                           rows={2}
-                          className="w-full px-4 py-3 pr-12 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-amber-500 focus:border-transparent resize-none bg-white"
+                          className="w-full px-3 sm:px-4 py-2 sm:py-3 pr-10 sm:pr-12 border border-gray-200 rounded-xl sm:rounded-2xl focus:ring-2 focus:ring-amber-500 focus:border-transparent resize-none bg-white text-sm"
                           disabled={isSubmittingComment}
                         />
                         <button
                           type="submit"
                           disabled={!commentText.trim() || isSubmittingComment}
-                          className="absolute right-2 bottom-2 p-2 bg-gradient-to-r from-amber-500 to-orange-600 text-white rounded-full hover:shadow-lg transform hover:scale-110 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                          className="absolute right-1.5 sm:right-2 bottom-1.5 sm:bottom-2 p-1.5 sm:p-2 bg-gradient-to-r from-amber-500 to-orange-600 text-white rounded-full hover:shadow-lg active:scale-95 sm:hover:scale-110 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
                         >
-                          <Send className="w-4 h-4" />
+                          <Send className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                         </button>
                       </div>
                     </div>
@@ -2066,14 +2401,14 @@ export function PostCardPremium({
               )}
 
               {!currentUserId && (
-                <div className="text-sm text-gray-500 text-center py-3 bg-gray-100 rounded-2xl">
+                <div className="text-xs sm:text-sm text-gray-500 text-center py-2 sm:py-3 bg-gray-100 rounded-xl sm:rounded-2xl">
                   Log in om te reageren
                 </div>
               )}
             </>
           )}
         </div>
-      )}
+      </div>
 
       {/* Share Modal */}
       <ShareModal
@@ -2339,35 +2674,35 @@ function CreatePostCardPremium({
   };
 
   return (
-    <div className="bg-white/90 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/40 p-8 animate-fadeIn">
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-2xl font-black bg-gradient-to-r from-amber-600 to-orange-600 bg-clip-text text-transparent">
+    <div className="bg-white/90 backdrop-blur-xl rounded-2xl sm:rounded-3xl shadow-2xl border border-white/40 p-4 sm:p-6 md:p-8 animate-fadeIn">
+      <div className="flex items-center justify-between mb-4 sm:mb-6">
+        <h2 className="text-lg sm:text-xl md:text-2xl font-black bg-gradient-to-r from-amber-600 to-orange-600 bg-clip-text text-transparent">
           Nieuw Post Maken
         </h2>
         <button
           onClick={onCancel}
-          className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+          className="p-1.5 sm:p-2 hover:bg-gray-100 active:scale-95 rounded-full transition-all"
         >
-          <X className="w-6 h-6 text-gray-400" />
+          <X className="w-5 h-5 sm:w-6 sm:h-6 text-gray-400" />
         </button>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
+      <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
         {/* Post Type Pills */}
         <div>
-          <label className="block text-sm font-bold text-gray-700 mb-3">
+          <label className="block text-xs sm:text-sm font-bold text-gray-700 mb-2 sm:mb-3">
             Type Post
           </label>
-          <div className="flex flex-wrap gap-3">
+          <div className="flex flex-wrap gap-2 sm:gap-3">
             {(["announcement", "job_offer", "ad"] as PostType[]).map((type) => (
               <button
                 key={type}
                 type="button"
                 onClick={() => setPostType(type)}
-                className={`px-6 py-3 rounded-full text-sm font-bold transition-all transform ${
+                className={`px-3 sm:px-6 py-2 sm:py-3 rounded-full text-xs sm:text-sm font-bold transition-all active:scale-95 ${
                   postType === type
                     ? "bg-gradient-to-r from-amber-500 to-orange-600 text-white shadow-lg scale-105"
-                    : "bg-gray-100 text-gray-700 hover:bg-gray-200 hover:scale-105"
+                    : "bg-gray-100 text-gray-700 hover:bg-gray-200 sm:hover:scale-105"
                 }`}
               >
                 {type === "announcement" && "📢 Aankondiging"}
@@ -2380,7 +2715,7 @@ function CreatePostCardPremium({
 
         {/* Title */}
         <div>
-          <label className="block text-sm font-bold text-gray-700 mb-2">
+          <label className="block text-xs sm:text-sm font-bold text-gray-700 mb-1.5 sm:mb-2">
             Titel (optioneel)
           </label>
           <input
@@ -2388,40 +2723,40 @@ function CreatePostCardPremium({
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             placeholder="Geef je post een titel..."
-            className="w-full px-5 py-3 border border-gray-300 rounded-2xl focus:ring-2 focus:ring-amber-500 focus:border-transparent text-lg"
+            className="w-full px-3 sm:px-5 py-2.5 sm:py-3 border border-gray-300 rounded-xl sm:rounded-2xl focus:ring-2 focus:ring-amber-500 focus:border-transparent text-sm sm:text-lg"
           />
         </div>
 
         {/* Content */}
         <div>
-          <label className="block text-sm font-bold text-gray-700 mb-2">
+          <label className="block text-xs sm:text-sm font-bold text-gray-700 mb-1.5 sm:mb-2">
             Inhoud *
           </label>
           <textarea
             value={content}
             onChange={(e) => setContent(e.target.value)}
             placeholder="Wat wil je delen met de community?"
-            rows={6}
-            className="w-full px-5 py-3 border border-gray-300 rounded-2xl focus:ring-2 focus:ring-amber-500 focus:border-transparent resize-none text-lg"
+            rows={4}
+            className="w-full px-3 sm:px-5 py-2.5 sm:py-3 border border-gray-300 rounded-xl sm:rounded-2xl focus:ring-2 focus:ring-amber-500 focus:border-transparent resize-none text-sm sm:text-lg"
             required
           />
         </div>
 
         {/* Progress Bar */}
         {postType && (
-          <div className="bg-gradient-to-r from-blue-50 via-indigo-50 to-purple-50 rounded-2xl p-6 border-2 border-blue-200">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <span className="text-2xl">📊</span>
-                <span className="text-sm font-bold text-gray-700">
-                  Postęp wypełnienia formularza
+          <div className="bg-gradient-to-r from-blue-50 via-indigo-50 to-purple-50 rounded-xl sm:rounded-2xl p-3 sm:p-6 border-2 border-blue-200">
+            <div className="flex items-center justify-between mb-2 sm:mb-3">
+              <div className="flex items-center gap-1.5 sm:gap-2">
+                <span className="text-lg sm:text-2xl">📊</span>
+                <span className="text-xs sm:text-sm font-bold text-gray-700">
+                  Postęp wypełnienia
                 </span>
               </div>
-              <span className="text-lg font-black text-gray-900">
-                {fieldCompletion.filled}/{fieldCompletion.total} pól
+              <span className="text-sm sm:text-lg font-black text-gray-900">
+                {fieldCompletion.filled}/{fieldCompletion.total}
               </span>
             </div>
-            <div className="relative w-full h-4 bg-gray-200 rounded-full overflow-hidden">
+            <div className="relative w-full h-2.5 sm:h-4 bg-gray-200 rounded-full overflow-hidden">
               <div
                 className={`h-full transition-all duration-500 ease-out ${
                   fieldCompletion.percentage < 40
@@ -2489,15 +2824,15 @@ function CreatePostCardPremium({
 
         {/* Media Upload */}
         <div>
-          <label className="block text-sm font-bold text-gray-700 mb-3">
+          <label className="block text-xs sm:text-sm font-bold text-gray-700 mb-2 sm:mb-3">
             Zdjęcia/Filmy
           </label>
-          <div className="flex items-center gap-3 mb-4">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3 mb-3 sm:mb-4">
             <label
               htmlFor="media-upload"
-              className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-600 text-white rounded-full cursor-pointer hover:shadow-lg transform hover:scale-105 transition-all font-bold"
+              className="flex items-center gap-2 px-4 sm:px-6 py-2 sm:py-3 bg-gradient-to-r from-purple-500 to-pink-600 text-white rounded-full cursor-pointer hover:shadow-lg active:scale-95 sm:hover:scale-105 transition-all font-bold text-xs sm:text-sm"
             >
-              <Upload className="w-5 h-5" />
+              <Upload className="w-4 h-4 sm:w-5 sm:h-5" />
               Bestanden Selecteren
             </label>
             <input
@@ -2509,36 +2844,36 @@ function CreatePostCardPremium({
               className="hidden"
               disabled={submitting || uploadingMedia}
             />
-            <span className="text-sm text-gray-500">
-              Max 10 plików, 20MB każdy
+            <span className="text-xs sm:text-sm text-gray-500">
+              Max 10 plików, 20MB
             </span>
           </div>
 
           {/* Media Preview Grid */}
           {mediaPreview.length > 0 && (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div className="grid grid-cols-3 sm:grid-cols-2 md:grid-cols-4 gap-2 sm:gap-3">
               {mediaPreview.map((media, index) => (
                 <div
                   key={index}
-                  className="relative bg-gray-100 rounded-2xl overflow-hidden group/preview"
+                  className="relative bg-gray-100 rounded-xl sm:rounded-2xl overflow-hidden group/preview"
                 >
                   {media.type === "image" ? (
                     <img
                       src={media.preview}
                       alt={`Preview ${index + 1}`}
-                      className="w-full h-32 object-cover"
+                      className="w-full h-20 sm:h-32 object-cover"
                     />
                   ) : (
-                    <div className="w-full h-32 bg-gray-900 flex items-center justify-center">
-                      <Video className="w-8 h-8 text-white" />
+                    <div className="w-full h-20 sm:h-32 bg-gray-900 flex items-center justify-center">
+                      <Video className="w-6 h-6 sm:w-8 sm:h-8 text-white" />
                     </div>
                   )}
                   <button
                     type="button"
                     onClick={() => removeMedia(index)}
-                    className="absolute top-2 right-2 p-1.5 bg-red-600 text-white rounded-full opacity-0 group-hover/preview:opacity-100 transition-opacity hover:bg-red-700"
+                    className="absolute top-1 right-1 sm:top-2 sm:right-2 p-1 sm:p-1.5 bg-red-600 text-white rounded-full sm:opacity-0 sm:group-hover/preview:opacity-100 transition-opacity hover:bg-red-700"
                   >
-                    <X className="w-4 h-4" />
+                    <X className="w-3 h-3 sm:w-4 sm:h-4" />
                   </button>
                 </div>
               ))}
@@ -2547,11 +2882,11 @@ function CreatePostCardPremium({
         </div>
 
         {/* Submit Buttons */}
-        <div className="flex items-center gap-4 pt-4">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4 pt-3 sm:pt-4">
           <button
             type="submit"
             disabled={submitting || uploadingMedia || !content.trim()}
-            className="flex-1 bg-gradient-to-r from-amber-600 to-orange-600 text-white font-black py-4 rounded-full hover:shadow-2xl transform hover:scale-105 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none text-lg"
+            className="flex-1 bg-gradient-to-r from-amber-600 to-orange-600 text-white font-black py-3 sm:py-4 rounded-full hover:shadow-2xl active:scale-95 sm:hover:scale-105 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none text-sm sm:text-lg"
           >
             {submitting ? (
               <span className="flex items-center justify-center gap-2">
@@ -2566,7 +2901,7 @@ function CreatePostCardPremium({
           <button
             type="button"
             onClick={onCancel}
-            className="px-8 py-4 bg-gray-100 text-gray-700 font-bold rounded-full hover:bg-gray-200 transition-colors"
+            className="px-6 sm:px-8 py-3 sm:py-4 bg-gray-100 text-gray-700 font-bold rounded-full hover:bg-gray-200 active:scale-95 transition-all text-sm sm:text-base"
           >
             Annuleren
           </button>
@@ -2624,6 +2959,162 @@ function EmptyFeedState({ canCreatePost }: { canCreatePost: boolean }) {
         </button>
       )}
     </div>
+  );
+}
+
+// Helper component to load author groups for StoryViewerPro
+function StoryViewerProWrapper({
+  authorId,
+  storyId,
+  onClose,
+}: {
+  authorId: string;
+  storyId: string | null;
+  onClose: () => void;
+}) {
+  const [authorGroups, setAuthorGroups] = useState<AuthorGroup[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const loadGroups = async () => {
+      console.log(
+        "🔄 [StoryViewerProWrapper] Loading stories for author:",
+        authorId
+      );
+
+      const now = new Date().toISOString();
+      const supabaseAny = supabase as any;
+
+      try {
+        const { data: stories, error: queryError } = await supabaseAny
+          .from("stories")
+          .select(
+            `
+            id,
+            author_id,
+            author_type,
+            media_url,
+            media_type,
+            caption,
+            is_job_posting,
+            job_title,
+            job_category,
+            job_location,
+            job_budget_min,
+            job_budget_max,
+            job_urgency,
+            job_preferred_date,
+            views_count,
+            reactions_count,
+            created_at,
+            expires_at,
+            profiles!stories_author_id_fkey (
+              id,
+              full_name,
+              avatar_url,
+              role
+            )
+          `
+          )
+          .eq("is_active", true)
+          .is("deleted_at", null)
+          .gt("expires_at", now)
+          .order("created_at", { ascending: false });
+
+        if (queryError) {
+          console.error("❌ [StoryViewerProWrapper] Query error:", queryError);
+          setError(queryError.message);
+          setLoading(false);
+          return;
+        }
+
+        console.log(
+          "📊 [StoryViewerProWrapper] Fetched stories:",
+          stories?.length
+        );
+
+        if (!stories || stories.length === 0) {
+          console.warn("⚠️ [StoryViewerProWrapper] No stories found");
+          setError("Brak aktywnych stories");
+          setLoading(false);
+          return;
+        }
+
+        const grouped = new Map<string, AuthorGroup>();
+
+        for (const story of stories) {
+          const aId = story.author_id;
+          const profile = story.profiles;
+
+          if (!grouped.has(aId)) {
+            grouped.set(aId, {
+              authorId: aId,
+              authorName: profile?.full_name || "Nieznany",
+              authorAvatar: profile?.avatar_url || "",
+              authorRole: profile?.role || "regular_user",
+              stories: [],
+              hasUnseen: false,
+            });
+          }
+          grouped.get(aId)!.stories.push(story);
+        }
+
+        const groupsArray = Array.from(grouped.values());
+        console.log(
+          "✅ [StoryViewerProWrapper] Grouped authors:",
+          groupsArray.length
+        );
+        setAuthorGroups(groupsArray);
+      } catch (err) {
+        console.error("❌ [StoryViewerProWrapper] Exception:", err);
+        setError("Błąd ładowania stories");
+      }
+
+      setLoading(false);
+    };
+
+    loadGroups();
+  }, [authorId]);
+
+  // Show loading overlay
+  if (loading) {
+    return (
+      <div className="fixed inset-0 z-50 bg-black flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin w-12 h-12 border-4 border-purple-500 border-t-transparent rounded-full mx-auto mb-4" />
+          <p className="text-white">Ładowanie story...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show error with close button
+  if (error || authorGroups.length === 0) {
+    return (
+      <div className="fixed inset-0 z-50 bg-black flex items-center justify-center">
+        <div className="text-center p-6">
+          <p className="text-white text-lg mb-4">
+            {error || "Brak stories do wyświetlenia"}
+          </p>
+          <button
+            onClick={onClose}
+            className="px-6 py-2 bg-purple-600 text-white rounded-full hover:bg-purple-700"
+          >
+            Zamknij
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <StoryViewerPro
+      initialAuthorId={authorId}
+      initialStoryId={storyId || undefined}
+      authorGroups={authorGroups}
+      onClose={onClose}
+    />
   );
 }
 

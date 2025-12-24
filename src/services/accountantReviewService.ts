@@ -195,13 +195,7 @@ export async function getAccountantReviews(accountantId: string): Promise<{
       .select(
         `
         *,
-        profiles:reviewer_id (id, full_name, avatar_url),
-        workers (
-          id, profile_id,
-          workers_profile:profiles!workers_profile_id_fkey (full_name, avatar_url)
-        ),
-        cleaning_companies (id, company_name, avatar_url),
-        employers (id, company_name, logo_url)
+        profiles:reviewer_id (id, full_name, avatar_url)
       `
       )
       .eq("accountant_id", accountantId)

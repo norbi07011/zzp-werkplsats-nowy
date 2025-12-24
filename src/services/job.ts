@@ -376,7 +376,54 @@ export async function getFeaturedJobs(limit: number = 6): Promise<Job[]> {
   }
 }
 
-export const jobService = {
+/**
+ * Get job offers from posts table (where employers create job_offer posts)
+ * This is the primary source for job offers in the platform
+ */
+export async function getJobOffersFromPosts(): Promise<any[]> {
+  try {
+    const { data, error } = await supabase
+      .from("posts")
+      .select(
+        `
+        id,
+        title,
+        content,
+        author_id,
+        type,
+        category,
+        is_active,
+        is_premium,
+        views_count,
+        likes_count,
+        comments_count,
+        created_at,
+        updated_at,
+        media_urls,
+        location,
+        tags,
+        author:profiles!posts_profile_id_fkey (
+          id,
+          full_name,
+          avatar_url,
+          role
+        )
+      `
+      )
+      .eq("type", "job_offer")
+      .eq("is_active", true)
+      .eq("is_deleted", false)
+      .order("created_at", { ascending: false });
+
+    if (error) throw error;
+    return data || [];
+  } catch (error) {
+    console.error("Error fetching job offers from posts:", error);
+    return [];
+  }
+}
+
+const jobService = {
   getJobs,
   getJobById,
   createJob,
@@ -386,6 +433,7 @@ export const jobService = {
   searchJobs,
   getJobsByCompany,
   getFeaturedJobs,
+  getJobOffersFromPosts,
 };
 
 export default jobService;

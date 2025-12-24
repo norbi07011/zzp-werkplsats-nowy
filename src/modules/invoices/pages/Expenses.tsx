@@ -893,7 +893,9 @@ export default function Expenses({ onNavigate }: ExpensesProps) {
                   </div>
                   <div>
                     <h4 className="font-bold text-slate-800">Zakup z UE</h4>
-                    <p className="text-xs text-slate-500">Reverse charge / ICL</p>
+                    <p className="text-xs text-slate-500">
+                      Reverse charge / ICL
+                    </p>
                   </div>
                 </div>
 
@@ -907,7 +909,9 @@ export default function Expenses({ onNavigate }: ExpensesProps) {
                     setFormData({
                       ...formData,
                       is_eu_purchase: !formData.is_eu_purchase,
-                      is_reverse_charge: !formData.is_eu_purchase ? true : formData.is_reverse_charge,
+                      is_reverse_charge: !formData.is_eu_purchase
+                        ? true
+                        : formData.is_reverse_charge,
                     })
                   }
                 >
@@ -1022,7 +1026,9 @@ export default function Expenses({ onNavigate }: ExpensesProps) {
                   </div>
                   <div>
                     <h4 className="font-bold text-slate-800">Środek Trwały</h4>
-                    <p className="text-xs text-slate-500">Amortyzacja (&gt;€450)</p>
+                    <p className="text-xs text-slate-500">
+                      Amortyzacja (&gt;€450)
+                    </p>
                   </div>
                 </div>
 
@@ -1077,7 +1083,11 @@ export default function Expenses({ onNavigate }: ExpensesProps) {
                       <option value="20">20 lat (budynki)</option>
                     </select>
                     <p className="text-xs text-purple-600 mt-2">
-                      💡 Roczna amortyzacja: {(formData.amount / formData.asset_depreciation_years).toFixed(2)} €
+                      💡 Roczna amortyzacja:{" "}
+                      {(
+                        formData.amount / formData.asset_depreciation_years
+                      ).toFixed(2)}{" "}
+                      €
                     </p>
                   </div>
                 )}
@@ -1092,8 +1102,12 @@ export default function Expenses({ onNavigate }: ExpensesProps) {
                     <ImageIcon size={20} />
                   </div>
                   <div>
-                    <h4 className="font-bold text-slate-800">Paragon / Faktura</h4>
-                    <p className="text-xs text-slate-500">Załącz dowód zakupu</p>
+                    <h4 className="font-bold text-slate-800">
+                      Paragon / Faktura
+                    </h4>
+                    <p className="text-xs text-slate-500">
+                      Załącz dowód zakupu
+                    </p>
                   </div>
                 </div>
 

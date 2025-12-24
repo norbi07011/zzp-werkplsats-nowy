@@ -89,7 +89,7 @@ export const WorkersManager = () => {
           w.profile?.avatar_url ||
           `https://api.dicebear.com/7.x/avataaars/svg?seed=${w.id}`,
         isVerified: w.verified,
-        hasVca: false, // TODO: Check certificates
+        hasVca: w.hasVca, // ✅ Now from useWorkers hook (checks certificates table)
         verifiedUntil: "",
         rating: w.rating || 0,
       };
