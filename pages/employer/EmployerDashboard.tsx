@@ -247,6 +247,35 @@ export const EmployerDashboard = () => {
     allow_messages: true,
   });
 
+  // Portfolio state
+  const [portfolio, setPortfolio] = useState<any[]>([]);
+  const [portfolioForm, setPortfolioForm] = useState({
+    title: "",
+    description: "",
+    images: [] as string[],
+    project_url: "",
+    video_url: "",
+    category: "",
+    tags: [] as string[],
+    start_date: "",
+    end_date: "",
+    completion_date: "",
+    client_name: "",
+    client_company: "",
+    location: "",
+    address: "",
+    is_public: true,
+    is_featured: false,
+  });
+  const [showPortfolioModal, setShowPortfolioModal] = useState(false);
+  const [editingProjectId, setEditingProjectId] = useState<string | null>(null);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [lightboxImages, setLightboxImages] = useState<string[]>([]);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
+  const [selectedProject, setSelectedProject] = useState<any>(null);
+  const [showProjectDetail, setShowProjectDetail] = useState(false);
+  const [saving, setSaving] = useState(false);
+
   // =====================================================
   // DATA LOADING
   // =====================================================
@@ -360,7 +389,16 @@ export const EmployerDashboard = () => {
       setSavedWorkers(workersData);
       setReviews(reviewsData);
 
-      // 3. Load messages with NEW bidirectional query
+      // 3. Load portfolio projects
+      const { data: portfolioData } = await supabase
+        .from(\"employer_portfolio\")
+        .select(\"*\")
+        .eq(\"employer_id\", employer.id)
+        .order(\"created_at\", { ascending: false });
+      
+      setPortfolio(portfolioData || []);
+
+      // 4. Load messages with NEW bidirectional query
       await loadMessages(user.id);
     } catch (err) {
       console.error("[EMPLOYER-DASH] Error loading dashboard data:", err);
@@ -657,6 +695,149 @@ export const EmployerDashboard = () => {
     }
   };
 
+  // =====================================================
+  // PORTFOLIO HANDLERS
+  // =====================================================
+
+  const openPortfolioModal = (project?: any) => {
+    if (project) {
+      setEditingProjectId(project.id);
+      setPortfolioForm({
+        title: project.title || \"\",
+        description: project.description || \"\",
+        images: project.images || [],
+        project_url: project.project_url || \"\",
+        video_url: project.video_url || \"\",
+        category: project.category || \"\",
+        tags: project.tags || [],
+        start_date: project.start_date || \"\",
+        end_date: project.end_date || \"\",
+        completion_date: project.completion_date || \"\",
+        client_name: project.client_name || \"\",
+        client_company: project.client_company || \"\",
+        location: project.location || \"\",
+        address: project.address || \"\",
+        is_public: project.is_public ?? true,
+        is_featured: project.is_featured ?? false,
+      });
+    }
+    setShowPortfolioModal(true);
+  };
+
+  const resetPortfolioForm = () => {
+    setPortfolioForm({
+      title: \"\",
+      description: \"\",
+      images: [],
+      project_url: \"\",
+      video_url: \"\",
+      category: \"\",
+      tags: [],
+      start_date: \"\",
+      end_date: \"\",
+      completion_date: \"\",
+      client_name: \"\",
+      client_company: \"\",
+      location: \"\",
+      address: \"\",
+      is_public: true,
+      is_featured: false,
+    });
+    setEditingProjectId(null);
+  };
+
+  const handlePortfolioSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!employerId) return;
+
+    setSaving(true);
+    try {
+      const sanitizedForm = {
+        ...portfolioForm,
+        start_date: portfolioForm.start_date?.trim() || null,
+        end_date: portfolioForm.end_date?.trim() || null,
+        completion_date: portfolioForm.completion_date?.trim() || null,
+      };
+
+      if (editingProjectId) {
+        const { error } = await supabase
+          .from(\"employer_portfolio\")
+          .update(sanitizedForm)
+          .eq(\"id\", editingProjectId);
+        
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from(\"employer_portfolio\")
+          .insert({ ...sanitizedForm, employer_id: employerId });
+        
+        if (error) throw error;
+      }
+
+      await loadDashboardData();
+      setShowPortfolioModal(false);
+      resetPortfolioForm();
+    } catch (err) {
+      console.error(\"Portfolio submit error:\", err);
+      setError(\"❌ Nie udało się zapisać projektu\");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handlePortfolioDelete = async (projectId: string) => {
+    if (!confirm(\"Czy na pewno chcesz usunąć ten projekt?\")) return;
+
+    try {
+      const { error } = await supabase
+        .from(\"employer_portfolio\")
+        .delete()
+        .eq(\"id\", projectId);
+
+      if (error) throw error;
+      await loadDashboardData();
+    } catch (err) {
+      console.error(\"Portfolio delete error:\", err);
+      setError(\"❌ Nie udało się usunąć projektu\");
+    }
+  };
+
+  const handlePortfolioImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user?.id) return;
+
+    try {
+      setSaving(true);
+      const fileExt = file.name.split(\".\").pop();
+      const fileName = `${user.id}-${Date.now()}.${fileExt}`;
+      const filePath = `employer-portfolio/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from(\"portfolio-images\")
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data } = supabase.storage
+        .from(\"portfolio-images\")
+        .getPublicUrl(filePath);
+
+      setPortfolioForm({
+        ...portfolioForm,
+        images: [...portfolioForm.images, data.publicUrl],
+      });
+    } catch (err) {
+      console.error(\"Image upload error:\", err);
+      setError(\"❌ Nie udało się przesłać zdjęcia\");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // =====================================================
+  // SETTINGS HANDLERS
+  // =====================================================
+
   const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !employerProfile) return;
@@ -949,6 +1130,301 @@ export const EmployerDashboard = () => {
       </div>
     );
   }
+
+  // =====================================================
+  // PORTFOLIO RENDERING
+  // =====================================================
+
+  const renderPortfolio = () => {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-blue-950 to-indigo-950 p-8">
+        <div className="max-w-7xl mx-auto">
+          {/* Header */}
+          <div className="flex justify-between items-center mb-8">
+            <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+              🎨 Moje Portfolio
+            </h1>
+            <button
+              onClick={() => openPortfolioModal()}
+              className="px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold rounded-xl hover:shadow-lg hover:shadow-blue-500/50 transition-all transform hover:scale-105"
+            >
+              ➕ Dodaj projekt
+            </button>
+          </div>
+
+          {/* Portfolio Grid */}
+          {portfolio.length === 0 ? (
+            <div className="text-center py-16 relative">
+              <div
+                className="relative rounded-2xl overflow-hidden"
+                style={{
+                  background: \"rgba(255,255,255,0.05)\",
+                  backdropFilter: \"blur(20px)\",
+                  border: \"1px solid rgba(255,255,255,0.1)\",
+                }}
+              >
+                <div className=\"p-12\">
+                  <div className=\"text-6xl mb-4\">📂</div>
+                  <p className=\"text-gray-300 mb-6\">
+                    Brak projektów w portfolio
+                  </p>
+                  <button
+                    onClick={() => openPortfolioModal()}
+                    className=\"px-8 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold rounded-xl hover:shadow-lg hover:shadow-purple-500/50 transition-all\"
+                  >
+                    Dodaj pierwszy projekt
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className=\"grid md:grid-cols-2 lg:grid-cols-3 gap-6\">
+              {portfolio.map((project) => (
+                <div
+                  key={project.id}
+                  className=\"relative group cursor-pointer\"
+                  onClick={() => {
+                    setSelectedProject(project);
+                    setShowProjectDetail(true);
+                  }}
+                >
+                  <div
+                    className=\"relative rounded-2xl overflow-hidden h-full transition-all duration-300 group-hover:scale-105\"
+                    style={{
+                      background: \"rgba(255,255,255,0.08)\",
+                      backdropFilter: \"blur(20px)\",
+                      border: \"1px solid rgba(255,255,255,0.15)\",
+                    }}
+                  >
+                    {project.images && project.images.length > 0 && (
+                      <div className=\"relative h-56 overflow-hidden\">
+                        <img
+                          src={project.images[0]}
+                          alt={project.title}
+                          className=\"w-full h-full object-cover transition-transform duration-500 group-hover:scale-110\"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setLightboxImages(project.images);
+                            setLightboxIndex(0);
+                            setLightboxOpen(true);
+                          }}
+                        />
+                        {project.images.length > 1 && (
+                          <div className=\"absolute top-3 right-3 px-3 py-1 rounded-full bg-black/60 backdrop-blur-md text-white text-xs font-bold\">
+                            📷 {project.images.length}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    <div className=\"p-6\">
+                      <div className=\"flex items-start justify-between mb-3\">
+                        <h3 className=\"text-xl font-bold text-white mb-2 flex-1\">
+                          {project.title}
+                        </h3>
+                        {project.is_featured && (
+                          <span className=\"ml-2 px-2 py-1 bg-yellow-500/20 text-yellow-300 text-xs rounded-lg font-bold\">
+                            ⭐ Wyróżnione
+                          </span>
+                        )}
+                      </div>
+
+                      <p className=\"text-gray-300 text-sm mb-4 line-clamp-3\">
+                        {project.description}
+                      </p>
+
+                      {project.location && (
+                        <div className=\"flex items-center gap-2 text-gray-300 text-sm mb-2\">
+                          <span className=\"text-purple-400\">📍</span>
+                          <span>{project.location}</span>
+                        </div>
+                      )}
+
+                      <div className=\"flex gap-2 pt-4 border-t border-white/10\">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openPortfolioModal(project);
+                          }}
+                          className=\"px-4 py-2 bg-blue-600/80 text-white rounded-lg hover:bg-blue-600 transition-all\"
+                        >
+                          ✏️
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handlePortfolioDelete(project.id);
+                          }}
+                          className=\"px-4 py-2 bg-red-600/80 text-white rounded-lg hover:bg-red-600 transition-all\"
+                        >
+                          🗑️
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Portfolio Form Modal - Simplified for now */}
+          {showPortfolioModal && (
+            <div className=\"fixed inset-0 bg-black/90 flex items-center justify-center z-50 p-4 overflow-y-auto\">
+              <div className=\"bg-gradient-to-br from-slate-900 to-slate-800 rounded-2xl p-8 max-w-2xl w-full border border-slate-700 my-8\">
+                <h2 className=\"text-2xl font-bold text-white mb-6\">
+                  {editingProjectId ? \"✏️ Edytuj projekt\" : \"➕ Dodaj projekt\"}
+                </h2>
+
+                <form onSubmit={handlePortfolioSubmit} className=\"space-y-4\">
+                  <input
+                    type=\"text\"
+                    required
+                    value={portfolioForm.title}
+                    onChange={(e) => setPortfolioForm({ ...portfolioForm, title: e.target.value })}
+                    className=\"w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-xl text-white\"
+                    placeholder=\"Nazwa projektu\"
+                  />
+                  
+                  <textarea
+                    required
+                    rows={4}
+                    value={portfolioForm.description}
+                    onChange={(e) => setPortfolioForm({ ...portfolioForm, description: e.target.value })}
+                    className=\"w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-xl text-white resize-none\"
+                    placeholder=\"Opis projektu\"
+                  />
+
+                  <div className=\"grid md:grid-cols-2 gap-4\">
+                    <input
+                      type=\"text\"
+                      value={portfolioForm.location}
+                      onChange={(e) => setPortfolioForm({ ...portfolioForm, location: e.target.value })}
+                      className=\"w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-xl text-white\"
+                      placeholder=\"📍 Lokalizacja\"
+                    />
+                    <input
+                      type=\"text\"
+                      value={portfolioForm.client_name}
+                      onChange={(e) => setPortfolioForm({ ...portfolioForm, client_name: e.target.value })}
+                      className=\"w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-xl text-white\"
+                      placeholder=\"👤 Klient\"
+                    />
+                  </div>
+
+                  <div className=\"grid md:grid-cols-3 gap-4\">
+                    <input
+                      type=\"date\"
+                      value={portfolioForm.start_date}
+                      onChange={(e) => setPortfolioForm({ ...portfolioForm, start_date: e.target.value })}
+                      className=\"w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-xl text-white\"
+                    />
+                    <input
+                      type=\"date\"
+                      value={portfolioForm.end_date}
+                      onChange={(e) => setPortfolioForm({ ...portfolioForm, end_date: e.target.value })}
+                      className=\"w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-xl text-white\"
+                    />
+                    <input
+                      type=\"date\"
+                      value={portfolioForm.completion_date}
+                      onChange={(e) => setPortfolioForm({ ...portfolioForm, completion_date: e.target.value })}
+                      className=\"w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-xl text-white\"
+                    />
+                  </div>
+
+                  <input
+                    type=\"file\"
+                    accept=\"image/*\"
+                    onChange={handlePortfolioImageUpload}
+                    className=\"w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-xl text-white file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-blue-600 file:text-white\"
+                  />
+
+                  {portfolioForm.images.length > 0 && (
+                    <div className=\"flex flex-wrap gap-2\">
+                      {portfolioForm.images.map((img, idx) => (
+                        <div key={idx} className=\"relative group\">
+                          <img
+                            src={img}
+                            alt={`Preview ${idx + 1}`}
+                            className=\"w-20 h-20 object-cover rounded-lg border-2 border-slate-600\"
+                          />
+                          <button
+                            type=\"button\"
+                            onClick={() => setPortfolioForm({
+                              ...portfolioForm,
+                              images: portfolioForm.images.filter((_, i) => i !== idx)
+                            })}
+                            className=\"absolute -top-2 -right-2 w-6 h-6 bg-red-600 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity text-xs\"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  <div className=\"flex gap-4 pt-4\">
+                    <button
+                      type=\"submit\"
+                      disabled={saving}
+                      className=\"flex-1 px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold rounded-xl hover:from-blue-500 hover:to-purple-500 disabled:opacity-50\"
+                    >
+                      {saving ? \"⏳ Zapisywanie...\" : \"💾 Zapisz\"}
+                    </button>
+                    <button
+                      type=\"button\"
+                      onClick={() => {
+                        setShowPortfolioModal(false);
+                        resetPortfolioForm();
+                      }}
+                      className=\"px-6 py-3 bg-slate-700 text-white font-bold rounded-xl hover:bg-slate-600\"
+                    >
+                      ❌ Anuluj
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
+
+          {/* Lightbox */}
+          {lightboxOpen && (
+            <div className=\"fixed inset-0 bg-black/95 flex items-center justify-center z-[100] p-4\">
+              <button
+                onClick={() => setLightboxOpen(false)}
+                className=\"absolute top-4 right-4 w-12 h-12 bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-full text-white text-2xl\"
+              >
+                ✕
+              </button>
+              {lightboxImages.length > 1 && (
+                <>
+                  <button
+                    onClick={() => setLightboxIndex(Math.max(0, lightboxIndex - 1))}
+                    disabled={lightboxIndex === 0}
+                    className=\"absolute left-4 w-12 h-12 bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-full text-white text-2xl disabled:opacity-30\"
+                  >
+                    ←
+                  </button>
+                  <button
+                    onClick={() => setLightboxIndex(Math.min(lightboxImages.length - 1, lightboxIndex + 1))}
+                    disabled={lightboxIndex === lightboxImages.length - 1}
+                    className=\"absolute right-4 w-12 h-12 bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-full text-white text-2xl disabled:opacity-30\"
+                  >
+                    →
+                  </button>
+                </>
+              )}
+              <img
+                src={lightboxImages[lightboxIndex]}
+                alt={`Image ${lightboxIndex + 1}`}
+                className=\"max-w-full max-h-[85vh] object-contain rounded-2xl\"
+              />
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
 
   const statsCards = getStatsCards();
 
@@ -2951,21 +3427,7 @@ export const EmployerDashboard = () => {
 
               {/* Portfolio Tab */}
               <TabPanel isActive={activeTab === "portfolio"}>
-                <div className="min-h-screen bg-gradient-to-br from-slate-950 via-blue-950 to-indigo-950 p-8">
-                  <div className="max-w-7xl mx-auto">
-                    <div className="text-center py-16">
-                      <div className="text-6xl mb-4">🎨</div>
-                      <h2 className="text-3xl font-bold text-white mb-4">
-                        Portfolio Pracodawcy
-                      </h2>
-                      <p className="text-gray-300 mb-8">
-                        Funkcja portfolio dla pracodawców jest w trakcie implementacji.
-                        <br />
-                        Wkrótce będziesz mógł dodawać projekty, zdjęcia i szczegóły realizacji.
-                      </p>
-                    </div>
-                  </div>
-                </div>
+                {renderPortfolio()}
               </TabPanel>
 
               {/* My Profile Preview Tab */}
