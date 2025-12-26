@@ -819,9 +819,12 @@ export interface PortfolioProject {
   category: string | null;
   start_date: string | null;
   end_date: string | null;
+  completion_date: string | null; // 🆕 Data oddania projektu
   duration_days: number | null;
   client_name: string | null;
   client_company: string | null;
+  location: string | null; // 🆕 Lokalizacja projektu (miasto, region)
+  address: string | null; // 🆕 Pełny adres realizacji projektu
   is_featured: boolean;
   is_public: boolean;
   created_at: string;

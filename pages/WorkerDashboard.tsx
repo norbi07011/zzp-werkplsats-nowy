@@ -335,6 +335,7 @@ export default function WorkerDashboard() {
 
   // Portfolio Form State
   // POPRAWKA: Dodano images (array), is_public, category, video_url - zgodnie z worker_portfolio
+  // NOWE POLA: location, address, completion_date - szczegóły realizacji projektu
   const [portfolioForm, setPortfolioForm] = useState({
     title: "",
     description: "",
@@ -345,13 +346,25 @@ export default function WorkerDashboard() {
     tags: [] as string[],
     start_date: "",
     end_date: "",
+    completion_date: "", // 🆕 Data oddania/zakończenia projektu
     client_name: "",
     client_company: "",
+    location: "", // 🆕 Lokalizacja projektu (miasto, region)
+    address: "", // 🆕 Pełny adres realizacji projektu
     is_public: true, // POPRAWKA: domyślnie publiczne portfolio
     is_featured: false,
   });
   const [showPortfolioModal, setShowPortfolioModal] = useState(false);
   const [editingProjectId, setEditingProjectId] = useState<string | null>(null);
+  
+  // 🆕 Image Lightbox State - podgląd zdjęć
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [lightboxImages, setLightboxImages] = useState<string[]>([]);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
+  
+  // 🆕 Project Detail View State - szczegółowy widok projektu
+  const [selectedProject, setSelectedProject] = useState<any>(null);
+  const [showProjectDetail, setShowProjectDetail] = useState(false);
 
   // Date Blocker State
   const [showDateBlocker, setShowDateBlocker] = useState(false);
@@ -1318,11 +1331,20 @@ export default function WorkerDashboard() {
     setPortfolioForm({
       title: "",
       description: "",
+      images: [],
       project_url: "",
+      video_url: "",
+      category: "",
       tags: [],
       start_date: "",
       end_date: "",
+      completion_date: "",
       client_name: "",
+      client_company: "",
+      location: "",
+      address: "",
+      is_public: true,
+      is_featured: false,
     });
     setEditingProjectId(null);
   };
@@ -1332,11 +1354,20 @@ export default function WorkerDashboard() {
       setPortfolioForm({
         title: project.title,
         description: project.description,
+        images: project.images || [],
         project_url: project.project_url || "",
+        video_url: project.video_url || "",
+        category: project.category || "",
         tags: project.tags || [],
         start_date: project.start_date,
         end_date: project.end_date || "",
+        completion_date: project.completion_date || "",
         client_name: project.client_name || "",
+        client_company: project.client_company || "",
+        location: project.location || "",
+        address: project.address || "",
+        is_public: project.is_public !== undefined ? project.is_public : true,
+        is_featured: project.is_featured || false,
       });
       setEditingProjectId(project.id);
     } else {
@@ -2794,16 +2825,16 @@ export default function WorkerDashboard() {
 
   const renderPortfolio = () => {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 p-8">
+      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-blue-950 to-indigo-950 p-8">
         <div className="max-w-7xl mx-auto">
           {/* Header */}
           <div className="flex justify-between items-center mb-8">
-            <h1 className="text-3xl font-bold text-gray-900">
+            <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
               🎨 Moje Portfolio
             </h1>
             <button
               onClick={() => openPortfolioModal()}
-              className="px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold rounded-lg hover:shadow-lg hover:shadow-blue-500/50 transition-all"
+              className="px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold rounded-xl hover:shadow-lg hover:shadow-blue-500/50 transition-all transform hover:scale-105"
             >
               ➕ Dodaj projekt
             </button>
@@ -2811,82 +2842,181 @@ export default function WorkerDashboard() {
 
           {/* Portfolio Grid */}
           {portfolio.length === 0 ? (
-            <div className="text-center py-16 bg-white rounded-xl shadow-xl border border-gray-200">
-              <div className="text-6xl mb-4">📂</div>
-              <p className="text-gray-600 mb-6">Brak projektów w portfolio</p>
-              <GlowButton
-                onClick={() => openPortfolioModal()}
-                variant="primary"
-                size="lg"
+            <div className="text-center py-16 relative">
+              {/* Glassmorphism Container */}
+              <div
+                className="relative rounded-2xl overflow-hidden"
+                style={{
+                  background: "rgba(255,255,255,0.05)",
+                  backdropFilter: "blur(20px)",
+                  border: "1px solid rgba(255,255,255,0.1)",
+                }}
               >
-                Dodaj pierwszy projekt
-              </GlowButton>
+                <div className="p-12">
+                  <div className="text-6xl mb-4">📂</div>
+                  <p className="text-gray-300 mb-6">Brak projektów w portfolio</p>
+                  <button
+                    onClick={() => openPortfolioModal()}
+                    className="px-8 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold rounded-xl hover:shadow-lg hover:shadow-purple-500/50 transition-all"
+                  >
+                    Dodaj pierwszy projekt
+                  </button>
+                </div>
+              </div>
             </div>
           ) : (
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
               {portfolio.map((project) => (
                 <div
                   key={project.id}
-                  className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden hover:border-blue-500 hover:shadow-2xl transition-all group"
+                  className="relative group cursor-pointer"
+                  onClick={() => {
+                    setSelectedProject(project);
+                    setShowProjectDetail(true);
+                  }}
                 >
-                  {project.images && project.images.length > 0 && (
-                    <img
-                      src={project.images[0]}
-                      alt={project.title}
-                      className="w-full h-48 object-cover"
-                    />
-                  )}
-                  <div className="p-6">
-                    <h3 className="text-xl font-bold text-gray-900 mb-2">
-                      {project.title}
-                    </h3>
-                    <p className="text-gray-600 text-sm mb-4 line-clamp-3">
-                      {project.description}
-                    </p>
-
-                    {project.tags && project.tags.length > 0 && (
-                      <div className="flex flex-wrap gap-2 mb-4">
-                        {project.tags.map((tag) => (
-                          <span
-                            key={tag}
-                            className="px-3 py-1 bg-blue-100 text-blue-700 text-xs rounded-full font-medium"
-                          >
-                            {tag}
-                          </span>
-                        ))}
+                  {/* Glassmorphism Card */}
+                  <div
+                    className="relative rounded-2xl overflow-hidden h-full transition-all duration-300 group-hover:scale-105"
+                    style={{
+                      background: "rgba(255,255,255,0.08)",
+                      backdropFilter: "blur(20px)",
+                      border: "1px solid rgba(255,255,255,0.15)",
+                    }}
+                  >
+                    {/* Image Gallery Thumbnail */}
+                    {project.images && project.images.length > 0 && (
+                      <div className="relative h-56 overflow-hidden">
+                        <img
+                          src={project.images[0]}
+                          alt={project.title}
+                          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setLightboxImages(project.images);
+                            setLightboxIndex(0);
+                            setLightboxOpen(true);
+                          }}
+                        />
+                        {/* Image Counter Badge */}
+                        {project.images.length > 1 && (
+                          <div className="absolute top-3 right-3 px-3 py-1 rounded-full bg-black/60 backdrop-blur-md text-white text-xs font-bold">
+                            📷 {project.images.length}
+                          </div>
+                        )}
+                        {/* Gradient Overlay */}
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
                       </div>
                     )}
 
-                    <div className="flex items-center justify-between text-sm text-neutral-500 mb-4">
-                      <span>📅 {project.start_date}</span>
-                      {project.client_name && (
-                        <span>👤 {project.client_name}</span>
-                      )}
-                    </div>
+                    <div className="p-6">
+                      {/* Title & Featured Badge */}
+                      <div className="flex items-start justify-between mb-3">
+                        <h3 className="text-xl font-bold text-white mb-2 flex-1">
+                          {project.title}
+                        </h3>
+                        {project.is_featured && (
+                          <span className="ml-2 px-2 py-1 bg-yellow-500/20 text-yellow-300 text-xs rounded-lg font-bold">
+                            ⭐ Wyróżnione
+                          </span>
+                        )}
+                      </div>
 
-                    <div className="flex gap-2">
-                      {project.project_url && (
-                        <a
-                          href={project.project_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex-1 px-4 py-2 bg-dark-700 text-white text-center rounded-lg hover:bg-dark-600 transition-all"
-                        >
-                          🔗 Link
-                        </a>
+                      <p className="text-gray-300 text-sm mb-4 line-clamp-3">
+                        {project.description}
+                      </p>
+
+                      {/* Tags */}
+                      {project.tags && project.tags.length > 0 && (
+                        <div className="flex flex-wrap gap-2 mb-4">
+                          {project.tags.slice(0, 4).map((tag, idx) => (
+                            <span
+                              key={idx}
+                              className="px-3 py-1 bg-blue-500/20 text-blue-300 text-xs rounded-full font-medium backdrop-blur-sm"
+                            >
+                              {tag}
+                            </span>
+                          ))}
+                          {project.tags.length > 4 && (
+                            <span className="px-3 py-1 bg-gray-500/20 text-gray-300 text-xs rounded-full font-medium">
+                              +{project.tags.length - 4}
+                            </span>
+                          )}
+                        </div>
                       )}
-                      <button
-                        onClick={() => openPortfolioModal(project)}
-                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all"
-                      >
-                        ✏️
-                      </button>
-                      <button
-                        onClick={() => handlePortfolioDelete(project.id)}
-                        className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-all"
-                      >
-                        🗑️
-                      </button>
+
+                      {/* Project Details Grid */}
+                      <div className="space-y-2 mb-4 text-sm">
+                        {/* Location */}
+                        {project.location && (
+                          <div className="flex items-center gap-2 text-gray-300">
+                            <span className="text-purple-400">📍</span>
+                            <span className="font-medium">{project.location}</span>
+                          </div>
+                        )}
+                        
+                        {/* Completion Date */}
+                        {project.completion_date && (
+                          <div className="flex items-center gap-2 text-gray-300">
+                            <span className="text-green-400">✅</span>
+                            <span>Oddano: {new Date(project.completion_date).toLocaleDateString('pl-PL')}</span>
+                          </div>
+                        )}
+
+                        {/* Client */}
+                        {project.client_name && (
+                          <div className="flex items-center gap-2 text-gray-300">
+                            <span className="text-blue-400">👤</span>
+                            <span>{project.client_name}</span>
+                          </div>
+                        )}
+
+                        {/* Duration */}
+                        {project.start_date && project.end_date && (
+                          <div className="flex items-center gap-2 text-gray-300">
+                            <span className="text-orange-400">⏱️</span>
+                            <span>
+                              {Math.ceil(
+                                (new Date(project.end_date).getTime() - new Date(project.start_date).getTime()) / 
+                                (1000 * 60 * 60 * 24)
+                              )} dni
+                            </span>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Action Buttons */}
+                      <div className="flex gap-2 pt-4 border-t border-white/10">
+                        {project.project_url && (
+                          <a
+                            href={project.project_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            className="flex-1 px-4 py-2 bg-gradient-to-r from-cyan-600 to-blue-600 text-white text-center rounded-lg hover:from-cyan-500 hover:to-blue-500 transition-all text-sm font-medium"
+                          >
+                            🔗 Link
+                          </a>
+                        )}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openPortfolioModal(project);
+                          }}
+                          className="px-4 py-2 bg-blue-600/80 text-white rounded-lg hover:bg-blue-600 transition-all"
+                        >
+                          ✏️
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handlePortfolioDelete(project.id);
+                          }}
+                          className="px-4 py-2 bg-red-600/80 text-white rounded-lg hover:bg-red-600 transition-all"
+                        >
+                          🗑️
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -2894,16 +3024,19 @@ export default function WorkerDashboard() {
             </div>
           )}
 
+
           {/* Add/Edit Modal */}
           {showPortfolioModal && (
-            <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
-              <div className="bg-dark-800 rounded-2xl p-8 max-w-2xl w-full border border-neutral-700 max-h-[90vh] overflow-y-auto">
-                <h2 className="text-2xl font-bold text-white mb-6">
-                  {editingProjectId ? "✏️ Edytuj projekt" : "➕ Dodaj projekt"}
+            <div className="fixed inset-0 bg-black/90 flex items-center justify-center z-50 p-4 overflow-y-auto">
+              <div className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-2xl p-8 max-w-4xl w-full border border-slate-700 my-8">
+                <h2 className="text-3xl font-bold text-white mb-6 bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+                  {editingProjectId ? "✏️ Edytuj projekt" : "➕ Dodaj nowy projekt"}
                 </h2>
+                
                 <form onSubmit={handlePortfolioSubmit} className="space-y-6">
+                  {/* Title */}
                   <div>
-                    <label className="block text-sm text-neutral-400 mb-2">
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
                       Nazwa projektu *
                     </label>
                     <input
@@ -2916,18 +3049,19 @@ export default function WorkerDashboard() {
                           title: e.target.value,
                         })
                       }
-                      className="w-full px-4 py-3 bg-dark-700 border border-neutral-600 rounded-lg text-white focus:border-accent-cyber focus:outline-none"
-                      placeholder="np. Instalacja elektryczna w budynku XYZ"
+                      className="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-xl text-white placeholder-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 focus:outline-none transition-all"
+                      placeholder="np. Nowoczesna instalacja elektryczna w apartamentowcu"
                     />
                   </div>
 
+                  {/* Description */}
                   <div>
-                    <label className="block text-sm text-neutral-400 mb-2">
-                      Opis *
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      Opis projektu *
                     </label>
                     <textarea
                       required
-                      rows={4}
+                      rows={5}
                       value={portfolioForm.description}
                       onChange={(e) =>
                         setPortfolioForm({
@@ -2935,15 +3069,54 @@ export default function WorkerDashboard() {
                           description: e.target.value,
                         })
                       }
-                      className="w-full px-4 py-3 bg-dark-700 border border-neutral-600 rounded-lg text-white focus:border-accent-cyber focus:outline-none resize-none"
-                      placeholder="Opisz projekt, użyte technologie, osiągnięte rezultaty..."
+                      className="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-xl text-white placeholder-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 focus:outline-none resize-none transition-all"
+                      placeholder="Opisz szczegółowo projekt: zakres prac, użyte technologie, wyzwania, osiągnięte rezultaty..."
                     />
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
+                  {/* 🆕 Location & Address - 2 columns */}
+                  <div className="grid md:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm text-neutral-400 mb-2">
-                        Data rozpoczęcia *
+                      <label className="block text-sm font-medium text-gray-300 mb-2">
+                        📍 Lokalizacja (miasto/region)
+                      </label>
+                      <input
+                        type="text"
+                        value={portfolioForm.location}
+                        onChange={(e) =>
+                          setPortfolioForm({
+                            ...portfolioForm,
+                            location: e.target.value,
+                          })
+                        }
+                        className="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-xl text-white placeholder-gray-400 focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 focus:outline-none transition-all"
+                        placeholder="np. Warszawa, Mazowieckie"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-2">
+                        🏠 Adres realizacji projektu
+                      </label>
+                      <input
+                        type="text"
+                        value={portfolioForm.address}
+                        onChange={(e) =>
+                          setPortfolioForm({
+                            ...portfolioForm,
+                            address: e.target.value,
+                          })
+                        }
+                        className="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-xl text-white placeholder-gray-400 focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 focus:outline-none transition-all"
+                        placeholder="ul. Przykładowa 123, Warszawa"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Dates Grid - 3 columns */}
+                  <div className="grid md:grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-2">
+                        📅 Data rozpoczęcia *
                       </label>
                       <input
                         type="date"
@@ -2955,12 +3128,12 @@ export default function WorkerDashboard() {
                             start_date: e.target.value,
                           })
                         }
-                        className="w-full px-4 py-3 bg-dark-700 border border-neutral-600 rounded-lg text-white focus:border-accent-cyber focus:outline-none"
+                        className="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-xl text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 focus:outline-none transition-all"
                       />
                     </div>
                     <div>
-                      <label className="block text-sm text-neutral-400 mb-2">
-                        Data zakończenia
+                      <label className="block text-sm font-medium text-gray-300 mb-2">
+                        📅 Data zakończenia
                       </label>
                       <input
                         type="date"
@@ -2971,82 +3144,227 @@ export default function WorkerDashboard() {
                             end_date: e.target.value,
                           })
                         }
-                        className="w-full px-4 py-3 bg-dark-700 border border-neutral-600 rounded-lg text-white focus:border-accent-cyber focus:outline-none"
+                        className="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-xl text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 focus:outline-none transition-all"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-2">
+                        ✅ Data oddania projektu
+                      </label>
+                      <input
+                        type="date"
+                        value={portfolioForm.completion_date}
+                        onChange={(e) =>
+                          setPortfolioForm({
+                            ...portfolioForm,
+                            completion_date: e.target.value,
+                          })
+                        }
+                        className="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-xl text-white focus:border-green-500 focus:ring-2 focus:ring-green-500/20 focus:outline-none transition-all"
                       />
                     </div>
                   </div>
 
-                  <div>
-                    <label className="block text-sm text-neutral-400 mb-2">
-                      Klient
-                    </label>
-                    <input
-                      type="text"
-                      value={portfolioForm.client_name}
-                      onChange={(e) =>
-                        setPortfolioForm({
-                          ...portfolioForm,
-                          client_name: e.target.value,
-                        })
-                      }
-                      className="w-full px-4 py-3 bg-dark-700 border border-neutral-600 rounded-lg text-white focus:border-accent-cyber focus:outline-none"
-                      placeholder="Nazwa firmy lub klienta"
-                    />
+                  {/* Client Info - 2 columns */}
+                  <div className="grid md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-2">
+                        👤 Klient (nazwisko/imię)
+                      </label>
+                      <input
+                        type="text"
+                        value={portfolioForm.client_name}
+                        onChange={(e) =>
+                          setPortfolioForm({
+                            ...portfolioForm,
+                            client_name: e.target.value,
+                          })
+                        }
+                        className="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-xl text-white placeholder-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 focus:outline-none transition-all"
+                        placeholder="Jan Kowalski"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-2">
+                        🏢 Firma klienta
+                      </label>
+                      <input
+                        type="text"
+                        value={portfolioForm.client_company}
+                        onChange={(e) =>
+                          setPortfolioForm({
+                            ...portfolioForm,
+                            client_company: e.target.value,
+                          })
+                        }
+                        className="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-xl text-white placeholder-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 focus:outline-none transition-all"
+                        placeholder="XYZ Development Sp. z o.o."
+                      />
+                    </div>
                   </div>
 
-                  <div>
-                    <label className="block text-sm text-neutral-400 mb-2">
-                      Link do projektu
-                    </label>
-                    <input
-                      type="url"
-                      value={portfolioForm.project_url}
-                      onChange={(e) =>
-                        setPortfolioForm({
-                          ...portfolioForm,
-                          project_url: e.target.value,
-                        })
-                      }
-                      className="w-full px-4 py-3 bg-dark-700 border border-neutral-600 rounded-lg text-white focus:border-accent-cyber focus:outline-none"
-                      placeholder="https://..."
-                    />
+                  {/* Category & Tags */}
+                  <div className="grid md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-2">
+                        📂 Kategoria
+                      </label>
+                      <select
+                        value={portfolioForm.category}
+                        onChange={(e) =>
+                          setPortfolioForm({
+                            ...portfolioForm,
+                            category: e.target.value,
+                          })
+                        }
+                        className="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-xl text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 focus:outline-none transition-all"
+                      >
+                        <option value="">Wybierz kategorię</option>
+                        <option value="elektryka">⚡ Elektryka</option>
+                        <option value="hydraulika">💧 Hydraulika</option>
+                        <option value="budowa">🏗️ Budowa</option>
+                        <option value="remont">🔨 Remont</option>
+                        <option value="instalacje">🔧 Instalacje</option>
+                        <option value="design">🎨 Design</option>
+                        <option value="it">💻 IT/Software</option>
+                        <option value="inne">📦 Inne</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-2">
+                        🏷️ Tagi (oddzielone przecinkami)
+                      </label>
+                      <input
+                        type="text"
+                        value={portfolioForm.tags.join(", ")}
+                        onChange={(e) =>
+                          setPortfolioForm({
+                            ...portfolioForm,
+                            tags: e.target.value.split(",").map((t) => t.trim()).filter(t => t),
+                          })
+                        }
+                        className="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-xl text-white placeholder-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 focus:outline-none transition-all"
+                        placeholder="React, TypeScript, Modern Design"
+                      />
+                    </div>
                   </div>
 
-                  <div>
-                    <label className="block text-sm text-neutral-400 mb-2">
-                      Tagi (oddzielone przecinkami)
-                    </label>
-                    <input
-                      type="text"
-                      value={portfolioForm.tags.join(", ")}
-                      onChange={(e) =>
-                        setPortfolioForm({
-                          ...portfolioForm,
-                          tags: e.target.value.split(",").map((t) => t.trim()),
-                        })
-                      }
-                      className="w-full px-4 py-3 bg-dark-700 border border-neutral-600 rounded-lg text-white focus:border-accent-cyber focus:outline-none"
-                      placeholder="JavaScript, React, Node.js"
-                    />
+                  {/* URLs */}
+                  <div className="grid md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-2">
+                        🔗 Link do projektu
+                      </label>
+                      <input
+                        type="url"
+                        value={portfolioForm.project_url}
+                        onChange={(e) =>
+                          setPortfolioForm({
+                            ...portfolioForm,
+                            project_url: e.target.value,
+                          })
+                        }
+                        className="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-xl text-white placeholder-gray-400 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20 focus:outline-none transition-all"
+                        placeholder="https://example.com"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-2">
+                        🎥 Link do video
+                      </label>
+                      <input
+                        type="url"
+                        value={portfolioForm.video_url}
+                        onChange={(e) =>
+                          setPortfolioForm({
+                            ...portfolioForm,
+                            video_url: e.target.value,
+                          })
+                        }
+                        className="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-xl text-white placeholder-gray-400 focus:border-red-500 focus:ring-2 focus:ring-red-500/20 focus:outline-none transition-all"
+                        placeholder="https://youtube.com/watch?v=..."
+                      />
+                    </div>
                   </div>
 
+                  {/* Image Upload */}
                   <div>
-                    <label className="block text-sm text-neutral-400 mb-2">
-                      Zdjęcie projektu
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      📷 Zdjęcia projektu
                     </label>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={handlePortfolioImageUpload}
-                      className="w-full px-4 py-3 bg-dark-700 border border-neutral-600 rounded-lg text-white file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:bg-accent-cyber file:text-white hover:file:bg-accent-cyber/80"
-                    />
+                    <div className="relative">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handlePortfolioImageUpload}
+                        className="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-xl text-white file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-gradient-to-r file:from-blue-600 file:to-purple-600 file:text-white hover:file:from-blue-500 hover:file:to-purple-500 file:font-medium file:cursor-pointer transition-all"
+                      />
+                    </div>
+                    {portfolioForm.images.length > 0 && (
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {portfolioForm.images.map((img, idx) => (
+                          <div key={idx} className="relative group">
+                            <img
+                              src={img}
+                              alt={`Preview ${idx + 1}`}
+                              className="w-20 h-20 object-cover rounded-lg border-2 border-slate-600"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setPortfolioForm({
+                                  ...portfolioForm,
+                                  images: portfolioForm.images.filter((_, i) => i !== idx),
+                                });
+                              }}
+                              className="absolute -top-2 -right-2 w-6 h-6 bg-red-600 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity text-xs font-bold"
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
 
-                  <div className="flex gap-4">
+                  {/* Toggles */}
+                  <div className="flex gap-6">
+                    <label className="flex items-center gap-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={portfolioForm.is_public}
+                        onChange={(e) =>
+                          setPortfolioForm({
+                            ...portfolioForm,
+                            is_public: e.target.checked,
+                          })
+                        }
+                        className="w-5 h-5 rounded bg-slate-800 border-slate-600 text-blue-600 focus:ring-2 focus:ring-blue-500/20"
+                      />
+                      <span className="text-gray-300">🌍 Widoczne publicznie</span>
+                    </label>
+                    <label className="flex items-center gap-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={portfolioForm.is_featured}
+                        onChange={(e) =>
+                          setPortfolioForm({
+                            ...portfolioForm,
+                            is_featured: e.target.checked,
+                          })
+                        }
+                        className="w-5 h-5 rounded bg-slate-800 border-slate-600 text-yellow-500 focus:ring-2 focus:ring-yellow-500/20"
+                      />
+                      <span className="text-gray-300">⭐ Wyróżnione</span>
+                    </label>
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="flex gap-4 pt-4 border-t border-slate-700">
                     <button
                       type="submit"
                       disabled={saving}
-                      className="flex-1 px-6 py-3 bg-gradient-to-r from-accent-cyber to-accent-techGreen text-white font-bold rounded-lg hover:shadow-lg transition-all disabled:opacity-50"
+                      className="flex-1 px-6 py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold rounded-xl hover:from-blue-500 hover:to-purple-500 hover:shadow-lg hover:shadow-purple-500/50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {saving
                         ? "⏳ Zapisywanie..."
@@ -3060,12 +3378,260 @@ export default function WorkerDashboard() {
                         setShowPortfolioModal(false);
                         resetPortfolioForm();
                       }}
-                      className="px-6 py-3 bg-neutral-700 text-white font-bold rounded-lg hover:bg-neutral-600 transition-all"
+                      className="px-6 py-4 bg-slate-700 text-white font-bold rounded-xl hover:bg-slate-600 transition-all"
                     >
                       ❌ Anuluj
                     </button>
                   </div>
                 </form>
+              </div>
+            </div>
+          )}
+
+          {/* 🆕 Image Lightbox */}
+          {lightboxOpen && (
+            <div className="fixed inset-0 bg-black/95 flex items-center justify-center z-[100] p-4">
+              <button
+                onClick={() => setLightboxOpen(false)}
+                className="absolute top-4 right-4 w-12 h-12 bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-full text-white text-2xl font-bold transition-all z-10"
+              >
+                ✕
+              </button>
+              
+              {/* Navigation Arrows */}
+              {lightboxImages.length > 1 && (
+                <>
+                  <button
+                    onClick={() => setLightboxIndex(Math.max(0, lightboxIndex - 1))}
+                    disabled={lightboxIndex === 0}
+                    className="absolute left-4 w-12 h-12 bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-full text-white text-2xl font-bold disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                  >
+                    ←
+                  </button>
+                  <button
+                    onClick={() => setLightboxIndex(Math.min(lightboxImages.length - 1, lightboxIndex + 1))}
+                    disabled={lightboxIndex === lightboxImages.length - 1}
+                    className="absolute right-4 w-12 h-12 bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-full text-white text-2xl font-bold disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                  >
+                    →
+                  </button>
+                </>
+              )}
+
+              {/* Main Image */}
+              <div className="max-w-6xl max-h-[90vh] flex flex-col items-center gap-4">
+                <img
+                  src={lightboxImages[lightboxIndex]}
+                  alt={`Image ${lightboxIndex + 1}`}
+                  className="max-w-full max-h-[85vh] object-contain rounded-2xl shadow-2xl"
+                />
+                <div className="text-white text-center">
+                  <span className="px-4 py-2 bg-white/10 backdrop-blur-md rounded-full">
+                    {lightboxIndex + 1} / {lightboxImages.length}
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* 🆕 Project Detail View Modal */}
+          {showProjectDetail && selectedProject && (
+            <div className="fixed inset-0 bg-black/90 flex items-center justify-center z-[60] p-4 overflow-y-auto">
+              <div className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-2xl max-w-5xl w-full border border-slate-700 my-8 overflow-hidden">
+                {/* Header with Image */}
+                {selectedProject.images && selectedProject.images.length > 0 && (
+                  <div className="relative h-80">
+                    <img
+                      src={selectedProject.images[0]}
+                      alt={selectedProject.title}
+                      className="w-full h-full object-cover"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/50 to-transparent" />
+                    <button
+                      onClick={() => setShowProjectDetail(false)}
+                      className="absolute top-4 right-4 w-10 h-10 bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-full text-white font-bold transition-all"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                )}
+
+                <div className="p-8">
+                  {/* Title & Badges */}
+                  <div className="flex items-start justify-between mb-6">
+                    <h2 className="text-4xl font-bold text-white flex-1">
+                      {selectedProject.title}
+                    </h2>
+                    {selectedProject.is_featured && (
+                      <span className="ml-4 px-4 py-2 bg-yellow-500/20 text-yellow-300 rounded-xl font-bold">
+                        ⭐ Wyróżnione
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Description */}
+                  <p className="text-gray-300 text-lg mb-8 leading-relaxed">
+                    {selectedProject.description}
+                  </p>
+
+                  {/* Details Grid */}
+                  <div className="grid md:grid-cols-2 gap-6 mb-8">
+                    {selectedProject.location && (
+                      <div className="flex items-start gap-3">
+                        <span className="text-2xl">📍</span>
+                        <div>
+                          <div className="text-sm text-gray-400">Lokalizacja</div>
+                          <div className="text-white font-medium">{selectedProject.location}</div>
+                        </div>
+                      </div>
+                    )}
+
+                    {selectedProject.address && (
+                      <div className="flex items-start gap-3">
+                        <span className="text-2xl">🏠</span>
+                        <div>
+                          <div className="text-sm text-gray-400">Adres</div>
+                          <div className="text-white font-medium">{selectedProject.address}</div>
+                        </div>
+                      </div>
+                    )}
+
+                    {selectedProject.client_name && (
+                      <div className="flex items-start gap-3">
+                        <span className="text-2xl">👤</span>
+                        <div>
+                          <div className="text-sm text-gray-400">Klient</div>
+                          <div className="text-white font-medium">{selectedProject.client_name}</div>
+                        </div>
+                      </div>
+                    )}
+
+                    {selectedProject.client_company && (
+                      <div className="flex items-start gap-3">
+                        <span className="text-2xl">🏢</span>
+                        <div>
+                          <div className="text-sm text-gray-400">Firma</div>
+                          <div className="text-white font-medium">{selectedProject.client_company}</div>
+                        </div>
+                      </div>
+                    )}
+
+                    {selectedProject.start_date && (
+                      <div className="flex items-start gap-3">
+                        <span className="text-2xl">📅</span>
+                        <div>
+                          <div className="text-sm text-gray-400">Rozpoczęcie</div>
+                          <div className="text-white font-medium">
+                            {new Date(selectedProject.start_date).toLocaleDateString('pl-PL')}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {selectedProject.end_date && (
+                      <div className="flex items-start gap-3">
+                        <span className="text-2xl">🏁</span>
+                        <div>
+                          <div className="text-sm text-gray-400">Zakończenie</div>
+                          <div className="text-white font-medium">
+                            {new Date(selectedProject.end_date).toLocaleDateString('pl-PL')}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {selectedProject.completion_date && (
+                      <div className="flex items-start gap-3">
+                        <span className="text-2xl">✅</span>
+                        <div>
+                          <div className="text-sm text-gray-400">Data oddania</div>
+                          <div className="text-white font-medium">
+                            {new Date(selectedProject.completion_date).toLocaleDateString('pl-PL')}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {selectedProject.category && (
+                      <div className="flex items-start gap-3">
+                        <span className="text-2xl">📂</span>
+                        <div>
+                          <div className="text-sm text-gray-400">Kategoria</div>
+                          <div className="text-white font-medium capitalize">{selectedProject.category}</div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Tags */}
+                  {selectedProject.tags && selectedProject.tags.length > 0 && (
+                    <div className="mb-8">
+                      <div className="text-sm text-gray-400 mb-3">Tagi</div>
+                      <div className="flex flex-wrap gap-2">
+                        {selectedProject.tags.map((tag: string, idx: number) => (
+                          <span
+                            key={idx}
+                            className="px-4 py-2 bg-blue-500/20 text-blue-300 rounded-xl font-medium"
+                          >
+                            {tag}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Image Gallery */}
+                  {selectedProject.images && selectedProject.images.length > 1 && (
+                    <div className="mb-8">
+                      <div className="text-sm text-gray-400 mb-3">Galeria ({selectedProject.images.length} zdjęć)</div>
+                      <div className="grid grid-cols-4 gap-3">
+                        {selectedProject.images.map((img: string, idx: number) => (
+                          <img
+                            key={idx}
+                            src={img}
+                            alt={`${selectedProject.title} ${idx + 1}`}
+                            className="w-full h-32 object-cover rounded-lg cursor-pointer hover:opacity-80 transition-opacity border-2 border-slate-700 hover:border-blue-500"
+                            onClick={() => {
+                              setLightboxImages(selectedProject.images);
+                              setLightboxIndex(idx);
+                              setLightboxOpen(true);
+                            }}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Action Buttons */}
+                  <div className="flex gap-4 pt-6 border-t border-slate-700">
+                    {selectedProject.project_url && (
+                      <a
+                        href={selectedProject.project_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex-1 px-6 py-3 bg-gradient-to-r from-cyan-600 to-blue-600 text-white text-center rounded-xl hover:from-cyan-500 hover:to-blue-500 font-medium transition-all"
+                      >
+                        🔗 Odwiedź projekt
+                      </a>
+                    )}
+                    {selectedProject.video_url && (
+                      <a
+                        href={selectedProject.video_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex-1 px-6 py-3 bg-gradient-to-r from-red-600 to-pink-600 text-white text-center rounded-xl hover:from-red-500 hover:to-pink-500 font-medium transition-all"
+                      >
+                        🎥 Zobacz video
+                      </a>
+                    )}
+                    <button
+                      onClick={() => setShowProjectDetail(false)}
+                      className="px-6 py-3 bg-slate-700 text-white rounded-xl hover:bg-slate-600 font-medium transition-all"
+                    >
+                      Zamknij
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
           )}
