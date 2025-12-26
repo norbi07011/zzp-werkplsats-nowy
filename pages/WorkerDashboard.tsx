@@ -584,17 +584,6 @@ export default function WorkerDashboard() {
     }
   };
 
-  useEffect(() => {
-    loadAllData();
-
-    // Auto-refresh analytics (profile_views) co 30 sekund
-    const refreshInterval = setInterval(() => {
-      refreshAnalytics();
-    }, 30000); // 30 sekund
-
-    return () => clearInterval(refreshInterval);
-  }, [loadAllData, refreshAnalytics]);
-
   // Refresh analytics without reloading entire dashboard
   const refreshAnalytics = useCallback(async () => {
     try {
@@ -756,6 +745,17 @@ export default function WorkerDashboard() {
       setLoading(false);
     }
   }, [navigate]);
+
+  useEffect(() => {
+    loadAllData();
+
+    // Auto-refresh analytics (profile_views) co 30 sekund
+    const refreshInterval = setInterval(() => {
+      refreshAnalytics();
+    }, 30000); // 30 sekund
+
+    return () => clearInterval(refreshInterval);
+  }, [loadAllData, refreshAnalytics]);
 
   // ===================================================================
   // MESSAGE HANDLERS
