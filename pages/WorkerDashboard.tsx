@@ -9,7 +9,7 @@
  * UPDATED: Fixed tab navigation - October 9, 2025
  */
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import React from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
@@ -356,12 +356,12 @@ export default function WorkerDashboard() {
   });
   const [showPortfolioModal, setShowPortfolioModal] = useState(false);
   const [editingProjectId, setEditingProjectId] = useState<string | null>(null);
-  
+
   // 🆕 Image Lightbox State - podgląd zdjęć
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxImages, setLightboxImages] = useState<string[]>([]);
   const [lightboxIndex, setLightboxIndex] = useState(0);
-  
+
   // 🆕 Project Detail View State - szczegółowy widok projektu
   const [selectedProject, setSelectedProject] = useState<any>(null);
   const [showProjectDetail, setShowProjectDetail] = useState(false);
@@ -593,10 +593,10 @@ export default function WorkerDashboard() {
     }, 30000); // 30 sekund
 
     return () => clearInterval(refreshInterval);
-  }, []);
+  }, [loadAllData, refreshAnalytics]);
 
   // Refresh analytics without reloading entire dashboard
-  const refreshAnalytics = async () => {
+  const refreshAnalytics = useCallback(async () => {
     try {
       const {
         data: { user },
@@ -616,9 +616,9 @@ export default function WorkerDashboard() {
     } catch (error) {
       console.error("Error refreshing analytics:", error);
     }
-  };
+  }, []);
 
-  const loadAllData = async () => {
+  const loadAllData = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -746,9 +746,6 @@ export default function WorkerDashboard() {
         );
       }
 
-      // Load jobs (mock for now)
-      setJobs(MOCK_JOBS.slice(0, 6));
-
       // Load messages
       await loadMessages(user.id);
 
@@ -758,7 +755,7 @@ export default function WorkerDashboard() {
       setError("Nie udało się załadować danych profilu");
       setLoading(false);
     }
-  };
+  }, [navigate]);
 
   // ===================================================================
   // MESSAGE HANDLERS
@@ -1247,18 +1244,34 @@ export default function WorkerDashboard() {
 
       if (editingProjectId) {
         // Update existing project
+        // SANITIZE DATE FIELDS: Convert empty strings to null for PostgreSQL
+        const sanitizedForm = {
+          ...portfolioForm,
+          start_date: portfolioForm.start_date?.trim() || null,
+          end_date: portfolioForm.end_date?.trim() || null,
+          completion_date: portfolioForm.completion_date?.trim() || null,
+        };
+        
         const success = await workerProfileService.updatePortfolioProject(
           editingProjectId,
-          portfolioForm
+          sanitizedForm
         );
         if (success) {
           setSuccess("✅ Projekt zaktualizowany!");
         }
       } else {
         // Add new project - POPRAWKA: workerProfile.id zamiast userId
+        // SANITIZE DATE FIELDS: Convert empty strings to null for PostgreSQL
+        const sanitizedForm = {
+          ...portfolioForm,
+          start_date: portfolioForm.start_date?.trim() || null,
+          end_date: portfolioForm.end_date?.trim() || null,
+          completion_date: portfolioForm.completion_date?.trim() || null,
+        };
+        
         const project = await workerProfileService.addPortfolioProject(
           workerProfile.id,
-          portfolioForm
+          sanitizedForm
         );
         if (project) {
           setSuccess("✅ Projekt dodany!");
@@ -2854,7 +2867,9 @@ export default function WorkerDashboard() {
               >
                 <div className="p-12">
                   <div className="text-6xl mb-4">📂</div>
-                  <p className="text-gray-300 mb-6">Brak projektów w portfolio</p>
+                  <p className="text-gray-300 mb-6">
+                    Brak projektów w portfolio
+                  </p>
                   <button
                     onClick={() => openPortfolioModal()}
                     className="px-8 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold rounded-xl hover:shadow-lg hover:shadow-purple-500/50 transition-all"
@@ -2951,15 +2966,22 @@ export default function WorkerDashboard() {
                         {project.location && (
                           <div className="flex items-center gap-2 text-gray-300">
                             <span className="text-purple-400">📍</span>
-                            <span className="font-medium">{project.location}</span>
+                            <span className="font-medium">
+                              {project.location}
+                            </span>
                           </div>
                         )}
-                        
+
                         {/* Completion Date */}
                         {project.completion_date && (
                           <div className="flex items-center gap-2 text-gray-300">
                             <span className="text-green-400">✅</span>
-                            <span>Oddano: {new Date(project.completion_date).toLocaleDateString('pl-PL')}</span>
+                            <span>
+                              Oddano:{" "}
+                              {new Date(
+                                project.completion_date
+                              ).toLocaleDateString("pl-PL")}
+                            </span>
                           </div>
                         )}
 
@@ -2977,9 +2999,11 @@ export default function WorkerDashboard() {
                             <span className="text-orange-400">⏱️</span>
                             <span>
                               {Math.ceil(
-                                (new Date(project.end_date).getTime() - new Date(project.start_date).getTime()) / 
-                                (1000 * 60 * 60 * 24)
-                              )} dni
+                                (new Date(project.end_date).getTime() -
+                                  new Date(project.start_date).getTime()) /
+                                  (1000 * 60 * 60 * 24)
+                              )}{" "}
+                              dni
                             </span>
                           </div>
                         )}
@@ -3024,15 +3048,16 @@ export default function WorkerDashboard() {
             </div>
           )}
 
-
           {/* Add/Edit Modal */}
           {showPortfolioModal && (
             <div className="fixed inset-0 bg-black/90 flex items-center justify-center z-50 p-4 overflow-y-auto">
               <div className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-2xl p-8 max-w-4xl w-full border border-slate-700 my-8">
                 <h2 className="text-3xl font-bold text-white mb-6 bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
-                  {editingProjectId ? "✏️ Edytuj projekt" : "➕ Dodaj nowy projekt"}
+                  {editingProjectId
+                    ? "✏️ Edytuj projekt"
+                    : "➕ Dodaj nowy projekt"}
                 </h2>
-                
+
                 <form onSubmit={handlePortfolioSubmit} className="space-y-6">
                   {/* Title */}
                   <div>
@@ -3240,7 +3265,10 @@ export default function WorkerDashboard() {
                         onChange={(e) =>
                           setPortfolioForm({
                             ...portfolioForm,
-                            tags: e.target.value.split(",").map((t) => t.trim()).filter(t => t),
+                            tags: e.target.value
+                              .split(",")
+                              .map((t) => t.trim())
+                              .filter((t) => t),
                           })
                         }
                         className="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-xl text-white placeholder-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 focus:outline-none transition-all"
@@ -3314,7 +3342,9 @@ export default function WorkerDashboard() {
                               onClick={() => {
                                 setPortfolioForm({
                                   ...portfolioForm,
-                                  images: portfolioForm.images.filter((_, i) => i !== idx),
+                                  images: portfolioForm.images.filter(
+                                    (_, i) => i !== idx
+                                  ),
                                 });
                               }}
                               className="absolute -top-2 -right-2 w-6 h-6 bg-red-600 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity text-xs font-bold"
@@ -3341,7 +3371,9 @@ export default function WorkerDashboard() {
                         }
                         className="w-5 h-5 rounded bg-slate-800 border-slate-600 text-blue-600 focus:ring-2 focus:ring-blue-500/20"
                       />
-                      <span className="text-gray-300">🌍 Widoczne publicznie</span>
+                      <span className="text-gray-300">
+                        🌍 Widoczne publicznie
+                      </span>
                     </label>
                     <label className="flex items-center gap-3 cursor-pointer">
                       <input
@@ -3397,19 +3429,25 @@ export default function WorkerDashboard() {
               >
                 ✕
               </button>
-              
+
               {/* Navigation Arrows */}
               {lightboxImages.length > 1 && (
                 <>
                   <button
-                    onClick={() => setLightboxIndex(Math.max(0, lightboxIndex - 1))}
+                    onClick={() =>
+                      setLightboxIndex(Math.max(0, lightboxIndex - 1))
+                    }
                     disabled={lightboxIndex === 0}
                     className="absolute left-4 w-12 h-12 bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-full text-white text-2xl font-bold disabled:opacity-30 disabled:cursor-not-allowed transition-all"
                   >
                     ←
                   </button>
                   <button
-                    onClick={() => setLightboxIndex(Math.min(lightboxImages.length - 1, lightboxIndex + 1))}
+                    onClick={() =>
+                      setLightboxIndex(
+                        Math.min(lightboxImages.length - 1, lightboxIndex + 1)
+                      )
+                    }
                     disabled={lightboxIndex === lightboxImages.length - 1}
                     className="absolute right-4 w-12 h-12 bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-full text-white text-2xl font-bold disabled:opacity-30 disabled:cursor-not-allowed transition-all"
                   >
@@ -3439,22 +3477,23 @@ export default function WorkerDashboard() {
             <div className="fixed inset-0 bg-black/90 flex items-center justify-center z-[60] p-4 overflow-y-auto">
               <div className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-2xl max-w-5xl w-full border border-slate-700 my-8 overflow-hidden">
                 {/* Header with Image */}
-                {selectedProject.images && selectedProject.images.length > 0 && (
-                  <div className="relative h-80">
-                    <img
-                      src={selectedProject.images[0]}
-                      alt={selectedProject.title}
-                      className="w-full h-full object-cover"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/50 to-transparent" />
-                    <button
-                      onClick={() => setShowProjectDetail(false)}
-                      className="absolute top-4 right-4 w-10 h-10 bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-full text-white font-bold transition-all"
-                    >
-                      ✕
-                    </button>
-                  </div>
-                )}
+                {selectedProject.images &&
+                  selectedProject.images.length > 0 && (
+                    <div className="relative h-80">
+                      <img
+                        src={selectedProject.images[0]}
+                        alt={selectedProject.title}
+                        className="w-full h-full object-cover"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/50 to-transparent" />
+                      <button
+                        onClick={() => setShowProjectDetail(false)}
+                        className="absolute top-4 right-4 w-10 h-10 bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-full text-white font-bold transition-all"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  )}
 
                 <div className="p-8">
                   {/* Title & Badges */}
@@ -3480,8 +3519,12 @@ export default function WorkerDashboard() {
                       <div className="flex items-start gap-3">
                         <span className="text-2xl">📍</span>
                         <div>
-                          <div className="text-sm text-gray-400">Lokalizacja</div>
-                          <div className="text-white font-medium">{selectedProject.location}</div>
+                          <div className="text-sm text-gray-400">
+                            Lokalizacja
+                          </div>
+                          <div className="text-white font-medium">
+                            {selectedProject.location}
+                          </div>
                         </div>
                       </div>
                     )}
@@ -3491,7 +3534,9 @@ export default function WorkerDashboard() {
                         <span className="text-2xl">🏠</span>
                         <div>
                           <div className="text-sm text-gray-400">Adres</div>
-                          <div className="text-white font-medium">{selectedProject.address}</div>
+                          <div className="text-white font-medium">
+                            {selectedProject.address}
+                          </div>
                         </div>
                       </div>
                     )}
@@ -3501,7 +3546,9 @@ export default function WorkerDashboard() {
                         <span className="text-2xl">👤</span>
                         <div>
                           <div className="text-sm text-gray-400">Klient</div>
-                          <div className="text-white font-medium">{selectedProject.client_name}</div>
+                          <div className="text-white font-medium">
+                            {selectedProject.client_name}
+                          </div>
                         </div>
                       </div>
                     )}
@@ -3511,7 +3558,9 @@ export default function WorkerDashboard() {
                         <span className="text-2xl">🏢</span>
                         <div>
                           <div className="text-sm text-gray-400">Firma</div>
-                          <div className="text-white font-medium">{selectedProject.client_company}</div>
+                          <div className="text-white font-medium">
+                            {selectedProject.client_company}
+                          </div>
                         </div>
                       </div>
                     )}
@@ -3520,9 +3569,13 @@ export default function WorkerDashboard() {
                       <div className="flex items-start gap-3">
                         <span className="text-2xl">📅</span>
                         <div>
-                          <div className="text-sm text-gray-400">Rozpoczęcie</div>
+                          <div className="text-sm text-gray-400">
+                            Rozpoczęcie
+                          </div>
                           <div className="text-white font-medium">
-                            {new Date(selectedProject.start_date).toLocaleDateString('pl-PL')}
+                            {new Date(
+                              selectedProject.start_date
+                            ).toLocaleDateString("pl-PL")}
                           </div>
                         </div>
                       </div>
@@ -3532,9 +3585,13 @@ export default function WorkerDashboard() {
                       <div className="flex items-start gap-3">
                         <span className="text-2xl">🏁</span>
                         <div>
-                          <div className="text-sm text-gray-400">Zakończenie</div>
+                          <div className="text-sm text-gray-400">
+                            Zakończenie
+                          </div>
                           <div className="text-white font-medium">
-                            {new Date(selectedProject.end_date).toLocaleDateString('pl-PL')}
+                            {new Date(
+                              selectedProject.end_date
+                            ).toLocaleDateString("pl-PL")}
                           </div>
                         </div>
                       </div>
@@ -3544,9 +3601,13 @@ export default function WorkerDashboard() {
                       <div className="flex items-start gap-3">
                         <span className="text-2xl">✅</span>
                         <div>
-                          <div className="text-sm text-gray-400">Data oddania</div>
+                          <div className="text-sm text-gray-400">
+                            Data oddania
+                          </div>
                           <div className="text-white font-medium">
-                            {new Date(selectedProject.completion_date).toLocaleDateString('pl-PL')}
+                            {new Date(
+                              selectedProject.completion_date
+                            ).toLocaleDateString("pl-PL")}
                           </div>
                         </div>
                       </div>
@@ -3557,7 +3618,9 @@ export default function WorkerDashboard() {
                         <span className="text-2xl">📂</span>
                         <div>
                           <div className="text-sm text-gray-400">Kategoria</div>
-                          <div className="text-white font-medium capitalize">{selectedProject.category}</div>
+                          <div className="text-white font-medium capitalize">
+                            {selectedProject.category}
+                          </div>
                         </div>
                       </div>
                     )}
@@ -3568,39 +3631,46 @@ export default function WorkerDashboard() {
                     <div className="mb-8">
                       <div className="text-sm text-gray-400 mb-3">Tagi</div>
                       <div className="flex flex-wrap gap-2">
-                        {selectedProject.tags.map((tag: string, idx: number) => (
-                          <span
-                            key={idx}
-                            className="px-4 py-2 bg-blue-500/20 text-blue-300 rounded-xl font-medium"
-                          >
-                            {tag}
-                          </span>
-                        ))}
+                        {selectedProject.tags.map(
+                          (tag: string, idx: number) => (
+                            <span
+                              key={idx}
+                              className="px-4 py-2 bg-blue-500/20 text-blue-300 rounded-xl font-medium"
+                            >
+                              {tag}
+                            </span>
+                          )
+                        )}
                       </div>
                     </div>
                   )}
 
                   {/* Image Gallery */}
-                  {selectedProject.images && selectedProject.images.length > 1 && (
-                    <div className="mb-8">
-                      <div className="text-sm text-gray-400 mb-3">Galeria ({selectedProject.images.length} zdjęć)</div>
-                      <div className="grid grid-cols-4 gap-3">
-                        {selectedProject.images.map((img: string, idx: number) => (
-                          <img
-                            key={idx}
-                            src={img}
-                            alt={`${selectedProject.title} ${idx + 1}`}
-                            className="w-full h-32 object-cover rounded-lg cursor-pointer hover:opacity-80 transition-opacity border-2 border-slate-700 hover:border-blue-500"
-                            onClick={() => {
-                              setLightboxImages(selectedProject.images);
-                              setLightboxIndex(idx);
-                              setLightboxOpen(true);
-                            }}
-                          />
-                        ))}
+                  {selectedProject.images &&
+                    selectedProject.images.length > 1 && (
+                      <div className="mb-8">
+                        <div className="text-sm text-gray-400 mb-3">
+                          Galeria ({selectedProject.images.length} zdjęć)
+                        </div>
+                        <div className="grid grid-cols-4 gap-3">
+                          {selectedProject.images.map(
+                            (img: string, idx: number) => (
+                              <img
+                                key={idx}
+                                src={img}
+                                alt={`${selectedProject.title} ${idx + 1}`}
+                                className="w-full h-32 object-cover rounded-lg cursor-pointer hover:opacity-80 transition-opacity border-2 border-slate-700 hover:border-blue-500"
+                                onClick={() => {
+                                  setLightboxImages(selectedProject.images);
+                                  setLightboxIndex(idx);
+                                  setLightboxOpen(true);
+                                }}
+                              />
+                            )
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    )}
 
                   {/* Action Buttons */}
                   <div className="flex gap-4 pt-6 border-t border-slate-700">
