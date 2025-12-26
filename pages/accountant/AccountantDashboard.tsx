@@ -4146,6 +4146,25 @@ export default function AccountantDashboard() {
               <AccountantSubscriptionPage />
             </TabPanel>
 
+            {/* Portfolio Tab */}
+            <TabPanel isActive={activeTab === "portfolio"}>
+              <div className="min-h-screen bg-gradient-to-br from-slate-950 via-blue-950 to-indigo-950 p-8">
+                <div className="max-w-7xl mx-auto">
+                  <div className="text-center py-16">
+                    <div className="text-6xl mb-4">🎨</div>
+                    <h2 className="text-3xl font-bold text-white mb-4">
+                      Portfolio Księgowego
+                    </h2>
+                    <p className="text-gray-300 mb-8">
+                      Funkcja portfolio dla księgowych jest w trakcie implementacji.
+                      <br />
+                      Wkrótce będziesz mógł dodawać projekty, zdjęcia i szczegóły realizacji.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </TabPanel>
+
             {/* Settings Tab */}
             <TabPanel isActive={activeTab === "settings"}>
               <AccountantSettingsPanel

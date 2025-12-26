@@ -96,6 +96,7 @@ export default function WorkerPublicProfilePageModern({
   // State
   const [worker, setWorker] = useState<Worker | null>(null);
   const [reviews, setReviews] = useState<WorkerReview[]>([]);
+  const [portfolioProjects, setPortfolioProjects] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Modals
@@ -218,6 +219,18 @@ export default function WorkerPublicProfilePageModern({
         google_review_count: w.google_review_count || undefined,
       });
 
+      // Load portfolio projects from worker_portfolio table
+      if (workerData?.id) {
+        const { data: portfolioData } = await supabase
+          .from("worker_portfolio")
+          .select("*")
+          .eq("worker_id", workerData.id)
+          .eq("is_public", true)
+          .order("created_at", { ascending: false });
+        
+        setPortfolioProjects(portfolioData || []);
+      }
+
       // Load reviews (use any to bypass type checking)
       const { data: reviewsData } = await (supabase as any)
         .from("reviews")
@@ -311,11 +324,14 @@ export default function WorkerPublicProfilePageModern({
 
   const skills: SkillTag[] = worker?.skills?.map((s) => ({ name: s })) || [];
 
-  const portfolio: PortfolioImage[] =
-    worker?.portfolio_images?.map((url, i) => ({
+  // Convert portfolio projects to PortfolioImage format for compatibility
+  const portfolio: PortfolioImage[] = portfolioProjects.flatMap((project) => {
+    const images = project.images || [];
+    return images.map((url: string, i: number) => ({
       url,
-      title: `Portfolio ${i + 1}`,
-    })) || [];
+      title: project.title || `Portfolio ${i + 1}`,
+    }));
+  });
 
   // ===== CUSTOM TABS =====
 
@@ -685,28 +701,122 @@ export default function WorkerPublicProfilePageModern({
     </div>
   );
 
-  // Portfolio Tab Content
+  // Portfolio Tab Content - Enhanced with project details
   const PortfolioTabContent = () => (
-    <div className="space-y-4">
-      {portfolio.length > 0 ? (
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-          {portfolio.map((img, idx) => (
-            <div
-              key={idx}
-              className="aspect-square rounded-xl overflow-hidden bg-slate-100"
-            >
-              <img
-                src={img.url}
-                alt={img.title}
-                className="w-full h-full object-cover hover:scale-105 transition-transform cursor-pointer"
-              />
-            </div>
-          ))}
+    <div className="space-y-6">
+      {portfolioProjects.length > 0 ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {portfolioProjects.map((project, idx) => {
+            const images = project.images || [];
+            const mainImage = images[0] || 'https://via.placeholder.com/400x300?text=No+Image';
+            
+            return (
+              <div
+                key={project.id}
+                className="bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 border border-slate-200"
+              >
+                {/* Main Image */}
+                <div className="relative aspect-video overflow-hidden">
+                  <img
+                    src={mainImage}
+                    alt={project.title}
+                    className="w-full h-full object-cover hover:scale-110 transition-transform duration-500"
+                  />
+                  {images.length > 1 && (
+                    <div className="absolute top-4 right-4 bg-black/70 backdrop-blur-sm px-3 py-1 rounded-full text-white text-sm font-medium">
+                      📷 {images.length}
+                    </div>
+                  )}
+                  {project.category && (
+                    <div className="absolute top-4 left-4 bg-blue-600 px-3 py-1 rounded-full text-white text-sm font-medium">
+                      {project.category}
+                    </div>
+                  )}
+                </div>
+
+                {/* Project Details */}
+                <div className="p-6">
+                  <h3 className="text-xl font-bold text-slate-900 mb-3">
+                    {project.title}
+                  </h3>
+                  
+                  {project.description && (
+                    <p className="text-slate-600 mb-4 line-clamp-3">
+                      {project.description}
+                    </p>
+                  )}
+
+                  {/* Project Info Grid */}
+                  <div className="grid grid-cols-2 gap-3 text-sm">
+                    {project.client_name && (
+                      <div className="flex items-start gap-2">
+                        <span className="text-slate-400">👤</span>
+                        <div>
+                          <div className="text-slate-500 text-xs">Klient</div>
+                          <div className="text-slate-700 font-medium">{project.client_name}</div>
+                        </div>
+                      </div>
+                    )}
+                    {project.location && (
+                      <div className="flex items-start gap-2">
+                        <span className="text-slate-400">📍</span>
+                        <div>
+                          <div className="text-slate-500 text-xs">Lokalizacja</div>
+                          <div className="text-slate-700 font-medium">{project.location}</div>
+                        </div>
+                      </div>
+                    )}
+                    {project.completion_date && (
+                      <div className="flex items-start gap-2">
+                        <span className="text-slate-400">📅</span>
+                        <div>
+                          <div className="text-slate-500 text-xs">Data zakończenia</div>
+                          <div className="text-slate-700 font-medium">
+                            {new Date(project.completion_date).toLocaleDateString('pl-PL')}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    {project.start_date && project.end_date && (
+                      <div className="flex items-start gap-2">
+                        <span className="text-slate-400">⏱️</span>
+                        <div>
+                          <div className="text-slate-500 text-xs">Czas trwania</div>
+                          <div className="text-slate-700 font-medium">
+                            {Math.ceil((new Date(project.end_date).getTime() - new Date(project.start_date).getTime()) / (1000 * 60 * 60 * 24))} dni
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Additional Images Preview */}
+                  {images.length > 1 && (
+                    <div className="mt-4 flex gap-2 overflow-x-auto">
+                      {images.slice(1, 4).map((img: string, i: number) => (
+                        <img
+                          key={i}
+                          src={img}
+                          alt={`${project.title} ${i + 2}`}
+                          className="w-16 h-16 rounded-lg object-cover flex-shrink-0 border-2 border-slate-200"
+                        />
+                      ))}
+                      {images.length > 4 && (
+                        <div className="w-16 h-16 rounded-lg bg-slate-100 flex items-center justify-center text-slate-600 font-medium text-sm flex-shrink-0">
+                          +{images.length - 4}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
         </div>
       ) : (
         <div className="text-center py-12 bg-slate-50 rounded-xl">
           <div className="text-4xl mb-4">📷</div>
-          <p className="text-slate-500">Brak zdjęć portfolio</p>
+          <p className="text-slate-500">Brak projektów w portfolio</p>
         </div>
       )}
     </div>
@@ -721,7 +831,7 @@ export default function WorkerPublicProfilePageModern({
     },
     {
       id: "portfolio",
-      label: `Portfolio (${portfolio.length})`,
+      label: `Portfolio (${portfolioProjects.length})`,
       icon: "📷",
       content: <PortfolioTabContent />,
     },
