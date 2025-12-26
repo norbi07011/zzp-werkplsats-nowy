@@ -55,6 +55,7 @@ export interface RegisterData {
   role: UserRole;
   companyName?: string;
   phone?: string;
+  vatNumber?: string; // ✅ FIX: Add vatNumber for Employer registration
   metadata?: {
     // Worker fields
     specialization?: string;
@@ -269,15 +270,14 @@ const mapUserDataWithRetry = async (
       }
     } else if (typedProfile.role === "worker") {
       try {
-        const { data: certificates } = await supabase
-          .from("certificates")
-          .select("certificate_number")
-          .eq("worker_id", typedProfile.id)
-          .limit(1);
-        const typedCertificates = certificates as
-          | Database["public"]["Tables"]["certificates"]["Row"][]
-          | null;
-        certificateId = typedCertificates?.[0]?.certificate_number || undefined;
+        // ❌ REMOVED: certificates table doesn't exist in current schema
+        // Workers now use worker_profiles.verified field instead
+        // const { data: certificates } = await supabase
+        //   .from("certificates")
+        //   .select("certificate_number")
+        //   .eq("worker_id", typedProfile.id)
+        //   .limit(1);
+        // certificateId = certificates?.[0]?.certificate_number || undefined;
 
         // Fetch worker subscription data from workers table
         let { data: workerProfile, error: workerError } = await supabase
@@ -592,6 +592,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         email: userData.email.trim().toLowerCase(),
         full_name: userData.fullName,
         role: userData.role,
+        phone: userData.phone || null,
       } as any);
 
       if (profileError) {
@@ -609,6 +610,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             hourly_rate: userData.metadata.hourlyRate || null,
             years_experience: userData.metadata.yearsOfExperience || 0,
             location_city: userData.metadata.city || "",
+            // ✅ FIX: Add skills and phone (were missing!)
+            skills: userData.metadata.skills || [],
+            phone: userData.phone || null,
             // NEW: Team & On-Demand fields
             worker_type: userData.metadata.workerType || "individual",
             team_size: userData.metadata.teamSize || 1,
@@ -641,6 +645,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             profile_id: data.user.id,
             company_name: userData.companyName || "Nieznana firma",
             kvk_number: "", // Can be added later in profile
+            btw_number: userData.vatNumber || null, // ✅ FIX: Save VAT number from registration
+            contact_person: userData.fullName || null, // ✅ FIX: Save contact person name
             industry: "other",
             location_city: "",
             phone: userData.phone || "",

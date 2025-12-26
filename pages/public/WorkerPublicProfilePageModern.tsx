@@ -45,6 +45,21 @@ interface Worker {
   is_active: boolean;
   created_at: string;
   updated_at: string;
+  // Team/Duo fields
+  worker_type?:
+    | "individual"
+    | "team_leader"
+    | "duo_partner"
+    | "helper_available";
+  team_size?: number;
+  team_description?: string;
+  team_hourly_rate?: number;
+  is_on_demand_available?: boolean;
+  // Google Reviews
+  google_maps_url?: string;
+  google_place_id?: string;
+  google_rating?: number;
+  google_review_count?: number;
 }
 
 interface WorkerReview {
@@ -166,15 +181,15 @@ export default function WorkerPublicProfilePageModern({
         full_name: profile?.full_name || w.full_name || "Nieznany",
         email: profile?.email || w.email || "",
         phone: profile?.phone || w.phone,
-        city: w.city || undefined,
-        postal_code: w.postal_code || undefined,
-        country: w.country || "NL",
+        city: w.city || w.location_city || undefined,
+        postal_code: w.postal_code || w.location_postal_code || undefined,
+        country: w.country || w.location_country || "NL",
         bio: w.bio || undefined,
         specialization: w.specialization || undefined,
         skills: w.skills || [],
         languages: w.languages || [],
         hourly_rate: w.hourly_rate || undefined,
-        years_experience: w.years_experience || 0,
+        years_experience: w.years_experience || w.experience_years || 0,
         availability_status: w.availability_status || "available",
         avatar_url: w.avatar_url || undefined,
         cover_image_url: w.cover_image_url || undefined,
@@ -185,11 +200,22 @@ export default function WorkerPublicProfilePageModern({
         website: w.website || undefined,
         rating: w.rating || 0,
         rating_count: w.rating_count || 0,
-        completed_jobs: w.completed_jobs || 0,
+        completed_jobs: w.completed_jobs || w.total_jobs_completed || 0,
         is_verified: w.is_verified || w.verified || false,
         is_active: w.is_active !== false,
         created_at: w.created_at || "",
         updated_at: w.updated_at || "",
+        // Team/Duo fields
+        worker_type: w.worker_type || "individual",
+        team_size: w.team_size || 1,
+        team_description: w.team_description || undefined,
+        team_hourly_rate: w.team_hourly_rate || undefined,
+        is_on_demand_available: w.is_on_demand_available || false,
+        // Google Reviews
+        google_maps_url: w.google_maps_url || undefined,
+        google_place_id: w.google_place_id || undefined,
+        google_rating: w.google_rating || undefined,
+        google_review_count: w.google_review_count || undefined,
       });
 
       // Load reviews (use any to bypass type checking)
@@ -375,6 +401,183 @@ export default function WorkerPublicProfilePageModern({
           </div>
         </div>
       </div>
+
+      {/* TEAM/DUO Section - only shown for team workers */}
+      {worker?.worker_type && worker.worker_type !== "individual" && (
+        <div className="bg-gradient-to-br from-orange-50 via-amber-50 to-yellow-50 rounded-xl p-6 border-2 border-orange-200">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-12 h-12 bg-orange-500 rounded-xl flex items-center justify-center text-white text-2xl">
+              {worker.worker_type === "team_leader"
+                ? "👥"
+                : worker.worker_type === "duo_partner"
+                ? "🤝"
+                : "🆘"}
+            </div>
+            <div>
+              <h3 className="text-lg font-bold text-slate-800">
+                {worker.worker_type === "team_leader"
+                  ? "🚀 Pracuję z Zespołem"
+                  : worker.worker_type === "duo_partner"
+                  ? "🤝 Pracuję w Duo"
+                  : "🆘 Dostępny jako Helper"}
+              </h3>
+              <p className="text-sm text-slate-600">
+                {worker.worker_type === "team_leader"
+                  ? `Zespół ${
+                      worker.team_size || 2
+                    } osób do większych projektów`
+                  : worker.worker_type === "duo_partner"
+                  ? "Partnerstwo 50/50 - razem silniejsi"
+                  : "Junior/asystent - pomoc przy projektach"}
+              </p>
+            </div>
+          </div>
+
+          {/* Team Stats */}
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-4">
+            {(worker.worker_type === "team_leader" ||
+              worker.worker_type === "duo_partner") && (
+              <>
+                <div className="bg-white/80 rounded-xl p-4 text-center">
+                  <div className="text-3xl font-bold text-orange-600">
+                    {worker.team_size || 2}
+                  </div>
+                  <div className="text-xs text-slate-600 mt-1">
+                    Osób w zespole
+                  </div>
+                </div>
+                {worker.team_hourly_rate && (
+                  <div className="bg-white/80 rounded-xl p-4 text-center">
+                    <div className="text-3xl font-bold text-green-600">
+                      €{worker.team_hourly_rate}
+                    </div>
+                    <div className="text-xs text-slate-600 mt-1">
+                      Stawka zespołu/h
+                    </div>
+                  </div>
+                )}
+                {worker.hourly_rate && worker.team_hourly_rate && (
+                  <div className="bg-white/80 rounded-xl p-4 text-center">
+                    <div className="text-3xl font-bold text-blue-600">
+                      €
+                      {Math.round(
+                        worker.team_hourly_rate / (worker.team_size || 2)
+                      )}
+                    </div>
+                    <div className="text-xs text-slate-600 mt-1">
+                      Na osobę/h
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+
+          {/* Team Description */}
+          {worker.team_description && (
+            <div className="bg-white/60 rounded-xl p-4">
+              <h4 className="font-semibold text-slate-800 mb-2 flex items-center gap-2">
+                <span>📝</span> O naszym zespole
+              </h4>
+              <p className="text-slate-700 text-sm leading-relaxed whitespace-pre-wrap">
+                {worker.team_description}
+              </p>
+            </div>
+          )}
+
+          {/* Team Benefits */}
+          <div className="mt-4 grid grid-cols-2 gap-2">
+            <div className="flex items-center gap-2 text-sm text-slate-700">
+              <span className="text-green-500">✓</span>
+              <span>Większe projekty</span>
+            </div>
+            <div className="flex items-center gap-2 text-sm text-slate-700">
+              <span className="text-green-500">✓</span>
+              <span>Szybsza realizacja</span>
+            </div>
+            <div className="flex items-center gap-2 text-sm text-slate-700">
+              <span className="text-green-500">✓</span>
+              <span>Różne specjalizacje</span>
+            </div>
+            <div className="flex items-center gap-2 text-sm text-slate-700">
+              <span className="text-green-500">✓</span>
+              <span>Jedna faktura</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* On-Demand Badge */}
+      {worker?.is_on_demand_available && (
+        <div className="bg-gradient-to-r from-yellow-400 via-amber-500 to-orange-500 rounded-xl p-4 text-white">
+          <div className="flex items-center gap-3">
+            <div className="text-3xl">⚡</div>
+            <div>
+              <h4 className="font-bold text-lg">
+                Springer - Dostępny na Żądanie!
+              </h4>
+              <p className="text-sm opacity-90">
+                Pilne zlecenia (1-2 dni) • Często wyższe stawki (+20-30%)
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Google Reviews Section */}
+      {worker?.google_maps_url && (
+        <div className="bg-white rounded-xl p-6 border border-slate-200">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+              <svg
+                className="w-5 h-5 text-blue-500"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+              >
+                <path d="M12.545,10.239v3.821h5.445c-0.712,2.315-2.647,3.972-5.445,3.972c-3.332,0-6.033-2.701-6.033-6.032s2.701-6.032,6.033-6.032c1.498,0,2.866,0.549,3.921,1.453l2.814-2.814C17.503,2.988,15.139,2,12.545,2C7.021,2,2.543,6.477,2.543,12s4.478,10,10.002,10c8.396,0,10.249-7.85,9.426-11.748L12.545,10.239z" />
+              </svg>
+              Opinie Google
+            </h3>
+            {worker.google_rating && (
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <span
+                      key={star}
+                      className={`text-lg ${
+                        star <= Math.round(worker.google_rating!)
+                          ? "text-yellow-400"
+                          : "text-slate-200"
+                      }`}
+                    >
+                      ★
+                    </span>
+                  ))}
+                </div>
+                <span className="font-bold text-slate-800">
+                  {worker.google_rating.toFixed(1)}
+                </span>
+                {worker.google_review_count && (
+                  <span className="text-sm text-slate-500">
+                    ({worker.google_review_count} opinii)
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
+          <a
+            href={worker.google_maps_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-700 rounded-xl hover:bg-blue-100 transition text-sm font-medium"
+          >
+            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" />
+            </svg>
+            Zobacz opinie na Google Maps
+          </a>
+        </div>
+      )}
 
       {/* Languages */}
       {worker?.languages && worker.languages.length > 0 && (

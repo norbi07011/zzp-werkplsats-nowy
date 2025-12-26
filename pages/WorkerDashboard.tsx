@@ -14,9 +14,10 @@ import React from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
 import { useIsMobile } from "../src/hooks/useIsMobile";
+import { useSidebar } from "../contexts/SidebarContext";
 import workerProfileService from "../services/workerProfileService";
 import { Animated3DProfileBackground } from "../components/Animated3DProfileBackground";
-import { getJobs, getJobOffersFromPosts } from "../src/services/job";
+import { getJobs } from "../src/services/job";
 import { SupportTicketModal } from "../src/components/SupportTicketModal";
 import { geocodeAddress } from "../services/geocoding";
 import type { WorkerProfileData } from "../services/workerProfileService";
@@ -251,7 +252,7 @@ export default function WorkerDashboard() {
 
   // State Management
   const { activeTab, setActiveTab } = useUnifiedTabs("overview");
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const { isSidebarOpen, closeSidebar } = useSidebar();
   const [isProfileSidebarOpen, setIsProfileSidebarOpen] = useState(false);
 
   // Profile sub-tabs (used in renderProfile function inside Settings tab)
@@ -666,44 +667,11 @@ export default function WorkerDashboard() {
       // const apps = await workerProfileService.getApplications(user.id);
       setApplications([]); // Mock: empty until DB fixed
 
-      // Load available jobs (active job_offer posts from employers)
+      // Load available jobs (active/published jobs)
       try {
-        // First try to get job offers from posts table (main source)
-        const jobOfferPosts = await getJobOffersFromPosts();
-
-        if (jobOfferPosts && jobOfferPosts.length > 0) {
-          // Map posts to Job format for display
-          const mappedJobs = jobOfferPosts.map((post: any) => ({
-            id: post.id,
-            title: post.title,
-            description: post.content,
-            category: post.category || "general",
-            location: post.location || "Heel Nederland",
-            company: post.author?.full_name || "Anonimowy",
-            companyLogo: post.author?.avatar_url,
-            salary: "Negocjowalna",
-            type: "freelance",
-            postedAt: post.created_at,
-            views: post.views_count || 0,
-            applications: post.comments_count || 0,
-            isNew:
-              new Date(post.created_at) >
-              new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
-          }));
-          setJobs(mappedJobs);
-          console.log(
-            "✅ [WORKER-DASH] Loaded job offers from posts:",
-            mappedJobs.length
-          );
-        } else {
-          // Fallback to legacy jobs table
-          const jobsData = await getJobs({ status: "active" });
-          setJobs(jobsData || []);
-          console.log(
-            "✅ [WORKER-DASH] Loaded jobs from legacy table:",
-            jobsData?.length || 0
-          );
-        }
+        const jobsData = await getJobs({ status: "active" });
+        setJobs(jobsData || []);
+        console.log("✅ [WORKER-DASH] Loaded jobs:", jobsData?.length || 0);
       } catch (error) {
         console.warn("[WORKER-DASH] Could not load jobs:", error);
         setJobs([]);
@@ -765,10 +733,11 @@ export default function WorkerDashboard() {
         );
       }
 
+      // Load jobs (mock for now)
+      setJobs(MOCK_JOBS.slice(0, 6));
+
       // Load messages
       await loadMessages(user.id);
-
-      // ✅ Jobs are already loaded above from getJobs() - no need to overwrite with mock data
 
       setLoading(false);
     } catch (err) {
@@ -4497,41 +4466,13 @@ export default function WorkerDashboard() {
             unreadMessages={unreadCount}
             isMobile={true}
             isMobileMenuOpen={isSidebarOpen}
-            onMobileMenuToggle={() => setIsSidebarOpen(false)}
+            onMobileMenuToggle={closeSidebar}
             onSupportClick={handleContactSupport}
           />
         )}
 
         {/* Main Content Area */}
         <div className="flex-1 flex flex-col overflow-hidden">
-          {/* Mobile Header with Hamburger */}
-          {isMobile && (
-            <div className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white sticky top-0 z-40 shadow-lg flex-shrink-0">
-              <div className="flex items-center justify-between px-4 py-3">
-                <h1 className="text-lg font-bold">👷 Pracownik</h1>
-                <button
-                  onClick={() => setIsSidebarOpen(true)}
-                  className="p-2 hover:bg-white/20 rounded-lg transition-colors"
-                  aria-label="Otwórz menu"
-                >
-                  <svg
-                    className="w-6 h-6"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M4 6h16M4 12h16M4 18h16"
-                    />
-                  </svg>
-                </button>
-              </div>
-            </div>
-          )}
-
           {/* Global Notifications */}
           {error && (
             <div className="fixed top-4 right-4 z-50 bg-red-500/90 text-white px-6 py-4 rounded-lg shadow-2xl border border-red-400 animate-slide-in">

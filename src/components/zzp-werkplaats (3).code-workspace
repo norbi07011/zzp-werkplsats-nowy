@@ -12,6 +12,7 @@
     "vscode-edge-devtools.webhint": false,
     "typescript.validate.enable": true,
     "sqltools.connections": [],
-    "powershell.cwd": "zzp-werkplaats (3)"
+    "powershell.cwd": "zzp-werkplaats (3)",
+    "liveServer.settings.multiRootWorkspaceName": "zzp-werkplaats (3)"
   }
 }

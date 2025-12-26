@@ -81,6 +81,8 @@ export const CleaningCompanyProfile: React.FC = () => {
     bio: "",
     profile_visibility: "public",
     accepting_new_clients: true,
+    google_maps_url: "",
+    google_place_id: "",
   });
 
   // Ładowanie powiadomień
@@ -871,8 +873,83 @@ export const CleaningCompanyProfile: React.FC = () => {
               }
               rows={5}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder="Opisz swoj─à firm─Ö, do┼¢wiadczenie, spos├│b pracy..."
+              placeholder="Opisz swoją firmę, doświadczenie, sposób pracy..."
             />
+          </section>
+
+          {/* Google Reviews Section */}
+          <section>
+            <h2 className="text-xl font-semibold text-gray-800 mb-4 flex items-center gap-2">
+              <span className="text-2xl">⭐</span>
+              Opinie Google (opcjonalne)
+            </h2>
+            <p className="text-sm text-gray-600 mb-4">
+              Dodaj linki do swoich opinii Google, aby wyświetlić je na
+              publicznym profilu i zwiększyć zaufanie klientów.
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Link do Google Maps
+                </label>
+                <input
+                  type="url"
+                  value={formData.google_maps_url || ""}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      google_maps_url: e.target.value,
+                    }))
+                  }
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="https://maps.app.goo.gl/xxxxx"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Link do opinii Google
+                </label>
+                <input
+                  type="url"
+                  value={formData.google_place_id || ""}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      google_place_id: e.target.value,
+                    }))
+                  }
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="https://g.page/r/xxxxx"
+                />
+              </div>
+            </div>
+            <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <div className="flex items-start gap-3">
+                <span className="text-blue-600 text-xl">💡</span>
+                <div className="text-sm text-blue-700">
+                  <p className="font-semibold mb-1">Jak znaleźć linki:</p>
+                  <ol className="list-decimal list-inside space-y-1 ml-2 text-blue-600">
+                    <li>
+                      Otwórz{" "}
+                      <a
+                        href="https://www.google.com/maps"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="underline font-semibold"
+                      >
+                        Google Maps
+                      </a>
+                    </li>
+                    <li>Znajdź swoją firmę / profil</li>
+                    <li>Kliknij "Udostępnij" → skopiuj link (Maps)</li>
+                    <li>
+                      Kliknij "Zobacz opinie" → skopiuj link z paska adresu
+                      (Opinie)
+                    </li>
+                  </ol>
+                </div>
+              </div>
+            </div>
           </section>
 
           {/* Submit */}
@@ -895,8 +972,8 @@ export const CleaningCompanyProfile: React.FC = () => {
               className="px-6 py-3 border border-gray-300 rounded-lg font-semibold hover:bg-gray-50 transition-colors"
             >
               {formData.profile_visibility === "public"
-                ? "≡ƒæü∩╕Å Profil publiczny"
-                : "≡ƒöÆ Profil prywatny"}
+                ? "👁️ Profil publiczny"
+                : "🔒 Profil prywatny"}
             </button>
           </div>
         </form>

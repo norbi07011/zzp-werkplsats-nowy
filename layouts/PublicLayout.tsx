@@ -2,7 +2,6 @@ import React, { useState } from "react";
 import { Link, Outlet } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { Logo } from "../components/Logo";
-import { LanguageSwitcher } from "../components/LanguageSwitcher";
 import { ThemeToggle } from "../src/components/common/ThemeToggle";
 import { Menu, X } from "lucide-react";
 
@@ -11,142 +10,155 @@ export const PublicLayout: React.FC = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   return (
-    <div className="min-h-screen bg-primary-dark flex flex-col">
-      {/* Header */}
-      <header className="bg-primary-navy/80 backdrop-blur-md border-b border-accent-cyber/20 sticky top-0 z-50 shadow-glow-cyber">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            {/* Logo */}
-            <Link to="/" className="flex items-center group">
-              <Logo variant="full" size="sm" />
-            </Link>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50/30 flex flex-col">
+      {/* ===== PREMIUM HOLOGRAPHIC HEADER ===== */}
+      <header className="sticky top-0 z-50">
+        {/* Holographic gradient background */}
+        <div className="absolute inset-0 bg-gradient-to-r from-violet-600 via-blue-600 to-cyan-500" />
 
-            {/* Desktop Navigation */}
-            <nav className="hidden md:flex items-center space-x-8">
-              <Link
-                to="/"
-                className="text-neutral-300 hover:text-accent-cyber font-medium transition-colors relative group"
-              >
-                {t("nav.home", "Home")}
-                <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-accent-cyber group-hover:w-full transition-all"></span>
-              </Link>
-              <Link
-                to="/about"
-                className="text-neutral-300 hover:text-accent-cyber font-medium transition-colors relative group"
-              >
-                {t("nav.about", "Over ons")}
-                <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-accent-cyber group-hover:w-full transition-all"></span>
-              </Link>
-              <Link
-                to="/experience-certificate"
-                className="text-neutral-300 hover:text-accent-cyber font-medium transition-colors relative group"
-              >
-                {t("nav.certificate", "Certificaat aanvragen")}
-                <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-accent-cyber group-hover:w-full transition-all"></span>
-              </Link>
-              <Link
-                to="/for-employers"
-                className="text-neutral-300 hover:text-accent-cyber font-medium transition-colors relative group"
-              >
-                {t("nav.forEmployers", "Voor opdrachtgevers")}
-                <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-accent-cyber group-hover:w-full transition-all"></span>
-              </Link>
-              <Link
-                to="/contact"
-                className="text-neutral-300 hover:text-accent-cyber font-medium transition-colors relative group"
-              >
-                {t("nav.contact", "Contact")}
-                <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-accent-cyber group-hover:w-full transition-all"></span>
-              </Link>
-            </nav>
+        {/* Animated holographic overlay */}
+        <div className="absolute inset-0 bg-[linear-gradient(110deg,transparent_25%,rgba(255,255,255,0.1)_50%,transparent_75%)] bg-[length:250%_100%] animate-shimmer" />
 
-            {/* Right side: Theme Toggle + Language + Login - DESKTOP */}
-            <div className="hidden md:flex items-center space-x-4">
-              <ThemeToggle />
-              <LanguageSwitcher />
-              <Link
-                to="/login"
-                className="text-neutral-300 hover:text-accent-cyber font-medium transition-colors"
-              >
-                {t("nav.login", "Inloggen")}
+        {/* Neon glow effect */}
+        <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-cyan-400 to-transparent" />
+        <div className="absolute inset-x-0 bottom-0 h-8 bg-gradient-to-t from-cyan-500/20 to-transparent blur-xl" />
+
+        {/* Main header bar */}
+        <div className="relative">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex justify-between items-center h-16">
+              {/* Logo */}
+              <Link to="/" className="flex items-center gap-3 group">
+                <Logo
+                  variant="full"
+                  size="sm"
+                  className="brightness-0 invert"
+                />
               </Link>
-              <Link
-                to="/register"
-                className="bg-gradient-cyber text-white px-6 py-2.5 rounded-xl hover:shadow-glow-cyber hover:scale-105 transition-all font-medium"
-              >
-                {t("nav.register", "Registreren")}
-              </Link>
-            </div>
 
-            {/* Mobile: Hamburger Button */}
-            <button
-              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              className="md:hidden p-2 text-white hover:text-accent-cyber transition-colors"
-              aria-label="Toggle menu"
-            >
-              {isMobileMenuOpen ? <X size={28} /> : <Menu size={28} />}
-            </button>
-          </div>
+              {/* Desktop Navigation - Glassmorphism pills */}
+              <nav className="hidden md:flex items-center">
+                <div className="flex items-center gap-1 bg-white/10 backdrop-blur-md rounded-full px-1.5 py-1.5 border border-white/20">
+                  <Link
+                    to="/"
+                    className="px-4 py-2.5 text-white/80 hover:text-white hover:bg-white/15 rounded-full font-medium transition-all duration-200 text-sm"
+                  >
+                    {t("nav.home", "Home")}
+                  </Link>
+                  <Link
+                    to="/about"
+                    className="px-4 py-2.5 text-white/80 hover:text-white hover:bg-white/15 rounded-full font-medium transition-all duration-200 text-sm"
+                  >
+                    {t("nav.about", "About")}
+                  </Link>
+                  <Link
+                    to="/experience-certificate"
+                    className="px-4 py-2.5 text-white/80 hover:text-white hover:bg-white/15 rounded-full font-medium transition-all duration-200 text-sm"
+                  >
+                    {t("nav.certificate", "Certificaat aanvragen")}
+                  </Link>
+                  <Link
+                    to="/for-employers"
+                    className="px-4 py-2.5 text-white/80 hover:text-white hover:bg-white/15 rounded-full font-medium transition-all duration-200 text-sm"
+                  >
+                    {t("nav.forEmployers", "For Employers")}
+                  </Link>
+                  <Link
+                    to="/contact"
+                    className="px-4 py-2.5 text-white/80 hover:text-white hover:bg-white/15 rounded-full font-medium transition-all duration-200 text-sm"
+                  >
+                    {t("nav.contact", "Contact")}
+                  </Link>
+                </div>
+              </nav>
 
-          {/* Mobile Menu Dropdown */}
-          {isMobileMenuOpen && (
-            <div className="md:hidden py-4 border-t border-accent-cyber/20 animate-in slide-in-from-top duration-200">
-              <nav className="flex flex-col space-y-3">
-                <Link
-                  to="/"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                  className="text-neutral-300 hover:text-accent-cyber font-medium py-2 px-4 rounded-lg hover:bg-white/5 transition-colors"
-                >
-                  {t("nav.home", "Home")}
-                </Link>
-                <Link
-                  to="/about"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                  className="text-neutral-300 hover:text-accent-cyber font-medium py-2 px-4 rounded-lg hover:bg-white/5 transition-colors"
-                >
-                  {t("nav.about", "Over ons")}
-                </Link>
-                <Link
-                  to="/experience-certificate"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                  className="text-neutral-300 hover:text-accent-cyber font-medium py-2 px-4 rounded-lg hover:bg-white/5 transition-colors"
-                >
-                  {t("nav.certificate", "Certificaat aanvragen")}
-                </Link>
-                <Link
-                  to="/for-employers"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                  className="text-neutral-300 hover:text-accent-cyber font-medium py-2 px-4 rounded-lg hover:bg-white/5 transition-colors"
-                >
-                  {t("nav.forEmployers", "Voor opdrachtgevers")}
-                </Link>
-                <Link
-                  to="/contact"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                  className="text-neutral-300 hover:text-accent-cyber font-medium py-2 px-4 rounded-lg hover:bg-white/5 transition-colors"
-                >
-                  {t("nav.contact", "Contact")}
-                </Link>
-
-                <div className="border-t border-accent-cyber/20 pt-3 mt-2"></div>
-
+              {/* Right side: Theme Toggle + Login */}
+              <div className="hidden md:flex items-center space-x-3">
+                <ThemeToggle />
                 <Link
                   to="/login"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                  className="text-neutral-300 hover:text-accent-cyber font-bold py-3 px-4 rounded-lg hover:bg-white/5 transition-colors text-center"
+                  className="px-4 py-2 text-white/80 hover:text-white hover:bg-white/15 rounded-full font-medium transition-all duration-200 text-sm"
                 >
-                  {t("nav.login", "Inloggen")} →
+                  {t("nav.login", "Log In")}
                 </Link>
                 <Link
                   to="/register"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                  className="bg-gradient-cyber text-white font-bold py-3 px-4 rounded-xl hover:shadow-glow-cyber transition-all text-center"
+                  className="bg-white text-violet-600 px-5 py-2.5 rounded-full hover:bg-white/90 hover:shadow-lg hover:shadow-white/25 hover:scale-105 transition-all duration-300 font-semibold text-sm"
                 >
-                  {t("nav.register", "Registreren")}
+                  {t("nav.register", "Register")}
                 </Link>
-              </nav>
+              </div>
+
+              {/* Mobile: Hamburger Button */}
+              <button
+                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                className="md:hidden p-2.5 text-white/80 hover:text-white hover:bg-white/15 rounded-xl transition-all"
+                aria-label="Toggle menu"
+              >
+                {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+              </button>
             </div>
-          )}
+
+            {/* Mobile Menu Dropdown */}
+            {isMobileMenuOpen && (
+              <div className="md:hidden py-4 border-t border-white/20 animate-in slide-in-from-top duration-200">
+                <nav className="flex flex-col space-y-1">
+                  <Link
+                    to="/"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className="text-white/80 hover:text-white font-medium py-3 px-4 rounded-xl hover:bg-white/15 transition-all"
+                  >
+                    {t("nav.home", "Home")}
+                  </Link>
+                  <Link
+                    to="/about"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className="text-white/80 hover:text-white font-medium py-3 px-4 rounded-xl hover:bg-white/15 transition-all"
+                  >
+                    {t("nav.about", "About")}
+                  </Link>
+                  <Link
+                    to="/experience-certificate"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className="text-white/80 hover:text-white font-medium py-3 px-4 rounded-xl hover:bg-white/15 transition-all"
+                  >
+                    {t("nav.certificate", "Certificaat aanvragen")}
+                  </Link>
+                  <Link
+                    to="/for-employers"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className="text-white/80 hover:text-white font-medium py-3 px-4 rounded-xl hover:bg-white/15 transition-all"
+                  >
+                    {t("nav.forEmployers", "For Employers")}
+                  </Link>
+                  <Link
+                    to="/contact"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className="text-white/80 hover:text-white font-medium py-3 px-4 rounded-xl hover:bg-white/15 transition-all"
+                  >
+                    {t("nav.contact", "Contact")}
+                  </Link>
+
+                  <div className="border-t border-white/20 pt-3 mt-2"></div>
+
+                  <Link
+                    to="/login"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className="text-white font-semibold py-3 px-4 rounded-xl hover:bg-white/15 transition-all text-center"
+                  >
+                    {t("nav.login", "Log In")} →
+                  </Link>
+                  <Link
+                    to="/register"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className="bg-white text-violet-600 font-semibold py-3 px-4 rounded-xl hover:bg-white/90 transition-all text-center"
+                  >
+                    {t("nav.register", "Register")}
+                  </Link>
+                </nav>
+              </div>
+            )}
+          </div>
         </div>
       </header>
 
@@ -156,7 +168,7 @@ export const PublicLayout: React.FC = () => {
       </main>
 
       {/* Footer */}
-      <footer className="bg-primary-navy border-t border-accent-cyber/20 text-neutral-300">
+      <footer className="bg-white/80 backdrop-blur-sm border-t border-slate-200/50 text-slate-600">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
             {/* Column 1: About */}

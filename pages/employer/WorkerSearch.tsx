@@ -43,6 +43,16 @@ interface Worker {
   phone?: string;
   bio?: string;
   skills?: string[];
+  // Team/Duo fields
+  worker_type?:
+    | "individual"
+    | "team_leader"
+    | "duo_partner"
+    | "helper_available";
+  team_size?: number;
+  team_description?: string;
+  team_hourly_rate?: number;
+  is_on_demand_available?: boolean;
 }
 
 // Mock data - 15 categories z specyfikacji
@@ -239,6 +249,10 @@ export const WorkerSearch = () => {
   const [filterSubscriptionTier, setFilterSubscriptionTier] = useState<
     "all" | "premium" | "basic"
   >("all");
+  // NEW: Worker type filter (Team/Solo/Springer)
+  const [filterWorkerType, setFilterWorkerType] = useState<
+    "all" | "individual" | "team" | "springer"
+  >("all");
   const [savedWorkers, setSavedWorkers] = useState<string[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const workersPerPage = 12;
@@ -347,6 +361,12 @@ export const WorkerSearch = () => {
             phone: w.phone || undefined,
             bio: w.bio || undefined,
             skills: w.certifications || [],
+            // Team/Duo fields
+            worker_type: (w as any).worker_type || "individual",
+            team_size: (w as any).team_size || 1,
+            team_description: (w as any).team_description || undefined,
+            team_hourly_rate: (w as any).team_hourly_rate || undefined,
+            is_on_demand_available: (w as any).is_on_demand_available || false,
           })
         );
 
@@ -408,6 +428,21 @@ export const WorkerSearch = () => {
       filterSubscriptionTier === "all" ||
       worker.subscription_tier === filterSubscriptionTier;
 
+    // NEW: Worker type filter (Team/Solo/Springer)
+    const matchesWorkerType = (() => {
+      if (filterWorkerType === "all") return true;
+      if (filterWorkerType === "individual")
+        return worker.worker_type === "individual" || !worker.worker_type;
+      if (filterWorkerType === "team")
+        return (
+          worker.worker_type === "team_leader" ||
+          worker.worker_type === "duo_partner"
+        );
+      if (filterWorkerType === "springer")
+        return worker.is_on_demand_available === true;
+      return true;
+    })();
+
     return (
       matchesSearch &&
       matchesCategory &&
@@ -415,7 +450,8 @@ export const WorkerSearch = () => {
       matchesCity &&
       matchesLanguages &&
       matchesRate &&
-      matchesSubscription
+      matchesSubscription &&
+      matchesWorkerType
     );
   });
 
@@ -666,6 +702,35 @@ export const WorkerSearch = () => {
                 </select>
               </div>
 
+              {/* Worker Type (Team/Solo/Springer) */}
+              <div className="mb-6">
+                <label
+                  htmlFor="worker-type"
+                  className="block text-sm font-medium text-gray-700 mb-2"
+                >
+                  Sposób pracy
+                </label>
+                <select
+                  id="worker-type"
+                  value={filterWorkerType}
+                  onChange={(e) =>
+                    setFilterWorkerType(
+                      e.target.value as
+                        | "all"
+                        | "individual"
+                        | "team"
+                        | "springer"
+                    )
+                  }
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                >
+                  <option value="all">Wszyscy</option>
+                  <option value="individual">🧑 Solo - Samodzielny</option>
+                  <option value="team">👥 Zespół / Duo</option>
+                  <option value="springer">⚡ Springer - Na żądanie</option>
+                </select>
+              </div>
+
               {/* Hourly Rate */}
               <div className="mb-6">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -704,6 +769,7 @@ export const WorkerSearch = () => {
                   setRateMin(5);
                   setRateMax(200);
                   setFilterSubscriptionTier("all");
+                  setFilterWorkerType("all");
                 }}
                 className="w-full px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
               >
@@ -861,6 +927,7 @@ export const WorkerSearch = () => {
                     setRateMin(5);
                     setRateMax(200);
                     setFilterSubscriptionTier("all");
+                    setFilterWorkerType("all");
                   }}
                   className="mt-4 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700"
                 >
@@ -918,11 +985,36 @@ export const WorkerSearch = () => {
                         {worker.fullName}
                       </h3>
                       <p className="text-gray-600">📍 {worker.city}</p>
-                      {worker.subscription_tier === "premium" && (
-                        <span className="inline-block mt-2 bg-gradient-to-r from-yellow-400 to-orange-500 text-white px-3 py-1.5 rounded-full text-sm font-medium">
-                          ✓ Zweryfikowany
-                        </span>
-                      )}
+
+                      {/* Badges row */}
+                      <div className="flex flex-wrap justify-center gap-2 mt-2">
+                        {worker.subscription_tier === "premium" && (
+                          <span className="inline-block bg-gradient-to-r from-yellow-400 to-orange-500 text-white px-3 py-1.5 rounded-full text-sm font-medium">
+                            ✓ Zweryfikowany
+                          </span>
+                        )}
+                        {/* Team/Duo badges */}
+                        {worker.worker_type === "team_leader" && (
+                          <span className="inline-block bg-orange-100 text-orange-700 px-3 py-1.5 rounded-full text-sm font-medium border border-orange-200">
+                            👥 Zespół {worker.team_size || 2}os.
+                          </span>
+                        )}
+                        {worker.worker_type === "duo_partner" && (
+                          <span className="inline-block bg-purple-100 text-purple-700 px-3 py-1.5 rounded-full text-sm font-medium border border-purple-200">
+                            🤝 Duo
+                          </span>
+                        )}
+                        {worker.worker_type === "helper_available" && (
+                          <span className="inline-block bg-teal-100 text-teal-700 px-3 py-1.5 rounded-full text-sm font-medium border border-teal-200">
+                            🆘 Helper
+                          </span>
+                        )}
+                        {worker.is_on_demand_available && (
+                          <span className="inline-block bg-yellow-100 text-yellow-700 px-3 py-1.5 rounded-full text-sm font-medium border border-yellow-200">
+                            ⚡ Springer
+                          </span>
+                        )}
+                      </div>
                     </div>
 
                     {/* Action buttons */}

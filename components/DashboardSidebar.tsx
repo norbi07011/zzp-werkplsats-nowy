@@ -218,26 +218,46 @@ export const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
   // Sidebar content component
   const SidebarContent = () => (
     <>
-      {/* Header */}
+      {/* Header with User Card */}
       <div className="p-4 border-b border-white/10">
         <div className="flex items-center justify-between">
           {(!isCollapsed || isMobile) && (
             <div className="min-w-0 flex-1">
               {/* Logo at the top */}
-              <div className="mb-3">
+              <div className="mb-4">
                 <Logo variant="full" size="sm" />
               </div>
-              <h1 className="text-xl font-bold truncate">
-                {title || `🏠 ${getRoleDisplayName()}`}
-              </h1>
-              <p className="text-xs text-blue-300 truncate">
-                {subtitle || "Panel zarządzania"}
-              </p>
+
+              {/* User Profile Card - Premium Design */}
+              <div className="bg-gradient-to-br from-white/10 to-white/5 rounded-xl p-3 border border-white/10">
+                <div className="flex items-center gap-3">
+                  {/* Avatar */}
+                  <div className="w-11 h-11 bg-gradient-to-br from-violet-400 via-blue-400 to-cyan-400 rounded-xl flex items-center justify-center text-white font-bold text-lg shadow-lg shadow-violet-500/30">
+                    {user?.fullName?.charAt(0).toUpperCase() || "U"}
+                  </div>
+                  {/* Name & Role */}
+                  <div className="min-w-0 flex-1">
+                    <h2 className="text-sm font-semibold text-white truncate">
+                      {user?.fullName || "Użytkownik"}
+                    </h2>
+                    <div className="flex items-center gap-1.5 mt-0.5">
+                      <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
+                      <p className="text-xs text-blue-300 truncate">
+                        {getRoleDisplayName()}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           )}
           {isCollapsed && !isMobile && (
-            <div className="flex justify-center w-full">
+            <div className="flex flex-col items-center w-full gap-3">
               <Logo variant="icon" size="sm" />
+              {/* Mini avatar when collapsed */}
+              <div className="w-9 h-9 bg-gradient-to-br from-violet-400 to-blue-400 rounded-lg flex items-center justify-center text-white font-bold text-sm shadow-md">
+                {user?.fullName?.charAt(0).toUpperCase() || "U"}
+              </div>
             </div>
           )}
           {!isMobile && (

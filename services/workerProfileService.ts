@@ -82,6 +82,21 @@ export interface ProfileUpdateData {
 
   // Workers table fields - availability
   available_from?: string | null;
+
+  // Workers table fields - Google Reviews
+  google_maps_url?: string;
+  google_place_id?: string;
+
+  // Workers table fields - Team/Duo configuration
+  worker_type?:
+    | "individual"
+    | "team_leader"
+    | "duo_partner"
+    | "helper_available";
+  team_size?: number;
+  team_description?: string;
+  team_hourly_rate?: number | null;
+  is_on_demand_available?: boolean;
 }
 
 export interface NotificationSettings {
@@ -340,6 +355,24 @@ export async function updateWorkerProfile(
     // Workers table fields - availability
     if (updates.available_from !== undefined)
       workerUpdates.available_from = updates.available_from;
+
+    // Workers table fields - Google Reviews
+    if (updates.google_maps_url !== undefined)
+      workerUpdates.google_maps_url = updates.google_maps_url;
+    if (updates.google_place_id !== undefined)
+      workerUpdates.google_place_id = updates.google_place_id;
+
+    // Workers table fields - Team/Duo configuration
+    if (updates.worker_type !== undefined)
+      workerUpdates.worker_type = updates.worker_type;
+    if (updates.team_size !== undefined)
+      workerUpdates.team_size = updates.team_size;
+    if (updates.team_description !== undefined)
+      workerUpdates.team_description = updates.team_description;
+    if (updates.team_hourly_rate !== undefined)
+      workerUpdates.team_hourly_rate = updates.team_hourly_rate;
+    if (updates.is_on_demand_available !== undefined)
+      workerUpdates.is_on_demand_available = updates.is_on_demand_available;
 
     // Update profiles table
     if (Object.keys(profileUpdates).length > 0) {

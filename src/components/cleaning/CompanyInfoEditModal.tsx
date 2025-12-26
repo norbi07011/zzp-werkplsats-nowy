@@ -69,6 +69,8 @@ export const CompanyInfoEditModal: React.FC<CompanyInfoEditModalProps> = ({
     bio: company.bio || "",
     latitude: (company as any).latitude || (null as number | null),
     longitude: (company as any).longitude || (null as number | null),
+    google_maps_url: (company as any).google_maps_url || "",
+    google_place_id: (company as any).google_place_id || "",
   });
 
   const [saving, setSaving] = useState(false);
@@ -613,6 +615,75 @@ export const CompanyInfoEditModal: React.FC<CompanyInfoEditModalProps> = ({
             <p className="text-xs text-gray-500 mt-1">
               {formData.bio.length}/500
             </p>
+          </div>
+
+          {/* OPINIE GOOGLE */}
+          <div className="bg-gray-50 rounded-xl p-5 border border-gray-200">
+            <h3 className="text-lg font-bold text-gray-800 mb-3 flex items-center gap-2">
+              <span className="text-xl">⭐</span>
+              Opinie Google (opcjonalne)
+            </h3>
+            <p className="text-sm text-gray-600 mb-4">
+              Dodaj linki do swoich opinii Google, aby wyświetlić je na
+              publicznym profilu i zwiększyć zaufanie klientów.
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Link do Google Maps
+                </label>
+                <input
+                  type="url"
+                  value={formData.google_maps_url}
+                  onChange={(e) =>
+                    handleChange("google_maps_url", e.target.value)
+                  }
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                  placeholder="https://maps.app.goo.gl/xxxxx"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Link do opinii Google
+                </label>
+                <input
+                  type="url"
+                  value={formData.google_place_id}
+                  onChange={(e) =>
+                    handleChange("google_place_id", e.target.value)
+                  }
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                  placeholder="https://g.page/r/xxxxx"
+                />
+              </div>
+            </div>
+            <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <div className="flex items-start gap-3">
+                <span className="text-blue-600 text-xl">💡</span>
+                <div className="text-sm text-blue-700">
+                  <p className="font-semibold mb-1">Jak znaleźć linki:</p>
+                  <ol className="list-decimal list-inside space-y-1 ml-2 text-blue-600">
+                    <li>
+                      Otwórz{" "}
+                      <a
+                        href="https://www.google.com/maps"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="underline font-semibold"
+                      >
+                        Google Maps
+                      </a>
+                    </li>
+                    <li>Znajdź swoją firmę / profil</li>
+                    <li>Kliknij "Udostępnij" → skopiuj link (Maps)</li>
+                    <li>
+                      Kliknij "Zobacz opinie" → skopiuj link z paska adresu
+                      (Opinie)
+                    </li>
+                  </ol>
+                </div>
+              </div>
+            </div>
           </div>
 
           {/* PRZYCISKI */}

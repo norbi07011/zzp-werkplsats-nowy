@@ -9,6 +9,7 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
+import { useSidebar } from "../../contexts/SidebarContext";
 import { useIsMobile } from "../../src/hooks/useIsMobile";
 import { SupportTicketModal } from "../../src/components/SupportTicketModal";
 import { supabase } from "@/lib/supabase";
@@ -190,7 +191,7 @@ export const EmployerDashboard = () => {
 
   // State
   const [loading, setLoading] = useState(true);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const { isSidebarOpen, closeSidebar } = useSidebar();
   const [error, setError] = useState<string | null>(null);
   const [employerId, setEmployerId] = useState<string | null>(null);
   const [employerProfile, setEmployerProfile] = useState<Employer | null>(null);
@@ -983,41 +984,13 @@ export const EmployerDashboard = () => {
             unreadMessages={unreadCount}
             isMobile={true}
             isMobileMenuOpen={isSidebarOpen}
-            onMobileMenuToggle={() => setIsSidebarOpen(false)}
+            onMobileMenuToggle={closeSidebar}
             onSupportClick={() => setShowSupportModal(true)}
           />
         )}
 
         {/* Main Content Area */}
         <div className="flex-1 flex flex-col overflow-hidden">
-          {/* Mobile Header with Hamburger */}
-          {isMobile && (
-            <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white sticky top-0 z-40 shadow-lg flex-shrink-0">
-              <div className="flex items-center justify-between px-4 py-3">
-                <h1 className="text-lg font-bold">🏢 Pracodawca</h1>
-                <button
-                  onClick={() => setIsSidebarOpen(true)}
-                  className="p-2 hover:bg-white/20 rounded-lg transition-colors"
-                  aria-label="Otwórz menu"
-                >
-                  <svg
-                    className="w-6 h-6"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M4 6h16M4 12h16M4 18h16"
-                    />
-                  </svg>
-                </button>
-              </div>
-            </div>
-          )}
-
           {/* Main scrollable content */}
           <main className="flex-1 overflow-y-auto">
             <PageContainer>

@@ -718,6 +718,12 @@ export interface CleaningCompany {
   last_active: string;
   created_at: string;
   updated_at: string;
+
+  // Google Reviews
+  google_maps_url?: string;
+  google_place_id?: string;
+  google_rating?: number;
+  google_review_count?: number;
 }
 
 // Helper functions dla cleaning companies

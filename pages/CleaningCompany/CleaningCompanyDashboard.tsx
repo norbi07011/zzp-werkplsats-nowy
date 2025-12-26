@@ -7,6 +7,7 @@ import { SupportTicketModal } from "../../src/components/SupportTicketModal";
 import { CleaningCompanySettingsPanel } from "../../components/settings/CleaningCompanySettingsPanel";
 import { supabase } from "../../src/lib/supabase";
 import { useAuth } from "../../contexts/AuthContext";
+import { useSidebar } from "../../contexts/SidebarContext";
 import { useIsMobile } from "../../src/hooks/useIsMobile";
 import { CompanyInfoEditModal } from "../../src/components/cleaning/CompanyInfoEditModal";
 import PortfolioUploadModal from "../../src/components/cleaning/PortfolioUploadModal";
@@ -107,8 +108,8 @@ const CleaningCompanyDashboard = () => {
   const isMobile = useIsMobile();
   const { activeTab, setActiveTab } = useUnifiedTabs("overview");
 
+  const { isSidebarOpen, closeSidebar } = useSidebar();
   const [loading, setLoading] = useState(true);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [companyData, setCompanyData] = useState<CleaningCompany | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showPortfolioModal, setShowPortfolioModal] = useState(false);
@@ -1468,51 +1469,13 @@ const CleaningCompanyDashboard = () => {
             unreadMessages={messages.filter((m) => !m.is_read).length}
             isMobile={true}
             isMobileMenuOpen={isSidebarOpen}
-            onMobileMenuToggle={() => setIsSidebarOpen(false)}
+            onMobileMenuToggle={closeSidebar}
             onSupportClick={handleContactSupport}
           />
         )}
 
         {/* Main Content Area */}
         <div className="flex-1 flex flex-col overflow-hidden">
-          {/* Mobile Header with Hamburger */}
-          {isMobile && (
-            <div className="bg-gradient-to-r from-purple-500 to-pink-500 text-white sticky top-0 z-40 shadow-lg flex-shrink-0">
-              <div className="flex items-center justify-between px-4 py-3">
-                <div className="flex items-center gap-2">
-                  <h1 className="text-lg font-bold">
-                    🧹 {companyData.company_name}
-                  </h1>
-                  {companyData.subscription_tier === "premium" && (
-                    <span className="flex items-center gap-1 bg-yellow-400 text-yellow-900 px-2 py-0.5 rounded-full text-xs font-bold">
-                      <Crown className="w-3 h-3" />
-                      Premium
-                    </span>
-                  )}
-                </div>
-                <button
-                  onClick={() => setIsSidebarOpen(true)}
-                  className="p-2 hover:bg-white/20 rounded-lg transition-colors"
-                  aria-label="Otwórz menu"
-                >
-                  <svg
-                    className="w-6 h-6"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M4 6h16M4 12h16M4 18h16"
-                    />
-                  </svg>
-                </button>
-              </div>
-            </div>
-          )}
-
           {/* Main scrollable content */}
           <main className="flex-1 overflow-y-auto p-4 md:p-8">
             {/* Welcome Banner - Desktop only */}

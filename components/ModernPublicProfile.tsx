@@ -369,26 +369,56 @@ export function ModernPublicProfile({
               </div>
             )}
 
-            {/* ===== TABS (inside card) ===== */}
-            <div className="mt-6 pt-6 border-t border-slate-100">
-              <div className="flex gap-1 overflow-x-auto pb-2">
-                {allTabs.map((tab) => (
-                  <button
-                    key={tab.id}
-                    onClick={() => setActiveTab(tab.id)}
-                    className={`
-                      flex items-center gap-2 px-5 py-3 rounded-lg font-medium text-sm transition-all whitespace-nowrap
-                      ${
-                        activeTab === tab.id
-                          ? `${colors.accent} text-white shadow-md`
-                          : "text-slate-600 hover:bg-slate-100 bg-slate-50"
-                      }
-                    `}
-                  >
-                    <span>{tab.icon}</span>
-                    <span>{tab.label}</span>
-                  </button>
-                ))}
+            {/* ===== PREMIUM TAB NAVIGATION ===== */}
+            <div className="mt-8 pt-6 border-t border-slate-100/50">
+              {/* Floating glassmorphism container */}
+              <div className="relative">
+                {/* Ambient glow behind the bar */}
+                <div className="absolute inset-0 bg-gradient-to-r from-blue-400/20 via-violet-400/20 to-cyan-400/20 blur-xl rounded-full" />
+
+                {/* Main tab bar */}
+                <div className="relative bg-white/70 backdrop-blur-xl border border-white/50 shadow-[0_8px_32px_rgba(0,0,0,0.08)] rounded-full px-2 py-2">
+                  <div className="flex items-center gap-1 overflow-x-auto scrollbar-hide">
+                    {allTabs.map((tab, index) => (
+                      <button
+                        key={tab.id}
+                        onClick={() => setActiveTab(tab.id)}
+                        className={`
+                          relative flex items-center gap-2.5 px-5 py-3 rounded-full font-medium text-sm 
+                          transition-all duration-300 ease-out whitespace-nowrap
+                          focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/50 focus-visible:ring-offset-2
+                          ${
+                            activeTab === tab.id
+                              ? "text-slate-800"
+                              : "text-slate-500 hover:text-slate-700 hover:bg-slate-100/60"
+                          }
+                        `}
+                        style={{
+                          transitionDelay: `${index * 20}ms`,
+                        }}
+                      >
+                        {/* Active tab background with gradient */}
+                        {activeTab === tab.id && (
+                          <span
+                            className="absolute inset-0 bg-gradient-to-r from-blue-100 via-violet-100 to-cyan-100 rounded-full shadow-sm animate-[fadeIn_0.3s_ease-out]"
+                            style={{
+                              boxShadow:
+                                "0 2px 12px rgba(139, 92, 246, 0.15), inset 0 1px 0 rgba(255,255,255,0.8)",
+                            }}
+                          />
+                        )}
+
+                        {/* Icon */}
+                        <span className="relative z-10 text-base">
+                          {tab.icon}
+                        </span>
+
+                        {/* Label */}
+                        <span className="relative z-10">{tab.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
             </div>
           </div>

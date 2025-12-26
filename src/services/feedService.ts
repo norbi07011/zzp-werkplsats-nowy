@@ -268,6 +268,26 @@ export interface CreatePostData {
   job_start_date?: string;
   job_contact_email?: string;
   job_contact_phone?: string;
+
+  // ➕ Ad metadata (matching database column names)
+  ad_type?: "product" | "service" | "event" | "promotion";
+  ad_budget?: number;
+  ad_duration_days?: number;
+  ad_target_audience?: string[];
+  ad_cta_text?: string;
+  ad_cta_url?: string;
+  ad_website?: string;
+  ad_contact_email?: string;
+  ad_contact_phone?: string;
+
+  // ➕ Announcement metadata (matching database column names)
+  announcement_category?: "info" | "warning" | "success" | "urgent";
+  announcement_priority?: "low" | "medium" | "high";
+  announcement_expires_at?: string;
+  announcement_tags?: string[];
+  announcement_pinned?: boolean;
+  announcement_notify_users?: boolean;
+  announcement_target_roles?: string[];
 }
 
 // =====================================================

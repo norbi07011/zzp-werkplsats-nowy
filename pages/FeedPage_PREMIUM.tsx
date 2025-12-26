@@ -75,6 +75,7 @@ import {
   Send,
   Eye,
   MoreHorizontal,
+  ChevronLeft,
   ChevronRight,
   Sparkles,
   Fire,
@@ -467,7 +468,7 @@ export default function FeedPagePremium() {
           // If changing reaction type (e.g., like -> love), likes_count stays the same
 
           // Update user's current reaction
-          updatedPost.user_reaction = reactionType;
+          updatedPost.user_reaction = reactionType ?? undefined;
           updatedPost.user_has_liked = reactionType !== null;
 
           return updatedPost;
@@ -1133,6 +1134,10 @@ export function PostCardPremium({
   const [currentFolders, setCurrentFolders] = useState<SaveFolder[]>([]);
   const commentsRef = useRef<HTMLDivElement>(null);
 
+  // 📸 Lightbox state for image gallery
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
+
   // Load saved folders for this post
   useEffect(() => {
     const loadSavedFolders = async () => {
@@ -1282,6 +1287,24 @@ export function PostCardPremium({
   const primaryImage = hasMedia ? post.media_urls![0] : null;
   const mediaCount = post.media_urls?.length || 0;
 
+  // 📸 Lightbox handlers
+  const openLightbox = (index: number) => {
+    setLightboxIndex(index);
+    setLightboxOpen(true);
+  };
+
+  const closeLightbox = () => {
+    setLightboxOpen(false);
+  };
+
+  const goToPrevImage = () => {
+    setLightboxIndex((prev) => (prev > 0 ? prev - 1 : mediaCount - 1));
+  };
+
+  const goToNextImage = () => {
+    setLightboxIndex((prev) => (prev < mediaCount - 1 ? prev + 1 : 0));
+  };
+
   // Generate public profile URL based on author type
   const getProfileUrl = () => {
     if (!post.author_profile_id) return null;
@@ -1308,7 +1331,10 @@ export function PostCardPremium({
   const profileUrl = getProfileUrl();
 
   return (
-    <article className="group relative bg-white/60 backdrop-blur-2xl rounded-2xl sm:rounded-[2rem] shadow-[0_4px_20px_rgba(0,0,0,0.04)] sm:shadow-[0_8px_40px_rgba(0,0,0,0.06)] border border-white/50 overflow-hidden hover:shadow-[0_20px_60px_rgba(0,0,0,0.1)] transition-all duration-500">
+    <article
+      className="group relative bg-white/60 backdrop-blur-2xl rounded-2xl sm:rounded-[2rem] shadow-[0_4px_20px_rgba(0,0,0,0.04)] sm:shadow-[0_8px_40px_rgba(0,0,0,0.06)] border border-white/50 overflow-hidden hover:shadow-[0_20px_60px_rgba(0,0,0,0.1)] transition-shadow duration-300"
+      style={{ contain: "layout", isolation: "isolate" }}
+    >
       {/* ============================================= */}
       {/* AUTHOR HEADER - Always visible for ALL posts */}
       {/* ============================================= */}
@@ -1386,19 +1412,23 @@ export function PostCardPremium({
       {/* HERO IMAGE SECTION (for job/service/ad posts) */}
       {/* ============================================= */}
       {isHeroPost && primaryImage && (
-        <div className="relative h-40 sm:h-52 md:h-64 overflow-hidden">
+        <div
+          className="relative h-40 sm:h-52 md:h-64 overflow-hidden cursor-pointer"
+          onClick={() => openLightbox(0)}
+        >
           <img
             src={primaryImage}
             alt={post.title || "Post image"}
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
           />
           {/* Gradient overlay */}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent pointer-events-none" />
 
           {/* Gallery indicator */}
           {mediaCount > 1 && (
-            <div className="absolute top-2 right-2 sm:top-4 sm:right-4 px-2 sm:px-3 py-1 sm:py-1.5 bg-white/20 backdrop-blur-md rounded-full text-white text-xs sm:text-sm font-medium border border-white/30">
-              1/{mediaCount}
+            <div className="absolute top-2 right-2 sm:top-4 sm:right-4 px-2 sm:px-3 py-1 sm:py-1.5 bg-white/20 backdrop-blur-md rounded-full text-white text-xs sm:text-sm font-medium border border-white/30 flex items-center gap-1">
+              <Eye className="w-3 h-3 sm:w-4 sm:h-4" />
+              <span>1/{mediaCount}</span>
             </div>
           )}
 
@@ -1452,7 +1482,8 @@ export function PostCardPremium({
               {post.media_urls!.slice(0, 4).map((url, idx) => (
                 <div
                   key={idx}
-                  className={`relative aspect-square ${
+                  onClick={() => openLightbox(idx)}
+                  className={`relative aspect-square cursor-pointer hover:opacity-90 transition-opacity ${
                     idx === 0 && mediaCount === 3 ? "col-span-2 row-span-2" : ""
                   }`}
                 >
@@ -2318,15 +2349,8 @@ export function PostCardPremium({
                           </span>
                           {/* Comment Reaction Button */}
                           <ReactionButton
-                            currentReaction={comment.user_reaction || null}
-                            reactionCounts={{
-                              like: comment.likes_count || 0,
-                              love: 0,
-                              wow: 0,
-                              sad: 0,
-                              angry: 0,
-                              total: comment.likes_count || 0,
-                            }}
+                            userReaction={comment.user_reaction || null}
+                            likesCount={comment.likes_count || 0}
                             onReactionChange={async (reactionType) => {
                               if (!currentUserId || !currentUserRole) return;
                               try {
@@ -2356,9 +2380,6 @@ export function PostCardPremium({
                                 );
                               }
                             }}
-                            size="sm"
-                            showCount={true}
-                            compact={true}
                           />
                           <button className="text-[10px] sm:text-xs text-gray-600 hover:text-blue-600 active:scale-95 font-semibold transition-all">
                             Reageren
@@ -2418,6 +2439,91 @@ export function PostCardPremium({
         postTitle={post.content.substring(0, 100)}
         postDescription={post.content}
       />
+
+      {/* 📸 Image Lightbox Modal */}
+      {lightboxOpen && hasMedia && (
+        <div
+          className="fixed inset-0 z-[9999] bg-black/95 flex items-center justify-center"
+          onClick={closeLightbox}
+        >
+          {/* Close button */}
+          <button
+            onClick={closeLightbox}
+            className="absolute top-4 right-4 z-10 p-2 bg-white/10 hover:bg-white/20 rounded-full transition-colors"
+          >
+            <X className="w-6 h-6 text-white" />
+          </button>
+
+          {/* Image counter */}
+          <div className="absolute top-4 left-4 z-10 px-4 py-2 bg-white/10 backdrop-blur-sm rounded-full text-white text-sm font-medium">
+            {lightboxIndex + 1} / {mediaCount}
+          </div>
+
+          {/* Previous button */}
+          {mediaCount > 1 && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                goToPrevImage();
+              }}
+              className="absolute left-2 sm:left-4 z-10 p-2 sm:p-3 bg-white/10 hover:bg-white/20 rounded-full transition-colors"
+            >
+              <ChevronLeft className="w-6 h-6 sm:w-8 sm:h-8 text-white" />
+            </button>
+          )}
+
+          {/* Main image */}
+          <div
+            className="max-w-[90vw] max-h-[85vh] flex items-center justify-center"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <img
+              src={post.media_urls![lightboxIndex]}
+              alt={`Afbeelding ${lightboxIndex + 1}`}
+              className="max-w-full max-h-[85vh] object-contain rounded-lg shadow-2xl"
+            />
+          </div>
+
+          {/* Next button */}
+          {mediaCount > 1 && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                goToNextImage();
+              }}
+              className="absolute right-2 sm:right-4 z-10 p-2 sm:p-3 bg-white/10 hover:bg-white/20 rounded-full transition-colors"
+            >
+              <ChevronRight className="w-6 h-6 sm:w-8 sm:h-8 text-white" />
+            </button>
+          )}
+
+          {/* Thumbnail strip */}
+          {mediaCount > 1 && (
+            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 flex gap-2 px-4 py-2 bg-black/50 backdrop-blur-sm rounded-full">
+              {post.media_urls!.map((url, idx) => (
+                <button
+                  key={idx}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setLightboxIndex(idx);
+                  }}
+                  className={`w-12 h-12 sm:w-14 sm:h-14 rounded-lg overflow-hidden border-2 transition-all ${
+                    idx === lightboxIndex
+                      ? "border-white scale-110 shadow-lg"
+                      : "border-transparent opacity-60 hover:opacity-100"
+                  }`}
+                >
+                  <img
+                    src={url}
+                    alt=""
+                    className="w-full h-full object-cover"
+                  />
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </article>
   );
 }

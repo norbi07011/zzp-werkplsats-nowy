@@ -51,6 +51,7 @@ export default {
         fadeIn: "fadeIn 0.5s ease-in",
         slideUp: "slideUp 0.5s ease-out",
         slideIn: "slideIn 0.3s ease-out",
+        shimmer: "shimmer 3s ease-in-out infinite",
       },
       keyframes: {
         float: {
@@ -68,6 +69,10 @@ export default {
         slideIn: {
           "0%": { transform: "translateX(-100%)", opacity: "0" },
           "100%": { transform: "translateX(0)", opacity: "1" },
+        },
+        shimmer: {
+          "0%": { backgroundPosition: "200% 0" },
+          "100%": { backgroundPosition: "-200% 0" },
         },
       },
     },

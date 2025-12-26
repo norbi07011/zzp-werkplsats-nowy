@@ -174,6 +174,8 @@ export interface UpdateAccountantData {
   portfolio_images?: string[];
   years_experience?: number;
   is_active?: boolean;
+  google_maps_url?: string;
+  google_place_id?: string;
 }
 
 // =====================================================

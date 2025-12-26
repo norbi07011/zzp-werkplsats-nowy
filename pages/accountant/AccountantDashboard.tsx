@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../../contexts/AuthContext";
+import { useSidebar } from "../../contexts/SidebarContext";
 import { useIsMobile } from "../../src/hooks/useIsMobile";
 import { SupportTicketModal } from "../../src/components/SupportTicketModal";
 import { AccountantSettingsPanel } from "../../components/settings/AccountantSettingsPanel";
@@ -193,7 +194,7 @@ export default function AccountantDashboard() {
 
   // Unified tabs state
   const { activeTab, setActiveTab } = useUnifiedTabs("overview");
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const { isSidebarOpen, closeSidebar } = useSidebar();
 
   // Profile sub-navigation state (drugi poziom menu dla tabu Profile)
   const [profileSubTab, setProfileSubTab] = useState<
@@ -2893,43 +2894,13 @@ export default function AccountantDashboard() {
             unreadMessages={unreadCount}
             isMobile={true}
             isMobileMenuOpen={isSidebarOpen}
-            onMobileMenuToggle={() => setIsSidebarOpen(false)}
+            onMobileMenuToggle={closeSidebar}
             onSupportClick={handleContactSupport}
           />
         )}
 
         {/* Main Content Area */}
         <div className="flex-1 flex flex-col overflow-hidden">
-          {/* Mobile Header with Hamburger */}
-          {isMobile && (
-            <div className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white sticky top-0 z-40 shadow-lg flex-shrink-0">
-              <div className="flex items-center justify-between px-4 py-3">
-                <div className="flex items-center gap-3">
-                  <h1 className="text-lg font-bold">📊 Księgowy</h1>
-                </div>
-                <button
-                  onClick={() => setIsSidebarOpen(true)}
-                  className="p-2 hover:bg-white/20 rounded-lg transition-colors"
-                  aria-label="Otwórz menu"
-                >
-                  <svg
-                    className="w-6 h-6"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M4 6h16M4 12h16M4 18h16"
-                    />
-                  </svg>
-                </button>
-              </div>
-            </div>
-          )}
-
           {/* Desktop Header */}
           {!isMobile && (
             <DashboardHeader

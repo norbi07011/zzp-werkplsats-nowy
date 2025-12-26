@@ -13,6 +13,7 @@
  */
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   X,
   ChevronLeft,
@@ -29,6 +30,7 @@ import {
   MapPin,
   DollarSign,
   Clock,
+  User,
 } from "lucide-react";
 
 // Custom SVG icons for missing lucide-react exports
@@ -102,11 +104,20 @@ interface StoryReaction {
   id: string;
   story_id: string;
   worker_id: string;
+  profile_id?: string;
+  user_type?: string;
   reaction_type: string;
   created_at: string;
   worker?: {
     full_name: string;
     avatar_url: string;
+    profile_id?: string;
+  };
+  profiles?: {
+    id: string;
+    full_name: string;
+    avatar_url: string;
+    role: string;
   };
 }
 
@@ -115,12 +126,13 @@ interface StoryReaction {
 // =====================================================
 
 const STORY_DURATION = 5000; // 5 seconds per story
-const REACTION_TYPES = [
-  { type: "interested", emoji: "👀", label: "Zainteresowany" },
-  { type: "available", emoji: "✅", label: "Dostępny" },
-  { type: "love", emoji: "❤️", label: "Lubię" },
-  { type: "fire", emoji: "🔥", label: "Super" },
-];
+
+// Jeden typ reakcji - "interested" (Zainteresowany)
+const SINGLE_REACTION = {
+  type: "interested",
+  emoji: "👀",
+  label: "Zainteresowany",
+};
 
 // =====================================================
 // MAIN COMPONENT
@@ -133,6 +145,7 @@ export const StoryViewerPro = ({
   onClose,
 }: StoryViewerProProps) => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const progressRef = useRef<NodeJS.Timeout | null>(null);
@@ -181,7 +194,10 @@ export const StoryViewerPro = ({
     currentStoryIndex,
     currentAuthor: currentAuthor?.authorName,
     currentStory: currentStory?.id,
+    storyAuthorId: currentStory?.author_id,
+    userId: user?.id,
     isOwnStory,
+    userExists: !!user,
   });
 
   // =====================================================
@@ -251,8 +267,8 @@ export const StoryViewerPro = ({
       setCurrentStoryIndex(0);
       setProgress(0);
     } else {
-      // End of all stories
-      onClose();
+      // End of all stories - use setTimeout to avoid setState during render
+      setTimeout(() => onClose(), 0);
     }
   }, [
     currentAuthor,
@@ -291,7 +307,8 @@ export const StoryViewerPro = ({
         setCurrentStoryIndex(0);
         setProgress(0);
       } else if (direction === "next") {
-        onClose();
+        // Use setTimeout to avoid setState during render
+        setTimeout(() => onClose(), 0);
       }
     },
     [currentAuthorIndex, authorGroups.length, onClose]
@@ -441,50 +458,102 @@ export const StoryViewerPro = ({
     const supabaseAny = supabase as any;
     const { data, error } = await supabaseAny
       .from("story_reactions")
-      .select("*, profiles:worker_id(full_name, avatar_url)")
+      .select("*, profiles:profile_id(id, full_name, avatar_url, role)")
       .eq("story_id", currentStory.id)
       .order("created_at", { ascending: false });
 
     if (!error && data) {
-      setReactions(
-        data.map((r: any) => ({
-          ...r,
-          worker: r.profiles,
-        }))
-      );
+      console.log("📊 Loaded reactions:", data);
+      setReactions(data);
     }
   };
 
   const handleReaction = async (reactionType: string) => {
-    if (!user || !currentStory) return;
+    console.log("🎯 handleReaction called:", {
+      user: user?.id,
+      currentStory: currentStory?.id,
+      reactionType,
+    });
 
-    const supabaseAny = supabase as any;
-
-    // Check if already reacted
-    const { data: existing } = await supabaseAny
-      .from("story_reactions")
-      .select("id")
-      .eq("story_id", currentStory.id)
-      .eq("worker_id", user.id)
-      .single();
-
-    if (existing) {
-      // Update existing
-      await supabaseAny
-        .from("story_reactions")
-        .update({ reaction_type: reactionType })
-        .eq("id", existing.id);
-    } else {
-      // Create new
-      await supabaseAny.from("story_reactions").insert({
-        story_id: currentStory.id,
-        worker_id: user.id,
-        reaction_type: reactionType,
-      });
+    if (!user) {
+      toast.error("Musisz być zalogowany aby reagować!");
+      return;
     }
 
-    setShowReactions(false);
-    toast.success("Reakcja wysłana!");
+    if (!currentStory) {
+      toast.error("Nie można załadować story");
+      return;
+    }
+
+    try {
+      const supabaseAny = supabase as any;
+
+      // Check if already reacted - use maybeSingle to avoid 406 error
+      const { data: existing, error: checkError } = await supabaseAny
+        .from("story_reactions")
+        .select("id")
+        .eq("story_id", currentStory.id)
+        .eq("profile_id", user.id)
+        .maybeSingle();
+
+      console.log("🔍 Check existing reaction:", { existing, checkError });
+
+      if (existing) {
+        toast.info("Już zareagowałeś na tę relację!");
+        return;
+      }
+
+      // Create new reaction - NO worker_id needed anymore!
+      const { error, data: newReaction } = await supabaseAny
+        .from("story_reactions")
+        .insert({
+          story_id: currentStory.id,
+          profile_id: user.id,
+          reaction_type: reactionType,
+        })
+        .select()
+        .single();
+
+      console.log("📝 Insert reaction result:", { error, newReaction });
+
+      if (error) {
+        console.error("❌ Reaction error:", error);
+        if (error.code === "23505") {
+          toast.info("Już zareagowałeś na tę relację!");
+        } else {
+          toast.error("Nie udało się wysłać reakcji: " + error.message);
+        }
+        return;
+      }
+
+      // Create notification for story author
+      const { data: senderProfile } = await supabaseAny
+        .from("profiles")
+        .select("full_name, avatar_url")
+        .eq("id", user.id)
+        .single();
+
+      await supabaseAny.from("notifications").insert({
+        user_id: currentStory.author_id,
+        type: "story_reaction",
+        title: "👀 Ktoś zareagował na Twoją relację!",
+        message: `${
+          senderProfile?.full_name || "Użytkownik"
+        } zainteresował się Twoją relacją`,
+        data: {
+          story_id: currentStory.id,
+          reactor_id: user.id,
+          reactor_name: senderProfile?.full_name,
+          reactor_avatar: senderProfile?.avatar_url,
+        },
+        is_read: false,
+      });
+
+      toast.success("👀 Reakcja wysłana! Autor zostanie powiadomiony.");
+    } catch (err) {
+      console.error("❌ Reaction exception:", err);
+      toast.error("Błąd podczas wysyłania reakcji");
+    }
   };
 
   const handleDeleteStory = async () => {
@@ -506,12 +575,83 @@ export const StoryViewerPro = ({
   };
 
   const handleSendReply = async () => {
-    if (!replyText.trim() || !currentStory || !user) return;
+    console.log("💬 handleSendReply called:", {
+      replyText,
+      user: user?.id,
+      currentStory: currentStory?.id,
+    });
 
-    // TODO: Implement reply functionality (create message or notification)
-    toast.success("Odpowiedź wysłana!");
-    setReplyText("");
-    setShowReplyInput(false);
+    if (!user) {
+      toast.error("Musisz być zalogowany aby wysłać wiadomość!");
+      return;
+    }
+
+    if (!replyText.trim()) {
+      toast.error("Wpisz treść wiadomości");
+      return;
+    }
+
+    if (!currentStory) {
+      toast.error("Nie można załadować story");
+      return;
+    }
+
+    try {
+      const supabaseAny = supabase as any;
+
+      // Get sender's profile info
+      const { data: senderProfile } = await supabaseAny
+        .from("profiles")
+        .select("full_name, avatar_url")
+        .eq("id", user.id)
+        .single();
+
+      // 1. Create REAL message in messages table (so it appears in Messages section)
+      const { error: msgError } = await supabaseAny.from("messages").insert({
+        sender_id: user.id,
+        recipient_id: currentStory.author_id,
+        content: replyText.trim(),
+        subject: `💬 Odpowiedź na Twoją relację`,
+        message_type: "story_reply",
+        is_read: false,
+      });
+
+      if (msgError) {
+        console.error("❌ Message insert error:", msgError);
+      } else {
+        console.log("✅ Message created in messages table");
+      }
+
+      // 2. Also create notification for quick alert
+      const { error: notifError } = await supabaseAny
+        .from("notifications")
+        .insert({
+          user_id: currentStory.author_id,
+          type: "story_reply",
+          title: "💬 Nowa wiadomość do Twojej relacji",
+          message: replyText.trim(),
+          data: {
+            story_id: currentStory.id,
+            sender_id: user.id,
+            sender_name: senderProfile?.full_name || user.email || "Użytkownik",
+            sender_avatar: senderProfile?.avatar_url,
+          },
+          is_read: false,
+        });
+
+      if (notifError) {
+        console.error("❌ Notification error:", notifError);
+      }
+
+      toast.success("💬 Wiadomość wysłana do autora!");
+      setReplyText("");
+      setShowReplyInput(false);
+      setIsPaused(false);
+      resumeProgress();
+    } catch (err) {
+      console.error("❌ Reply exception:", err);
+      toast.error("Błąd podczas wysyłania wiadomości");
+    }
   };
 
   // =====================================================
@@ -543,7 +683,7 @@ export const StoryViewerPro = ({
       {currentAuthorIndex > 0 && (
         <button
           onClick={() => goToAuthor("prev")}
-          className="absolute left-4 top-1/2 -translate-y-1/2 z-20 w-12 h-12 bg-white/20 backdrop-blur rounded-full flex items-center justify-center hover:bg-white/30 transition-colors hidden md:flex"
+          className="absolute left-4 top-1/2 -translate-y-1/2 z-20 w-12 h-12 bg-white/20 backdrop-blur rounded-full items-center justify-center hover:bg-white/30 transition-colors hidden md:flex"
         >
           <ChevronLeft className="w-6 h-6 text-white" />
         </button>
@@ -764,18 +904,31 @@ export const StoryViewerPro = ({
           )}
         </div>
 
-        {/* Bottom Actions */}
-        <div className="absolute bottom-0 left-0 right-0 z-30 px-4 py-4 bg-gradient-to-t from-black/80 to-transparent">
+        {/* Bottom Actions - MUST BE ABOVE TOUCH HANDLERS */}
+        <div
+          className="absolute bottom-0 left-0 right-0 z-40 px-4 py-4 bg-gradient-to-t from-black/80 to-transparent"
+          onClick={(e) => e.stopPropagation()}
+          onMouseDown={(e) => e.stopPropagation()}
+          onMouseUp={(e) => e.stopPropagation()}
+          onTouchStart={(e) => e.stopPropagation()}
+          onTouchEnd={(e) => e.stopPropagation()}
+        >
           {!isOwnStory ? (
             showReplyInput ? (
+              // Reply input mode
               <div className="flex items-center gap-2">
                 <input
                   type="text"
                   value={replyText}
                   onChange={(e) => setReplyText(e.target.value)}
-                  placeholder="Napisz odpowiedź..."
-                  className="flex-1 px-4 py-2 bg-white/20 backdrop-blur text-white rounded-full placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  onKeyDown={(e) => e.stopPropagation()}
+                  onKeyUp={(e) => e.stopPropagation()}
+                  onKeyPress={(e) => e.stopPropagation()}
+                  placeholder="Napisz wiadomość..."
+                  className="flex-1 px-4 py-3 bg-white/20 backdrop-blur text-white rounded-full placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-purple-500"
                   onClick={(e) => e.stopPropagation()}
+                  onMouseDown={(e) => e.stopPropagation()}
+                  onTouchStart={(e) => e.stopPropagation()}
                   autoFocus
                 />
                 <button
@@ -783,7 +936,7 @@ export const StoryViewerPro = ({
                     e.stopPropagation();
                     handleSendReply();
                   }}
-                  className="p-2 bg-purple-500 rounded-full text-white hover:bg-purple-600"
+                  className="p-3 bg-purple-500 rounded-full text-white hover:bg-purple-600"
                 >
                   <Send className="w-5 h-5" />
                 </button>
@@ -791,41 +944,45 @@ export const StoryViewerPro = ({
                   onClick={(e) => {
                     e.stopPropagation();
                     setShowReplyInput(false);
+                    setIsPaused(false);
+                    resumeProgress();
                   }}
-                  className="p-2 text-white/60 hover:text-white"
+                  className="p-3 text-white/60 hover:text-white"
                 >
                   <X className="w-5 h-5" />
                 </button>
               </div>
             ) : (
-              <div className="flex items-center justify-between">
+              // Normal mode - REAGUJ button + message input
+              <div className="flex items-center gap-3 relative z-50">
+                {/* Jeden przycisk REAGUJ */}
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
+                    e.preventDefault();
+                    console.log("🔥 REAGUJ CLICKED!");
+                    handleReaction("interested");
+                  }}
+                  className="relative z-50 flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold rounded-full hover:scale-105 active:scale-95 transition-all shadow-lg cursor-pointer"
+                >
+                  <Eye className="w-5 h-5" />
+                  <span>REAGUJ</span>
+                </button>
+
+                {/* Optional: Reply button */}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    console.log("💬 NAPISZ CLICKED!");
                     setShowReplyInput(true);
                     pauseProgress();
                     setIsPaused(true);
                   }}
-                  className="flex-1 px-4 py-2 bg-white/20 backdrop-blur text-white/80 rounded-full text-left"
+                  className="relative z-50 flex-1 px-4 py-3 bg-white/20 backdrop-blur text-white/80 rounded-full text-left hover:bg-white/30 transition-colors cursor-pointer"
                 >
                   Wyślij wiadomość...
                 </button>
-
-                <div className="flex items-center gap-2 ml-3">
-                  {REACTION_TYPES.map((r) => (
-                    <button
-                      key={r.type}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleReaction(r.type);
-                      }}
-                      className="text-2xl hover:scale-125 transition-transform"
-                      title={r.label}
-                    >
-                      {r.emoji}
-                    </button>
-                  ))}
-                </div>
               </div>
             )
           ) : (
@@ -856,7 +1013,7 @@ export const StoryViewerPro = ({
           >
             <div className="flex items-center justify-between p-4 border-b border-gray-800">
               <h3 className="text-white font-bold text-lg">
-                Reakcje ({reactions.length})
+                👀 Kto zareagował ({reactions.length})
               </h3>
               <button
                 onClick={() => setShowReactions(false)}
@@ -866,47 +1023,87 @@ export const StoryViewerPro = ({
               </button>
             </div>
 
+            <p className="px-4 py-2 text-gray-400 text-sm">
+              Kliknij w profil aby skontaktować się z osobą
+            </p>
+
             <div className="flex-1 overflow-y-auto p-4">
               {reactions.length === 0 ? (
                 <div className="text-center text-gray-500 py-8">
-                  <Heart className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                  <p>Brak reakcji na tę story</p>
+                  <Eye className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                  <p>Nikt jeszcze nie zareagował na tę relację</p>
+                  <p className="text-sm mt-2">
+                    Gdy ktoś kliknie "Reaguj", pojawi się tutaj
+                  </p>
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {reactions.map((reaction) => (
-                    <div
-                      key={reaction.id}
-                      className="flex items-center gap-3 p-3 bg-gray-800 rounded-xl"
-                    >
-                      <img
-                        src={
-                          reaction.worker?.avatar_url || "/default-avatar.png"
-                        }
-                        alt=""
-                        className="w-10 h-10 rounded-full object-cover"
-                      />
-                      <div className="flex-1">
-                        <p className="text-white font-medium">
-                          {reaction.worker?.full_name || "Nieznany użytkownik"}
-                        </p>
-                        <p className="text-gray-400 text-sm">
-                          {
-                            REACTION_TYPES.find(
-                              (r) => r.type === reaction.reaction_type
-                            )?.label
-                          }
-                        </p>
-                      </div>
-                      <span className="text-2xl">
-                        {
-                          REACTION_TYPES.find(
-                            (r) => r.type === reaction.reaction_type
-                          )?.emoji
-                        }
-                      </span>
-                    </div>
-                  ))}
+                  {reactions.map((reaction) => {
+                    // Determine profile URL based on user role
+                    const profile = reaction.profiles;
+                    const profileId =
+                      profile?.id || reaction.profile_id || reaction.worker_id;
+                    const userRole = profile?.role || "worker";
+
+                    // Build URL to contact section of public profile
+                    let profileUrl = "#";
+                    if (profileId) {
+                      if (userRole === "worker") {
+                        profileUrl = `/worker/profile/${profileId}#contact`;
+                      } else if (userRole === "employer") {
+                        profileUrl = `/employer/profile/${profileId}#contact`;
+                      } else {
+                        profileUrl = `/worker/profile/${profileId}#contact`;
+                      }
+                    }
+
+                    const userName =
+                      profile?.full_name ||
+                      reaction.worker?.full_name ||
+                      "Nieznany użytkownik";
+                    const userAvatar =
+                      profile?.avatar_url ||
+                      reaction.worker?.avatar_url ||
+                      "/default-avatar.png";
+
+                    return (
+                      <button
+                        key={reaction.id}
+                        onClick={() => {
+                          onClose();
+                          navigate(profileUrl);
+                        }}
+                        className="w-full flex items-center gap-3 p-3 bg-gray-800 hover:bg-gray-700 rounded-xl transition-colors cursor-pointer group"
+                      >
+                        <img
+                          src={userAvatar}
+                          alt=""
+                          className="w-12 h-12 rounded-full object-cover ring-2 ring-purple-500/50"
+                        />
+                        <div className="flex-1 text-left">
+                          <p className="text-white font-medium group-hover:text-purple-400 transition-colors">
+                            {userName}
+                          </p>
+                          <p className="text-gray-400 text-sm flex items-center gap-1">
+                            <User className="w-3 h-3" />
+                            {userRole === "worker"
+                              ? "Pracownik"
+                              : userRole === "employer"
+                              ? "Pracodawca"
+                              : userRole === "accountant"
+                              ? "Księgowy"
+                              : "Użytkownik"}
+                          </p>
+                        </div>
+                        <div className="flex flex-col items-end gap-1">
+                          <span className="text-2xl">👀</span>
+                          <span className="text-xs text-purple-400 font-medium group-hover:underline">
+                            Zobacz profil →
+                          </span>
+                        </div>
+                      </button>
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -925,7 +1122,7 @@ export const StoryViewerPro = ({
       {currentAuthorIndex < authorGroups.length - 1 && (
         <button
           onClick={() => goToAuthor("next")}
-          className="absolute right-4 top-1/2 -translate-y-1/2 z-20 w-12 h-12 bg-white/20 backdrop-blur rounded-full flex items-center justify-center hover:bg-white/30 transition-colors hidden md:flex"
+          className="absolute right-4 top-1/2 -translate-y-1/2 z-20 w-12 h-12 bg-white/20 backdrop-blur rounded-full items-center justify-center hover:bg-white/30 transition-colors hidden md:flex"
         >
           <ChevronRight className="w-6 h-6 text-white" />
         </button>

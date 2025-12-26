@@ -1129,6 +1129,25 @@ export const ChevronRight: React.FC<{ className?: string }> = ({
   </svg>
 );
 
+export const ChevronLeft: React.FC<{ className?: string }> = ({
+  className,
+}) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    fill="none"
+    viewBox="0 0 24 24"
+    strokeWidth={1.5}
+    stroke="currentColor"
+    className={className}
+  >
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      d="m15.75 19.5-7.5-7.5 7.5-7.5"
+    />
+  </svg>
+);
+
 export const Sparkles: React.FC<{ className?: string }> = ({ className }) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"

@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { lazy, Suspense } from "react";
 import { AuthProvider } from "./contexts/AuthContext";
 import { NotificationProvider } from "./contexts/RealTimeNotificationContext";
+import { SidebarProvider } from "./contexts/SidebarContext";
 import { CalendarNotificationProvider } from "./components/CalendarNotificationProvider";
 import { ThemeProvider } from "./src/contexts/ThemeContext";
 import { ToastProvider } from "./components/ToastProvider";
@@ -248,473 +249,501 @@ function App() {
             <OfflineIndicator position="top" />
             {/* WHY: provide Supabase session globally to all components */}
             <AuthProvider>
-              <NotificationProvider>
-                <CalendarNotificationProvider checkIntervalMs={60000}>
-                  <BrowserRouter>
-                    <Suspense
-                      fallback={
-                        <LoadingOverlay
-                          isLoading={true}
-                          message="Ładowanie..."
-                        />
-                      }
-                    >
-                      <Routes>
-                        {/* Public routes */}
-                        <Route element={<PublicLayout />}>
-                          <Route path="/" element={<HomePage />} />
-                          <Route path="/about" element={<AboutPage />} />
-                          <Route
-                            path="/experience-certificate"
-                            element={<ExperienceCertificatePage />}
+              <SidebarProvider>
+                <NotificationProvider>
+                  <CalendarNotificationProvider checkIntervalMs={60000}>
+                    <BrowserRouter>
+                      <Suspense
+                        fallback={
+                          <LoadingOverlay
+                            isLoading={true}
+                            message="Ładowanie..."
                           />
-                          <Route
-                            path="/for-employers"
-                            element={<ForEmployersPage />}
-                          />
-                          <Route path="/contact" element={<ContactPage />} />
-                          <Route
-                            path="/spline-test"
-                            element={<SplineTestPage />}
-                          />
-                          <Route path="/login" element={<LoginPage />} />
-                          <Route
-                            path="/register"
-                            element={<RegisterSelectPage />}
-                          />
-                          <Route
-                            path="/register/employer"
-                            element={<RegisterEmployerPage />}
-                          />
-                          <Route
-                            path="/register/worker"
-                            element={<RegisterWorkerPage />}
-                          />
-                          <Route
-                            path="/register/accountant"
-                            element={<RegisterAccountantPage />}
-                          />
-                          <Route
-                            path="/register/cleaning"
-                            element={<RegisterCleaningPage />}
-                          />
-                          <Route
-                            path="/register/regular-user"
-                            element={<RegisterRegularUserPage />}
-                          />
-                          {/* Certificate Verification - Public */}
-                          <Route
-                            path="/verify/:certificateId"
-                            element={<VerifyCertificatePage />}
-                          />
-                          {/* Public profile pages - beautiful full panels */}
-                          <Route
-                            path="/employer/profile/:id"
-                            element={<EmployerPublicProfilePage />}
-                          />
-                          <Route
-                            path="/worker/profile/:id"
-                            element={<WorkerPublicProfilePage />}
-                          />
-                          <Route
-                            path="/accountant/profile/:id"
-                            element={<AccountantProfilePage />}
-                          />
-                          <Route
-                            path="/cleaning-company/profile/:id"
-                            element={<CleaningCompanyPublicProfilePage />}
-                          />
-                          <Route
-                            path="/admin/profile/:id"
-                            element={<AdminPublicProfilePage />}
-                          />
-                          {/* Legacy routes - redirect to new structure */}
-                          <Route
-                            path="/register-employer"
-                            element={
-                              <Navigate to="/register/employer" replace />
-                            }
-                          />
-                          <Route
-                            path="/register-worker"
-                            element={<Navigate to="/register/worker" replace />}
-                          />
-                          <Route path="/legal" element={<LegalPage />} />
-                          {/* Payment Success Page - handles redirect based on user type */}
-                          <Route
-                            path="/payment-success"
-                            element={<PaymentSuccessPage />}
-                          />
-                          {/* ❌ REMOVED: ExamSuccessPage - file doesn't exist */}
-                          {/* <Route path="/exam-success" element={<ExamSuccessPage />} /> */}
-                          <Route
-                            path="/exam-success"
-                            element={<Navigate to="/dashboard" replace />}
-                          />
-                          {/* ❌ REMOVED: Test pages moved to archiwum/smieci */}
-                          {/* <Route path="/test/auth" element={<SupabaseAuthTest />} /> */}
-                          {/* <Route path="/test/avatar-upload" element={<AvatarUploadTest />} /> */}
-                          <Route
-                            path="/test/communication"
-                            element={<TestCommunicationPage />}
-                          />
-                          <Route
-                            path="/test/communication-realtime"
-                            element={<TestRealtimeCommunicationPage />}
-                          />
-                          <Route
-                            path="/advanced-ui-demo"
-                            element={<AdvancedUIDemo />}
-                          />
-                          <Route
-                            path="/error-handling-demo"
-                            element={<ErrorHandlingUXDemo />}
-                          />
-                        </Route>
+                        }
+                      >
+                        <Routes>
+                          {/* Public routes */}
+                          <Route element={<PublicLayout />}>
+                            <Route path="/" element={<HomePage />} />
+                            <Route path="/about" element={<AboutPage />} />
+                            <Route
+                              path="/experience-certificate"
+                              element={<ExperienceCertificatePage />}
+                            />
+                            <Route
+                              path="/for-employers"
+                              element={<ForEmployersPage />}
+                            />
+                            <Route path="/contact" element={<ContactPage />} />
+                            <Route
+                              path="/spline-test"
+                              element={<SplineTestPage />}
+                            />
+                            <Route path="/login" element={<LoginPage />} />
+                            <Route
+                              path="/register"
+                              element={<RegisterSelectPage />}
+                            />
+                            <Route
+                              path="/register/employer"
+                              element={<RegisterEmployerPage />}
+                            />
+                            <Route
+                              path="/register/worker"
+                              element={<RegisterWorkerPage />}
+                            />
+                            <Route
+                              path="/register/accountant"
+                              element={<RegisterAccountantPage />}
+                            />
+                            <Route
+                              path="/register/cleaning"
+                              element={<RegisterCleaningPage />}
+                            />
+                            <Route
+                              path="/register/regular-user"
+                              element={<RegisterRegularUserPage />}
+                            />
+                            {/* Certificate Verification - Public */}
+                            <Route
+                              path="/verify/:certificateId"
+                              element={<VerifyCertificatePage />}
+                            />
+                            {/* Public profile pages - beautiful full panels */}
+                            <Route
+                              path="/employer/profile/:id"
+                              element={<EmployerPublicProfilePage />}
+                            />
+                            <Route
+                              path="/worker/profile/:id"
+                              element={<WorkerPublicProfilePage />}
+                            />
+                            <Route
+                              path="/accountant/profile/:id"
+                              element={<AccountantProfilePage />}
+                            />
+                            <Route
+                              path="/cleaning-company/profile/:id"
+                              element={<CleaningCompanyPublicProfilePage />}
+                            />
+                            <Route
+                              path="/admin/profile/:id"
+                              element={<AdminPublicProfilePage />}
+                            />
+                            {/* Legacy routes - redirect to new structure */}
+                            <Route
+                              path="/register-employer"
+                              element={
+                                <Navigate to="/register/employer" replace />
+                              }
+                            />
+                            <Route
+                              path="/register-worker"
+                              element={
+                                <Navigate to="/register/worker" replace />
+                              }
+                            />
+                            <Route path="/legal" element={<LegalPage />} />
+                            {/* Payment Success Page - handles redirect based on user type */}
+                            <Route
+                              path="/payment-success"
+                              element={<PaymentSuccessPage />}
+                            />
+                            {/* ❌ REMOVED: ExamSuccessPage - file doesn't exist */}
+                            {/* <Route path="/exam-success" element={<ExamSuccessPage />} /> */}
+                            <Route
+                              path="/exam-success"
+                              element={<Navigate to="/dashboard" replace />}
+                            />
+                            {/* ❌ REMOVED: Test pages moved to archiwum/smieci */}
+                            {/* <Route path="/test/auth" element={<SupabaseAuthTest />} /> */}
+                            {/* <Route path="/test/avatar-upload" element={<AvatarUploadTest />} /> */}
+                            <Route
+                              path="/test/communication"
+                              element={<TestCommunicationPage />}
+                            />
+                            <Route
+                              path="/test/communication-realtime"
+                              element={<TestRealtimeCommunicationPage />}
+                            />
+                            <Route
+                              path="/advanced-ui-demo"
+                              element={<AdvancedUIDemo />}
+                            />
+                            <Route
+                              path="/error-handling-demo"
+                              element={<ErrorHandlingUXDemo />}
+                            />
+                          </Route>
 
-                        {/* Protected Search Routes - require login */}
-                        <Route element={<AuthenticatedLayout />}>
-                          <Route path="/feed" element={<FeedPage />} />
-                          <Route path="/settings" element={<Settings />} />
-                          <Route
-                            path="/accountants"
-                            element={<AccountantSearchPage />}
-                          />
-                          <Route
-                            path="/employers"
-                            element={<EmployerSearchPage />}
-                          />
-                          <Route
-                            path="/workers"
-                            element={
-                              <ProtectedRoute>
-                                <WorkerSearch />
-                              </ProtectedRoute>
-                            }
-                          />
-                          <Route
-                            path="/cleaning-companies"
-                            element={
-                              <ProtectedRoute>
-                                <CleaningCompanySearch />
-                              </ProtectedRoute>
-                            }
-                          />
-                        </Route>
+                          {/* Protected Search Routes - require login */}
+                          <Route element={<AuthenticatedLayout />}>
+                            <Route path="/feed" element={<FeedPage />} />
+                            <Route path="/settings" element={<Settings />} />
+                            <Route
+                              path="/accountants"
+                              element={<AccountantSearchPage />}
+                            />
+                            <Route
+                              path="/employers"
+                              element={<EmployerSearchPage />}
+                            />
+                            <Route
+                              path="/workers"
+                              element={
+                                <ProtectedRoute>
+                                  <WorkerSearch />
+                                </ProtectedRoute>
+                              }
+                            />
+                            <Route
+                              path="/cleaning-companies"
+                              element={
+                                <ProtectedRoute>
+                                  <CleaningCompanySearch />
+                                </ProtectedRoute>
+                              }
+                            />
+                          </Route>
 
-                        {/* Accountant Routes */}
-                        <Route element={<AuthenticatedLayout />}>
-                          <Route
-                            path="/accountant/dashboard"
-                            element={
-                              <ProtectedRoute requiredRole="accountant">
-                                <AccountantDashboard />
-                              </ProtectedRoute>
-                            }
-                          />
-                          <Route
-                            path="/accountant/moje-posty"
-                            element={
-                              <ProtectedRoute requiredRole="accountant">
-                                <AccountantMyPosts />
-                              </ProtectedRoute>
-                            }
-                          />
-                          <Route
-                            path="/accountant/historia-aktywnosci"
-                            element={
-                              <ProtectedRoute requiredRole="accountant">
-                                <AccountantSavedActivity />
-                              </ProtectedRoute>
-                            }
-                          />
+                          {/* Accountant Routes */}
+                          <Route element={<AuthenticatedLayout />}>
+                            <Route
+                              path="/accountant/dashboard"
+                              element={
+                                <ProtectedRoute requiredRole="accountant">
+                                  <AccountantDashboard />
+                                </ProtectedRoute>
+                              }
+                            />
+                            <Route
+                              path="/accountant/moje-posty"
+                              element={
+                                <ProtectedRoute requiredRole="accountant">
+                                  <AccountantMyPosts />
+                                </ProtectedRoute>
+                              }
+                            />
+                            <Route
+                              path="/accountant/historia-aktywnosci"
+                              element={
+                                <ProtectedRoute requiredRole="accountant">
+                                  <AccountantSavedActivity />
+                                </ProtectedRoute>
+                              }
+                            />
 
-                          {/* 💳 Subscription - Accountant subscription management */}
+                            {/* 💳 Subscription - Accountant subscription management */}
+                            <Route
+                              path="/accountant/subscription"
+                              element={
+                                <ProtectedRoute requiredRole="accountant">
+                                  <AccountantSubscriptionPage />
+                                </ProtectedRoute>
+                              }
+                            />
+                          </Route>
+
+                          {/* Admin routes (LAZY LOADED) */}
                           <Route
-                            path="/accountant/subscription"
+                            path="/admin"
                             element={
-                              <ProtectedRoute requiredRole="accountant">
-                                <AccountantSubscriptionPage />
+                              <ProtectedRoute requiredRole="admin">
+                                <AuthenticatedLayout />
                               </ProtectedRoute>
                             }
-                          />
-                        </Route>
-
-                        {/* Admin routes (LAZY LOADED) */}
-                        <Route
-                          path="/admin"
-                          element={
-                            <ProtectedRoute requiredRole="admin">
-                              <AuthenticatedLayout />
-                            </ProtectedRoute>
-                          }
-                        >
-                          <Route index element={<AdminDashboard />} />
-                          <Route path="moje-posty" element={<AdminMyPosts />} />
-                          <Route
-                            path="historia-aktywnosci"
-                            element={<AdminSavedActivity />}
-                          />
-                          <Route
-                            path="certificate-approval"
-                            element={<CertificateApprovalPage />}
-                          />
-                          {/* ❌ REMOVED: subscriptions duplicate - using SubscriptionsManager below (line 399) */}
-                          {/* ❌ REMOVED: zzp-exams route - ZZPExamManagementPage not found */}
-                          {/* ❌ REMOVED OLD DUPLICATE ROUTES:
+                          >
+                            <Route index element={<AdminDashboard />} />
+                            <Route
+                              path="moje-posty"
+                              element={<AdminMyPosts />}
+                            />
+                            <Route
+                              path="historia-aktywnosci"
+                              element={<AdminSavedActivity />}
+                            />
+                            <Route
+                              path="certificate-approval"
+                              element={<CertificateApprovalPage />}
+                            />
+                            {/* ❌ REMOVED: subscriptions duplicate - using SubscriptionsManager below (line 399) */}
+                            {/* ❌ REMOVED: zzp-exams route - ZZPExamManagementPage not found */}
+                            {/* ❌ REMOVED OLD DUPLICATE ROUTES:
                             - workers → AdminWorkersPage (OLD pages/Admin/) 
                             - employers → AdminEmployersPage (OLD)
                             - accountants → AdminAccountantsPage (OLD)
                             - cleaning-companies → AdminCleaningCompaniesPage (OLD)
                             USE ENTERPRISE VERSIONS BELOW (WorkersManager, etc.) */}
 
-                          {/* OLD: AdminAppointmentsPage removed - using AppointmentsManager (enterprise) below */}
-                          <Route path="media" element={<MediaManager />} />
-                          <Route
-                            path="messages"
-                            element={<MessagesManager />}
-                          />
-                          <Route
-                            path="support"
-                            element={<SupportTicketsManager />}
-                          />
-                          <Route path="billing" element={<BillingManager />} />
-                          {/* ❌ REMOVED: analytics → AnalyticsManager (DUPLICATE - using DataAnalyticsPage below) */}
-                          <Route
-                            path="security"
-                            element={<SecurityManager />}
-                          />
-                          {/* ❌ REMOVED ENTERPRISE ROUTES: seo, email-marketing, blog */}
-                          <Route
-                            path="database"
-                            element={<DatabaseManager />}
-                          />
-                          <Route
-                            path="appointments"
-                            element={<AppointmentsManager />}
-                          />
-                          <Route path="scheduler" element={<TestScheduler />} />
-                          {/* TestSlotsManager archived - use scheduler instead */}
+                            {/* OLD: AdminAppointmentsPage removed - using AppointmentsManager (enterprise) below */}
+                            <Route path="media" element={<MediaManager />} />
+                            <Route
+                              path="messages"
+                              element={<MessagesManager />}
+                            />
+                            <Route
+                              path="support"
+                              element={<SupportTicketsManager />}
+                            />
+                            <Route
+                              path="billing"
+                              element={<BillingManager />}
+                            />
+                            {/* ❌ REMOVED: analytics → AnalyticsManager (DUPLICATE - using DataAnalyticsPage below) */}
+                            <Route
+                              path="security"
+                              element={<SecurityManager />}
+                            />
+                            {/* ❌ REMOVED ENTERPRISE ROUTES: seo, email-marketing, blog */}
+                            <Route
+                              path="database"
+                              element={<DatabaseManager />}
+                            />
+                            <Route
+                              path="appointments"
+                              element={<AppointmentsManager />}
+                            />
+                            <Route
+                              path="scheduler"
+                              element={<TestScheduler />}
+                            />
+                            {/* TestSlotsManager archived - use scheduler instead */}
 
-                          {/* ✅ MANAGEMENT PANELS */}
-                          <Route path="workers" element={<WorkersManager />} />
-                          <Route
-                            path="employers"
-                            element={<EmployersManager />}
-                          />
-                          <Route
-                            path="accountants"
-                            element={<AccountantsManager />}
-                          />
-                          <Route
-                            path="cleaning-companies"
-                            element={<CleaningCompaniesManager />}
-                          />
+                            {/* ✅ MANAGEMENT PANELS */}
+                            <Route
+                              path="workers"
+                              element={<WorkersManager />}
+                            />
+                            <Route
+                              path="employers"
+                              element={<EmployersManager />}
+                            />
+                            <Route
+                              path="accountants"
+                              element={<AccountantsManager />}
+                            />
+                            <Route
+                              path="cleaning-companies"
+                              element={<CleaningCompaniesManager />}
+                            />
 
-                          <Route
-                            path="payments"
-                            element={<PaymentsManager />}
-                          />
-                          <Route
-                            path="subscriptions"
-                            element={<SubscriptionsManager />}
-                          />
-                          <Route
-                            path="notifications"
-                            element={<NotificationsManager />}
-                          />
-                          <Route path="reports" element={<ReportsManager />} />
-                          <Route
-                            path="certificates"
-                            element={<CertificatesManager />}
-                          />
-                          <Route
-                            path="certificates/generate"
-                            element={<CertificateMaster />}
-                          />
-                          <Route
-                            path="certificates/generated"
-                            element={<GeneratedCertificatesList />}
-                          />
-                          {/* ❌ REMOVED ENTERPRISE ROUTES: performance, performance-optimization, scalability-optimization, search, api-automation, security-compliance */}
-                          <Route
-                            path="analytics"
-                            element={<DataAnalyticsPage />}
-                          />
-                          {/* ❌ REMOVED: monitoring and backup routes - files do not exist */}
-                          {/* <Route path="monitoring" element={<SystemMonitoringPage />} /> */}
-                          {/* <Route path="backup" element={<BackupRecoveryPage />} /> */}
-                          {/* ❌ REMOVED: SystemSettingsPage - file doesn't exist */}
-                          {/* <Route path="settings" element={<SystemSettingsPage />} /> */}
-                          <Route
-                            path="settings"
-                            element={<Navigate to="/admin" replace />}
-                          />
-                          {/* ❌ REMOVED: AdminDocumentationPage - file doesn't exist */}
-                          {/* <Route path="documentation" element={<AdminDocumentationPage />} /> */}
-                          <Route
-                            path="documentation"
-                            element={<Navigate to="/admin" replace />}
-                          />
-                        </Route>
+                            <Route
+                              path="payments"
+                              element={<PaymentsManager />}
+                            />
+                            <Route
+                              path="subscriptions"
+                              element={<SubscriptionsManager />}
+                            />
+                            <Route
+                              path="notifications"
+                              element={<NotificationsManager />}
+                            />
+                            <Route
+                              path="reports"
+                              element={<ReportsManager />}
+                            />
+                            <Route
+                              path="certificates"
+                              element={<CertificatesManager />}
+                            />
+                            <Route
+                              path="certificates/generate"
+                              element={<CertificateMaster />}
+                            />
+                            <Route
+                              path="certificates/generated"
+                              element={<GeneratedCertificatesList />}
+                            />
+                            {/* ❌ REMOVED ENTERPRISE ROUTES: performance, performance-optimization, scalability-optimization, search, api-automation, security-compliance */}
+                            <Route
+                              path="analytics"
+                              element={<DataAnalyticsPage />}
+                            />
+                            {/* ❌ REMOVED: monitoring and backup routes - files do not exist */}
+                            {/* <Route path="monitoring" element={<SystemMonitoringPage />} /> */}
+                            {/* <Route path="backup" element={<BackupRecoveryPage />} /> */}
+                            {/* ❌ REMOVED: SystemSettingsPage - file doesn't exist */}
+                            {/* <Route path="settings" element={<SystemSettingsPage />} /> */}
+                            <Route
+                              path="settings"
+                              element={<Navigate to="/admin" replace />}
+                            />
+                            {/* ❌ REMOVED: AdminDocumentationPage - file doesn't exist */}
+                            {/* <Route path="documentation" element={<AdminDocumentationPage />} /> */}
+                            <Route
+                              path="documentation"
+                              element={<Navigate to="/admin" replace />}
+                            />
+                          </Route>
 
-                        {/* Employer routes (LAZY LOADED) */}
-                        {/* Subscription page - no subscription check */}
-                        <Route
-                          path="/employer/subscription"
-                          element={
-                            <ProtectedRoute requiredRole="employer">
-                              <EmployerSubscriptionPage />
-                            </ProtectedRoute>
-                          }
-                        />
-
-                        {/* Protected employer routes - profile doesn't require subscription */}
-                        <Route
-                          path="/employer"
-                          element={
-                            <ProtectedRoute requiredRole="employer">
-                              <AuthenticatedLayout />
-                            </ProtectedRoute>
-                          }
-                        >
-                          <Route index element={<EmployerDashboard />} />
+                          {/* Employer routes (LAZY LOADED) */}
+                          {/* Subscription page - no subscription check */}
                           <Route
-                            path="moje-posty"
-                            element={<EmployerMyPosts />}
-                          />
-                          <Route
-                            path="historia-aktywnosci"
-                            element={<EmployerSavedActivity />}
-                          />
-                          <Route path="profile" element={<EmployerProfile />} />
-                          <Route
-                            path="profile/edit"
-                            element={<EditEmployerProfile />}
-                          />
-
-                          {/* Search requires subscription */}
-                          <Route
-                            path="search"
+                            path="/employer/subscription"
                             element={
-                              <ProtectedRoute
-                                requiredRole="employer"
-                                requireSubscription={true}
-                              >
-                                <WorkerSearch />
+                              <ProtectedRoute requiredRole="employer">
+                                <EmployerSubscriptionPage />
                               </ProtectedRoute>
                             }
                           />
-                        </Route>
 
-                        {/* 👥 Team - Zarządzanie zespołem (osobny layout - poza AuthenticatedLayout) */}
-                        <Route
-                          path="/employer/team"
-                          element={
-                            <ProtectedRoute requiredRole="employer">
-                              <EmployerTeamPage />
-                            </ProtectedRoute>
-                          }
-                        />
-
-                        {/* Worker routes (LAZY LOADED) */}
-                        {/* Subscription page - outside nested routes for direct access */}
-                        <Route
-                          path="/worker/subscription"
-                          element={
-                            <ProtectedRoute requiredRole="worker">
-                              <WorkerSubscriptionPage />
-                            </ProtectedRoute>
-                          }
-                        />
-
-                        <Route
-                          path="/worker"
-                          element={
-                            <ProtectedRoute requiredRole="worker">
-                              <AuthenticatedLayout />
-                            </ProtectedRoute>
-                          }
-                        >
-                          <Route index element={<WorkerDashboard />} />
+                          {/* Protected employer routes - profile doesn't require subscription */}
                           <Route
-                            path="historia-aktywnosci"
-                            element={<WorkerSavedActivity />}
-                          />
-                          {/* ❌ REMOVED: ZZPExamApplicationPage - file doesn't exist */}
-                          {/* <Route path="zzp-exam-application" element={<ZZPExamApplicationPage />} /> */}
-                          <Route
-                            path="zzp-exam-application"
-                            element={<Navigate to="/dashboard" replace />}
-                          />
-                          <Route
-                            path="subscription-selection"
-                            element={<WorkerSubscriptionSelectionPage />}
-                          />
-                        </Route>
-
-                        {/* Regular User routes (DEDICATED DASHBOARD) 🆕 */}
-                        <Route
-                          path="/regular-user"
-                          element={
-                            <ProtectedRoute requiredRole="regular_user">
-                              <AuthenticatedLayout />
-                            </ProtectedRoute>
-                          }
-                        >
-                          <Route index element={<RegularUserDashboard />} />
-                        </Route>
-
-                        {/* Request Details (Accessible by all authenticated users) */}
-                        <Route
-                          path="/request/:id"
-                          element={
-                            <ProtectedRoute>
-                              <RequestDetailsPage />
-                            </ProtectedRoute>
-                          }
-                        />
-
-                        {/* Cleaning Company routes (DEDICATED DASHBOARD) */}
-                        <Route
-                          path="/cleaning-company"
-                          element={
-                            <ProtectedRoute requiredRole="cleaning_company">
-                              <AuthenticatedLayout />
-                            </ProtectedRoute>
-                          }
-                        >
-                          <Route index element={<CleaningCompanyDashboard />} />
-                          <Route
-                            path="historia-aktywnosci"
-                            element={<CleaningCompanySavedActivity />}
-                          />
-                          {/* 💳 Subscription - wybór planu subskrypcji */}
-                          <Route
-                            path="subscription"
+                            path="/employer"
                             element={
-                              <CleaningCompanySubscriptionSelectionPage />
+                              <ProtectedRoute requiredRole="employer">
+                                <AuthenticatedLayout />
+                              </ProtectedRoute>
+                            }
+                          >
+                            <Route index element={<EmployerDashboard />} />
+                            <Route
+                              path="moje-posty"
+                              element={<EmployerMyPosts />}
+                            />
+                            <Route
+                              path="historia-aktywnosci"
+                              element={<EmployerSavedActivity />}
+                            />
+                            <Route
+                              path="profile"
+                              element={<EmployerProfile />}
+                            />
+                            <Route
+                              path="profile/edit"
+                              element={<EditEmployerProfile />}
+                            />
+
+                            {/* Search requires subscription */}
+                            <Route
+                              path="search"
+                              element={
+                                <ProtectedRoute
+                                  requiredRole="employer"
+                                  requireSubscription={true}
+                                >
+                                  <WorkerSearch />
+                                </ProtectedRoute>
+                              }
+                            />
+                          </Route>
+
+                          {/* 👥 Team - Zarządzanie zespołem (osobny layout - poza AuthenticatedLayout) */}
+                          <Route
+                            path="/employer/team"
+                            element={
+                              <ProtectedRoute requiredRole="employer">
+                                <EmployerTeamPage />
+                              </ProtectedRoute>
                             }
                           />
-                        </Route>
 
-                        {/* ✅ Invoice Module - faktury, BTW, koszty, kilometry */}
-                        <Route
-                          path="/faktury"
-                          element={
-                            <ProtectedRoute>
-                              <InvoiceApp />
-                            </ProtectedRoute>
-                          }
-                        />
+                          {/* Worker routes (LAZY LOADED) */}
+                          {/* Subscription page - outside nested routes for direct access */}
+                          <Route
+                            path="/worker/subscription"
+                            element={
+                              <ProtectedRoute requiredRole="worker">
+                                <WorkerSubscriptionPage />
+                              </ProtectedRoute>
+                            }
+                          />
 
-                        {/* 404 */}
-                        <Route path="*" element={<Navigate to="/" replace />} />
-                      </Routes>
-                    </Suspense>
-                  </BrowserRouter>
-                </CalendarNotificationProvider>
-              </NotificationProvider>
+                          <Route
+                            path="/worker"
+                            element={
+                              <ProtectedRoute requiredRole="worker">
+                                <AuthenticatedLayout />
+                              </ProtectedRoute>
+                            }
+                          >
+                            <Route index element={<WorkerDashboard />} />
+                            <Route
+                              path="historia-aktywnosci"
+                              element={<WorkerSavedActivity />}
+                            />
+                            {/* ❌ REMOVED: ZZPExamApplicationPage - file doesn't exist */}
+                            {/* <Route path="zzp-exam-application" element={<ZZPExamApplicationPage />} /> */}
+                            <Route
+                              path="zzp-exam-application"
+                              element={<Navigate to="/dashboard" replace />}
+                            />
+                            <Route
+                              path="subscription-selection"
+                              element={<WorkerSubscriptionSelectionPage />}
+                            />
+                          </Route>
+
+                          {/* Regular User routes (DEDICATED DASHBOARD) 🆕 */}
+                          <Route
+                            path="/regular-user"
+                            element={
+                              <ProtectedRoute requiredRole="regular_user">
+                                <AuthenticatedLayout />
+                              </ProtectedRoute>
+                            }
+                          >
+                            <Route index element={<RegularUserDashboard />} />
+                          </Route>
+
+                          {/* Request Details (Accessible by all authenticated users) */}
+                          <Route
+                            path="/request/:id"
+                            element={
+                              <ProtectedRoute>
+                                <RequestDetailsPage />
+                              </ProtectedRoute>
+                            }
+                          />
+
+                          {/* Cleaning Company routes (DEDICATED DASHBOARD) */}
+                          <Route
+                            path="/cleaning-company"
+                            element={
+                              <ProtectedRoute requiredRole="cleaning_company">
+                                <AuthenticatedLayout />
+                              </ProtectedRoute>
+                            }
+                          >
+                            <Route
+                              index
+                              element={<CleaningCompanyDashboard />}
+                            />
+                            <Route
+                              path="historia-aktywnosci"
+                              element={<CleaningCompanySavedActivity />}
+                            />
+                            {/* 💳 Subscription - wybór planu subskrypcji */}
+                            <Route
+                              path="subscription"
+                              element={
+                                <CleaningCompanySubscriptionSelectionPage />
+                              }
+                            />
+                          </Route>
+
+                          {/* ✅ Invoice Module - faktury, BTW, koszty, kilometry */}
+                          <Route
+                            path="/faktury"
+                            element={
+                              <ProtectedRoute>
+                                <InvoiceApp />
+                              </ProtectedRoute>
+                            }
+                          />
+
+                          {/* 404 */}
+                          <Route
+                            path="*"
+                            element={<Navigate to="/" replace />}
+                          />
+                        </Routes>
+                      </Suspense>
+                    </BrowserRouter>
+                  </CalendarNotificationProvider>
+                </NotificationProvider>
+              </SidebarProvider>
             </AuthProvider>
           </OfflineProvider>
         </ToastProvider>

@@ -1,11 +1,8 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "../contexts/AuthContext";
+import { useSidebar } from "../contexts/SidebarContext";
 import { supabase } from "../src/lib/supabase";
 import { toast } from "sonner";
-
-// @ts-ignore - Tables not in generated types
-const supabaseAny = supabase as any;
-
 import {
   CheckCircleIcon,
   XMarkIcon,
@@ -18,15 +15,8 @@ import { RegularUserSubscriptionPanel } from "../components/RegularUserSubscript
 import { RegularUserUpgradeModal } from "../components/RegularUserUpgradeModal";
 import { SupportTicketModal } from "../src/components/SupportTicketModal";
 import { LanguageSwitcher } from "../components/LanguageSwitcher";
-import { RequestNotificationBadge } from "../components/RequestNotificationBadge";
 import type { UnifiedTab } from "../components/UnifiedDashboardTabs";
 import { uploadAvatar } from "../src/services/storage";
-import {
-  StoriesBarPro,
-  StoryViewerPro,
-  CreateStoryEditor,
-  type AuthorGroup,
-} from "../components/stories";
 
 interface RegularUserData {
   first_name: string | null;
@@ -171,15 +161,11 @@ export default function RegularUserDashboard() {
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
   const [showSupportModal, setShowSupportModal] = useState(false);
 
-  // Stories state (PRO version)
-  const [showCreateStoryEditor, setShowCreateStoryEditor] = useState(false);
-  const [viewingAuthorId, setViewingAuthorId] = useState<string | null>(null);
-  const [viewingStoryId, setViewingStoryId] = useState<string | null>(null);
+  const { isSidebarOpen, closeSidebar } = useSidebar();
 
   // Sidebar & navigation state
   const [activeTab, setActiveTab] = useState<UnifiedTab>("overview");
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   // Profile edit state
   const [isEditingProfile, setIsEditingProfile] = useState(false);
@@ -282,7 +268,7 @@ export default function RegularUserDashboard() {
 
       // Pobierz zlecenia użytkownika (posty typu request)
       // Posty service request mają wypełnione request_category
-      const { data: posts, error: postsError } = await supabaseAny
+      const { data: posts, error: postsError } = await supabase
         .from("posts")
         .select(
           `
@@ -362,7 +348,7 @@ export default function RegularUserDashboard() {
     }
 
     try {
-      const { data, error } = await supabaseAny
+      const { data, error } = await supabase
         .from("messages")
         .select(
           `
@@ -456,7 +442,7 @@ export default function RegularUserDashboard() {
 
       if (!messagesToMark || messagesToMark.length === 0) return;
 
-      const { error } = await supabaseAny
+      const { error } = await supabase
         .from("messages")
         .update({ is_read: true })
         .in("id", messagesToMark);
@@ -475,7 +461,7 @@ export default function RegularUserDashboard() {
     const currentPartnerId = selectedConversation.partnerId;
 
     try {
-      const { error } = await supabaseAny.from("messages").insert({
+      const { error } = await supabase.from("messages").insert({
         sender_id: user.id,
         recipient_id: selectedConversation.partnerId,
         subject: "Chat message",
@@ -515,91 +501,16 @@ export default function RegularUserDashboard() {
     event: React.ChangeEvent<HTMLInputElement>
   ) => {
     const file = event.target.files?.[0];
-    if (!file || !user?.id || !selectedConversation) return;
+    if (!file) return;
 
     setUploadingFile(true);
     try {
       console.log("[UPLOAD] File selected:", file.name);
-
-      // Validate file size (max 10MB)
-      if (file.size > 10 * 1024 * 1024) {
-        toast.error("❌ Plik jest za duży. Maksymalny rozmiar to 10MB");
-        return;
-      }
-
-      // Validate file type
-      const allowedTypes = [
-        "image/jpeg",
-        "image/png",
-        "image/gif",
-        "image/webp",
-        "application/pdf",
-        "application/msword",
-        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-      ];
-      if (!allowedTypes.includes(file.type)) {
-        toast.error("❌ Niedozwolony typ pliku. Dozwolone: obrazy, PDF, DOC");
-        return;
-      }
-
-      toast.loading("📤 Przesyłanie pliku...");
-
-      // Generate unique filename
-      const fileExt = file.name.split(".").pop();
-      const fileName = `${user.id}/${Date.now()}_${Math.random()
-        .toString(36)
-        .substring(7)}.${fileExt}`;
-
-      // Upload to Supabase Storage
-      const { data: uploadData, error: uploadError } = await supabase.storage
-        .from("message-attachments")
-        .upload(fileName, file, {
-          cacheControl: "3600",
-          upsert: false,
-        });
-
-      if (uploadError) {
-        console.error("[UPLOAD] Storage error:", uploadError);
-        toast.dismiss();
-        toast.error("❌ Błąd podczas przesyłania pliku");
-        return;
-      }
-
-      // Get public URL
-      const { data: urlData } = supabase.storage
-        .from("message-attachments")
-        .getPublicUrl(fileName);
-
-      const fileUrl = urlData.publicUrl;
-
-      // Send message with attachment
-      const { error: messageError } = await supabaseAny
-        .from("messages")
-        .insert({
-          sender_id: user.id,
-          recipient_id: selectedConversation.partnerId,
-          subject: "Załącznik",
-          content: `📎 [Załącznik: ${file.name}](${fileUrl})`,
-          is_read: false,
-          message_type: "direct",
-          attachments: [fileUrl],
-        });
-
-      if (messageError) throw messageError;
-
-      toast.dismiss();
-      toast.success("✅ Plik przesłany!");
-
-      // Reload messages
-      await loadMessages(user.id);
+      toast.info("📎 Upload plików będzie wkrótce dostępny!");
     } catch (err) {
       console.error("[UPLOAD] Error:", err);
-      toast.dismiss();
-      toast.error("❌ Wystąpił błąd podczas przesyłania");
     } finally {
       setUploadingFile(false);
-      // Reset file input
-      event.target.value = "";
     }
   };
 
@@ -840,7 +751,7 @@ export default function RegularUserDashboard() {
     }
 
     try {
-      const { error } = await supabaseAny
+      const { error } = await supabase
         .from("posts")
         .delete()
         .eq("id", requestId)
@@ -861,7 +772,7 @@ export default function RegularUserDashboard() {
   };
 
   const handleViewRequest = (requestId: string) => {
-    // Przekierowanie do strony szczegółów zlecenia (przez React Router)
+    // Przekierowanie do strony szczegółów zlecenia
     window.location.href = `/request/${requestId}`;
   };
 
@@ -975,20 +886,10 @@ export default function RegularUserDashboard() {
 
       {/* Service Requests List */}
       <div className="bg-white rounded-lg shadow">
-        <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <h2 className="text-xl font-semibold text-gray-900">
-              Twoje zlecenia
-            </h2>
-            <RequestNotificationBadge />
-          </div>
-          <button
-            onClick={handleCreateRequest}
-            disabled={!canCreateRequest()}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            ➕ Nowe zlecenie
-          </button>
+        <div className="px-6 py-4 border-b border-gray-200">
+          <h2 className="text-xl font-semibold text-gray-900">
+            Twoje zlecenia
+          </h2>
         </div>
 
         {serviceRequests.length === 0 ? (
@@ -2891,41 +2792,13 @@ export default function RegularUserDashboard() {
           unreadMessages={unreadCount}
           isMobile={true}
           isMobileMenuOpen={isSidebarOpen}
-          onMobileMenuToggle={() => setIsSidebarOpen(false)}
+          onMobileMenuToggle={closeSidebar}
           onSupportClick={() => setShowSupportModal(true)}
         />
       )}
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Mobile Header with Hamburger */}
-        {isMobile && (
-          <div className="bg-gradient-to-r from-purple-600 to-pink-600 text-white sticky top-0 z-40 shadow-lg flex-shrink-0">
-            <div className="flex items-center justify-between px-4 py-3">
-              <h1 className="text-lg font-bold">👤 Regular User</h1>
-              <button
-                onClick={() => setIsSidebarOpen(true)}
-                className="p-2 hover:bg-white/20 rounded-lg transition-colors"
-                aria-label="Otwórz menu"
-              >
-                <svg
-                  className="w-6 h-6"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M4 6h16M4 12h16M4 18h16"
-                  />
-                </svg>
-              </button>
-            </div>
-          </div>
-        )}
-
         {/* Main scrollable content */}
         <main className="flex-1 overflow-y-auto">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -2971,15 +2844,6 @@ export default function RegularUserDashboard() {
               </div>
             </div>
 
-            {/* Stories Bar - Instagram-like stories (PRO) */}
-            <StoriesBarPro
-              onCreateStory={() => setShowCreateStoryEditor(true)}
-              onViewStory={(authorId, storyId) => {
-                setViewingAuthorId(authorId);
-                setViewingStoryId(storyId || null);
-              }}
-            />
-
             {/* Tab Content */}
             {activeTab === "overview" && renderOverview()}
             {activeTab === "my_posts" && renderMyRequests()}
@@ -3016,185 +2880,6 @@ export default function RegularUserDashboard() {
         isOpen={showSupportModal}
         onClose={() => setShowSupportModal(false)}
       />
-
-      {/* Create Story Editor (PRO) */}
-      {showCreateStoryEditor && (
-        <CreateStoryEditor
-          onClose={() => setShowCreateStoryEditor(false)}
-          onSuccess={() => {
-            toast.success("✅ Story dodana!");
-            setShowCreateStoryEditor(false);
-          }}
-        />
-      )}
-
-      {/* Story Viewer PRO */}
-      {viewingAuthorId && (
-        <StoryViewerProWrapper
-          authorId={viewingAuthorId}
-          storyId={viewingStoryId}
-          onClose={() => {
-            setViewingAuthorId(null);
-            setViewingStoryId(null);
-          }}
-        />
-      )}
     </div>
-  );
-}
-
-// Helper component to load author groups for StoryViewerPro
-function StoryViewerProWrapper({
-  authorId,
-  storyId,
-  onClose,
-}: {
-  authorId: string;
-  storyId: string | null;
-  onClose: () => void;
-}) {
-  const [authorGroups, setAuthorGroups] = useState<AuthorGroup[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    const loadGroups = async () => {
-      console.log(
-        "🔄 [StoryViewerProWrapper] Loading stories for author:",
-        authorId
-      );
-
-      const now = new Date().toISOString();
-      const supabaseAny = supabase as any;
-
-      try {
-        const { data: stories, error: queryError } = await supabaseAny
-          .from("stories")
-          .select(
-            `
-            id,
-            author_id,
-            author_type,
-            media_url,
-            media_type,
-            caption,
-            is_job_posting,
-            job_title,
-            job_category,
-            job_location,
-            job_budget_min,
-            job_budget_max,
-            job_urgency,
-            job_preferred_date,
-            views_count,
-            reactions_count,
-            created_at,
-            expires_at,
-            profiles!stories_author_id_fkey (
-              id,
-              full_name,
-              avatar_url,
-              role
-            )
-          `
-          )
-          .eq("is_active", true)
-          .is("deleted_at", null)
-          .gt("expires_at", now)
-          .order("created_at", { ascending: false });
-
-        if (queryError) {
-          console.error("❌ [StoryViewerProWrapper] Query error:", queryError);
-          setError(queryError.message);
-          setLoading(false);
-          return;
-        }
-
-        console.log(
-          "📊 [StoryViewerProWrapper] Fetched stories:",
-          stories?.length
-        );
-
-        if (!stories || stories.length === 0) {
-          console.warn("⚠️ [StoryViewerProWrapper] No stories found");
-          setError("Brak aktywnych stories");
-          setLoading(false);
-          return;
-        }
-
-        const grouped = new Map<string, AuthorGroup>();
-
-        for (const story of stories) {
-          const aId = story.author_id;
-          const profile = story.profiles;
-
-          if (!grouped.has(aId)) {
-            grouped.set(aId, {
-              authorId: aId,
-              authorName: profile?.full_name || "Nieznany",
-              authorAvatar: profile?.avatar_url || "",
-              authorRole: profile?.role || "regular_user",
-              stories: [],
-              hasUnseen: false,
-            });
-          }
-          grouped.get(aId)!.stories.push(story);
-        }
-
-        const groupsArray = Array.from(grouped.values());
-        console.log(
-          "✅ [StoryViewerProWrapper] Grouped authors:",
-          groupsArray.length
-        );
-        setAuthorGroups(groupsArray);
-      } catch (err) {
-        console.error("❌ [StoryViewerProWrapper] Exception:", err);
-        setError("Błąd ładowania stories");
-      }
-
-      setLoading(false);
-    };
-
-    loadGroups();
-  }, [authorId]);
-
-  // Show loading overlay
-  if (loading) {
-    return (
-      <div className="fixed inset-0 z-50 bg-black flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin w-12 h-12 border-4 border-purple-500 border-t-transparent rounded-full mx-auto mb-4" />
-          <p className="text-white">Ładowanie story...</p>
-        </div>
-      </div>
-    );
-  }
-
-  // Show error with close button
-  if (error || authorGroups.length === 0) {
-    return (
-      <div className="fixed inset-0 z-50 bg-black flex items-center justify-center">
-        <div className="text-center p-6">
-          <p className="text-white text-lg mb-4">
-            {error || "Brak stories do wyświetlenia"}
-          </p>
-          <button
-            onClick={onClose}
-            className="px-6 py-2 bg-purple-600 text-white rounded-full hover:bg-purple-700"
-          >
-            Zamknij
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <StoryViewerPro
-      initialAuthorId={authorId}
-      initialStoryId={storyId || undefined}
-      authorGroups={authorGroups}
-      onClose={onClose}
-    />
   );
 }
