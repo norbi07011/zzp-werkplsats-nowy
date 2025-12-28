@@ -29,6 +29,11 @@ import {
   Calendar,
   DollarSign,
   Send,
+  Music,
+  Play,
+  Pause,
+  Volume2,
+  Clock,
 } from "lucide-react";
 import { supabase } from "../../src/lib/supabase";
 import { useAuth } from "../../contexts/AuthContext";
@@ -73,6 +78,12 @@ interface StorySlide {
   mediaPositionY: number; // 0-100 (vertical position %)
   mediaRotation: number; // -180 to 180 degrees
   mediaFit: "cover" | "contain" | "fill"; // object-fit style
+  // Audio/Music
+  audioTrackId: string | null; // Selected music track ID
+  audioFile: File | null; // Custom audio upload
+  audioPreview: string; // Audio URL for preview
+  // Duration
+  duration: 15 | 30 | 45 | 60; // Story duration in seconds
   textOverlays: TextOverlay[];
   stickers: StickerOverlay[];
   caption: string;
@@ -177,6 +188,19 @@ const STICKERS = [
   "🏆",
 ];
 
+// Music library - Placeholder for future integration with music API
+// Users can upload their own audio files for now
+const MUSIC_LIBRARY = [
+  {
+    id: "upload-info",
+    name: "🎵 Biblioteka muzyki - wkrótce!",
+    artist: "Na razie wgraj własny plik audio poniżej",
+    emoji: "🔜",
+    duration: "0:00",
+    url: "", // Empty - will be populated with real music API later
+  },
+];
+
 // =====================================================
 // HELPER FUNCTIONS
 // =====================================================
@@ -196,6 +220,12 @@ const createEmptySlide = (): StorySlide => ({
   mediaPositionY: 50,
   mediaRotation: 0,
   mediaFit: "cover",
+  // Audio defaults
+  audioTrackId: null,
+  audioFile: null,
+  audioPreview: "",
+  // Duration default
+  duration: 15,
   textOverlays: [],
   stickers: [],
   caption: "",
@@ -222,6 +252,8 @@ export const CreateStoryEditor = ({
   const { user } = useAuth();
   const canvasRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const audioInputRef = useRef<HTMLInputElement>(null);
+  const audioPlayerRef = useRef<HTMLAudioElement>(null);
 
   // Role-based access: only employer, regular_user, accountant can create stories
   const allowedRoles = ["employer", "regular_user", "accountant"];
@@ -243,9 +275,10 @@ export const CreateStoryEditor = ({
 
   // Editor state
   const [activeTab, setActiveTab] = useState<
-    "media" | "text" | "stickers" | "draw" | "job"
+    "media" | "text" | "stickers" | "draw" | "job" | "music"
   >("media");
   const [uploading, setUploading] = useState(false);
+  const [isPlayingAudio, setIsPlayingAudio] = useState(false);
 
   // Text editing
   const [editingTextId, setEditingTextId] = useState<string | null>(null);
@@ -403,6 +436,89 @@ export const CreateStoryEditor = ({
   };
 
   // =====================================================
+  // AUDIO/MUSIC HANDLING
+  // =====================================================
+
+  const selectMusicTrack = (trackId: string) => {
+    const track = MUSIC_LIBRARY.find((t) => t.id === trackId);
+    if (!track) return;
+
+    // Skip if placeholder track (no URL)
+    if (!track.url) {
+      toast.info("💡 Biblioteka muzyki będzie dostępna wkrótce. Użyj własnego pliku audio poniżej.");
+      return;
+    }
+
+    updateCurrentSlide({
+      audioTrackId: trackId,
+      audioPreview: track.url,
+      audioFile: null, // Clear custom upload if library track selected
+    });
+
+    toast.success(`🎵 ${track.name} dodano`);
+  };
+
+  const handleAudioFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("audio/")) {
+      toast.error("Tylko pliki audio są dozwolone");
+      return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error("Plik audio jest za duży (max 10MB)");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      updateCurrentSlide({
+        audioFile: file,
+        audioPreview: event.target?.result as string,
+        audioTrackId: null, // Clear library selection
+      });
+      toast.success("🎵 Własna muzyka dodana");
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const removeAudio = () => {
+    updateCurrentSlide({
+      audioTrackId: null,
+      audioFile: null,
+      audioPreview: "",
+    });
+    setIsPlayingAudio(false);
+    if (audioPlayerRef.current) {
+      audioPlayerRef.current.pause();
+      audioPlayerRef.current.currentTime = 0;
+    }
+    toast.success("🔇 Muzyka usunięta");
+  };
+
+  const toggleAudioPlayback = () => {
+    if (!audioPlayerRef.current || !currentSlide.audioPreview) return;
+
+    if (isPlayingAudio) {
+      audioPlayerRef.current.pause();
+      setIsPlayingAudio(false);
+    } else {
+      audioPlayerRef.current.play();
+      setIsPlayingAudio(true);
+    }
+  };
+
+  // Auto-pause when switching slides
+  useEffect(() => {
+    if (isPlayingAudio && audioPlayerRef.current) {
+      audioPlayerRef.current.pause();
+      setIsPlayingAudio(false);
+    }
+  }, [currentSlideIndex]);
+
+  // =====================================================
   // DRAG AND DROP
   // =====================================================
 
@@ -510,6 +626,7 @@ export const CreateStoryEditor = ({
       for (const slide of validSlides) {
         let mediaUrl = "";
         let mediaType: "image" | "video" = "image";
+        let audioUrl = "";
 
         // Upload media if exists
         if (slide.mediaFile) {
@@ -548,6 +665,37 @@ export const CreateStoryEditor = ({
           )}`;
         }
 
+        // Handle audio upload or use library track
+        if (slide.audioFile) {
+          // Upload custom audio file
+          const fileExt = slide.audioFile.name.split(".").pop();
+          const fileName = `${
+            user.id
+          }_${Date.now()}_${generateId()}.${fileExt}`;
+          const filePath = `stories/audio/${fileName}`;
+
+          const { error: uploadError } = await supabase.storage
+            .from("avatars")
+            .upload(filePath, slide.audioFile, {
+              cacheControl: "3600",
+              upsert: false,
+            });
+
+          if (uploadError) throw uploadError;
+
+          const { data: urlData } = supabase.storage
+            .from("avatars")
+            .getPublicUrl(filePath);
+
+          audioUrl = urlData.publicUrl;
+        } else if (slide.audioTrackId) {
+          // Use library track URL
+          const track = MUSIC_LIBRARY.find((t) => t.id === slide.audioTrackId);
+          if (track) {
+            audioUrl = track.url;
+          }
+        }
+
         // Create story record
         const supabaseAny = supabase as any;
         const { error: insertError } = await supabaseAny
@@ -557,6 +705,8 @@ export const CreateStoryEditor = ({
             author_type: "regular_user",
             media_url: mediaUrl,
             media_type: mediaType,
+            audio_url: audioUrl || null,
+            duration: slide.duration,
             caption: slide.caption || null,
             is_job_posting: slide.isJobPosting,
             job_title: slide.isJobPosting ? slide.jobData.title : null,
@@ -632,12 +782,17 @@ export const CreateStoryEditor = ({
         <div className="flex-1 flex items-center justify-center p-4">
           <div
             ref={canvasRef}
-            className="relative w-full max-w-[360px] aspect-[9/16] rounded-2xl overflow-hidden shadow-2xl bg-black"
+            className="relative w-full max-w-[360px] aspect-[9/16] rounded-2xl overflow-hidden shadow-2xl"
+            style={{
+              background:
+                currentSlide.backgroundGradient ||
+                currentSlide.backgroundColor,
+            }}
           >
             {/* Media Layer with positioning controls */}
             {currentSlide.mediaPreview && (
               <div
-                className="absolute inset-0"
+                className="absolute inset-0 flex items-center justify-center"
                 style={{
                   transform: `scale(${currentSlide.mediaScale}) rotate(${currentSlide.mediaRotation}deg)`,
                   transformOrigin: "center center",
@@ -646,7 +801,7 @@ export const CreateStoryEditor = ({
                 {currentSlide.mediaType === "video" ? (
                   <video
                     src={currentSlide.mediaPreview}
-                    className="w-full h-full"
+                    className="max-w-full max-h-full"
                     style={{
                       objectFit: currentSlide.mediaFit,
                       objectPosition: `${currentSlide.mediaPositionX}% ${currentSlide.mediaPositionY}%`,
@@ -659,26 +814,16 @@ export const CreateStoryEditor = ({
                   <img
                     src={currentSlide.mediaPreview}
                     alt="Story media"
-                    className="w-full h-full"
+                    className="max-w-full max-h-full"
                     style={{
                       objectFit: currentSlide.mediaFit,
                       objectPosition: `${currentSlide.mediaPositionX}% ${currentSlide.mediaPositionY}%`,
+                      width: currentSlide.mediaFit === 'contain' ? 'auto' : '100%',
+                      height: currentSlide.mediaFit === 'contain' ? 'auto' : '100%',
                     }}
                   />
                 )}
               </div>
-            )}
-
-            {/* Background for text-only stories */}
-            {!currentSlide.mediaPreview && (
-              <div
-                className="absolute inset-0"
-                style={{
-                  background:
-                    currentSlide.backgroundGradient ||
-                    currentSlide.backgroundColor,
-                }}
-              />
             )}
 
             {/* Text Overlays */}
@@ -837,6 +982,7 @@ export const CreateStoryEditor = ({
             { id: "media", icon: ImageIcon, label: "Media" },
             { id: "text", icon: Type, label: "Tekst" },
             { id: "stickers", icon: Sparkles, label: "Naklejki" },
+            { id: "music", icon: Music, label: "Muzyka" },
             { id: "job", icon: Briefcase, label: "Zlecenie" },
           ].map((tab) => (
             <button
@@ -1037,6 +1183,35 @@ export const CreateStoryEditor = ({
                 </button>
               )}
 
+              {/* Duration Selector */}
+              <div className="p-4 bg-gray-900 rounded-xl">
+                <h4 className="text-white font-medium text-sm mb-3 flex items-center gap-2">
+                  <Clock className="w-4 h-4" />
+                  Czas trwania relacji
+                </h4>
+                <div className="grid grid-cols-4 gap-2">
+                  {[15, 30, 45, 60].map((seconds) => (
+                    <button
+                      key={seconds}
+                      onClick={() =>
+                        updateCurrentSlide({ duration: seconds as any })
+                      }
+                      className={`p-3 rounded-lg text-center transition-all ${
+                        currentSlide.duration === seconds
+                          ? "bg-purple-500 text-white ring-2 ring-purple-400"
+                          : "bg-gray-800 text-gray-400 hover:bg-gray-700"
+                      }`}
+                    >
+                      <div className="text-lg font-bold">{seconds}</div>
+                      <div className="text-xs">sek</div>
+                    </button>
+                  ))}
+                </div>
+                <p className="text-xs text-gray-500 mt-3 text-center">
+                  ⏱️ Wybierz jak długo Story ma być widoczne
+                </p>
+              </div>
+
               <div>
                 <h4 className="text-gray-400 text-sm mb-2">
                   Tło (bez zdjęcia)
@@ -1179,6 +1354,120 @@ export const CreateStoryEditor = ({
                     {emoji}
                   </button>
                 ))}
+              </div>
+            </div>
+          )}
+
+          {/* Music Tab */}
+          {activeTab === "music" && (
+            <div className="space-y-4">
+              <h3 className="text-white font-semibold flex items-center gap-2">
+                <Music className="w-5 h-5" />
+                Dodaj muzykę
+              </h3>
+
+              {/* Currently Selected Audio */}
+              {currentSlide.audioPreview && (
+                <div className="p-4 bg-gray-900 rounded-xl space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Volume2 className="w-5 h-5 text-purple-400" />
+                      <span className="text-white text-sm font-medium">
+                        {currentSlide.audioTrackId
+                          ? MUSIC_LIBRARY.find(
+                              (t) => t.id === currentSlide.audioTrackId
+                            )?.name
+                          : "Własna muzyka"}
+                      </span>
+                    </div>
+                    <button
+                      onClick={removeAudio}
+                      className="p-2 text-red-400 hover:bg-red-500/20 rounded-lg"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  {/* Audio Player Controls */}
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={toggleAudioPlayback}
+                      className="p-3 bg-purple-500 text-white rounded-full hover:bg-purple-600"
+                    >
+                      {isPlayingAudio ? (
+                        <Pause className="w-5 h-5" />
+                      ) : (
+                        <Play className="w-5 h-5" />
+                      )}
+                    </button>
+                    <div className="flex-1 text-xs text-gray-400">
+                      {isPlayingAudio ? "Odtwarzanie..." : "Kliknij aby odsłuchać"}
+                    </div>
+                  </div>
+
+                  {/* Hidden Audio Element */}
+                  <audio
+                    ref={audioPlayerRef}
+                    src={currentSlide.audioPreview}
+                    onEnded={() => setIsPlayingAudio(false)}
+                    className="hidden"
+                  />
+                </div>
+              )}
+
+              {/* Music Library */}
+              <div>
+                <h4 className="text-gray-400 text-sm mb-3 flex items-center gap-2">
+                  🎵 Biblioteka muzyki (wkrótce)
+                </h4>
+                <div className="p-4 bg-gray-900 rounded-lg border-2 border-dashed border-gray-700">
+                  <p className="text-gray-400 text-sm text-center">
+                    🔜 Biblioteka gotowych utworów będzie dostępna wkrótce!
+                  </p>
+                  <p className="text-gray-500 text-xs text-center mt-2">
+                    Na razie możesz wgrać własny plik audio poniżej ⬇️
+                  </p>
+                </div>
+              </div>
+
+              {/* Divider */}
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-gray-700"></div>
+                </div>
+                <div className="relative flex justify-center text-xs">
+                  <span className="px-2 bg-gray-800 text-gray-500">LUB</span>
+                </div>
+              </div>
+
+              {/* Custom Audio Upload */}
+              <div>
+                <h4 className="text-gray-400 text-sm mb-3">
+                  📁 Własna muzyka
+                </h4>
+                <input
+                  ref={audioInputRef}
+                  type="file"
+                  accept="audio/*"
+                  onChange={handleAudioFileChange}
+                  className="hidden"
+                />
+                <button
+                  onClick={() => audioInputRef.current?.click()}
+                  className="w-full p-4 border-2 border-dashed border-gray-600 rounded-xl hover:border-purple-500 transition-colors flex flex-col items-center gap-2 text-gray-400 hover:text-purple-400"
+                >
+                  <Upload className="w-8 h-8" />
+                  <span className="text-sm">Wgraj własny plik audio</span>
+                  <span className="text-xs text-gray-500">(Max 10MB)</span>
+                </button>
+              </div>
+
+              {/* Info */}
+              <div className="p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg">
+                <p className="text-xs text-blue-400 leading-relaxed">
+                  💡 <strong>Wskazówka:</strong> Dodaj własną muzykę do Story!<br />
+                  Twoja muzyka zostanie automatycznie odtworzona przez widzów.
+                </p>
               </div>
             </div>
           )}

@@ -539,6 +539,9 @@ export default function WorkerPublicProfilePage({
   (window as any).handleOpenContact = handleOpenContact;
   (window as any).handleOpenReview = handleOpenReview;
 
+  // Check if viewing own profile
+  const isOwnProfile = user && worker && worker.profile_id === user.id;
+
   return (
     <div className="min-h-screen bg-gray-50 relative overflow-hidden">
       {/* 3D Background Layer */}
@@ -557,13 +560,17 @@ export default function WorkerPublicProfilePage({
             />
           )}
           <div className="absolute inset-0 bg-black bg-opacity-30"></div>
-          <button
-            onClick={() => navigate("/workers")}
-            className="absolute top-6 left-6 flex items-center gap-2 px-4 py-2 bg-white rounded-lg shadow-lg hover:bg-gray-50"
-          >
-            <ArrowLeft className="w-5 h-5" />
-            <span>Wróć do wyszukiwarki</span>
-          </button>
+          
+          {/* Back button - only show when NOT embedded */}
+          {!embedded && (
+            <button
+              onClick={() => navigate("/workers")}
+              className="absolute top-6 left-6 flex items-center gap-2 px-4 py-2 bg-white rounded-lg shadow-lg hover:bg-gray-50 transition-colors"
+            >
+              <ArrowLeft className="w-5 h-5" />
+              <span>Wróć do wyszukiwarki</span>
+            </button>
+          )}
         </div>
 
         {/* Profile Info */}
@@ -758,29 +765,31 @@ export default function WorkerPublicProfilePage({
                       )}
                   </div>
 
-                  {/* Action Buttons */}
-                  <div className="flex gap-3">
-                    {/* Contact Button */}
-                    <a
-                      href={`mailto:${worker.email}`}
-                      className="px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors shadow-lg"
-                    >
-                      Skontaktuj się
-                    </a>
+                  {/* Action Buttons - Hide for own profile */}
+                  {!isOwnProfile && (
+                    <div className="flex gap-3">
+                      {/* Contact Button */}
+                      <a
+                        href={`mailto:${worker.email}`}
+                        className="px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors shadow-lg"
+                      >
+                        Skontaktuj się
+                      </a>
 
-                    {/* Invite to Team Button - Only for employers and cleaning companies */}
-                    {user &&
-                      (user.role === "employer" ||
-                        user.role === "cleaning_company") && (
-                        <button
-                          onClick={() => setIsInviteToTeamModalOpen(true)}
-                          className="px-6 py-3 bg-emerald-600 text-white font-semibold rounded-lg hover:bg-emerald-700 transition-colors shadow-lg flex items-center gap-2"
-                        >
-                          <span>👥</span>
-                          Zaproś do ekipy
-                        </button>
-                      )}
-                  </div>
+                      {/* Invite to Team Button - Only for employers and cleaning companies */}
+                      {user &&
+                        (user.role === "employer" ||
+                          user.role === "cleaning_company") && (
+                          <button
+                            onClick={() => setIsInviteToTeamModalOpen(true)}
+                            className="px-6 py-3 bg-emerald-600 text-white font-semibold rounded-lg hover:bg-emerald-700 transition-colors shadow-lg flex items-center gap-2"
+                          >
+                            <span>👥</span>
+                            Zaproś do ekipy
+                          </button>
+                        )}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

@@ -72,6 +72,7 @@ interface Story {
   media_url: string;
   media_type: "image" | "video";
   caption: string | null;
+  duration: number; // Story duration in seconds (from database)
   is_job_posting: boolean;
   job_title: string | null;
   job_category: string | null;
@@ -125,7 +126,7 @@ interface StoryReaction {
 // CONSTANTS
 // =====================================================
 
-const STORY_DURATION = 5000; // 5 seconds per story
+// Removed STORY_DURATION - now using dynamic duration from each story's database record
 
 // Jeden typ reakcji - "interested" (Zainteresowany)
 const SINGLE_REACTION = {
@@ -211,7 +212,9 @@ export const StoryViewerPro = ({
 
     setProgress(0);
     const interval = 50; // Update every 50ms
-    const increment = (interval / STORY_DURATION) * 100;
+    // Get duration from current story (in seconds) and convert to milliseconds
+    const storyDuration = (currentStory?.duration || 15) * 1000;
+    const increment = (interval / storyDuration) * 100;
 
     progressRef.current = setInterval(() => {
       setProgress((prev) => {
@@ -223,7 +226,7 @@ export const StoryViewerPro = ({
         return prev + increment;
       });
     }, interval);
-  }, []);
+  }, [currentStory]);
 
   const pauseProgress = useCallback(() => {
     if (progressRef.current) {
@@ -234,7 +237,8 @@ export const StoryViewerPro = ({
 
   const resumeProgress = useCallback(() => {
     if (!isPaused && !progressRef.current) {
-      const remaining = ((100 - progress) / 100) * STORY_DURATION;
+      const storyDuration = (currentStory?.duration || 15) * 1000;
+      const remaining = ((100 - progress) / 100) * storyDuration;
       const interval = 50;
       const increment = (interval / remaining) * (100 - progress);
 
@@ -248,7 +252,7 @@ export const StoryViewerPro = ({
         });
       }, interval);
     }
-  }, [isPaused, progress]);
+  }, [isPaused, progress, currentStory]);
 
   // =====================================================
   // NAVIGATION

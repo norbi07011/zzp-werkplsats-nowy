@@ -315,6 +315,13 @@ export default function AccountantProfilePage({
   (window as any).handleOpenContact = handleOpenContact;
   (window as any).handleOpenReview = handleOpenReview;
 
+  console.log("✅ AccountantProfilePage RENDERING:", { 
+    accountantId: id, 
+    embedded, 
+    fullName: accountant?.full_name,
+    timestamp: new Date().toISOString() 
+  });
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Cover Image Header */}
@@ -337,13 +344,17 @@ export default function AccountantProfilePage({
           />
         )}
         <div className="absolute inset-0 bg-black bg-opacity-30"></div>
-        <button
-          onClick={() => navigate("/accountants")}
-          className="absolute top-6 left-6 flex items-center gap-2 px-4 py-2 bg-white rounded-lg shadow-lg hover:bg-gray-50 transition-colors"
-        >
-          <ArrowLeft className="w-5 h-5" />
-          <span>Wróć do wyszukiwarki</span>
-        </button>
+        
+        {/* Back button - only show when NOT embedded */}
+        {!embedded && (
+          <button
+            onClick={() => navigate("/accountants")}
+            className="absolute top-6 left-6 flex items-center gap-2 px-4 py-2 bg-white rounded-lg shadow-lg hover:bg-gray-50 transition-colors"
+          >
+            <ArrowLeft className="w-5 h-5" />
+            <span>Wróć do wyszukiwarki</span>
+          </button>
+        )}
       </div>
 
       {/* Profile Info Card */}

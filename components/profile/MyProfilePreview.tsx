@@ -116,6 +116,7 @@ export function MyProfilePreview({ role }: MyProfilePreviewProps) {
   }
 
   if (error || !profileId) {
+    console.log("❌ MyProfilePreview ERROR:", { role, error, profileId, userId: user?.id });
     return (
       <div className="min-h-[60vh] flex items-center justify-center">
         <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-8 shadow-xl text-center max-w-md">
@@ -128,6 +129,8 @@ export function MyProfilePreview({ role }: MyProfilePreviewProps) {
       </div>
     );
   }
+
+  console.log("✅ MyProfilePreview RENDERING:", { role, profileId, userId: user?.id, embedded: true });
 
   // Render the appropriate public profile component directly
   switch (role) {

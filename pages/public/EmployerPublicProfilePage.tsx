@@ -383,13 +383,17 @@ export default function EmployerPublicProfilePage({
             />
           )}
           <div className="absolute inset-0 bg-black bg-opacity-30"></div>
-          <button
-            onClick={() => navigate(-1)}
-            className="absolute top-6 left-6 flex items-center gap-2 px-4 py-2 bg-white rounded-lg shadow-lg hover:bg-gray-50"
-          >
-            <ArrowLeft className="w-5 h-5" />
-            <span>Wstecz</span>
-          </button>
+          
+          {/* Back button - only show when NOT embedded */}
+          {!embedded && (
+            <button
+              onClick={() => navigate(-1)}
+              className="absolute top-6 left-6 flex items-center gap-2 px-4 py-2 bg-white rounded-lg shadow-lg hover:bg-gray-50 transition-colors"
+            >
+              <ArrowLeft className="w-5 h-5" />
+              <span>Wstecz</span>
+            </button>
+          )}
         </div>
 
         {/* Profile Info */}

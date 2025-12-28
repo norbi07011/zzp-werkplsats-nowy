@@ -26,6 +26,7 @@ interface Story {
   media_url: string;
   media_type: "image" | "video";
   caption: string | null;
+  duration: number; // Story duration in seconds
   is_job_posting: boolean;
   job_title: string | null;
   job_category: string | null;
@@ -171,6 +172,7 @@ export const StoriesBarPro = ({
           media_url,
           media_type,
           caption,
+          duration,
           is_job_posting,
           job_title,
           job_category,

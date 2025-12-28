@@ -91,7 +91,7 @@ interface Message {
     full_name?: string;
     avatar_url?: string;
   };
-  recipient?: {
+  recipient: {
     id: string;
     full_name?: string;
     avatar_url?: string;
@@ -406,7 +406,8 @@ export default function AccountantDashboard() {
   const loadMessages = async (userId: string) => {
     try {
       // Bidirectional query: both sent and received messages
-      const { data, error } = await (supabase as any)
+      // Using simpler syntax without named foreign keys
+      const { data, error } = await supabase
         .from("messages")
         .select(
           `
@@ -418,12 +419,12 @@ export default function AccountantDashboard() {
           sender_id,
           recipient_id,
           attachments,
-          sender:profiles!messages_sender_id_fkey(
+          sender:sender_id(
             id,
             full_name,
             avatar_url
           ),
-          recipient:profiles!messages_recipient_id_fkey(
+          recipient:recipient_id(
             id,
             full_name,
             avatar_url
@@ -439,32 +440,38 @@ export default function AccountantDashboard() {
         count: data?.length || 0,
         userId,
         sample: data?.[0],
+        senderCheck: data?.[0]?.sender,
+        recipientCheck: data?.[0]?.recipient,
       });
 
-      // Map to Message[] format
+      // Map to Message[] format with proper null checks
       const typedMessages: Message[] =
-        data?.map((msg: any) => ({
-          id: msg.id,
-          subject: msg.subject || "",
-          content: msg.content || "",
-          created_at: msg.created_at,
-          is_read: msg.is_read,
-          sender_id: msg.sender_id,
-          recipient_id: msg.recipient_id,
-          sender: {
-            id: msg.sender?.id || "",
-            full_name: msg.sender?.full_name || "Unknown",
-            avatar_url: msg.sender?.avatar_url || undefined,
-          },
-          recipient: msg.recipient
-            ? {
-                id: msg.recipient.id,
-                full_name: msg.recipient.full_name || "Unknown",
-                avatar_url: msg.recipient.avatar_url || undefined,
-              }
-            : undefined,
-          attachments: msg.attachments || [],
-        })) || [];
+        data?.map((msg: any) => {
+          // Ensure sender and recipient are properly mapped
+          const sender = msg.sender || { id: msg.sender_id, full_name: "Unknown", avatar_url: undefined };
+          const recipient = msg.recipient || { id: msg.recipient_id, full_name: "Unknown", avatar_url: undefined };
+          
+          return {
+            id: msg.id,
+            subject: msg.subject || "",
+            content: msg.content || "",
+            created_at: msg.created_at,
+            is_read: msg.is_read,
+            sender_id: msg.sender_id,
+            recipient_id: msg.recipient_id,
+            sender: {
+              id: sender.id || msg.sender_id,
+              full_name: sender.full_name || "Unknown",
+              avatar_url: sender.avatar_url || undefined,
+            },
+            recipient: {
+              id: recipient.id || msg.recipient_id,
+              full_name: recipient.full_name || "Unknown",
+              avatar_url: recipient.avatar_url || undefined,
+            },
+            attachments: msg.attachments || [],
+          };
+        }) || [];
 
       console.log("✅ TYPED MESSAGES:", {
         count: typedMessages.length,
