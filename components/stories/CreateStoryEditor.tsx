@@ -67,6 +67,12 @@ interface StorySlide {
   mediaType: "image" | "video" | "text";
   backgroundColor: string;
   backgroundGradient: string;
+  // Media positioning controls
+  mediaScale: number; // 0.5 to 2.0 (zoom)
+  mediaPositionX: number; // 0-100 (horizontal position %)
+  mediaPositionY: number; // 0-100 (vertical position %)
+  mediaRotation: number; // -180 to 180 degrees
+  mediaFit: "cover" | "contain" | "fill"; // object-fit style
   textOverlays: TextOverlay[];
   stickers: StickerOverlay[];
   caption: string;
@@ -184,6 +190,12 @@ const createEmptySlide = (): StorySlide => ({
   mediaType: "text",
   backgroundColor: "#1a1a2e",
   backgroundGradient: GRADIENTS[8],
+  // Media positioning defaults
+  mediaScale: 1.0,
+  mediaPositionX: 50,
+  mediaPositionY: 50,
+  mediaRotation: 0,
+  mediaFit: "cover",
   textOverlays: [],
   stickers: [],
   caption: "",
@@ -620,25 +632,54 @@ export const CreateStoryEditor = ({
         <div className="flex-1 flex items-center justify-center p-4">
           <div
             ref={canvasRef}
-            className="relative w-full max-w-[360px] aspect-[9/16] rounded-2xl overflow-hidden shadow-2xl"
-            style={{
-              background: currentSlide.mediaPreview
-                ? `url(${currentSlide.mediaPreview}) center/cover`
-                : currentSlide.backgroundGradient ||
-                  currentSlide.backgroundColor,
-            }}
+            className="relative w-full max-w-[360px] aspect-[9/16] rounded-2xl overflow-hidden shadow-2xl bg-black"
           >
-            {/* Media */}
-            {currentSlide.mediaType === "video" &&
-              currentSlide.mediaPreview && (
-                <video
-                  src={currentSlide.mediaPreview}
-                  className="absolute inset-0 w-full h-full object-cover"
-                  autoPlay
-                  loop
-                  muted
-                />
-              )}
+            {/* Media Layer with positioning controls */}
+            {currentSlide.mediaPreview && (
+              <div
+                className="absolute inset-0"
+                style={{
+                  transform: `scale(${currentSlide.mediaScale}) rotate(${currentSlide.mediaRotation}deg)`,
+                  transformOrigin: "center center",
+                }}
+              >
+                {currentSlide.mediaType === "video" ? (
+                  <video
+                    src={currentSlide.mediaPreview}
+                    className="w-full h-full"
+                    style={{
+                      objectFit: currentSlide.mediaFit,
+                      objectPosition: `${currentSlide.mediaPositionX}% ${currentSlide.mediaPositionY}%`,
+                    }}
+                    autoPlay
+                    loop
+                    muted
+                  />
+                ) : (
+                  <img
+                    src={currentSlide.mediaPreview}
+                    alt="Story media"
+                    className="w-full h-full"
+                    style={{
+                      objectFit: currentSlide.mediaFit,
+                      objectPosition: `${currentSlide.mediaPositionX}% ${currentSlide.mediaPositionY}%`,
+                    }}
+                  />
+                )}
+              </div>
+            )}
+
+            {/* Background for text-only stories */}
+            {!currentSlide.mediaPreview && (
+              <div
+                className="absolute inset-0"
+                style={{
+                  background:
+                    currentSlide.backgroundGradient ||
+                    currentSlide.backgroundColor,
+                }}
+              />
+            )}
 
             {/* Text Overlays */}
             {currentSlide.textOverlays.map((text) => (
@@ -835,6 +876,157 @@ export const CreateStoryEditor = ({
                 <Upload className="w-8 h-8" />
                 <span>Wybierz plik</span>
               </button>
+
+              {/* Media Positioning Controls */}
+              {currentSlide.mediaPreview && (
+                <div className="space-y-4 p-4 bg-gray-900 rounded-xl">
+                  <h4 className="text-white font-medium text-sm">
+                    🎯 Dopasowanie obrazu
+                  </h4>
+
+                  {/* Scale (Zoom) */}
+                  <div>
+                    <label className="text-gray-400 text-sm mb-2 block">
+                      Powiększenie: {Math.round(currentSlide.mediaScale * 100)}%
+                    </label>
+                    <input
+                      type="range"
+                      min="0.5"
+                      max="2"
+                      step="0.05"
+                      value={currentSlide.mediaScale}
+                      onChange={(e) =>
+                        updateCurrentSlide({
+                          mediaScale: parseFloat(e.target.value),
+                        })
+                      }
+                      className="w-full accent-purple-500"
+                    />
+                    <div className="flex justify-between text-xs text-gray-500 mt-1">
+                      <span>50%</span>
+                      <span>200%</span>
+                    </div>
+                  </div>
+
+                  {/* Position X */}
+                  <div>
+                    <label className="text-gray-400 text-sm mb-2 block">
+                      Pozycja pozioma: {Math.round(currentSlide.mediaPositionX)}%
+                    </label>
+                    <input
+                      type="range"
+                      min="0"
+                      max="100"
+                      step="1"
+                      value={currentSlide.mediaPositionX}
+                      onChange={(e) =>
+                        updateCurrentSlide({
+                          mediaPositionX: parseFloat(e.target.value),
+                        })
+                      }
+                      className="w-full accent-purple-500"
+                    />
+                    <div className="flex justify-between text-xs text-gray-500 mt-1">
+                      <span>←</span>
+                      <span>→</span>
+                    </div>
+                  </div>
+
+                  {/* Position Y */}
+                  <div>
+                    <label className="text-gray-400 text-sm mb-2 block">
+                      Pozycja pionowa: {Math.round(currentSlide.mediaPositionY)}%
+                    </label>
+                    <input
+                      type="range"
+                      min="0"
+                      max="100"
+                      step="1"
+                      value={currentSlide.mediaPositionY}
+                      onChange={(e) =>
+                        updateCurrentSlide({
+                          mediaPositionY: parseFloat(e.target.value),
+                        })
+                      }
+                      className="w-full accent-purple-500"
+                    />
+                    <div className="flex justify-between text-xs text-gray-500 mt-1">
+                      <span>↑</span>
+                      <span>↓</span>
+                    </div>
+                  </div>
+
+                  {/* Rotation */}
+                  <div>
+                    <label className="text-gray-400 text-sm mb-2 block">
+                      Obrót: {currentSlide.mediaRotation}°
+                    </label>
+                    <input
+                      type="range"
+                      min="-180"
+                      max="180"
+                      step="1"
+                      value={currentSlide.mediaRotation}
+                      onChange={(e) =>
+                        updateCurrentSlide({
+                          mediaRotation: parseFloat(e.target.value),
+                        })
+                      }
+                      className="w-full accent-purple-500"
+                    />
+                    <div className="flex justify-between text-xs text-gray-500 mt-1">
+                      <span>-180°</span>
+                      <span>180°</span>
+                    </div>
+                  </div>
+
+                  {/* Fit Mode */}
+                  <div>
+                    <label className="text-gray-400 text-sm mb-2 block">
+                      Dopasowanie
+                    </label>
+                    <div className="grid grid-cols-3 gap-2">
+                      {[
+                        { value: "cover", label: "Wypełnij" },
+                        { value: "contain", label: "Zmieść" },
+                        { value: "fill", label: "Rozciągnij" },
+                      ].map((mode) => (
+                        <button
+                          key={mode.value}
+                          onClick={() =>
+                            updateCurrentSlide({
+                              mediaFit: mode.value as any,
+                            })
+                          }
+                          className={`p-2 rounded text-xs ${
+                            currentSlide.mediaFit === mode.value
+                              ? "bg-purple-500 text-white"
+                              : "bg-gray-800 text-gray-400 hover:bg-gray-700"
+                          }`}
+                        >
+                          {mode.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Reset Button */}
+                  <button
+                    onClick={() =>
+                      updateCurrentSlide({
+                        mediaScale: 1.0,
+                        mediaPositionX: 50,
+                        mediaPositionY: 50,
+                        mediaRotation: 0,
+                        mediaFit: "cover",
+                      })
+                    }
+                    className="w-full p-2 bg-gray-800 text-gray-400 rounded-lg hover:bg-gray-700 text-sm"
+                  >
+                    🔄 Resetuj pozycję
+                  </button>
+                </div>
+              )}
 
               {currentSlide.mediaPreview && (
                 <button
