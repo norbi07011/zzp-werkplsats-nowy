@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import React from "react";
 import { flushSync } from "react-dom";
 import { useNavigate, Link } from "react-router-dom";
-import { Crown } from "lucide-react";
+import { Crown, Star, BarChart3, Eye, Phone } from "lucide-react";
 import { SupportTicketModal } from "../../src/components/SupportTicketModal";
 import { CleaningCompanySettingsPanel } from "../../components/settings/CleaningCompanySettingsPanel";
 import { supabase } from "../../src/lib/supabase";
@@ -10,11 +10,11 @@ import { useAuth } from "../../contexts/AuthContext";
 import { useSidebar } from "../../contexts/SidebarContext";
 import { useIsMobile } from "../../src/hooks/useIsMobile";
 import { CompanyInfoEditModal } from "../../src/components/cleaning/CompanyInfoEditModal";
-import PortfolioUploadModal from "../../src/components/cleaning/PortfolioUploadModal";
 import DateBlocker from "../../src/components/cleaning/DateBlocker";
 import { MessageModal } from "../../src/components/cleaning/MessageModal";
 import { Animated3DProfileBackground } from "../../components/Animated3DProfileBackground";
 import { SpinningNumbers } from "../../components/SpinningNumbers";
+import { StatChipsGrid, StatChipItem } from "../../components/StatChips";
 import {
   UnifiedDashboardTabs,
   useUnifiedTabs,
@@ -31,6 +31,12 @@ import { UpcomingEventsCard } from "../../components/UpcomingEventsCard";
 import { MyProfilePreview } from "../../components/profile/MyProfilePreview";
 import CleaningCompanySubscriptionSelectionPage from "./CleaningCompanySubscriptionSelectionPage";
 import { TeamMembershipTab } from "../../src/modules/team-system/components/TeamMembershipTab";
+import {
+  getAllSavedProfiles,
+  removeSavedProfile,
+  type SavedProfile,
+  type EntityType,
+} from "../../services/savedProfilesService";
 
 // NOTE: Kilometers, Appointments and I18nProvider removed - they are only in /faktury module
 
@@ -106,13 +112,12 @@ const CleaningCompanyDashboard = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
-  const { activeTab, setActiveTab } = useUnifiedTabs("overview");
+  const { activeTab, setActiveTab } = useUnifiedTabs("tablica");
 
   const { isSidebarOpen, closeSidebar } = useSidebar();
   const [loading, setLoading] = useState(true);
   const [companyData, setCompanyData] = useState<CleaningCompany | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
-  const [showPortfolioModal, setShowPortfolioModal] = useState(false);
   const [acceptingClients, setAcceptingClients] = useState(true);
   const [blockedDates, setBlockedDates] = useState<UnavailableDate[]>([]);
   const [reviews, setReviews] = useState<Review[]>([]);
@@ -122,9 +127,13 @@ const CleaningCompanyDashboard = () => {
     useState<Conversation | null>(null);
   const [messageInput, setMessageInput] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
+  const [messagesSubTab, setMessagesSubTab] = useState<
+    "wiadomosci" | "reakcje"
+  >("wiadomosci");
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [uploadingFile, setUploadingFile] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [reactions, setReactions] = useState<Notification[]>([]);
   const [selectedMessage, setSelectedMessage] = useState<Message | null>(null);
   const [showMessageModal, setShowMessageModal] = useState(false);
   const [stats, setStats] = useState<Stats>({
@@ -140,6 +149,12 @@ const CleaningCompanyDashboard = () => {
     "newest" | "oldest" | "highest" | "lowest"
   >("newest");
   const [showAllReviews, setShowAllReviews] = useState(false);
+
+  // Saved Profiles State
+  const [savedProfiles, setSavedProfiles] = useState<SavedProfile[]>([]);
+  const [savedProfilesFilter, setSavedProfilesFilter] = useState<
+    "all" | EntityType
+  >("all");
 
   // Settings state for CleaningCompanySettingsPanel
   const [notificationSettings, setNotificationSettings] = useState({
@@ -160,6 +175,35 @@ const CleaningCompanyDashboard = () => {
   });
 
   const [settingsSaving, setSettingsSaving] = useState(false);
+
+  // =====================================================
+  // PORTFOLIO STATE
+  // =====================================================
+  const [portfolio, setPortfolio] = useState<any[]>([]);
+  const [portfolioForm, setPortfolioForm] = useState({
+    title: "",
+    description: "",
+    images: [] as string[],
+    project_url: "",
+    video_url: "",
+    category: "",
+    start_date: "",
+    end_date: "",
+    completion_date: "",
+    client_name: "",
+    client_company: "",
+    location: "",
+    address: "",
+    is_public: true,
+    is_featured: false,
+  });
+  const [showPortfolioModal, setShowPortfolioModal] = useState(false);
+  const [editingProjectId, setEditingProjectId] = useState<string | null>(null);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [lightboxImages, setLightboxImages] = useState<string[]>([]);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
+  const [selectedProject, setSelectedProject] = useState<any>(null);
+  const [showProjectDetail, setShowProjectDetail] = useState(false);
 
   // ============================================
   // 💬 HELPER FUNCTIONS - MESSENGER CHAT
@@ -267,6 +311,7 @@ const CleaningCompanyDashboard = () => {
       loadReviews(),
       loadMessages(),
       loadNotifications(),
+      loadReactions(),
       loadStats(),
     ]);
   };
@@ -302,6 +347,29 @@ const CleaningCompanyDashboard = () => {
       setCompanyData(transformedData);
       setAcceptingClients(company.accepting_new_clients || false);
       setBlockedDates([]); // TODO: Load from database when unavailable_dates is added
+
+      // Load portfolio
+      const { data: portfolioData, error: portfolioError } = await supabase
+        .from("cleaning_company_portfolio")
+        .select("*")
+        .eq("company_id", company.id)
+        .order("sort_order", { ascending: true })
+        .order("created_at", { ascending: false });
+
+      if (!portfolioError && portfolioData) {
+        setPortfolio(portfolioData);
+      }
+
+      // Load saved profiles
+      if (user) {
+        try {
+          const profiles = await getAllSavedProfiles(user.id);
+          setSavedProfiles(profiles);
+        } catch (err) {
+          console.warn("[CLEANING-DASH] Could not load saved profiles:", err);
+        }
+      }
+
       setLoading(false);
     } catch (error) {
       console.error("Error loading company:", error);
@@ -521,6 +589,36 @@ const CleaningCompanyDashboard = () => {
       setNotifications(mapped);
     } catch (error) {
       console.error("Error loading notifications:", error);
+    }
+  };
+
+  // Load reactions (all social interactions: reactions, comments, reviews)
+  const loadReactions = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("notifications")
+        .select("id, type, title, message, is_read, created_at, link, data")
+        .eq("user_id", user!.id)
+        .in("type", ["story_reaction", "story_reply", "review"])
+        .order("created_at", { ascending: false })
+        .limit(50);
+
+      if (error) throw error;
+
+      const mapped: Notification[] = (data || []).map((n) => ({
+        id: n.id,
+        type: n.type,
+        title: n.title,
+        message: n.message,
+        is_read: n.is_read || false,
+        created_at: n.created_at || new Date().toISOString(),
+        link: n.link || undefined,
+        data: n.data || {}, // Include data JSON field
+      }));
+
+      setReactions(mapped);
+    } catch (error) {
+      console.error("Error loading reactions:", error);
     }
   };
 
@@ -864,13 +962,6 @@ const CleaningCompanyDashboard = () => {
     }
   };
 
-  const handlePortfolioSuccess = (newImages: string[]) => {
-    if (companyData) {
-      setCompanyData({ ...companyData, portfolio_images: newImages });
-    }
-    setShowPortfolioModal(false);
-  };
-
   const handleViewSubscription = () => {
     window.location.href = "/cleaning-company/subscription";
   };
@@ -879,6 +970,149 @@ const CleaningCompanyDashboard = () => {
 
   const handleContactSupport = () => {
     setShowSupportModal(true);
+  };
+
+  // =====================================================
+  // PORTFOLIO HANDLERS
+  // =====================================================
+
+  const openPortfolioModal = (project?: any) => {
+    if (project) {
+      setEditingProjectId(project.id);
+      setPortfolioForm({
+        title: project.title || "",
+        description: project.description || "",
+        images: project.images || [],
+        project_url: project.project_url || "",
+        video_url: project.video_url || "",
+        category: project.category || "",
+        start_date: project.start_date || "",
+        end_date: project.end_date || "",
+        completion_date: project.completion_date || "",
+        client_name: project.client_name || "",
+        client_company: project.client_company || "",
+        location: project.location || "",
+        address: project.address || "",
+        is_public: project.is_public ?? true,
+        is_featured: project.is_featured ?? false,
+      });
+    }
+    setShowPortfolioModal(true);
+  };
+
+  const resetPortfolioForm = () => {
+    setPortfolioForm({
+      title: "",
+      description: "",
+      images: [],
+      project_url: "",
+      video_url: "",
+      category: "",
+      start_date: "",
+      end_date: "",
+      completion_date: "",
+      client_name: "",
+      client_company: "",
+      location: "",
+      address: "",
+      is_public: true,
+      is_featured: false,
+    });
+    setEditingProjectId(null);
+  };
+
+  const handlePortfolioSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!companyData?.id) return;
+
+    try {
+      const portfolioData = {
+        company_id: companyData.id,
+        title: portfolioForm.title,
+        description: portfolioForm.description,
+        images: portfolioForm.images,
+        project_url: portfolioForm.project_url || null,
+        video_url: portfolioForm.video_url || null,
+        category: portfolioForm.category || null,
+        start_date: portfolioForm.start_date || null,
+        end_date: portfolioForm.end_date || null,
+        completion_date: portfolioForm.completion_date || null,
+        client_name: portfolioForm.client_name || null,
+        client_company: portfolioForm.client_company || null,
+        location: portfolioForm.location || null,
+        address: portfolioForm.address || null,
+        is_public: portfolioForm.is_public,
+        is_featured: portfolioForm.is_featured,
+      };
+
+      if (editingProjectId) {
+        const { error } = await supabase
+          .from("cleaning_company_portfolio")
+          .update(portfolioData)
+          .eq("id", editingProjectId);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from("cleaning_company_portfolio")
+          .insert([portfolioData]);
+        if (error) throw error;
+      }
+
+      await loadCompanyData();
+      setShowPortfolioModal(false);
+      resetPortfolioForm();
+    } catch (err) {
+      console.error("Portfolio submit error:", err);
+      alert("❌ Nie udało się zapisać projektu");
+    }
+  };
+
+  const handlePortfolioDelete = async (projectId: string) => {
+    if (!confirm("Czy na pewno chcesz usunąć ten projekt?")) return;
+
+    try {
+      const { error } = await supabase
+        .from("cleaning_company_portfolio")
+        .delete()
+        .eq("id", projectId);
+
+      if (error) throw error;
+      await loadCompanyData();
+    } catch (err) {
+      console.error("Portfolio delete error:", err);
+      alert("❌ Nie udało się usunąć projektu");
+    }
+  };
+
+  const handlePortfolioImageUpload = async (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = e.target.files?.[0];
+    if (!file || !user?.id) return;
+
+    try {
+      const fileExt = file.name.split(".").pop();
+      const fileName = `${Math.random()}.${fileExt}`;
+      const filePath = `${user.id}/${fileName}`;
+
+      const { error: uploadError, data } = await supabase.storage
+        .from("portfolio-images")
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data: urlData } = supabase.storage
+        .from("portfolio-images")
+        .getPublicUrl(filePath);
+
+      setPortfolioForm({
+        ...portfolioForm,
+        images: [...portfolioForm.images, urlData.publicUrl],
+      });
+    } catch (err) {
+      console.error("Image upload error:", err);
+      alert("❌ Nie udało się przesłać zdjęcia");
+    }
   };
 
   // ============================================
@@ -1480,28 +1714,53 @@ const CleaningCompanyDashboard = () => {
           <main className="flex-1 overflow-y-auto p-4 md:p-8">
             {/* Welcome Banner - Desktop only */}
             {!isMobile && (
-              <div className="bg-gradient-to-r from-purple-500 to-pink-500 rounded-2xl p-8 text-white shadow-xl mb-8">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="flex items-center gap-3 mb-2">
-                      <h1 className="text-3xl font-bold">
-                        Witajcie, {companyData.company_name}!
-                      </h1>
-                      {companyData.subscription_tier === "premium" ? (
-                        <span className="flex items-center gap-1 bg-yellow-400 text-yellow-900 px-3 py-1 rounded-full text-sm font-bold">
-                          <Crown className="w-4 h-4" />
-                          Premium Active
-                        </span>
+              <div className="heroBanner mb-8">
+                {/* Animated gradient background */}
+                <div className="heroBannerBg" />
+
+                {/* Glow orbs */}
+                <div className="heroBannerOrb heroBannerOrb1" />
+                <div className="heroBannerOrb heroBannerOrb2" />
+                <div className="heroBannerOrb heroBannerOrb3" />
+
+                {/* Glass overlay */}
+                <div className="heroBannerGlass" />
+
+                {/* Content */}
+                <div className="heroBannerContent">
+                  <div className="heroBannerLeft">
+                    <div className="heroBannerGreeting">
+                      {/* Company Avatar/Logo */}
+                      {companyData.avatar_url ? (
+                        <img
+                          src={companyData.avatar_url}
+                          alt={companyData.company_name}
+                          className="w-14 h-14 rounded-full object-cover border-3 border-white/40 shadow-lg"
+                        />
                       ) : (
-                        <button
-                          onClick={() => setActiveTab("subscription")}
-                          className="flex items-center gap-1 bg-white/20 hover:bg-white/30 px-3 py-1 rounded-full text-sm font-bold transition"
-                        >
-                          Upgrade to Premium →
-                        </button>
+                        <div className="w-14 h-14 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center text-white font-bold text-xl border-3 border-white/40 shadow-lg">
+                          {companyData.company_name?.[0]?.toUpperCase() || "🧹"}
+                        </div>
                       )}
+                      <h1 className="heroBannerTitle">
+                        <span className="heroBannerName">
+                          Witajcie, {companyData.company_name}!
+                        </span>
+                        {companyData.subscription_tier === "premium" ? (
+                          <span className="heroBannerBadge bg-gradient-to-r from-amber-400 to-yellow-500 text-amber-900 border-amber-300 shadow-lg shadow-amber-200/50">
+                            <Crown className="w-4 h-4" /> Premium Aktywny
+                          </span>
+                        ) : (
+                          <button
+                            onClick={() => setActiveTab("subscription")}
+                            className="heroBannerBadge bg-white/20 text-white border-white/30 hover:bg-white/30 transition cursor-pointer"
+                          >
+                            Upgrade to Premium →
+                          </button>
+                        )}
+                      </h1>
                     </div>
-                    <p className="text-purple-100">
+                    <p className="heroBannerSubtitle">
                       Panel informacyjny firmy sprzątającej
                       {companyData.subscription_status === "active" &&
                         companyData.subscription_tier === "premium" && (
@@ -1511,8 +1770,9 @@ const CleaningCompanyDashboard = () => {
                         )}
                     </p>
                   </div>
-                  <div className="flex items-center space-x-3">
-                    <span className="text-sm">
+
+                  <div className="heroBannerRight">
+                    <span className="text-sm text-white/90">
                       Przyjmowanie nowych klientów
                     </span>
                     <button
@@ -1529,510 +1789,290 @@ const CleaningCompanyDashboard = () => {
                     </button>
                   </div>
                 </div>
+
+                {/* Bottom shine line */}
+                <div className="heroBannerShine" />
               </div>
             )}
 
             {/* Tab Panels */}
             <TabPanel isActive={activeTab === "profile"}>
-              {/* Overview content merged into profile */}
-              {/* Szybkie działania Card - Premium Glass Style */}
-              <QuickActionsCard
-                role="cleaning_company"
-                isMobile={isMobile}
-                onSubscription={handleViewSubscription}
+              {/* Stats Grid - Premium StatChips */}
+              <StatChipsGrid
+                items={
+                  [
+                    {
+                      id: "reviews",
+                      label: "Total Reviews",
+                      value: stats.totalReviews,
+                      tone: "amber",
+                      icon: <Star size={16} />,
+                    },
+                    {
+                      id: "rating",
+                      label: "Average Rating",
+                      value:
+                        stats.averageRating > 0
+                          ? stats.averageRating.toFixed(1)
+                          : "0.0",
+                      tone: "violet",
+                      icon: <BarChart3 size={16} />,
+                    },
+                    {
+                      id: "views",
+                      label: "Profile Views",
+                      value: stats.profileViews,
+                      tone: "cyan",
+                      icon: <Eye size={16} />,
+                    },
+                    {
+                      id: "contacts",
+                      label: "Contacts (30 days)",
+                      value: stats.contactAttempts,
+                      tone: "emerald",
+                      icon: <Phone size={16} />,
+                    },
+                  ] as StatChipItem[]
+                }
+                columns={4}
+                className="mb-6"
               />
 
-              {/* 📅 Nadchodzące spotkania - Real Calendar Events */}
-              <div className="mb-6">
-                <UpcomingEventsCard />
-              </div>
-
-              {/* Stats Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
-                <div className="bg-gradient-to-br from-orange-100 to-orange-50 rounded-xl p-4 shadow-sm border border-orange-200">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-orange-600 mb-1">
-                        Opinie łącznie
-                      </p>
-                      <p className="text-3xl font-bold text-orange-900">
-                        {stats.totalReviews}
-                      </p>
-                    </div>
-                    <span className="text-4xl">⭐</span>
-                  </div>
-                </div>
-
-                <div className="bg-gradient-to-br from-purple-100 to-purple-50 rounded-xl p-4 shadow-sm border border-purple-200">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-purple-600 mb-1">
-                        Średnia ocena
-                      </p>
-                      <p className="text-3xl font-bold text-purple-900">
-                        {stats.averageRating > 0
-                          ? stats.averageRating.toFixed(1)
-                          : "0.0"}{" "}
-                        / 5.0
-                      </p>
-                    </div>
-                    <span className="text-4xl">📊</span>
-                  </div>
-                </div>
-
-                <div className="bg-gradient-to-br from-blue-100 to-blue-50 rounded-xl p-4 shadow-sm border border-blue-200">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-blue-600 mb-1">
-                        Wyświetlenia profilu
-                      </p>
-                      <p className="text-3xl font-bold text-blue-900">
-                        {stats.profileViews}
-                      </p>
-                    </div>
-                    <span className="text-4xl">👁️</span>
-                  </div>
-                </div>
-
-                <div className="bg-gradient-to-br from-green-100 to-green-50 rounded-xl p-4 shadow-sm border border-green-200">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-green-600 mb-1">
-                        Kontakty (30 dni)
-                      </p>
-                      <p className="text-3xl font-bold text-green-900">
-                        {stats.contactAttempts}
-                      </p>
-                    </div>
-                    <span className="text-4xl">📞</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Profile Tab Content - NEW 2+1 LAYOUT */}
+              {/* GŁÓWNY GRID 3 kolumny */}
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* LEFT COLUMN: MAIN CONTENT (2/3 width) */}
-                <div className="lg:col-span-2 space-y-6">
-                  {/* Availability + Blocked Dates (2 cards side by side) */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {/* Availability */}
-                    <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6">
-                      <h3 className="font-bold text-lg mb-4">
-                        📅 Twoja dostępność
-                      </h3>
-                      <p className="text-sm text-gray-600 mb-4">
-                        Wybierz dni w których możesz przyjąć zlecenia
-                      </p>
-                      <div className="space-y-2">
-                        {[
-                          { key: "monday", label: "Poniedziałek" },
-                          { key: "tuesday", label: "Wtorek" },
-                          { key: "wednesday", label: "Środa" },
-                          { key: "thursday", label: "Czwartek" },
-                          { key: "friday", label: "Piątek" },
-                          { key: "saturday", label: "Sobota" },
-                          { key: "sunday", label: "Niedziela" },
-                        ].map((day) => (
-                          <label
-                            key={day.key}
-                            className="flex items-center space-x-3 cursor-pointer hover:bg-gray-50 p-2 rounded-lg transition-colors"
-                          >
-                            <input
-                              type="checkbox"
-                              className="w-4 h-4 text-blue-600 rounded"
-                              checked={
-                                companyData.availability &&
-                                typeof companyData.availability === "object" &&
-                                day.key in companyData.availability
-                                  ? (companyData.availability as any)[day.key]
-                                  : false
-                              }
-                              onChange={(e) =>
-                                handleAvailabilityChange(
-                                  day.key,
-                                  e.target.checked
-                                )
-                              }
-                            />
-                            <span className="text-sm text-gray-700">
-                              {day.label}
-                            </span>
-                          </label>
-                        ))}
-                      </div>
-                      <div className="mt-4 pt-4 border-t border-gray-200">
-                        <div className="flex items-center justify-between">
-                          <p className="text-xs text-gray-600">Preferowane:</p>
-                          <p className="text-sm font-semibold text-gray-900">
-                            {companyData.preferred_days_per_week || 2}{" "}
-                            dni/tydzień
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Blocked Dates */}
-                    <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6">
-                      <h3 className="font-bold text-lg mb-4">
-                        🚫 Zablokowane daty
-                      </h3>
-                      <p className="text-sm text-gray-600 mb-4">
-                        Zaznacz okresy niedostępności (urlop, przerwy)
-                      </p>
-                      <DateBlocker
-                        blockedDates={blockedDates}
-                        onBlock={handleBlockDate}
-                        onUnblock={handleUnblockDate}
-                      />
-                      <div className="mt-4 pt-4 border-t border-gray-200">
-                        <div className="grid grid-cols-2 gap-4">
-                          <div>
-                            <p className="text-xs text-gray-600 mb-1">
-                              Dostępne dni:
-                            </p>
-                            <p className="text-2xl font-bold text-blue-600">
-                              {blockedDates.length > 0
-                                ? Math.max(0, 30 - blockedDates.length)
-                                : 30}
-                            </p>
-                          </div>
-                          <div>
-                            <p className="text-xs text-gray-600 mb-1">
-                              Zablokowane:
-                            </p>
-                            <p className="text-2xl font-bold text-red-600">
-                              {blockedDates.length}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
+                {/* � Ostatnie wyszukiwania */}
+                <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6">
+                  <div className="flex items-center justify-between mb-6">
+                    <h2 className="text-xl font-bold text-gray-900">
+                      Ostatnie wyszukiwania
+                    </h2>
+                    <button
+                      onClick={() => setActiveTab("projects")}
+                      className="text-sm text-orange-600 hover:text-orange-700 font-medium"
+                    >
+                      Nowe wyszukiwanie →
+                    </button>
                   </div>
 
-                  {/* Company Info - Full Width */}
-                  <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6">
-                    <h3 className="font-bold text-lg mb-4">ℹ️ Dane firmy</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                      <div className="space-y-3">
-                        <div>
-                          <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">
-                            Kontakt
-                          </p>
-                          <p className="font-semibold text-gray-900">
-                            {companyData.email || "Brak"}
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">
-                            Telefon
-                          </p>
-                          <p className="font-semibold text-gray-900">
-                            {companyData.phone || "Brak"}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="space-y-3">
-                        <div>
-                          <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">
-                            Miasto
-                          </p>
-                          <p className="font-semibold text-gray-900">
-                            {companyData.location_city || "Brak"}
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">
-                            Zespół
-                          </p>
-                          <p className="font-semibold text-gray-900">
-                            {companyData.team_size || 1}{" "}
-                            {companyData.team_size === 1 ? "osoba" : "osób"}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="space-y-3">
-                        <div>
-                          <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">
-                            Status
-                          </p>
-                          <span className="inline-flex items-center gap-1 px-3 py-1 bg-green-100 text-green-700 text-xs font-medium rounded-full">
-                            <span className="w-2 h-2 bg-green-500 rounded-full"></span>
-                            Aktywny
-                          </span>
-                        </div>
-                        <div>
-                          <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">
-                            Preferencje
-                          </p>
-                          <p className="font-semibold text-gray-900">
-                            {companyData.preferred_days_per_week || 2} dni/tydz.
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="mt-6 pt-4 border-t border-gray-200 flex gap-3">
-                      <button
-                        onClick={() => setShowEditModal(true)}
-                        className="flex-1 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors font-medium"
-                      >
-                        📝 Edytuj profil
-                      </button>
-                      <button className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium">
-                        👁️ Podgląd publiczny
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Portfolio - Full Width */}
-                  <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6">
-                    <div className="flex items-center justify-between mb-4">
-                      <h3 className="font-bold text-lg">
-                        🎨 Portfolio (
-                        {companyData.portfolio_images?.length || 0} zdjęć)
-                      </h3>
-                      <button
-                        onClick={() => setShowPortfolioModal(true)}
-                        className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm font-medium transition-colors"
-                      >
-                        + Dodaj zdjęcia
-                      </button>
-                    </div>
-                    <p className="text-sm text-gray-600 mb-4">
-                      Pokazuj swoją pracę - dodaj zdjęcia ukończonych projektów
-                    </p>
-                    {companyData.portfolio_images &&
-                    companyData.portfolio_images.length > 0 ? (
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        {companyData.portfolio_images
-                          ?.slice(0, 4)
-                          .map((img: string, i: number) => (
-                            <img
-                              key={i}
-                              src={img}
-                              alt={`Portfolio ${i + 1}`}
-                              className="w-full h-32 object-cover rounded-lg border border-gray-200 hover:scale-105 transition-transform cursor-pointer"
-                            />
-                          ))}
-                      </div>
-                    ) : (
-                      <div className="text-center py-8 border-2 border-dashed border-gray-300 rounded-lg">
-                        <p className="text-4xl mb-2">📷</p>
-                        <p className="text-sm text-gray-500">
-                          Brak zdjęć w portfolio
-                        </p>
-                      </div>
-                    )}
+                  <div className="text-center py-8">
+                    <p className="text-gray-500">Brak historii wyszukiwań</p>
+                    <button
+                      onClick={() => setActiveTab("projects")}
+                      className="mt-4 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700"
+                    >
+                      Rozpocznij pierwsze wyszukiwanie
+                    </button>
                   </div>
                 </div>
 
-                {/* RIGHT COLUMN: SIDEBAR (1/3 width) */}
-                <div className="lg:col-span-1 space-y-6">
-                  {/* Profile Card */}
-                  <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6">
-                    <h3 className="font-bold text-lg mb-4">📸 Profil firmy</h3>
-                    <div className="text-center">
-                      <div className="relative inline-block mb-4">
-                        <img
-                          src={companyData.avatar_url || "/default-avatar.png"}
-                          alt="Profile"
-                          className="w-24 h-24 rounded-full object-cover mx-auto border-4 border-purple-200 shadow-lg"
-                        />
-                      </div>
-                      <h4 className="font-bold text-lg text-gray-900 mb-1">
-                        {companyData.company_name || "Firma Sprzątająca"}
-                      </h4>
-                      <p className="text-sm text-gray-600 mb-2">
-                        {companyData.email || "kontakt@firma.nl"}
-                      </p>
-                      <p className="text-xs text-blue-600 mb-4 hover:underline cursor-pointer">
-                        zzp-werkplaats.nl/firma/{companyData.id || "profil"}
-                      </p>
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => setShowEditModal(true)}
-                          className="flex-1 bg-blue-600 text-white px-3 py-2 rounded-lg hover:bg-blue-700 text-sm font-medium"
-                        >
-                          Edytuj
-                        </button>
-                        <button className="px-3 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 text-sm">
-                          <svg
-                            className="w-4 h-4"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                            />
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
-                            />
-                          </svg>
-                        </button>
-                      </div>
-                    </div>
+                {/* 📅 Nadchodzące spotkania */}
+                <UpcomingEventsCard />
+
+                {/* 👥 Zapisane profile */}
+                <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-xl font-bold text-gray-900">
+                      Zapisane profile
+                    </h2>
+                    <Link
+                      to="/search"
+                      className="text-sm text-orange-600 hover:text-orange-700 font-medium"
+                    >
+                      Szukaj więcej →
+                    </Link>
                   </div>
 
-                  {/* Powiadomienia */}
-                  <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6">
-                    <div className="flex items-center justify-between mb-4">
-                      <h3 className="font-bold text-lg">🔔 Powiadomienia</h3>
-                      <div className="flex items-center gap-2">
-                        {notifications.filter((n) => !n.is_read).length > 0 && (
-                          <>
-                            <span className="bg-blue-500 text-white text-xs px-2 py-1 rounded-full">
-                              {notifications.filter((n) => !n.is_read).length}{" "}
-                              nowe
-                            </span>
-                            <button
-                              onClick={() => {
-                                notifications
-                                  .filter((n) => !n.is_read)
-                                  .forEach((n) =>
-                                    handleMarkNotificationAsRead(n.id)
-                                  );
-                              }}
-                              className="text-xs text-blue-600 hover:text-blue-800 font-medium"
-                            >
-                              Oznacz wszystkie
-                            </button>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                    <div className="space-y-3 max-h-96 overflow-y-auto">
-                      {notifications.length > 0 ? (
-                        notifications.map((notif) => {
-                          // Ikona i kolor według typu
-                          const getNotificationStyle = (type: string) => {
-                            switch (type) {
-                              case "message":
-                                return {
-                                  icon: "📩",
-                                  color: "border-blue-500 bg-blue-50",
-                                  badge: "bg-blue-500",
-                                };
-                              case "review":
-                                return {
-                                  icon: "⭐",
-                                  color: "border-yellow-500 bg-yellow-50",
-                                  badge: "bg-yellow-500",
-                                };
-                              case "job":
-                                return {
-                                  icon: "💼",
-                                  color: "border-green-500 bg-green-50",
-                                  badge: "bg-green-500",
-                                };
-                              case "alert":
-                                return {
-                                  icon: "⚠️",
-                                  color: "border-red-500 bg-red-50",
-                                  badge: "bg-red-500",
-                                };
-                              default:
-                                return {
-                                  icon: "🔔",
-                                  color: "border-gray-500 bg-gray-50",
-                                  badge: "bg-gray-500",
-                                };
+                  {/* Entity Type Filters */}
+                  <div className="flex flex-wrap gap-2 mb-4">
+                    {[
+                      { key: "all", label: "Wszystkie", icon: "📋" },
+                      { key: "worker", label: "Pracownicy", icon: "👷" },
+                      { key: "employer", label: "Pracodawcy", icon: "🏢" },
+                      { key: "accountant", label: "Księgowi", icon: "📊" },
+                      {
+                        key: "cleaning_company",
+                        label: "Firmy sprzątające",
+                        icon: "🧹",
+                      },
+                    ].map((filter) => (
+                      <button
+                        key={filter.key}
+                        onClick={() =>
+                          setSavedProfilesFilter(
+                            filter.key as typeof savedProfilesFilter
+                          )
+                        }
+                        className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors flex items-center gap-1 ${
+                          savedProfilesFilter === filter.key
+                            ? "bg-orange-500 text-white"
+                            : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                        }`}
+                      >
+                        <span>{filter.icon}</span>
+                        <span>{filter.label}</span>
+                      </button>
+                    ))}
+                  </div>
+
+                  {(() => {
+                    const filteredProfiles =
+                      savedProfilesFilter === "all"
+                        ? savedProfiles
+                        : savedProfiles.filter(
+                            (p) => p.entity_type === savedProfilesFilter
+                          );
+
+                    if (filteredProfiles.length === 0) {
+                      return (
+                        <div className="text-center py-8">
+                          <p className="text-gray-500">
+                            {savedProfilesFilter === "all"
+                              ? "Brak zapisanych profili"
+                              : `Brak zapisanych ${
+                                  savedProfilesFilter === "worker"
+                                    ? "pracowników"
+                                    : savedProfilesFilter === "employer"
+                                    ? "pracodawców"
+                                    : savedProfilesFilter === "accountant"
+                                    ? "księgowych"
+                                    : "firm sprzątających"
+                                }`}
+                          </p>
+                          <p className="text-sm text-gray-400 mt-2">
+                            Zapisz profile podczas wyszukiwania, aby szybko do
+                            nich wrócić
+                          </p>
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <div className="space-y-3">
+                        {filteredProfiles.slice(0, 6).map((profile) => {
+                          const typeConfig: Record<
+                            string,
+                            {
+                              icon: string;
+                              bgClass: string;
+                              textClass: string;
+                              label: string;
+                              link: string;
                             }
+                          > = {
+                            worker: {
+                              icon: "👷",
+                              bgClass: "bg-orange-100",
+                              textClass: "text-orange-700",
+                              label: "Pracownik",
+                              link: `/worker/profile/${profile.entity_id}`,
+                            },
+                            employer: {
+                              icon: "🏢",
+                              bgClass: "bg-blue-100",
+                              textClass: "text-blue-700",
+                              label: "Pracodawca",
+                              link: `/employer/profile/${profile.entity_id}`,
+                            },
+                            accountant: {
+                              icon: "📊",
+                              bgClass: "bg-green-100",
+                              textClass: "text-green-700",
+                              label: "Księgowy",
+                              link: `/accountant/profile/${profile.entity_id}`,
+                            },
+                            cleaning_company: {
+                              icon: "🧹",
+                              bgClass: "bg-purple-100",
+                              textClass: "text-purple-700",
+                              label: "Firma sprzątająca",
+                              link: `/cleaning-company/profile/${profile.entity_id}`,
+                            },
                           };
-
-                          // Relatywny czas
-                          const getTimeAgo = (date: string) => {
-                            const now = new Date();
-                            const created = new Date(date);
-                            const diffMs = now.getTime() - created.getTime();
-                            const diffMins = Math.floor(diffMs / 60000);
-                            const diffHours = Math.floor(diffMs / 3600000);
-                            const diffDays = Math.floor(diffMs / 86400000);
-
-                            if (diffMins < 1) return "Przed chwilą";
-                            if (diffMins < 60) return `${diffMins} min temu`;
-                            if (diffHours < 24)
-                              return `${diffHours} godz. temu`;
-                            if (diffDays < 7) return `${diffDays} dni temu`;
-                            return created.toLocaleDateString("pl-PL");
-                          };
-
-                          const style = getNotificationStyle(notif.type);
+                          const config =
+                            typeConfig[profile.entity_type] ||
+                            typeConfig.worker;
 
                           return (
-                            <div
-                              key={notif.id}
-                              className={`border-l-4 rounded-r-lg p-3 transition-all hover:shadow-md ${
-                                notif.is_read ? "opacity-60" : ""
-                              } ${style.color}`}
+                            <Link
+                              key={profile.id}
+                              to={config.link}
+                              className="block border border-gray-200 rounded-lg p-3 hover:border-orange-500 transition-colors relative group"
                             >
-                              <div className="flex items-start justify-between gap-3">
-                                <div className="flex items-start gap-2 flex-1">
-                                  <span className="text-2xl">{style.icon}</span>
-                                  <div className="flex-1">
-                                    <div className="flex items-center gap-2 mb-1">
-                                      {!notif.is_read && (
-                                        <span
-                                          className={`w-2 h-2 rounded-full ${style.badge}`}
-                                        ></span>
-                                      )}
-                                      <p
-                                        className={`font-semibold text-sm ${
-                                          !notif.is_read
-                                            ? "text-gray-900"
-                                            : "text-gray-600"
-                                        }`}
-                                      >
-                                        {notif.title}
-                                      </p>
-                                    </div>
-                                    <p className="text-xs text-gray-600 mb-2">
-                                      {notif.message}
-                                    </p>
-                                    <p className="text-xs text-gray-400">
-                                      {getTimeAgo(notif.created_at)}
-                                    </p>
+                              <div className="flex items-center gap-3">
+                                {profile.entity_avatar ? (
+                                  <img
+                                    src={profile.entity_avatar}
+                                    alt={profile.entity_name || "Profile"}
+                                    className="w-10 h-10 rounded-full object-cover"
+                                  />
+                                ) : (
+                                  <div
+                                    className={`w-10 h-10 rounded-full ${config.bgClass} flex items-center justify-center text-lg`}
+                                  >
+                                    {config.icon}
+                                  </div>
+                                )}
+                                <div className="flex-1 min-w-0">
+                                  <p className="font-medium text-gray-900 truncate text-sm">
+                                    {profile.entity_name || "Nieznany"}
+                                  </p>
+                                  <div className="flex items-center gap-2">
+                                    <span
+                                      className={`text-xs px-2 py-0.5 rounded-full ${config.bgClass} ${config.textClass}`}
+                                    >
+                                      {config.label}
+                                    </span>
+                                    {profile.entity_location && (
+                                      <span className="text-xs text-gray-500">
+                                        📍 {profile.entity_location}
+                                      </span>
+                                    )}
                                   </div>
                                 </div>
-                                <div className="flex flex-col gap-1">
-                                  {!notif.is_read && (
-                                    <button
-                                      onClick={() =>
-                                        handleMarkNotificationAsRead(notif.id)
-                                      }
-                                      className="text-xs text-blue-600 hover:text-blue-800 font-medium whitespace-nowrap"
+                                <div className="flex items-center gap-2">
+                                  {profile.entity_rating != null &&
+                                    profile.entity_rating > 0 && (
+                                      <span className="text-sm font-medium text-gray-900">
+                                        ⭐{" "}
+                                        {Number(profile.entity_rating).toFixed(
+                                          1
+                                        )}
+                                      </span>
+                                    )}
+                                  <button
+                                    onClick={async (e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      await removeSavedProfile(profile.id);
+                                      setSavedProfiles((prev) =>
+                                        prev.filter((p) => p.id !== profile.id)
+                                      );
+                                    }}
+                                    className="opacity-0 group-hover:opacity-100 text-red-500 hover:text-red-700 transition-opacity"
+                                    title="Usuń"
+                                  >
+                                    <svg
+                                      className="w-4 h-4"
+                                      fill="none"
+                                      stroke="currentColor"
+                                      viewBox="0 0 24 24"
                                     >
-                                      ✓ Przeczytane
-                                    </button>
-                                  )}
-                                  {notif.link && (
-                                    <button
-                                      onClick={() => navigate(notif.link!)}
-                                      className="text-xs text-gray-600 hover:text-gray-800 font-medium whitespace-nowrap"
-                                    >
-                                      Zobacz →
-                                    </button>
-                                  )}
+                                      <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth={2}
+                                        d="M6 18L18 6M6 6l12 12"
+                                      />
+                                    </svg>
+                                  </button>
                                 </div>
                               </div>
-                            </div>
+                            </Link>
                           );
-                        })
-                      ) : (
-                        <div className="text-center py-8">
-                          <p className="text-4xl mb-2">🔕</p>
-                          <p className="text-sm text-gray-500">
-                            Brak powiadomień
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
+                        })}
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
             </TabPanel>
@@ -2502,624 +2542,1351 @@ const CleaningCompanyDashboard = () => {
 
             {/* Messages Tab */}
             <TabPanel isActive={activeTab === "messages"}>
-              {/* 💬 NOWOCZESNY MESSENGER UI - FULL REDESIGN */}
-              <div className="max-w-7xl mx-auto">
-                <div
-                  className="bg-white rounded-2xl shadow-xl overflow-hidden"
-                  style={{ height: "700px" }}
-                >
-                  <div className="flex h-full">
-                    {/* ============================================ */}
-                    {/* LEFT PANEL: CONVERSATION LIST */}
-                    {/* ============================================ */}
-                    <div className="w-1/3 border-r border-gray-200 flex flex-col bg-gray-50">
-                      {/* Header */}
-                      <div className="p-5 border-b border-gray-200 bg-gradient-to-r from-blue-600 to-purple-600">
-                        <h3 className="font-bold text-xl text-white mb-3 flex items-center gap-2">
-                          <span>💬</span> Wiadomości
-                        </h3>
+              {/* 💬 SUB-TABS: WIADOMOŚCI | REAKCJE */}
+              <div className="max-w-7xl mx-auto mb-6">
+                <div className="flex gap-2 border-b-2 border-gray-200">
+                  <button
+                    onClick={() => setMessagesSubTab("wiadomosci")}
+                    className={`px-6 py-3 font-semibold transition-all ${
+                      messagesSubTab === "wiadomosci"
+                        ? "text-blue-600 border-b-4 border-blue-600 -mb-0.5"
+                        : "text-gray-600 hover:text-gray-900"
+                    }`}
+                  >
+                    💬 Wiadomości
+                  </button>
+                  <button
+                    onClick={() => setMessagesSubTab("reakcje")}
+                    className={`px-6 py-3 font-semibold transition-all ${
+                      messagesSubTab === "reakcje"
+                        ? "text-pink-600 border-b-4 border-pink-600 -mb-0.5"
+                        : "text-gray-600 hover:text-gray-900"
+                    }`}
+                  >
+                    💗 Reakcje
+                    {reactions.filter((r) => !r.is_read).length > 0 && (
+                      <span className="ml-2 px-2 py-0.5 bg-pink-500 text-white text-xs rounded-full">
+                        {reactions.filter((r) => !r.is_read).length}
+                      </span>
+                    )}
+                  </button>
+                </div>
+              </div>
 
-                        {/* Search */}
-                        <div className="relative">
-                          <input
-                            type="text"
-                            placeholder="🔍 Szukaj konwersacji..."
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            className="w-full px-4 py-2 pl-10 rounded-lg border-0 focus:ring-2 focus:ring-white/50 text-sm"
-                          />
-                          <span className="absolute left-3 top-2.5 text-gray-400">
-                            🔍
-                          </span>
+              {/* WIADOMOŚCI CONTENT */}
+              {messagesSubTab === "wiadomosci" && (
+                <div className="max-w-7xl mx-auto">
+                  <div
+                    className="bg-white rounded-2xl shadow-xl overflow-hidden"
+                    style={{ height: "700px" }}
+                  >
+                    <div className="flex h-full">
+                      {/* ============================================ */}
+                      {/* LEFT PANEL: CONVERSATION LIST */}
+                      {/* ============================================ */}
+                      <div className="w-1/3 border-r border-gray-200 flex flex-col bg-gray-50">
+                        {/* Header */}
+                        <div className="p-5 border-b border-gray-200 bg-gradient-to-r from-blue-600 to-purple-600">
+                          <h3 className="font-bold text-xl text-white mb-3 flex items-center gap-2">
+                            <span>💬</span> Wiadomości
+                          </h3>
+
+                          {/* Search */}
+                          <div className="relative">
+                            <input
+                              type="text"
+                              placeholder="🔍 Szukaj konwersacji..."
+                              value={searchQuery}
+                              onChange={(e) => setSearchQuery(e.target.value)}
+                              className="w-full px-4 py-2 pl-10 rounded-lg border-0 focus:ring-2 focus:ring-white/50 text-sm"
+                            />
+                            <span className="absolute left-3 top-2.5 text-gray-400">
+                              🔍
+                            </span>
+                          </div>
                         </div>
-                      </div>
 
-                      {/* Conversation List */}
-                      <div className="flex-1 overflow-y-auto">
-                        {conversations
-                          .filter((conv) =>
-                            conv.partnerName
-                              .toLowerCase()
-                              .includes(searchQuery.toLowerCase())
-                          )
-                          .map((conversation) => (
-                            <div
-                              key={conversation.partnerId}
-                              onClick={() =>
-                                handleSelectConversation(conversation)
-                              }
-                              className={`p-4 border-b border-gray-200 cursor-pointer transition-all duration-200 hover:bg-blue-50 ${
-                                selectedConversation?.partnerId ===
-                                conversation.partnerId
-                                  ? "bg-blue-100 border-l-4 border-l-blue-600"
-                                  : "hover:border-l-4 hover:border-l-blue-300"
-                              }`}
-                            >
-                              <div className="flex items-start gap-3">
-                                {/* Avatar */}
-                                <div className="relative flex-shrink-0">
-                                  {conversation.partnerAvatar ? (
-                                    <img
-                                      src={conversation.partnerAvatar}
-                                      alt={conversation.partnerName}
-                                      className="w-12 h-12 rounded-full object-cover border-2 border-white shadow-md"
-                                    />
-                                  ) : (
-                                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-lg shadow-md">
-                                      {conversation.partnerName
-                                        .charAt(0)
-                                        .toUpperCase()}
-                                    </div>
-                                  )}
-                                  {conversation.isOnline && (
-                                    <span className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-green-500 border-2 border-white rounded-full"></span>
-                                  )}
-                                </div>
-
-                                {/* Content */}
-                                <div className="flex-1 min-w-0">
-                                  <div className="flex items-center justify-between mb-1">
-                                    <p
-                                      className={`font-semibold text-sm truncate ${
-                                        conversation.unreadCount > 0
-                                          ? "text-blue-700"
-                                          : "text-gray-900"
-                                      }`}
-                                    >
-                                      {conversation.partnerName}
-                                    </p>
-                                    {conversation.unreadCount > 0 && (
-                                      <span className="bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full ml-2 flex-shrink-0">
-                                        {conversation.unreadCount}
-                                      </span>
+                        {/* Conversation List */}
+                        <div className="flex-1 overflow-y-auto">
+                          {conversations
+                            .filter((conv) =>
+                              conv.partnerName
+                                .toLowerCase()
+                                .includes(searchQuery.toLowerCase())
+                            )
+                            .map((conversation) => (
+                              <div
+                                key={conversation.partnerId}
+                                onClick={() =>
+                                  handleSelectConversation(conversation)
+                                }
+                                className={`p-4 border-b border-gray-200 cursor-pointer transition-all duration-200 hover:bg-blue-50 ${
+                                  selectedConversation?.partnerId ===
+                                  conversation.partnerId
+                                    ? "bg-blue-100 border-l-4 border-l-blue-600"
+                                    : "hover:border-l-4 hover:border-l-blue-300"
+                                }`}
+                              >
+                                <div className="flex items-start gap-3">
+                                  {/* Avatar */}
+                                  <div className="relative flex-shrink-0">
+                                    {conversation.partnerAvatar ? (
+                                      <img
+                                        src={conversation.partnerAvatar}
+                                        alt={conversation.partnerName}
+                                        className="w-12 h-12 rounded-full object-cover border-2 border-white shadow-md"
+                                      />
+                                    ) : (
+                                      <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-lg shadow-md">
+                                        {conversation.partnerName
+                                          .charAt(0)
+                                          .toUpperCase()}
+                                      </div>
+                                    )}
+                                    {conversation.isOnline && (
+                                      <span className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-green-500 border-2 border-white rounded-full"></span>
                                     )}
                                   </div>
 
-                                  <p className="text-xs text-gray-600 truncate mb-1">
-                                    {conversation.lastMessage.content}
-                                  </p>
+                                  {/* Content */}
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center justify-between mb-1">
+                                      <p
+                                        className={`font-semibold text-sm truncate ${
+                                          conversation.unreadCount > 0
+                                            ? "text-blue-700"
+                                            : "text-gray-900"
+                                        }`}
+                                      >
+                                        {conversation.partnerName}
+                                      </p>
+                                      {conversation.unreadCount > 0 && (
+                                        <span className="bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full ml-2 flex-shrink-0">
+                                          {conversation.unreadCount}
+                                        </span>
+                                      )}
+                                    </div>
 
-                                  <p className="text-xs text-gray-400">
-                                    {formatRelativeTime(
-                                      conversation.lastMessage.created_at
+                                    <p className="text-xs text-gray-600 truncate mb-1">
+                                      {conversation.lastMessage.content}
+                                    </p>
+
+                                    <p className="text-xs text-gray-400">
+                                      {formatRelativeTime(
+                                        conversation.lastMessage.created_at
+                                      )}
+                                    </p>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+
+                          {conversations.length === 0 && (
+                            <div className="flex flex-col items-center justify-center h-full text-gray-400 p-8">
+                              <div className="text-6xl mb-4">💬</div>
+                              <p className="text-center font-medium">
+                                Brak konwersacji
+                              </p>
+                              <p className="text-xs text-center mt-2">
+                                Twoje wiadomości pojawią się tutaj
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* ============================================ */}
+                      {/* RIGHT PANEL: CHAT WINDOW */}
+                      {/* ============================================ */}
+                      <div className="w-2/3 flex flex-col bg-white">
+                        {selectedConversation ? (
+                          <>
+                            {/* Chat Header */}
+                            <div className="p-5 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-white shadow-sm">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                  {/* Avatar - clickable */}
+                                  <button
+                                    onClick={async () => {
+                                      const partnerId =
+                                        selectedConversation.partnerId;
+                                      if (!partnerId) return;
+                                      try {
+                                        const { data: profile } = await supabase
+                                          .from("profiles")
+                                          .select("role")
+                                          .eq("id", partnerId)
+                                          .single();
+                                        const userRole =
+                                          profile?.role || "worker";
+                                        let roleSpecificId = partnerId;
+                                        if (userRole === "worker") {
+                                          const { data: worker } =
+                                            await supabase
+                                              .from("workers")
+                                              .select("id")
+                                              .eq("profile_id", partnerId)
+                                              .maybeSingle();
+                                          if (worker)
+                                            roleSpecificId = worker.id;
+                                        } else if (userRole === "employer") {
+                                          const { data: employer } =
+                                            await supabase
+                                              .from("employers")
+                                              .select("id")
+                                              .eq("profile_id", partnerId)
+                                              .maybeSingle();
+                                          if (employer)
+                                            roleSpecificId = employer.id;
+                                        } else if (userRole === "accountant") {
+                                          const { data: accountantData } =
+                                            await supabase
+                                              .from("accountants")
+                                              .select("id")
+                                              .eq("profile_id", partnerId)
+                                              .maybeSingle();
+                                          if (accountantData)
+                                            roleSpecificId = accountantData.id;
+                                        } else if (
+                                          userRole === "cleaning_company"
+                                        ) {
+                                          const { data: company } =
+                                            await supabase
+                                              .from("cleaning_companies")
+                                              .select("id")
+                                              .eq("profile_id", partnerId)
+                                              .maybeSingle();
+                                          if (company)
+                                            roleSpecificId = company.id;
+                                        }
+                                        const roleMap: Record<string, string> =
+                                          {
+                                            worker: "/worker/profile",
+                                            employer: "/employer/profile",
+                                            accountant: "/accountant/profile",
+                                            cleaning_company:
+                                              "/cleaning-company/profile",
+                                            admin: "/admin/profile",
+                                          };
+                                        navigate(
+                                          `${
+                                            roleMap[userRole] ||
+                                            "/worker/profile"
+                                          }/${roleSpecificId}#contact`
+                                        );
+                                      } catch (error) {
+                                        console.error(
+                                          "Error navigating to profile:",
+                                          error
+                                        );
+                                      }
+                                    }}
+                                    className="cursor-pointer hover:opacity-80 transition-opacity"
+                                  >
+                                    {selectedConversation.partnerAvatar ? (
+                                      <img
+                                        src={selectedConversation.partnerAvatar}
+                                        alt={selectedConversation.partnerName}
+                                        className="w-10 h-10 rounded-full object-cover border-2 border-blue-500 hover:border-blue-700 transition-colors"
+                                      />
+                                    ) : (
+                                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 flex items-center justify-center text-white font-bold transition-all">
+                                        {selectedConversation.partnerName
+                                          .charAt(0)
+                                          .toUpperCase()}
+                                      </div>
                                     )}
-                                  </p>
+                                  </button>
+                                  <div>
+                                    <button
+                                      onClick={async () => {
+                                        const partnerId =
+                                          selectedConversation.partnerId;
+                                        if (!partnerId) return;
+                                        try {
+                                          const { data: profile } =
+                                            await supabase
+                                              .from("profiles")
+                                              .select("role")
+                                              .eq("id", partnerId)
+                                              .single();
+                                          const userRole =
+                                            profile?.role || "worker";
+                                          let roleSpecificId = partnerId;
+                                          if (userRole === "worker") {
+                                            const { data: worker } =
+                                              await supabase
+                                                .from("workers")
+                                                .select("id")
+                                                .eq("profile_id", partnerId)
+                                                .maybeSingle();
+                                            if (worker)
+                                              roleSpecificId = worker.id;
+                                          } else if (userRole === "employer") {
+                                            const { data: employer } =
+                                              await supabase
+                                                .from("employers")
+                                                .select("id")
+                                                .eq("profile_id", partnerId)
+                                                .maybeSingle();
+                                            if (employer)
+                                              roleSpecificId = employer.id;
+                                          } else if (
+                                            userRole === "accountant"
+                                          ) {
+                                            const { data: accountantData } =
+                                              await supabase
+                                                .from("accountants")
+                                                .select("id")
+                                                .eq("profile_id", partnerId)
+                                                .maybeSingle();
+                                            if (accountantData)
+                                              roleSpecificId =
+                                                accountantData.id;
+                                          } else if (
+                                            userRole === "cleaning_company"
+                                          ) {
+                                            const { data: company } =
+                                              await supabase
+                                                .from("cleaning_companies")
+                                                .select("id")
+                                                .eq("profile_id", partnerId)
+                                                .maybeSingle();
+                                            if (company)
+                                              roleSpecificId = company.id;
+                                          }
+                                          const roleMap: Record<
+                                            string,
+                                            string
+                                          > = {
+                                            worker: "/worker/profile",
+                                            employer: "/employer/profile",
+                                            accountant: "/accountant/profile",
+                                            cleaning_company:
+                                              "/cleaning-company/profile",
+                                            admin: "/admin/profile",
+                                          };
+                                          navigate(
+                                            `${
+                                              roleMap[userRole] ||
+                                              "/worker/profile"
+                                            }/${roleSpecificId}#contact`
+                                          );
+                                        } catch (error) {
+                                          console.error(
+                                            "Error navigating to profile:",
+                                            error
+                                          );
+                                        }
+                                      }}
+                                      className="font-bold text-gray-900 hover:text-blue-600 hover:underline transition-colors cursor-pointer"
+                                    >
+                                      {selectedConversation.partnerName}
+                                    </button>
+                                    <p className="text-xs text-gray-500">
+                                      {selectedConversation.isOnline ? (
+                                        <span className="text-green-600 flex items-center gap-1">
+                                          <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+                                          Online
+                                        </span>
+                                      ) : (
+                                        "Offline"
+                                      )}
+                                    </p>
+                                  </div>
+                                </div>
+
+                                <div className="flex items-center gap-2">
+                                  <button
+                                    className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                                    title="Więcej opcji"
+                                  >
+                                    <span className="text-gray-600">⋮</span>
+                                  </button>
                                 </div>
                               </div>
                             </div>
-                          ))}
 
-                        {conversations.length === 0 && (
-                          <div className="flex flex-col items-center justify-center h-full text-gray-400 p-8">
-                            <div className="text-6xl mb-4">💬</div>
-                            <p className="text-center font-medium">
-                              Brak konwersacji
+                            {/* Messages Area */}
+                            <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-gray-50">
+                              {selectedConversation.messages
+                                .sort(
+                                  (a, b) =>
+                                    new Date(a.created_at).getTime() -
+                                    new Date(b.created_at).getTime()
+                                )
+                                .map((msg, index) => {
+                                  const isOwnMessage =
+                                    msg.sender_id === user!.id;
+                                  const showAvatar =
+                                    index === 0 ||
+                                    selectedConversation.messages[index - 1]
+                                      ?.sender_id !== msg.sender_id;
+
+                                  return (
+                                    <div
+                                      key={msg.id}
+                                      className={`flex ${
+                                        isOwnMessage
+                                          ? "justify-end"
+                                          : "justify-start"
+                                      } gap-2`}
+                                    >
+                                      {/* Avatar (for received messages) */}
+                                      {!isOwnMessage && showAvatar && (
+                                        <div className="flex-shrink-0">
+                                          {selectedConversation.partnerAvatar ? (
+                                            <img
+                                              src={
+                                                selectedConversation.partnerAvatar
+                                              }
+                                              alt={
+                                                selectedConversation.partnerName
+                                              }
+                                              className="w-8 h-8 rounded-full object-cover"
+                                            />
+                                          ) : (
+                                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-gray-400 to-gray-600 flex items-center justify-center text-white text-xs font-bold">
+                                              {selectedConversation.partnerName
+                                                .charAt(0)
+                                                .toUpperCase()}
+                                            </div>
+                                          )}
+                                        </div>
+                                      )}
+
+                                      {!isOwnMessage && !showAvatar && (
+                                        <div className="w-8"></div>
+                                      )}
+
+                                      {/* Message Bubble */}
+                                      <div
+                                        className={`max-w-[70%] ${
+                                          isOwnMessage ? "order-first" : ""
+                                        }`}
+                                      >
+                                        <div
+                                          className={`p-3 rounded-2xl shadow-md ${
+                                            isOwnMessage
+                                              ? "bg-gradient-to-br from-blue-600 to-blue-700 text-white rounded-br-sm"
+                                              : "bg-white text-gray-900 border border-gray-200 rounded-bl-sm"
+                                          }`}
+                                        >
+                                          <p className="text-sm leading-relaxed break-words">
+                                            {msg.content}
+                                          </p>
+
+                                          {/* Attachments */}
+                                          {msg.attachments &&
+                                            msg.attachments.length > 0 && (
+                                              <div className="mt-2 space-y-1">
+                                                {msg.attachments.map(
+                                                  (att, i) => (
+                                                    <div
+                                                      key={i}
+                                                      className={`text-xs px-2 py-1 rounded ${
+                                                        isOwnMessage
+                                                          ? "bg-blue-800/30"
+                                                          : "bg-gray-100"
+                                                      }`}
+                                                    >
+                                                      📎 {att}
+                                                    </div>
+                                                  )
+                                                )}
+                                              </div>
+                                            )}
+
+                                          <div className="flex items-center justify-end gap-2 mt-1">
+                                            <p
+                                              className={`text-xs ${
+                                                isOwnMessage
+                                                  ? "text-blue-200"
+                                                  : "text-gray-400"
+                                              }`}
+                                            >
+                                              {new Date(
+                                                msg.created_at
+                                              ).toLocaleTimeString("pl-PL", {
+                                                hour: "2-digit",
+                                                minute: "2-digit",
+                                              })}
+                                            </p>
+                                            {isOwnMessage && msg.is_read && (
+                                              <span
+                                                className="text-blue-200"
+                                                title="Przeczytane"
+                                              >
+                                                ✓✓
+                                              </span>
+                                            )}
+                                            {isOwnMessage && !msg.is_read && (
+                                              <span
+                                                className="text-blue-300"
+                                                title="Dostarczone"
+                                              >
+                                                ✓
+                                              </span>
+                                            )}
+                                          </div>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                            </div>
+
+                            {/* Input Area */}
+                            <div className="p-4 border-t border-gray-200 bg-white">
+                              {/* Emoji Picker */}
+                              {showEmojiPicker && (
+                                <div className="mb-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                                  <div className="flex flex-wrap gap-2">
+                                    {[
+                                      "😀",
+                                      "😂",
+                                      "😍",
+                                      "🥰",
+                                      "😎",
+                                      "🤔",
+                                      "👍",
+                                      "👏",
+                                      "🙌",
+                                      "❤️",
+                                      "🔥",
+                                      "✨",
+                                      "🎉",
+                                      "💯",
+                                      "👌",
+                                      "🤝",
+                                    ].map((emoji) => (
+                                      <button
+                                        key={emoji}
+                                        onClick={() => addEmojiToMessage(emoji)}
+                                        className="text-2xl hover:scale-125 transition-transform"
+                                      >
+                                        {emoji}
+                                      </button>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+
+                              <div className="flex items-center gap-3">
+                                {/* Emoji Button */}
+                                <button
+                                  onClick={() =>
+                                    setShowEmojiPicker(!showEmojiPicker)
+                                  }
+                                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors text-2xl"
+                                  title="Dodaj emoji"
+                                >
+                                  😊
+                                </button>
+
+                                {/* File Upload */}
+                                <label
+                                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer"
+                                  title="Załącz plik"
+                                >
+                                  <input
+                                    type="file"
+                                    onChange={handleFileUpload}
+                                    className="hidden"
+                                    accept="image/*,.pdf,.doc,.docx"
+                                  />
+                                  <span className="text-xl">📎</span>
+                                </label>
+
+                                {/* Message Input */}
+                                <input
+                                  type="text"
+                                  value={messageInput}
+                                  onChange={(e) =>
+                                    setMessageInput(e.target.value)
+                                  }
+                                  onKeyPress={(e) => {
+                                    if (e.key === "Enter" && !e.shiftKey) {
+                                      e.preventDefault();
+                                      handleSendMessage();
+                                    }
+                                  }}
+                                  placeholder="Napisz wiadomość..."
+                                  className="flex-1 px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                  disabled={uploadingFile}
+                                />
+
+                                {/* Send Button */}
+                                <button
+                                  onClick={handleSendMessage}
+                                  disabled={
+                                    !messageInput.trim() || uploadingFile
+                                  }
+                                  className={`px-6 py-3 rounded-xl font-medium transition-all shadow-lg ${
+                                    messageInput.trim() && !uploadingFile
+                                      ? "bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:from-blue-700 hover:to-purple-700 hover:shadow-xl"
+                                      : "bg-gray-200 text-gray-400 cursor-not-allowed"
+                                  }`}
+                                >
+                                  {uploadingFile ? "📤" : "📨"} Wyślij
+                                </button>
+                              </div>
+
+                              <p className="text-xs text-gray-400 mt-2 text-center">
+                                Enter = wyślij • Shift+Enter = nowa linia
+                              </p>
+                            </div>
+                          </>
+                        ) : (
+                          /* Empty State */
+                          <div className="flex flex-col items-center justify-center h-full text-gray-400 bg-gray-50">
+                            <div className="text-8xl mb-6">💬</div>
+                            <p className="text-xl font-medium mb-2">
+                              Wybierz konwersację
                             </p>
-                            <p className="text-xs text-center mt-2">
-                              Twoje wiadomości pojawią się tutaj
+                            <p className="text-sm text-center max-w-xs">
+                              Kliknij na konwersację po lewej stronie, aby
+                              rozpocząć czat
                             </p>
                           </div>
                         )}
                       </div>
                     </div>
+                  </div>
+                </div>
+              )}
+              {/* END WIADOMOŚCI */}
 
-                    {/* ============================================ */}
-                    {/* RIGHT PANEL: CHAT WINDOW */}
-                    {/* ============================================ */}
-                    <div className="w-2/3 flex flex-col bg-white">
-                      {selectedConversation ? (
-                        <>
-                          {/* Chat Header */}
-                          <div className="p-5 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-white shadow-sm">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-3">
-                                {selectedConversation.partnerAvatar ? (
-                                  <img
-                                    src={selectedConversation.partnerAvatar}
-                                    alt={selectedConversation.partnerName}
-                                    className="w-10 h-10 rounded-full object-cover border-2 border-blue-500"
-                                  />
-                                ) : (
-                                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold">
-                                    {selectedConversation.partnerName
-                                      .charAt(0)
-                                      .toUpperCase()}
-                                  </div>
-                                )}
-                                <div>
-                                  <h4 className="font-bold text-gray-900">
-                                    {selectedConversation.partnerName}
-                                  </h4>
-                                  <p className="text-xs text-gray-500">
-                                    {selectedConversation.isOnline ? (
-                                      <span className="text-green-600 flex items-center gap-1">
-                                        <span className="w-2 h-2 bg-green-500 rounded-full"></span>
-                                        Online
-                                      </span>
-                                    ) : (
-                                      "Offline"
+              {/* REAKCJE CONTENT */}
+              {messagesSubTab === "reakcje" && (
+                <div className="max-w-7xl mx-auto">
+                  <div className="bg-white rounded-2xl shadow-xl overflow-hidden p-6">
+                    <h3 className="text-2xl font-bold mb-6 text-gray-900">
+                      💗 Reakcje na Twoje relacje
+                    </h3>
+
+                    {reactions.length === 0 ? (
+                      <div className="text-center py-20">
+                        <div className="text-6xl mb-4">💭</div>
+                        <p className="text-gray-500 text-lg">Brak reakcji</p>
+                        <p className="text-gray-400 text-sm mt-2">
+                          Gdy ktoś zareaguje na Twoją relację, zobaczysz to
+                          tutaj
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        {reactions.map((reaction) => {
+                          const reactorData = reaction.data || {};
+                          const reactorId =
+                            reactorData.reactor_id || reactorData.sender_id;
+                          const reactorName =
+                            reactorData.reactor_name ||
+                            reactorData.sender_name ||
+                            "Użytkownik";
+                          const reactorAvatar =
+                            reactorData.reactor_avatar ||
+                            reactorData.sender_avatar;
+                          const reactorRole =
+                            reactorData.reactor_role ||
+                            reactorData.sender_role ||
+                            "regular_user";
+
+                          // Type-specific display
+                          const getTypeInfo = (type: string) => {
+                            switch (type) {
+                              case "story_reaction":
+                                return {
+                                  emoji: "👀",
+                                  text: "zainteresował się Twoją relacją",
+                                  color: "pink",
+                                };
+                              case "story_reply":
+                                return {
+                                  emoji: "💬",
+                                  text: "skomentował Twoją relację",
+                                  color: "blue",
+                                };
+                              case "review":
+                                return {
+                                  emoji: "⭐",
+                                  text: "wystawił Ci opinię",
+                                  color: "yellow",
+                                };
+                              default:
+                                return {
+                                  emoji: "🔔",
+                                  text: "interakcja",
+                                  color: "gray",
+                                };
+                            }
+                          };
+
+                          const typeInfo = getTypeInfo(reaction.type);
+
+                          // Generate profile URL based on role
+                          const getProfileUrl = (role: string, id: string) => {
+                            const roleMap: Record<string, string> = {
+                              worker: "/worker/profile",
+                              employer: "/employer/profile",
+                              accountant: "/accountant/profile",
+                              cleaning_company: "/cleaning-company/profile",
+                              admin: "/admin/profile",
+                              regular_user: "/worker/profile",
+                            };
+                            return `${
+                              roleMap[role] || "/worker/profile"
+                            }/${id}#contact`;
+                          };
+
+                          const handleProfileClick = async () => {
+                            if (!reactorId) return;
+
+                            try {
+                              // First get the user's role from profiles table
+                              const { data: profile } = await supabase
+                                .from("profiles")
+                                .select("role")
+                                .eq("id", reactorId)
+                                .single();
+
+                              const userRole =
+                                profile?.role || reactorRole || "worker";
+
+                              // Get the role-specific ID based on role
+                              let roleSpecificId = reactorId;
+
+                              if (userRole === "worker") {
+                                const { data: worker } = await supabase
+                                  .from("workers")
+                                  .select("id")
+                                  .eq("profile_id", reactorId)
+                                  .maybeSingle();
+                                if (worker) roleSpecificId = worker.id;
+                              } else if (userRole === "employer") {
+                                const { data: employer } = await supabase
+                                  .from("employers")
+                                  .select("id")
+                                  .eq("profile_id", reactorId)
+                                  .maybeSingle();
+                                if (employer) roleSpecificId = employer.id;
+                              } else if (userRole === "accountant") {
+                                const { data: accountantData } = await supabase
+                                  .from("accountants")
+                                  .select("id")
+                                  .eq("profile_id", reactorId)
+                                  .maybeSingle();
+                                if (accountantData)
+                                  roleSpecificId = accountantData.id;
+                              } else if (userRole === "cleaning_company") {
+                                const { data: company } = await supabase
+                                  .from("cleaning_companies")
+                                  .select("id")
+                                  .eq("profile_id", reactorId)
+                                  .maybeSingle();
+                                if (company) roleSpecificId = company.id;
+                              } else if (userRole === "admin") {
+                                // Admin uses profile_id directly
+                                roleSpecificId = reactorId;
+                              }
+
+                              const url = getProfileUrl(
+                                userRole,
+                                roleSpecificId
+                              );
+                              navigate(url);
+                            } catch (error) {
+                              console.error(
+                                "Error navigating to profile:",
+                                error
+                              );
+                              // Fallback to worker profile with profile_id
+                              navigate(`/worker/profile/${reactorId}#contact`);
+                            }
+                          };
+
+                          return (
+                            <div
+                              key={reaction.id}
+                              className={`p-4 rounded-xl border-2 transition-all hover:shadow-lg ${
+                                !reaction.is_read
+                                  ? "bg-pink-50 border-pink-300"
+                                  : "bg-white border-gray-200"
+                              }`}
+                            >
+                              <div className="flex items-start gap-4">
+                                {/* Avatar - clickable */}
+                                <button
+                                  onClick={handleProfileClick}
+                                  className="flex-shrink-0 group cursor-pointer"
+                                >
+                                  {reactorAvatar ? (
+                                    <img
+                                      src={reactorAvatar}
+                                      alt={reactorName}
+                                      className="w-12 h-12 rounded-full object-cover border-2 border-pink-300 group-hover:border-pink-500 transition-all"
+                                    />
+                                  ) : (
+                                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-pink-500 to-purple-600 flex items-center justify-center text-white text-xl border-2 border-pink-300 group-hover:border-pink-500 transition-all">
+                                      {reactorName.charAt(0).toUpperCase()}
+                                    </div>
+                                  )}
+                                </button>
+
+                                {/* Content */}
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center justify-between mb-2">
+                                    <div>
+                                      <div className="flex items-center gap-2">
+                                        <span className="text-2xl">
+                                          {typeInfo.emoji}
+                                        </span>
+                                        <button
+                                          onClick={handleProfileClick}
+                                          className={`font-bold text-lg hover:underline cursor-pointer ${
+                                            !reaction.is_read
+                                              ? "text-pink-700"
+                                              : "text-gray-900"
+                                          }`}
+                                        >
+                                          {reactorName}
+                                        </button>
+                                      </div>
+                                      <p className="text-sm text-gray-600">
+                                        {typeInfo.text}
+                                      </p>
+                                      {reaction.type === "story_reply" &&
+                                        reaction.message && (
+                                          <p className="text-sm text-gray-700 mt-2 italic bg-gray-50 p-2 rounded">
+                                            "{reaction.message}"
+                                          </p>
+                                        )}
+                                    </div>
+                                    {!reaction.is_read && (
+                                      <span className="w-3 h-3 bg-pink-500 rounded-full"></span>
                                     )}
+                                  </div>
+                                  <p className="text-xs text-gray-500">
+                                    {new Date(
+                                      reaction.created_at
+                                    ).toLocaleString("pl-PL", {
+                                      day: "numeric",
+                                      month: "long",
+                                      year: "numeric",
+                                      hour: "2-digit",
+                                      minute: "2-digit",
+                                    })}
                                   </p>
                                 </div>
                               </div>
-
-                              <div className="flex items-center gap-2">
-                                <button
-                                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                                  title="Więcej opcji"
-                                >
-                                  <span className="text-gray-600">⋮</span>
-                                </button>
-                              </div>
                             </div>
-                          </div>
-
-                          {/* Messages Area */}
-                          <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-gray-50">
-                            {selectedConversation.messages
-                              .sort(
-                                (a, b) =>
-                                  new Date(a.created_at).getTime() -
-                                  new Date(b.created_at).getTime()
-                              )
-                              .map((msg, index) => {
-                                const isOwnMessage = msg.sender_id === user!.id;
-                                const showAvatar =
-                                  index === 0 ||
-                                  selectedConversation.messages[index - 1]
-                                    ?.sender_id !== msg.sender_id;
-
-                                return (
-                                  <div
-                                    key={msg.id}
-                                    className={`flex ${
-                                      isOwnMessage
-                                        ? "justify-end"
-                                        : "justify-start"
-                                    } gap-2`}
-                                  >
-                                    {/* Avatar (for received messages) */}
-                                    {!isOwnMessage && showAvatar && (
-                                      <div className="flex-shrink-0">
-                                        {selectedConversation.partnerAvatar ? (
-                                          <img
-                                            src={
-                                              selectedConversation.partnerAvatar
-                                            }
-                                            alt={
-                                              selectedConversation.partnerName
-                                            }
-                                            className="w-8 h-8 rounded-full object-cover"
-                                          />
-                                        ) : (
-                                          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-gray-400 to-gray-600 flex items-center justify-center text-white text-xs font-bold">
-                                            {selectedConversation.partnerName
-                                              .charAt(0)
-                                              .toUpperCase()}
-                                          </div>
-                                        )}
-                                      </div>
-                                    )}
-
-                                    {!isOwnMessage && !showAvatar && (
-                                      <div className="w-8"></div>
-                                    )}
-
-                                    {/* Message Bubble */}
-                                    <div
-                                      className={`max-w-[70%] ${
-                                        isOwnMessage ? "order-first" : ""
-                                      }`}
-                                    >
-                                      <div
-                                        className={`p-3 rounded-2xl shadow-md ${
-                                          isOwnMessage
-                                            ? "bg-gradient-to-br from-blue-600 to-blue-700 text-white rounded-br-sm"
-                                            : "bg-white text-gray-900 border border-gray-200 rounded-bl-sm"
-                                        }`}
-                                      >
-                                        <p className="text-sm leading-relaxed break-words">
-                                          {msg.content}
-                                        </p>
-
-                                        {/* Attachments */}
-                                        {msg.attachments &&
-                                          msg.attachments.length > 0 && (
-                                            <div className="mt-2 space-y-1">
-                                              {msg.attachments.map((att, i) => (
-                                                <div
-                                                  key={i}
-                                                  className={`text-xs px-2 py-1 rounded ${
-                                                    isOwnMessage
-                                                      ? "bg-blue-800/30"
-                                                      : "bg-gray-100"
-                                                  }`}
-                                                >
-                                                  📎 {att}
-                                                </div>
-                                              ))}
-                                            </div>
-                                          )}
-
-                                        <div className="flex items-center justify-end gap-2 mt-1">
-                                          <p
-                                            className={`text-xs ${
-                                              isOwnMessage
-                                                ? "text-blue-200"
-                                                : "text-gray-400"
-                                            }`}
-                                          >
-                                            {new Date(
-                                              msg.created_at
-                                            ).toLocaleTimeString("pl-PL", {
-                                              hour: "2-digit",
-                                              minute: "2-digit",
-                                            })}
-                                          </p>
-                                          {isOwnMessage && msg.is_read && (
-                                            <span
-                                              className="text-blue-200"
-                                              title="Przeczytane"
-                                            >
-                                              ✓✓
-                                            </span>
-                                          )}
-                                          {isOwnMessage && !msg.is_read && (
-                                            <span
-                                              className="text-blue-300"
-                                              title="Dostarczone"
-                                            >
-                                              ✓
-                                            </span>
-                                          )}
-                                        </div>
-                                      </div>
-                                    </div>
-                                  </div>
-                                );
-                              })}
-                          </div>
-
-                          {/* Input Area */}
-                          <div className="p-4 border-t border-gray-200 bg-white">
-                            {/* Emoji Picker */}
-                            {showEmojiPicker && (
-                              <div className="mb-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
-                                <div className="flex flex-wrap gap-2">
-                                  {[
-                                    "😀",
-                                    "😂",
-                                    "😍",
-                                    "🥰",
-                                    "😎",
-                                    "🤔",
-                                    "👍",
-                                    "👏",
-                                    "🙌",
-                                    "❤️",
-                                    "🔥",
-                                    "✨",
-                                    "🎉",
-                                    "💯",
-                                    "👌",
-                                    "🤝",
-                                  ].map((emoji) => (
-                                    <button
-                                      key={emoji}
-                                      onClick={() => addEmojiToMessage(emoji)}
-                                      className="text-2xl hover:scale-125 transition-transform"
-                                    >
-                                      {emoji}
-                                    </button>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
-
-                            <div className="flex items-center gap-3">
-                              {/* Emoji Button */}
-                              <button
-                                onClick={() =>
-                                  setShowEmojiPicker(!showEmojiPicker)
-                                }
-                                className="p-2 hover:bg-gray-100 rounded-lg transition-colors text-2xl"
-                                title="Dodaj emoji"
-                              >
-                                😊
-                              </button>
-
-                              {/* File Upload */}
-                              <label
-                                className="p-2 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer"
-                                title="Załącz plik"
-                              >
-                                <input
-                                  type="file"
-                                  onChange={handleFileUpload}
-                                  className="hidden"
-                                  accept="image/*,.pdf,.doc,.docx"
-                                />
-                                <span className="text-xl">📎</span>
-                              </label>
-
-                              {/* Message Input */}
-                              <input
-                                type="text"
-                                value={messageInput}
-                                onChange={(e) =>
-                                  setMessageInput(e.target.value)
-                                }
-                                onKeyPress={(e) => {
-                                  if (e.key === "Enter" && !e.shiftKey) {
-                                    e.preventDefault();
-                                    handleSendMessage();
-                                  }
-                                }}
-                                placeholder="Napisz wiadomość..."
-                                className="flex-1 px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                disabled={uploadingFile}
-                              />
-
-                              {/* Send Button */}
-                              <button
-                                onClick={handleSendMessage}
-                                disabled={!messageInput.trim() || uploadingFile}
-                                className={`px-6 py-3 rounded-xl font-medium transition-all shadow-lg ${
-                                  messageInput.trim() && !uploadingFile
-                                    ? "bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:from-blue-700 hover:to-purple-700 hover:shadow-xl"
-                                    : "bg-gray-200 text-gray-400 cursor-not-allowed"
-                                }`}
-                              >
-                                {uploadingFile ? "📤" : "📨"} Wyślij
-                              </button>
-                            </div>
-
-                            <p className="text-xs text-gray-400 mt-2 text-center">
-                              Enter = wyślij • Shift+Enter = nowa linia
-                            </p>
-                          </div>
-                        </>
-                      ) : (
-                        /* Empty State */
-                        <div className="flex flex-col items-center justify-center h-full text-gray-400 bg-gray-50">
-                          <div className="text-8xl mb-6">💬</div>
-                          <p className="text-xl font-medium mb-2">
-                            Wybierz konwersację
-                          </p>
-                          <p className="text-sm text-center max-w-xs">
-                            Kliknij na konwersację po lewej stronie, aby
-                            rozpocząć czat
-                          </p>
-                        </div>
-                      )}
-                    </div>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
                 </div>
-              </div>
+              )}
+              {/* END REAKCJE */}
             </TabPanel>
 
             {/* Portfolio Tab */}
             <TabPanel isActive={activeTab === "portfolio"}>
-              <div className="max-w-7xl mx-auto space-y-6">
-                {/* Header */}
-                <div className="bg-gradient-to-r from-purple-500 to-pink-500 rounded-2xl p-8 text-white shadow-xl">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h2 className="text-3xl font-bold mb-2">
-                        🎨 Portfolio Zdjęć
-                      </h2>
-                      <p className="text-purple-100">
-                        Pokaż pracodawcom swoje najlepsze realizacje
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-5xl font-bold">
-                        {companyData?.portfolio_images?.length || 0}
-                      </p>
-                      <p className="text-sm opacity-90">zdjęć w galerii</p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Upload section */}
-                <div className="bg-white rounded-xl shadow-md p-6">
-                  <div className="flex items-center justify-between mb-6">
-                    <div>
-                      <h3 className="font-bold text-lg mb-1">
-                        📸 Zarządzaj galerią
-                      </h3>
-                      <p className="text-sm text-gray-600">
-                        Dodaj zdjęcia swoich realizacji, aby przyciągnąć więcej
-                        klientów
-                      </p>
-                    </div>
+              <div className="min-h-screen bg-gradient-to-br from-slate-950 via-blue-950 to-indigo-950 p-8">
+                <div className="max-w-7xl mx-auto">
+                  {/* Header */}
+                  <div className="flex justify-between items-center mb-8">
+                    <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+                      🎨 Moje Portfolio
+                    </h1>
                     <button
-                      onClick={() => setShowPortfolioModal(true)}
-                      className="px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg font-medium hover:from-purple-700 hover:to-pink-700 transition-all shadow-md hover:shadow-lg flex items-center gap-2"
+                      onClick={() => openPortfolioModal()}
+                      className="px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold rounded-xl hover:shadow-lg hover:shadow-blue-500/50 transition-all transform hover:scale-105"
                     >
-                      <span className="text-xl">➕</span>
-                      Dodaj zdjęcia
+                      ➕ Dodaj projekt
                     </button>
                   </div>
 
-                  {/* Portfolio grid */}
-                  {companyData?.portfolio_images &&
-                  companyData.portfolio_images.length > 0 ? (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                      {companyData.portfolio_images.map((image, index) => (
+                  {/* Portfolio Grid */}
+                  {portfolio.length === 0 ? (
+                    <div className="text-center py-16 relative">
+                      <div
+                        className="relative rounded-2xl overflow-hidden"
+                        style={{
+                          background: "rgba(255,255,255,0.05)",
+                          backdropFilter: "blur(20px)",
+                          border: "1px solid rgba(255,255,255,0.1)",
+                        }}
+                      >
+                        <div className="p-12">
+                          <div className="text-6xl mb-4">📂</div>
+                          <p className="text-gray-300 mb-6">
+                            Brak projektów w portfolio
+                          </p>
+                          <button
+                            onClick={() => openPortfolioModal()}
+                            className="px-8 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold rounded-xl hover:shadow-lg hover:shadow-purple-500/50 transition-all"
+                          >
+                            Dodaj pierwszy projekt
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      {portfolio.map((project) => (
                         <div
-                          key={index}
-                          className="group relative aspect-square overflow-hidden rounded-xl shadow-md hover:shadow-2xl transition-all duration-300"
+                          key={project.id}
+                          className="relative group cursor-pointer"
                         >
-                          <img
-                            src={image}
-                            alt={`Portfolio ${index + 1}`}
-                            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
-                          />
-                          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/0 to-black/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                            <div className="absolute bottom-0 left-0 right-0 p-4">
-                              <p className="text-white font-medium">
-                                Zdjęcie {index + 1}
-                              </p>
-                              <p className="text-white/80 text-xs">
-                                Kliknij, aby powiększyć
-                              </p>
+                          <div
+                            className="relative rounded-2xl overflow-hidden h-full transition-all duration-300 group-hover:scale-105"
+                            style={{
+                              background: "rgba(255,255,255,0.08)",
+                              backdropFilter: "blur(20px)",
+                              border: "1px solid rgba(255,255,255,0.15)",
+                            }}
+                          >
+                            {project.images && project.images.length > 0 && (
+                              <div
+                                className="relative h-56 overflow-hidden cursor-pointer"
+                                onClick={() => {
+                                  setLightboxImages(project.images);
+                                  setLightboxIndex(0);
+                                  setLightboxOpen(true);
+                                }}
+                              >
+                                <img
+                                  src={project.images[0]}
+                                  alt={project.title}
+                                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                                />
+                                {project.images.length > 1 && (
+                                  <div className="absolute top-2 right-2 bg-black/60 text-white px-2 py-1 rounded-lg text-sm">
+                                    +{project.images.length - 1} zdjęć
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                            <div className="p-6">
+                              <h3 className="font-bold text-xl text-white mb-2 group-hover:text-blue-300 transition-colors">
+                                {project.title}
+                              </h3>
+                              {project.category && (
+                                <span className="inline-block px-3 py-1 bg-blue-500/20 text-blue-300 rounded-full text-sm mb-2 border border-blue-500/30">
+                                  {project.category}
+                                </span>
+                              )}
+                              {project.description && (
+                                <p className="text-gray-300 text-sm line-clamp-3 mb-4">
+                                  {project.description}
+                                </p>
+                              )}
+                              {project.location && (
+                                <p className="text-gray-400 text-sm mb-4">
+                                  📍 {project.location}
+                                </p>
+                              )}
+                              <div className="flex gap-2">
+                                <button
+                                  onClick={() => openPortfolioModal(project)}
+                                  className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg transition-colors text-sm"
+                                >
+                                  ✏️ Edytuj
+                                </button>
+                                <button
+                                  onClick={() =>
+                                    handlePortfolioDelete(project.id)
+                                  }
+                                  className="px-4 py-2 bg-red-600/80 hover:bg-red-600 text-white rounded-lg transition-colors text-sm"
+                                >
+                                  🗑️
+                                </button>
+                              </div>
                             </div>
                           </div>
-                          {/* Zoom button */}
-                          <button
-                            onClick={() => window.open(image, "_blank")}
-                            className="absolute top-2 right-2 w-10 h-10 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white shadow-lg"
-                          >
-                            <span className="text-xl">🔍</span>
-                          </button>
                         </div>
                       ))}
                     </div>
-                  ) : (
-                    <div className="text-center py-16">
-                      <div className="text-8xl mb-4">🖼️</div>
-                      <h3 className="text-xl font-bold text-gray-800 mb-2">
-                        Brak zdjęć w portfolio
-                      </h3>
-                      <p className="text-gray-600 mb-6 max-w-md mx-auto">
-                        Dodaj zdjęcia swoich najlepszych realizacji, aby pokazać
-                        pracodawcom jakość Twojej pracy
-                      </p>
+                  )}
+                </div>
+              </div>
+
+              {/* Portfolio Form Modal */}
+              {showPortfolioModal && (
+                <div className="fixed inset-0 bg-black/90 flex items-center justify-center z-50 p-4 overflow-y-auto">
+                  <div className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-2xl p-8 max-w-3xl w-full border border-slate-700 my-8 max-h-[90vh] overflow-y-auto">
+                    <h2 className="text-2xl font-bold text-white mb-6">
+                      {editingProjectId
+                        ? "✏️ Edytuj projekt"
+                        : "➕ Dodaj nowy projekt"}
+                    </h2>
+
+                    <form
+                      onSubmit={handlePortfolioSubmit}
+                      className="space-y-4"
+                    >
+                      {/* Nazwa projektu */}
+                      <div>
+                        <label className="block text-gray-300 text-sm mb-2">
+                          Nazwa projektu *
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          value={portfolioForm.title}
+                          onChange={(e) =>
+                            setPortfolioForm({
+                              ...portfolioForm,
+                              title: e.target.value,
+                            })
+                          }
+                          className="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-xl text-white placeholder-gray-500"
+                          placeholder="np. Kompleksowe sprzątanie biura 500m²"
+                        />
+                      </div>
+
+                      {/* Opis projektu */}
+                      <div>
+                        <label className="block text-gray-300 text-sm mb-2">
+                          Opis projektu *
+                        </label>
+                        <textarea
+                          required
+                          rows={5}
+                          value={portfolioForm.description}
+                          onChange={(e) =>
+                            setPortfolioForm({
+                              ...portfolioForm,
+                              description: e.target.value,
+                            })
+                          }
+                          className="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-xl text-white resize-none placeholder-gray-500"
+                          placeholder="Opisz szczegółowo zakres prac, użyte środki czystości, czas realizacji..."
+                        />
+                      </div>
+
+                      {/* Lokalizacja i Adres */}
+                      <div className="grid md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-gray-300 text-sm mb-2">
+                            📍 Lokalizacja (miasto)
+                          </label>
+                          <input
+                            type="text"
+                            value={portfolioForm.location}
+                            onChange={(e) =>
+                              setPortfolioForm({
+                                ...portfolioForm,
+                                location: e.target.value,
+                              })
+                            }
+                            className="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-xl text-white placeholder-gray-500"
+                            placeholder="np. Warszawa"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-gray-300 text-sm mb-2">
+                            🏠 Adres realizacji
+                          </label>
+                          <input
+                            type="text"
+                            value={portfolioForm.address}
+                            onChange={(e) =>
+                              setPortfolioForm({
+                                ...portfolioForm,
+                                address: e.target.value,
+                              })
+                            }
+                            className="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-xl text-white placeholder-gray-500"
+                            placeholder="ul. Przykładowa 123"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Daty */}
+                      <div className="grid md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-gray-300 text-sm mb-2">
+                            Data rozpoczęcia
+                          </label>
+                          <input
+                            type="date"
+                            value={portfolioForm.start_date}
+                            onChange={(e) =>
+                              setPortfolioForm({
+                                ...portfolioForm,
+                                start_date: e.target.value,
+                              })
+                            }
+                            className="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-xl text-white"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-gray-300 text-sm mb-2">
+                            Data zakończenia
+                          </label>
+                          <input
+                            type="date"
+                            value={portfolioForm.end_date}
+                            onChange={(e) =>
+                              setPortfolioForm({
+                                ...portfolioForm,
+                                end_date: e.target.value,
+                              })
+                            }
+                            className="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-xl text-white"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Klient i Firma */}
+                      <div className="grid md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-gray-300 text-sm mb-2">
+                            👤 Klient (nazwisko/imię)
+                          </label>
+                          <input
+                            type="text"
+                            value={portfolioForm.client_name}
+                            onChange={(e) =>
+                              setPortfolioForm({
+                                ...portfolioForm,
+                                client_name: e.target.value,
+                              })
+                            }
+                            className="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-xl text-white placeholder-gray-500"
+                            placeholder="Jan Kowalski"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-gray-300 text-sm mb-2">
+                            🏢 Firma klienta
+                          </label>
+                          <input
+                            type="text"
+                            value={portfolioForm.client_company}
+                            onChange={(e) =>
+                              setPortfolioForm({
+                                ...portfolioForm,
+                                client_company: e.target.value,
+                              })
+                            }
+                            className="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-xl text-white placeholder-gray-500"
+                            placeholder="XYZ Office Sp. z o.o."
+                          />
+                        </div>
+                      </div>
+
+                      {/* Kategoria */}
+                      <div>
+                        <label className="block text-gray-300 text-sm mb-2">
+                          🏷️ Kategoria
+                        </label>
+                        <select
+                          value={portfolioForm.category}
+                          onChange={(e) =>
+                            setPortfolioForm({
+                              ...portfolioForm,
+                              category: e.target.value,
+                            })
+                          }
+                          className="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-xl text-white"
+                        >
+                          <option value="">Wybierz kategorię</option>
+                          <option value="Sprzątanie biur">
+                            Sprzątanie biur
+                          </option>
+                          <option value="Sprzątanie domów">
+                            Sprzątanie domów
+                          </option>
+                          <option value="Sprzątanie po remoncie">
+                            Sprzątanie po remoncie
+                          </option>
+                          <option value="Mycie okien">Mycie okien</option>
+                          <option value="Czyszczenie dywanów">
+                            Czyszczenie dywanów
+                          </option>
+                          <option value="Sprzątanie przemysłowe">
+                            Sprzątanie przemysłowe
+                          </option>
+                          <option value="Dezynfekcja">Dezynfekcja</option>
+                          <option value="Sprzątanie po imprezach">
+                            Sprzątanie po imprezach
+                          </option>
+                          <option value="Sprzątanie hoteli">
+                            Sprzątanie hoteli
+                          </option>
+                          <option value="Inne">Inne</option>
+                        </select>
+                      </div>
+
+                      {/* Link do projektu */}
+                      <div>
+                        <label className="block text-gray-300 text-sm mb-2">
+                          🔗 Link do projektu
+                        </label>
+                        <input
+                          type="url"
+                          value={portfolioForm.project_url}
+                          onChange={(e) =>
+                            setPortfolioForm({
+                              ...portfolioForm,
+                              project_url: e.target.value,
+                            })
+                          }
+                          className="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-xl text-white placeholder-gray-500"
+                          placeholder="https://example.com"
+                        />
+                      </div>
+
+                      {/* Zdjęcia projektu */}
+                      <div>
+                        <label className="block text-gray-300 text-sm mb-2">
+                          🖼️ Zdjęcia projektu
+                        </label>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handlePortfolioImageUpload}
+                          className="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-xl text-white file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-blue-600 file:text-white hover:file:bg-blue-500"
+                        />
+                      </div>
+
+                      {portfolioForm.images.length > 0 && (
+                        <div className="flex flex-wrap gap-2">
+                          {portfolioForm.images.map((img, idx) => (
+                            <div key={idx} className="relative group">
+                              <img
+                                src={img}
+                                alt={`Preview ${idx + 1}`}
+                                className="w-20 h-20 object-cover rounded-lg border-2 border-slate-600"
+                              />
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setPortfolioForm({
+                                    ...portfolioForm,
+                                    images: portfolioForm.images.filter(
+                                      (_, i) => i !== idx
+                                    ),
+                                  })
+                                }
+                                className="absolute -top-2 -right-2 w-6 h-6 bg-red-600 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity text-xs flex items-center justify-center"
+                              >
+                                ✕
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Opcje widoczności */}
+                      <div className="flex gap-6 pt-2">
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={portfolioForm.is_public}
+                            onChange={(e) =>
+                              setPortfolioForm({
+                                ...portfolioForm,
+                                is_public: e.target.checked,
+                              })
+                            }
+                            className="w-5 h-5 rounded bg-slate-800 border-slate-600 text-blue-600 focus:ring-2 focus:ring-blue-500"
+                          />
+                          <span className="text-gray-300">
+                            👁️ Widoczne publicznie
+                          </span>
+                        </label>
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={portfolioForm.is_featured}
+                            onChange={(e) =>
+                              setPortfolioForm({
+                                ...portfolioForm,
+                                is_featured: e.target.checked,
+                              })
+                            }
+                            className="w-5 h-5 rounded bg-slate-800 border-slate-600 text-yellow-500 focus:ring-2 focus:ring-yellow-500"
+                          />
+                          <span className="text-gray-300">⭐ Wyróżnione</span>
+                        </label>
+                      </div>
+
+                      <div className="flex gap-4 pt-4 border-t border-slate-700 mt-6">
+                        <button
+                          type="submit"
+                          className="flex-1 px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold rounded-xl hover:from-blue-500 hover:to-purple-500 transition-all"
+                        >
+                          💾{" "}
+                          {editingProjectId ? "Zapisz zmiany" : "Dodaj projekt"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowPortfolioModal(false);
+                            resetPortfolioForm();
+                          }}
+                          className="px-6 py-3 bg-slate-700 text-white font-bold rounded-xl hover:bg-slate-600 transition-all"
+                        >
+                          ❌ Anuluj
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+                </div>
+              )}
+
+              {/* Lightbox */}
+              {lightboxOpen && (
+                <div className="fixed inset-0 bg-black/95 flex items-center justify-center z-[100] p-4">
+                  <button
+                    onClick={() => setLightboxOpen(false)}
+                    className="absolute top-4 right-4 w-12 h-12 bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-full text-white text-2xl"
+                  >
+                    ✕
+                  </button>
+                  {lightboxImages.length > 1 && (
+                    <>
                       <button
-                        onClick={() => setShowPortfolioModal(true)}
-                        className="px-8 py-4 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-xl font-bold hover:from-purple-700 hover:to-pink-700 transition-all shadow-lg hover:shadow-xl text-lg"
+                        onClick={() =>
+                          setLightboxIndex(Math.max(0, lightboxIndex - 1))
+                        }
+                        disabled={lightboxIndex === 0}
+                        className="absolute left-4 w-12 h-12 bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-full text-white text-2xl disabled:opacity-30"
                       >
-                        ➕ Dodaj pierwsze zdjęcia
+                        ←
                       </button>
+                      <button
+                        onClick={() =>
+                          setLightboxIndex(
+                            Math.min(
+                              lightboxImages.length - 1,
+                              lightboxIndex + 1
+                            )
+                          )
+                        }
+                        disabled={lightboxIndex === lightboxImages.length - 1}
+                        className="absolute right-4 w-12 h-12 bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-full text-white text-2xl disabled:opacity-30"
+                      >
+                        →
+                      </button>
+                    </>
+                  )}
+                  <img
+                    src={lightboxImages[lightboxIndex]}
+                    alt={`Image ${lightboxIndex + 1}`}
+                    className="max-w-full max-h-full object-contain"
+                  />
+                  {lightboxImages.length > 1 && (
+                    <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-black/60 backdrop-blur-md px-4 py-2 rounded-full text-white">
+                      {lightboxIndex + 1} / {lightboxImages.length}
                     </div>
                   )}
                 </div>
-
-                {/* Tips section */}
-                <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl p-6 border border-purple-200">
-                  <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
-                    <span className="text-2xl">💡</span>
-                    Wskazówki dotyczące portfolio
-                  </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="flex gap-3">
-                      <span className="text-2xl flex-shrink-0">📷</span>
-                      <div>
-                        <p className="font-medium text-gray-900">
-                          Dobra jakość zdjęć
-                        </p>
-                        <p className="text-sm text-gray-600">
-                          Używaj zdjęć w wysokiej rozdzielczości, dobrze
-                          oświetlonych
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex gap-3">
-                      <span className="text-2xl flex-shrink-0">🎯</span>
-                      <div>
-                        <p className="font-medium text-gray-900">
-                          Pokazuj rezultaty
-                        </p>
-                        <p className="text-sm text-gray-600">
-                          Zdjęcia przed i po wykonaniu usługi działają najlepiej
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex gap-3">
-                      <span className="text-2xl flex-shrink-0">🌟</span>
-                      <div>
-                        <p className="font-medium text-gray-900">
-                          Różnorodność
-                        </p>
-                        <p className="text-sm text-gray-600">
-                          Pokaż różne typy pomieszczeń i usług
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex gap-3">
-                      <span className="text-2xl flex-shrink-0">🔄</span>
-                      <div>
-                        <p className="font-medium text-gray-900">
-                          Aktualizuj regularnie
-                        </p>
-                        <p className="text-sm text-gray-600">
-                          Dodawaj nowe realizacje co 2-4 tygodnie
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Stats */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <div className="bg-white rounded-xl shadow-md p-6">
-                    <div className="flex items-center gap-4">
-                      <div className="w-14 h-14 bg-purple-100 rounded-full flex items-center justify-center text-2xl">
-                        👁️
-                      </div>
-                      <div>
-                        <p className="text-sm text-gray-600">
-                          Wyświetlenia profilu
-                        </p>
-                        <p className="text-2xl font-bold text-gray-900">
-                          {stats.profileViews}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="bg-white rounded-xl shadow-md p-6">
-                    <div className="flex items-center gap-4">
-                      <div className="w-14 h-14 bg-green-100 rounded-full flex items-center justify-center text-2xl">
-                        ⭐
-                      </div>
-                      <div>
-                        <p className="text-sm text-gray-600">Średnia ocena</p>
-                        <p className="text-2xl font-bold text-gray-900">
-                          {stats.averageRating > 0
-                            ? stats.averageRating.toFixed(1)
-                            : "0.0"}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="bg-white rounded-xl shadow-md p-6">
-                    <div className="flex items-center gap-4">
-                      <div className="w-14 h-14 bg-orange-100 rounded-full flex items-center justify-center text-2xl">
-                        📞
-                      </div>
-                      <div>
-                        <p className="text-sm text-gray-600">
-                          Zapytania kontaktowe
-                        </p>
-                        <p className="text-2xl font-bold text-gray-900">
-                          {stats.contactAttempts}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
+              )}
             </TabPanel>
 
             {/* Tablica Tab */}
@@ -3180,16 +3947,6 @@ const CleaningCompanyDashboard = () => {
                 company={companyData}
                 onClose={() => setShowEditModal(false)}
                 onSave={handleSaveCompanyInfo}
-              />
-            )}
-
-            {showPortfolioModal && companyData && (
-              <PortfolioUploadModal
-                companyId={companyData.id}
-                currentImages={companyData.portfolio_images || []}
-                isOpen={showPortfolioModal}
-                onClose={() => setShowPortfolioModal(false)}
-                onSuccess={handlePortfolioSuccess}
               />
             )}
 

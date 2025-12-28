@@ -54,10 +54,18 @@ import FeedPage from "../pages/FeedPage_PREMIUM";
 import {
   PageContainer,
   PageHeader,
-  StatsGrid,
-  StatCard,
   ContentCard,
 } from "../components/common/PageContainer";
+import { StatChipsGrid, StatChipItem } from "../components/StatChips";
+import {
+  Briefcase,
+  DollarSign,
+  Award,
+  Mail,
+  Check,
+  Star,
+  Eye,
+} from "lucide-react";
 import DateBlocker from "../src/components/common/DateBlocker";
 import { CoverImageUploader } from "../src/components/common/CoverImageUploader";
 import SavedActivity from "./worker/SavedActivity";
@@ -67,6 +75,12 @@ import { WorkerSettingsPanel } from "../components/settings/WorkerSettingsPanel"
 import { MyProfilePreview } from "../components/profile/MyProfilePreview";
 import { TeamMembershipTab } from "../src/modules/team-system/components/TeamMembershipTab";
 import { WorkerTeamDashboard } from "../src/modules/team-system/pages/worker/WorkerTeamDashboard";
+import {
+  getAllSavedProfiles,
+  removeSavedProfile,
+  type SavedProfile,
+  type EntityType,
+} from "../services/savedProfilesService";
 // NOTE: Kilometers, Appointments and I18nProvider removed - they are only in /faktury module
 
 // ===================================================================
@@ -251,7 +265,7 @@ export default function WorkerDashboard() {
   }
 
   // State Management
-  const { activeTab, setActiveTab } = useUnifiedTabs("overview");
+  const { activeTab, setActiveTab } = useUnifiedTabs("tablica");
   const { isSidebarOpen, closeSidebar } = useSidebar();
   const [isProfileSidebarOpen, setIsProfileSidebarOpen] = useState(false);
 
@@ -295,6 +309,16 @@ export default function WorkerDashboard() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [selectedMessage, setSelectedMessage] = useState<any>(null);
   const [replyContent, setReplyContent] = useState("");
+  const [messagesSubTab, setMessagesSubTab] = useState<
+    "wiadomosci" | "reakcje"
+  >("wiadomosci");
+  const [reactions, setReactions] = useState<any[]>([]);
+
+  // Saved Profiles State
+  const [savedProfiles, setSavedProfiles] = useState<SavedProfile[]>([]);
+  const [savedProfilesFilter, setSavedProfilesFilter] = useState<
+    "all" | EntityType
+  >("all");
 
   // Form State for Profile Edit
   const [profileForm, setProfileForm] = useState({
@@ -471,6 +495,90 @@ export default function WorkerDashboard() {
       setMessages([]);
       setConversations([]);
       setUnreadCount(0);
+    }
+  };
+
+  // Load reactions/notifications for the reactions tab
+  const loadReactions = async (userId: string) => {
+    try {
+      // First, get the worker_id for this user
+      const { data: workerData } = await supabase
+        .from("workers")
+        .select("id")
+        .eq("profile_id", userId)
+        .single();
+
+      const workerId = workerData?.id;
+
+      // Get notifications
+      const { data: notificationsData, error } = await supabase
+        .from("notifications")
+        .select("*")
+        .eq("user_id", userId)
+        .in("type", ["story_reaction", "story_reply", "review"])
+        .order("created_at", { ascending: false })
+        .limit(50);
+
+      if (error) throw error;
+
+      // For review notifications, fetch the actual review data with reviewer info
+      const enrichedReactions = await Promise.all(
+        (notificationsData || []).map(async (notification) => {
+          if (notification.type === "review" && workerId) {
+            // Find the review that matches this notification timestamp
+            const notificationTime = new Date(notification.created_at);
+            const startTime = new Date(notificationTime.getTime() - 10000); // 10 seconds before
+            const endTime = new Date(notificationTime.getTime() + 10000); // 10 seconds after
+
+            const { data: reviewData } = await supabase
+              .from("reviews")
+              .select(
+                `
+                id,
+                rating,
+                comment,
+                reviewer_id,
+                created_at
+              `
+              )
+              .eq("worker_id", workerId)
+              .gte("created_at", startTime.toISOString())
+              .lte("created_at", endTime.toISOString())
+              .order("created_at", { ascending: false })
+              .limit(1)
+              .single();
+
+            if (reviewData) {
+              // Get reviewer profile
+              const { data: reviewerProfile } = await supabase
+                .from("profiles")
+                .select("id, full_name, avatar_url, role")
+                .eq("id", reviewData.reviewer_id)
+                .single();
+
+              return {
+                ...notification,
+                data: {
+                  ...notification.data,
+                  reactor_id: reviewerProfile?.id,
+                  reactor_name: reviewerProfile?.full_name || "Użytkownik",
+                  reactor_avatar: reviewerProfile?.avatar_url,
+                  reactor_role: reviewerProfile?.role,
+                  rating: reviewData.rating,
+                  comment: reviewData.comment,
+                },
+              };
+            }
+          }
+          return notification;
+        })
+      );
+
+      setReactions(enrichedReactions);
+      console.log("💗 REACTIONS LOADED:", enrichedReactions?.length);
+    } catch (err) {
+      console.error("Error loading reactions:", err);
+      setReactions([]);
     }
   };
 
@@ -737,6 +845,17 @@ export default function WorkerDashboard() {
 
       // Load messages
       await loadMessages(user.id);
+
+      // Load reactions
+      await loadReactions(user.id);
+
+      // Load saved profiles
+      try {
+        const profiles = await getAllSavedProfiles(user.id);
+        setSavedProfiles(profiles);
+      } catch (err) {
+        console.warn("[WORKER-DASH] Could not load saved profiles:", err);
+      }
 
       setLoading(false);
     } catch (err) {
@@ -1251,7 +1370,7 @@ export default function WorkerDashboard() {
           end_date: portfolioForm.end_date?.trim() || null,
           completion_date: portfolioForm.completion_date?.trim() || null,
         };
-        
+
         const success = await workerProfileService.updatePortfolioProject(
           editingProjectId,
           sanitizedForm
@@ -1268,7 +1387,7 @@ export default function WorkerDashboard() {
           end_date: portfolioForm.end_date?.trim() || null,
           completion_date: portfolioForm.completion_date?.trim() || null,
         };
-        
+
         const project = await workerProfileService.addPortfolioProject(
           workerProfile.id,
           sanitizedForm
@@ -1467,372 +1586,283 @@ export default function WorkerDashboard() {
       <PageContainer>
         {/* HEADER */}
         <PageHeader
-          icon="👷"
+          avatarUrl={workerProfile.avatar_url}
+          avatarFallback={workerProfile.full_name?.[0]?.toUpperCase()}
           title={`Witaj, ${workerProfile.full_name}!`}
           subtitle="Panel pracownika"
         />
 
-        {/* STATS GRID - 4 ładne karty z gradientami */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
-          <div className="bg-gradient-to-br from-orange-100 to-orange-50 rounded-xl shadow-md border border-orange-200 p-6">
-            <p className="text-sm text-orange-600 mb-1">Ukończone projekty</p>
-            <p className="text-3xl font-bold text-orange-900">
-              {analytics?.completed_jobs || 0}
-            </p>
-            <span className="text-3xl">✅</span>
-          </div>
-          <div className="bg-gradient-to-br from-purple-100 to-purple-50 rounded-xl shadow-md border border-purple-200 p-6">
-            <p className="text-sm text-purple-600 mb-1">Średnia ocena</p>
-            <p className="text-3xl font-bold text-purple-900">
-              {workerProfile?.rating && workerProfile.rating_count > 0
-                ? `${workerProfile.rating.toFixed(1)} / 5.0`
-                : "0.0 / 5.0"}
-            </p>
-            <span className="text-3xl">⭐</span>
-          </div>
-          <div className="bg-gradient-to-br from-blue-100 to-blue-50 rounded-xl shadow-md border border-blue-200 p-6">
-            <p className="text-sm text-blue-600 mb-1">Wyświetlenia profilu</p>
-            <p className="text-3xl font-bold text-blue-900">
-              {analytics?.profile_views || 0}
-            </p>
-            <span className="text-3xl">👁️</span>
-          </div>
-          <div className="bg-gradient-to-br from-green-100 to-green-50 rounded-xl shadow-md border border-green-200 p-6">
-            <p className="text-sm text-green-600 mb-1">Wiadomości</p>
-            <p className="text-3xl font-bold text-green-900">
-              {messages.length} {unreadCount > 0 ? `(${unreadCount} nowe)` : ""}
-            </p>
-            <span className="text-3xl">📬</span>
-          </div>
-        </div>
+        {/* STATS GRID - Premium StatChips */}
+        <StatChipsGrid
+          items={[
+            {
+              id: "completed",
+              label: "Ukończone projekty",
+              value: analytics?.completed_jobs || 0,
+              tone: "emerald",
+              icon: <Check size={16} />,
+            },
+            {
+              id: "rating",
+              label: "Średnia ocena",
+              value:
+                workerProfile?.rating && workerProfile.rating_count > 0
+                  ? `${workerProfile.rating.toFixed(1)} / 5.0`
+                  : "0.0 / 5.0",
+              tone: "amber",
+              icon: <Star size={16} />,
+            },
+            {
+              id: "views",
+              label: "Wyświetlenia profilu",
+              value: analytics?.profile_views || 0,
+              tone: "cyan",
+              icon: <Eye size={16} />,
+            },
+            {
+              id: "messages",
+              label: "Wiadomości",
+              value: messages.length,
+              tone: "violet",
+              icon: <Mail size={16} />,
+              hint: unreadCount > 0 ? `${unreadCount} nowe` : undefined,
+            },
+          ]}
+        />
 
-        {/* QUICK PROFILE SUMMARY - Link to Settings */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-          {/* Profile Preview Card */}
-          <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-white/60 shadow-xl p-6">
-            <div className="flex items-center gap-4 mb-4">
-              {workerProfile?.avatar_url ? (
-                <img
-                  src={workerProfile.avatar_url}
-                  alt="Avatar"
-                  className="w-16 h-16 rounded-full object-cover border-4 border-blue-100 shadow-lg"
-                />
-              ) : (
-                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white font-bold text-2xl border-4 border-blue-100 shadow-lg">
-                  {workerProfile?.full_name?.[0]?.toUpperCase() || "W"}
-                </div>
-              )}
-              <div>
-                <h3 className="text-lg font-bold text-gray-900">
-                  {workerProfile?.full_name}
-                </h3>
-                <p className="text-sm text-gray-500">{workerProfile?.email}</p>
-              </div>
-            </div>
-            <GlowButton
-              onClick={() => setActiveTab("settings")}
-              variant="primary"
-              size="md"
-              fullWidth
-            >
-              ⚙️ Zarządzaj profilem i ustawieniami
-            </GlowButton>
-          </div>
-
-          {/* Availability Summary Card */}
-          <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-white/60 shadow-xl p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-bold text-gray-900">
-                📅 Twoja dostępność
-              </h3>
-              <div className="text-2xl font-bold text-green-600">
-                {workerProfile?.availability
-                  ? Object.values(workerProfile.availability).filter(Boolean)
-                      .length
-                  : 5}
-                /7 dni
-              </div>
-            </div>
-            <div className="flex gap-1 mb-4">
-              {WEEK_DAYS_PL.map((day, index) => {
-                const dbDayKey = WEEK_DAYS_DB[index];
-                const isAvailable =
-                  workerProfile?.availability?.[dbDayKey] ?? index < 5;
-                return (
-                  <div
-                    key={day}
-                    className={`flex-1 py-2 text-center text-xs font-medium rounded-lg ${
-                      isAvailable
-                        ? "bg-green-500 text-white"
-                        : "bg-gray-200 text-gray-400"
-                    }`}
-                  >
-                    {day}
-                  </div>
-                );
-              })}
-            </div>
-            <GlowButton
-              onClick={() => setActiveTab("settings")}
-              variant="success"
-              size="md"
-              fullWidth
-            >
-              📆 Zmień dostępność
-            </GlowButton>
-          </div>
-        </div>
-
-        {/* ✅ OSTATNIE WIADOMOŚCI */}
-        <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6 mb-6">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2">
-              <h2 className="text-xl font-semibold text-gray-800">
-                📬 Ostatnie wiadomości
+        {/* GŁÓWNY GRID 3 kolumny */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* 🔍 Ostatnie wyszukiwania */}
+          <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-bold text-gray-900">
+                Ostatnie wyszukiwania
               </h2>
-              {unreadCount > 0 && (
-                <span className="bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">
-                  {unreadCount} nowe
-                </span>
-              )}
+              <button
+                onClick={() => setActiveTab("jobs")}
+                className="text-sm text-orange-600 hover:text-orange-700 font-medium"
+              >
+                Nowe wyszukiwanie →
+              </button>
             </div>
-            <button
-              onClick={() => setActiveTab("messages")}
-              className="text-blue-600 hover:text-blue-700 text-sm font-medium"
-            >
-              Zobacz wszystkie →
-            </button>
+
+            <div className="text-center py-8">
+              <p className="text-gray-500">Brak historii wyszukiwań</p>
+              <button
+                onClick={() => setActiveTab("jobs")}
+                className="mt-4 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700"
+              >
+                Rozpocznij pierwsze wyszukiwanie
+              </button>
+            </div>
           </div>
 
-          {messages.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
-              <div className="text-4xl mb-2">📭</div>
-              <p>Brak wiadomości</p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {messages.slice(0, 5).map((msg: any) => (
-                <button
-                  key={msg.id}
-                  onClick={() => {
-                    setSelectedMessage(msg);
-                    setActiveTab("messages");
-                    if (!msg.is_read) handleMarkAsRead(msg.id);
-                  }}
-                  className="w-full text-left flex items-start gap-3 p-3 hover:bg-gray-50 rounded-lg cursor-pointer transition-colors border border-gray-200"
-                >
-                  {/* Avatar */}
-                  {msg.sender_profile?.avatar_url ? (
-                    <img
-                      src={msg.sender_profile.avatar_url}
-                      alt={msg.sender_profile.full_name || "Avatar"}
-                      className="w-10 h-10 rounded-full object-cover flex-shrink-0"
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).style.display = "none";
-                        const fallback = (e.target as HTMLImageElement)
-                          .nextElementSibling;
-                        if (fallback)
-                          (fallback as HTMLElement).style.display = "flex";
-                      }}
-                    />
-                  ) : null}
-                  <div
-                    className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center font-bold text-blue-600 flex-shrink-0"
-                    style={{
-                      display: msg.sender_profile?.avatar_url ? "none" : "flex",
-                    }}
-                  >
-                    {msg.sender_profile?.full_name?.[0]?.toUpperCase() || "?"}
-                  </div>
+          {/* 📅 Nadchodzące spotkania */}
+          <UpcomingEventsCard />
 
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between mb-1">
-                      <p
-                        className={`font-medium text-sm ${
-                          msg.is_read ? "text-gray-700" : "text-blue-700"
-                        }`}
-                      >
-                        {msg.sender_profile?.full_name || "Nieznany nadawca"}
-                      </p>
-                      <span className="text-xs text-gray-400">
-                        {new Date(msg.created_at).toLocaleDateString("pl-PL")}
-                      </span>
-                    </div>
-                    <p className="text-sm text-gray-600 mb-1">
-                      {msg.subject || "Brak tematu"}
-                    </p>
-                    <p className="text-xs text-gray-500 truncate">
-                      {msg.content}
-                    </p>
-                  </div>
-                  {!msg.is_read && (
-                    <div className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0 mt-2"></div>
-                  )}
+          {/* 👥 Zapisane profile */}
+          <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold text-gray-900">
+                Zapisane profile
+              </h2>
+              <Link
+                to="/worker/search"
+                className="text-sm text-orange-600 hover:text-orange-700 font-medium"
+              >
+                Szukaj więcej →
+              </Link>
+            </div>
+
+            {/* Entity Type Filters */}
+            <div className="flex flex-wrap gap-2 mb-4">
+              {[
+                { key: "all", label: "Wszystkie", icon: "📋" },
+                { key: "worker", label: "Pracownicy", icon: "👷" },
+                { key: "employer", label: "Pracodawcy", icon: "🏢" },
+                { key: "accountant", label: "Księgowi", icon: "📊" },
+                {
+                  key: "cleaning_company",
+                  label: "Firmy sprzątające",
+                  icon: "🧹",
+                },
+              ].map((filter) => (
+                <button
+                  key={filter.key}
+                  onClick={() =>
+                    setSavedProfilesFilter(
+                      filter.key as typeof savedProfilesFilter
+                    )
+                  }
+                  className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors flex items-center gap-1 ${
+                    savedProfilesFilter === filter.key
+                      ? "bg-orange-500 text-white"
+                      : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                  }`}
+                >
+                  <span>{filter.icon}</span>
+                  <span>{filter.label}</span>
                 </button>
               ))}
             </div>
-          )}
-        </div>
 
-        {/* ✅ OPINIE OD KLIENTÓW */}
-        <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6 mb-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-semibold text-gray-800">
-              ⭐ Opinie od klientów
-            </h2>
-            <button
-              onClick={() => setActiveTab("reviews")}
-              className="text-blue-600 hover:text-blue-700 text-sm font-medium"
-            >
-              Zobacz wszystkie →
-            </button>
-          </div>
+            {(() => {
+              const filteredProfiles =
+                savedProfilesFilter === "all"
+                  ? savedProfiles
+                  : savedProfiles.filter(
+                      (p) => p.entity_type === savedProfilesFilter
+                    );
 
-          {reviews.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
-              <div className="text-4xl mb-2">⭐</div>
-              <p>Brak opinii</p>
-              <p className="text-sm mt-1">
-                Twoje pierwsze opinie pojawią się tutaj po wykonaniu prac
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {reviews.slice(0, 3).map((review: any) => (
-                <div
-                  key={review.id}
-                  className="border-b border-gray-200 pb-4 last:border-0"
-                >
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-1">
-                      {[...Array(5)].map((_, i) => (
-                        <span
-                          key={i}
-                          className={
-                            i < review.rating
-                              ? "text-yellow-400"
-                              : "text-gray-300"
-                          }
-                        >
-                          ⭐
-                        </span>
-                      ))}
-                      <span className="ml-2 font-semibold">
-                        {review.rating}.0
-                      </span>
-                    </div>
-                    <span className="text-xs text-gray-500">
-                      {new Date(review.created_at).toLocaleDateString("pl-PL")}
-                    </span>
-                  </div>
-                  <p className="text-sm text-gray-700">{review.comment}</p>
-                  <div className="flex items-center gap-2 mt-2">
-                    {review.reviewer?.avatar_url ||
-                    review.employer?.logo_url ? (
-                      <img
-                        src={
-                          review.reviewer?.avatar_url ||
-                          review.employer?.logo_url
-                        }
-                        alt="Reviewer"
-                        className="w-6 h-6 rounded-full object-cover"
-                      />
-                    ) : (
-                      <div className="w-6 h-6 rounded-full bg-gray-300 flex items-center justify-center text-xs font-bold text-white">
-                        {(review.reviewer?.full_name ||
-                          review.employer?.company_name ||
-                          "A")[0].toUpperCase()}
-                      </div>
-                    )}
-                    <p className="text-xs text-gray-500">
-                      {review.reviewer?.full_name ||
-                        review.employer?.company_name ||
-                        "Anonim"}
+              if (filteredProfiles.length === 0) {
+                return (
+                  <div className="text-center py-8">
+                    <p className="text-gray-500">
+                      {savedProfilesFilter === "all"
+                        ? "Brak zapisanych profili"
+                        : `Brak zapisanych ${
+                            savedProfilesFilter === "worker"
+                              ? "pracowników"
+                              : savedProfilesFilter === "employer"
+                              ? "pracodawców"
+                              : savedProfilesFilter === "accountant"
+                              ? "księgowych"
+                              : "firm sprzątających"
+                          }`}
+                    </p>
+                    <p className="text-sm text-gray-400 mt-2">
+                      Zapisz profile podczas wyszukiwania, aby szybko do nich
+                      wrócić
                     </p>
                   </div>
+                );
+              }
+
+              return (
+                <div className="space-y-3">
+                  {filteredProfiles.slice(0, 6).map((profile) => {
+                    const typeConfig: Record<
+                      string,
+                      {
+                        icon: string;
+                        bgClass: string;
+                        textClass: string;
+                        label: string;
+                        link: string;
+                      }
+                    > = {
+                      worker: {
+                        icon: "👷",
+                        bgClass: "bg-orange-100",
+                        textClass: "text-orange-700",
+                        label: "Pracownik",
+                        link: `/worker/profile/${profile.entity_id}`,
+                      },
+                      employer: {
+                        icon: "🏢",
+                        bgClass: "bg-blue-100",
+                        textClass: "text-blue-700",
+                        label: "Pracodawca",
+                        link: `/employer/profile/${profile.entity_id}`,
+                      },
+                      accountant: {
+                        icon: "📊",
+                        bgClass: "bg-green-100",
+                        textClass: "text-green-700",
+                        label: "Księgowy",
+                        link: `/accountant/profile/${profile.entity_id}`,
+                      },
+                      cleaning_company: {
+                        icon: "🧹",
+                        bgClass: "bg-purple-100",
+                        textClass: "text-purple-700",
+                        label: "Firma sprzątająca",
+                        link: `/cleaning-company/profile/${profile.entity_id}`,
+                      },
+                    };
+                    const config =
+                      typeConfig[profile.entity_type] || typeConfig.worker;
+
+                    return (
+                      <Link
+                        key={profile.id}
+                        to={config.link}
+                        className="block border border-gray-200 rounded-lg p-3 hover:border-orange-500 transition-colors relative group"
+                      >
+                        <div className="flex items-center gap-3">
+                          {profile.entity_avatar ? (
+                            <img
+                              src={profile.entity_avatar}
+                              alt={profile.entity_name || "Profile"}
+                              className="w-10 h-10 rounded-full object-cover"
+                            />
+                          ) : (
+                            <div
+                              className={`w-10 h-10 rounded-full ${config.bgClass} flex items-center justify-center text-lg`}
+                            >
+                              {config.icon}
+                            </div>
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-gray-900 truncate text-sm">
+                              {profile.entity_name || "Nieznany"}
+                            </p>
+                            <div className="flex items-center gap-2">
+                              <span
+                                className={`text-xs px-2 py-0.5 rounded-full ${config.bgClass} ${config.textClass}`}
+                              >
+                                {config.label}
+                              </span>
+                              {profile.entity_location && (
+                                <span className="text-xs text-gray-500">
+                                  📍 {profile.entity_location}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {profile.entity_rating != null &&
+                              profile.entity_rating > 0 && (
+                                <span className="text-sm font-medium text-gray-900">
+                                  ⭐ {Number(profile.entity_rating).toFixed(1)}
+                                </span>
+                              )}
+                            <button
+                              onClick={async (e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                await removeSavedProfile(profile.id);
+                                setSavedProfiles((prev) =>
+                                  prev.filter((p) => p.id !== profile.id)
+                                );
+                              }}
+                              className="opacity-0 group-hover:opacity-100 text-red-500 hover:text-red-700 transition-opacity"
+                              title="Usuń"
+                            >
+                              <svg
+                                className="w-4 h-4"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M6 18L18 6M6 6l12 12"
+                                />
+                              </svg>
+                            </button>
+                          </div>
+                        </div>
+                      </Link>
+                    );
+                  })}
                 </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* ✅ PORTFOLIO ZDJĘĆ */}
-        <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6 mb-6">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h2 className="text-xl font-semibold text-gray-800">
-                📸 Portfolio zdjęć (
-                {workerProfile?.portfolio_images?.length || 0}/20)
-              </h2>
-              <p className="text-sm text-gray-600">
-                Pokaż swoją pracę - dodaj zdjęcia
-              </p>
-            </div>
-            <GlowButton
-              onClick={() => openPortfolioModal()}
-              variant="primary"
-              size="md"
-            >
-              + Dodaj zdjęcia
-            </GlowButton>
-          </div>
-
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {PORTFOLIO_SKELETON_ITEMS.map((i) => (
-              <div
-                key={i}
-                className="aspect-square bg-gray-100 rounded-lg flex items-center justify-center border-2 border-dashed border-gray-300"
-              >
-                <span className="text-gray-400 text-4xl">📷</span>
-              </div>
-            ))}
+              );
+            })()}
           </div>
         </div>
-
-        {/* 📅 Nadchodzące spotkania - Real Calendar Events */}
-        <div className="mb-6">
-          <UpcomingEventsCard />
-        </div>
-
-        {/* Szybkie działania Card - Premium Glass Style */}
-        <QuickActionsCard
-          role="worker"
-          isMobile={isMobile}
-          onSubscription={handleViewSubscription}
-        />
-
-        {/* DateBlocker Modal */}
-        {showDateBlocker && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-            <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto relative">
-              {/* Close button */}
-              <button
-                onClick={() => setShowDateBlocker(false)}
-                className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 z-10"
-              >
-                <svg
-                  className="w-6 h-6"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M6 18L18 6M6 6l12 12"
-                  />
-                </svg>
-              </button>
-
-              <DateBlocker
-                blockedDates={workerProfile.unavailable_dates || []}
-                onBlock={handleBlockDate}
-                onUnblock={handleUnblockDate}
-              />
-            </div>
-          </div>
-        )}
       </PageContainer>
     );
   };
@@ -1843,8 +1873,302 @@ export default function WorkerDashboard() {
   };
 
   const renderMessagesTab = () => {
-    // ✅ PODŁĄCZONE: Używamy istniejącej funkcji renderMessages()
-    return renderMessages();
+    // ✅ PODŁĄCZONE: Sub-taby Wiadomości | Reakcje
+
+    const handleProfileClick = async (profileId: string) => {
+      try {
+        // Pobierz rolę użytkownika z tabeli profiles
+        const { data: profileData, error: profileError } = await supabase
+          .from("profiles")
+          .select("role")
+          .eq("id", profileId)
+          .single();
+
+        if (profileError || !profileData) {
+          console.error("Nie znaleziono profilu:", profileError);
+          return;
+        }
+
+        const role = profileData.role;
+        let targetUrl = "";
+
+        // Pobierz ID specyficzne dla roli
+        if (role === "worker") {
+          const { data: workerData } = await supabase
+            .from("workers")
+            .select("id")
+            .eq("profile_id", profileId)
+            .single();
+          if (workerData)
+            targetUrl = `/worker/profile/${workerData.id}#contact`;
+        } else if (role === "employer") {
+          const { data: employerData } = await supabase
+            .from("employers")
+            .select("id")
+            .eq("profile_id", profileId)
+            .single();
+          if (employerData)
+            targetUrl = `/employer/profile/${employerData.id}#contact`;
+        } else if (role === "accountant") {
+          const { data: accountantData } = await supabase
+            .from("accountants")
+            .select("id")
+            .eq("profile_id", profileId)
+            .single();
+          if (accountantData)
+            targetUrl = `/accountant/profile/${accountantData.id}#contact`;
+        } else if (role === "cleaning_company") {
+          const { data: ccData } = await supabase
+            .from("cleaning_companies")
+            .select("id")
+            .eq("profile_id", profileId)
+            .single();
+          if (ccData)
+            targetUrl = `/cleaning-company/profile/${ccData.id}#contact`;
+        } else if (role === "admin") {
+          targetUrl = `/admin/profile/${profileId}#contact`;
+        }
+
+        if (targetUrl) {
+          navigate(targetUrl);
+        }
+      } catch (error) {
+        console.error("Błąd nawigacji:", error);
+      }
+    };
+
+    return (
+      <div className="space-y-6">
+        {/* Sub-taby */}
+        <div className="flex border-b border-gray-200 dark:border-gray-700 mb-4">
+          <button
+            onClick={() => setMessagesSubTab("wiadomosci")}
+            className={`px-4 py-2 font-medium text-sm transition-colors ${
+              messagesSubTab === "wiadomosci"
+                ? "text-blue-600 border-b-2 border-blue-600"
+                : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+            }`}
+          >
+            💬 Wiadomości
+          </button>
+          <button
+            onClick={() => setMessagesSubTab("reakcje")}
+            className={`px-4 py-2 font-medium text-sm transition-colors relative ${
+              messagesSubTab === "reakcje"
+                ? "text-pink-600 border-b-2 border-pink-600"
+                : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+            }`}
+          >
+            💗 Reakcje
+            {reactions.length > 0 && (
+              <span className="ml-2 bg-pink-500 text-white text-xs rounded-full px-2 py-0.5">
+                {reactions.length}
+              </span>
+            )}
+          </button>
+        </div>
+
+        {/* Zawartość */}
+        {messagesSubTab === "wiadomosci" ? (
+          renderMessages()
+        ) : (
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl overflow-hidden p-6">
+            <h3 className="text-2xl font-bold mb-6 text-gray-900 dark:text-white">
+              💗 Reakcje na Twoje relacje
+            </h3>
+
+            {reactions.length === 0 ? (
+              <div className="text-center py-20">
+                <div className="text-6xl mb-4">💭</div>
+                <p className="text-gray-500 dark:text-gray-400 text-lg">
+                  Brak reakcji
+                </p>
+                <p className="text-gray-400 dark:text-gray-500 text-sm mt-2">
+                  Gdy ktoś zareaguje na Twoją relację, zobaczysz to tutaj
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {reactions.map((reaction) => {
+                  const reactorData = reaction.data || {};
+                  const reactorId =
+                    reactorData.reactor_id || reactorData.sender_id;
+                  const reactorName =
+                    reactorData.reactor_name ||
+                    reactorData.sender_name ||
+                    "Użytkownik";
+                  const reactorAvatar =
+                    reactorData.reactor_avatar || reactorData.sender_avatar;
+                  const reactorRole =
+                    reactorData.reactor_role ||
+                    reactorData.sender_role ||
+                    "regular_user";
+
+                  // Type-specific display
+                  const getTypeInfo = (type: string) => {
+                    switch (type) {
+                      case "story_reaction":
+                        return {
+                          emoji: "👀",
+                          text: "zainteresował się Twoją relacją",
+                          color: "pink",
+                        };
+                      case "story_reply":
+                        return {
+                          emoji: "💬",
+                          text: "skomentował Twoją relację",
+                          color: "blue",
+                        };
+                      case "review":
+                        return {
+                          emoji: "⭐",
+                          text: "wystawił Ci opinię",
+                          color: "yellow",
+                        };
+                      default:
+                        return {
+                          emoji: "🔔",
+                          text: "interakcja",
+                          color: "gray",
+                        };
+                    }
+                  };
+
+                  const typeInfo = getTypeInfo(reaction.type);
+
+                  const onProfileClick = async () => {
+                    if (!reactorId) return;
+                    await handleProfileClick(reactorId);
+                  };
+
+                  return (
+                    <div
+                      key={reaction.id}
+                      className="flex items-start gap-4 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl border border-gray-200 dark:border-gray-600 hover:shadow-lg transition-all"
+                    >
+                      {/* Avatar z kliknięciem */}
+                      <button
+                        onClick={onProfileClick}
+                        disabled={!reactorId}
+                        className={`flex-shrink-0 ${
+                          reactorId
+                            ? "cursor-pointer hover:opacity-80"
+                            : "cursor-default"
+                        } transition-opacity`}
+                        title={
+                          reactorId ? "Zobacz profil" : "Profil niedostępny"
+                        }
+                      >
+                        {reactorAvatar ? (
+                          <img
+                            src={reactorAvatar}
+                            alt={reactorName}
+                            className="w-14 h-14 rounded-full object-cover border-3 border-white dark:border-gray-600 shadow-md"
+                          />
+                        ) : (
+                          <div
+                            className={`w-14 h-14 rounded-full bg-gradient-to-br ${
+                              typeInfo.color === "pink"
+                                ? "from-pink-400 to-rose-600"
+                                : typeInfo.color === "blue"
+                                ? "from-blue-400 to-indigo-600"
+                                : typeInfo.color === "yellow"
+                                ? "from-yellow-400 to-orange-600"
+                                : "from-gray-400 to-gray-600"
+                            } flex items-center justify-center text-white font-bold text-xl shadow-md`}
+                          >
+                            {reactorName[0]?.toUpperCase() || typeInfo.emoji}
+                          </div>
+                        )}
+                      </button>
+
+                      {/* Treść powiadomienia */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex flex-wrap items-center gap-2 mb-2">
+                          <span className="text-2xl">{typeInfo.emoji}</span>
+                          <button
+                            onClick={onProfileClick}
+                            disabled={!reactorId}
+                            className={`font-bold text-gray-900 dark:text-white ${
+                              reactorId
+                                ? "hover:text-blue-600 dark:hover:text-blue-400 cursor-pointer"
+                                : "cursor-default"
+                            } transition-colors text-lg`}
+                          >
+                            {reactorName}
+                          </button>
+                          <span className="text-gray-600 dark:text-gray-400">
+                            {typeInfo.text}
+                          </span>
+                        </div>
+
+                        {/* Treść reakcji/komentarza */}
+                        {reaction.type === "story_reaction" &&
+                          reactorData.reaction && (
+                            <p className="text-3xl mt-2">
+                              {reactorData.reaction}
+                            </p>
+                          )}
+                        {reaction.type === "story_reply" &&
+                          reactorData.comment && (
+                            <p className="text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 rounded-lg p-3 mt-2 border border-gray-200 dark:border-gray-600 italic">
+                              "{reactorData.comment}"
+                            </p>
+                          )}
+                        {reaction.type === "review" && (
+                          <div className="mt-2">
+                            {reactorData.rating && (
+                              <div className="flex items-center gap-1">
+                                {[...Array(5)].map((_, i) => (
+                                  <span
+                                    key={i}
+                                    className={`text-xl ${
+                                      i < reactorData.rating
+                                        ? "text-yellow-400"
+                                        : "text-gray-300 dark:text-gray-600"
+                                    }`}
+                                  >
+                                    ★
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                            {reactorData.comment && (
+                              <p className="text-gray-600 dark:text-gray-400 mt-1 italic">
+                                "{reactorData.comment}"
+                              </p>
+                            )}
+                            {!reactorData.rating && !reactorData.comment && (
+                              <p className="text-gray-500 dark:text-gray-400 text-sm">
+                                {reaction.message || "Otrzymałeś nową opinię"}
+                              </p>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Czas */}
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-3">
+                          {new Date(reaction.created_at).toLocaleString(
+                            "pl-PL",
+                            {
+                              day: "numeric",
+                              month: "long",
+                              year: "numeric",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            }
+                          )}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    );
   };
 
   const renderPortfolioTab = () => {
@@ -1908,7 +2232,8 @@ export default function WorkerDashboard() {
       <PageContainer>
         {/* Modern Header */}
         <PageHeader
-          icon="👋"
+          avatarUrl={workerProfile.avatar_url}
+          avatarFallback={workerProfile.full_name?.[0]?.toUpperCase()}
           title={`Witaj, ${workerProfile.full_name}!`}
           subtitle={`${workerProfile.specialization || "Pracownik"} • ${
             workerProfile.location_city || "Holandia"
@@ -1925,96 +2250,44 @@ export default function WorkerDashboard() {
           }
         />
 
-        {/* Modern Stats Cards */}
-        <StatsGrid columns={4}>
-          <StatCard
-            title="Ukończone projekty"
-            value="0"
-            color="blue"
-            icon={
-              <svg
-                className="w-5 h-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
-                />
-              </svg>
-            }
-          />
-          <StatCard
-            title="Średnia stawka"
-            value={`€${workerProfile.hourly_rate}/h`}
-            color="green"
-            icon={
-              <svg
-                className="w-5 h-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                />
-              </svg>
-            }
-          />
-          <StatCard
-            title="Certyfikaty"
-            value={certificates.length}
-            color="purple"
-            icon={
-              <svg
-                className="w-5 h-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"
-                />
-              </svg>
-            }
-          />
-          <div
-            onClick={() => setActiveTab("messages")}
-            className="cursor-pointer"
-          >
-            <StatCard
-              title="Wiadomości"
-              value={`${messages.length}${
-                unreadCount > 0 ? ` (${unreadCount} nowe)` : ""
-              }`}
-              color="orange"
-              icon={
-                <svg
-                  className="w-5 h-5"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
-                  />
-                </svg>
-              }
-            />
-          </div>
-        </StatsGrid>
+        {/* Modern Premium Stats Chips */}
+        <StatChipsGrid
+          items={
+            [
+              {
+                id: "projects",
+                label: "Completed Projects",
+                value: 0,
+                tone: "cyan",
+                icon: <Briefcase size={16} />,
+              },
+              {
+                id: "rate",
+                label: "Hourly Rate",
+                value: `€${workerProfile.hourly_rate}`,
+                tone: "emerald",
+                icon: <DollarSign size={16} />,
+              },
+              {
+                id: "certificates",
+                label: "Certificates",
+                value: certificates.length,
+                tone: "violet",
+                icon: <Award size={16} />,
+              },
+              {
+                id: "messages",
+                label: "Messages",
+                value: messages.length,
+                tone: "amber",
+                icon: <Mail size={16} />,
+                hint: unreadCount > 0 ? `${unreadCount} new` : undefined,
+                onClick: () => setActiveTab("messages"),
+              },
+            ] as StatChipItem[]
+          }
+          columns={4}
+        />
 
         {/* Quick Actions */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -4580,6 +4853,66 @@ export default function WorkerDashboard() {
   // ===================================================================
 
   const renderMessages = () => {
+    // Function to navigate to partner's profile
+    const navigateToPartnerProfile = async (partnerId: string) => {
+      try {
+        // Get the user's role from profiles table
+        const { data: profileData } = await supabase
+          .from("profiles")
+          .select("role")
+          .eq("id", partnerId)
+          .single();
+
+        if (!profileData) return;
+
+        const role = profileData.role;
+        let targetUrl = "";
+
+        // Get role-specific ID
+        if (role === "worker") {
+          const { data: workerData } = await supabase
+            .from("workers")
+            .select("id")
+            .eq("profile_id", partnerId)
+            .single();
+          if (workerData)
+            targetUrl = `/worker/profile/${workerData.id}#contact`;
+        } else if (role === "employer") {
+          const { data: employerData } = await supabase
+            .from("employers")
+            .select("id")
+            .eq("profile_id", partnerId)
+            .single();
+          if (employerData)
+            targetUrl = `/employer/profile/${employerData.id}#contact`;
+        } else if (role === "accountant") {
+          const { data: accountantData } = await supabase
+            .from("accountants")
+            .select("id")
+            .eq("profile_id", partnerId)
+            .single();
+          if (accountantData)
+            targetUrl = `/accountant/profile/${accountantData.id}#contact`;
+        } else if (role === "cleaning_company") {
+          const { data: ccData } = await supabase
+            .from("cleaning_companies")
+            .select("id")
+            .eq("profile_id", partnerId)
+            .single();
+          if (ccData)
+            targetUrl = `/cleaning-company/profile/${ccData.id}#contact`;
+        } else if (role === "admin") {
+          targetUrl = `/admin/profile/${partnerId}#contact`;
+        }
+
+        if (targetUrl) {
+          navigate(targetUrl);
+        }
+      } catch (error) {
+        console.error("Navigation error:", error);
+      }
+    };
+
     return (
       <div className="max-w-7xl mx-auto">
         <div
@@ -4711,23 +5044,43 @@ export default function WorkerDashboard() {
                   <div className="p-5 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-white shadow-sm">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
-                        {selectedConversation.partnerAvatar ? (
-                          <img
-                            src={selectedConversation.partnerAvatar}
-                            alt={selectedConversation.partnerName}
-                            className="w-10 h-10 rounded-full object-cover border-2 border-blue-500"
-                          />
-                        ) : (
-                          <div className="relative z-10 w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold shadow-lg">
-                            {selectedConversation.partnerName
-                              .charAt(0)
-                              .toUpperCase()}
-                          </div>
-                        )}
+                        {/* Clickable Avatar */}
+                        <button
+                          onClick={() =>
+                            navigateToPartnerProfile(
+                              selectedConversation.partnerId
+                            )
+                          }
+                          className="cursor-pointer hover:opacity-80 transition-opacity"
+                          title="Zobacz profil"
+                        >
+                          {selectedConversation.partnerAvatar ? (
+                            <img
+                              src={selectedConversation.partnerAvatar}
+                              alt={selectedConversation.partnerName}
+                              className="w-10 h-10 rounded-full object-cover border-2 border-blue-500 hover:border-blue-600"
+                            />
+                          ) : (
+                            <div className="relative z-10 w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold shadow-lg hover:from-blue-600 hover:to-purple-700">
+                              {selectedConversation.partnerName
+                                .charAt(0)
+                                .toUpperCase()}
+                            </div>
+                          )}
+                        </button>
                         <div>
-                          <h4 className="font-bold text-gray-900">
+                          {/* Clickable Name */}
+                          <button
+                            onClick={() =>
+                              navigateToPartnerProfile(
+                                selectedConversation.partnerId
+                              )
+                            }
+                            className="font-bold text-gray-900 hover:text-blue-600 transition-colors cursor-pointer text-left"
+                            title="Zobacz profil"
+                          >
                             {selectedConversation.partnerName}
-                          </h4>
+                          </button>
                           <p className="text-xs text-gray-500">
                             {selectedConversation.isOnline ? (
                               <span className="text-green-600 flex items-center gap-1">
@@ -4735,7 +5088,7 @@ export default function WorkerDashboard() {
                                 Online
                               </span>
                             ) : (
-                              "Offline"
+                              "Niedostępny"
                             )}
                           </p>
                         </div>

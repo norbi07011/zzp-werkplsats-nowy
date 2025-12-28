@@ -9,13 +9,18 @@
 
 import { useState, useEffect } from "react";
 import { useAuth } from "../../contexts/AuthContext";
+import { supabase } from "../../src/lib/supabase";
 import {
   type Post,
   type PostType,
+  type ReactionType,
   getMyPosts,
   togglePostActive as togglePostActiveService,
   softDeletePost,
   getPostStats,
+  likePost,
+  reactToPost,
+  unreactToPost,
 } from "../../src/services/feedService";
 import {
   Eye,
@@ -28,6 +33,7 @@ import {
 } from "../../components/icons";
 import { PostFormModal } from "../../components/PostFormModal";
 import { PostStatsModal } from "../../components/PostStatsModal";
+import { PostCardPremium } from "../FeedPage_PREMIUM";
 
 export default function MyPosts() {
   const { user } = useAuth();
@@ -58,6 +64,49 @@ export default function MyPosts() {
       console.error("Error loading posts:", error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleReactionChange = async (
+    postId: string,
+    reactionType: ReactionType | null
+  ) => {
+    if (!user?.id) return;
+
+    try {
+      // Get user role-specific ID
+      const currentUserRole = user.role;
+      let actualUserId = user.id;
+
+      // For employers, get the employer-specific ID
+      if (currentUserRole === "employer") {
+        const { data: employerData } = await (supabase as any)
+          .from("employers")
+          .select("id")
+          .eq("profile_id", user.id)
+          .single();
+        if (employerData) actualUserId = employerData.id;
+      }
+
+      if (reactionType === null) {
+        // Remove reaction
+        await unreactToPost(postId, user.id);
+      } else {
+        // Add or change reaction
+        await reactToPost(
+          postId,
+          actualUserId,
+          currentUserRole as any,
+          user.id,
+          reactionType
+        );
+      }
+
+      // Reload posts to reflect changes
+      await loadMyPosts();
+    } catch (error) {
+      console.error("Error changing reaction:", error);
+      await loadMyPosts();
     }
   };
 
@@ -219,15 +268,27 @@ export default function MyPosts() {
             </button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 gap-6">
             {filteredPosts.map((post) => (
-              <PostCard
+              <PostCardPremium
                 key={post.id}
                 post={post}
-                onToggleActive={togglePostActive}
-                onEdit={editPost}
-                onDelete={deletePost}
-                onViewStats={viewStats}
+                onLike={async () => {
+                  if (!user?.id || !user?.role) return;
+                  await likePost(post.id, user.id, user.role as any);
+                  loadMyPosts();
+                }}
+                onComment={() => {
+                  // Comment handling is in PostCardPremium component
+                }}
+                onShare={() => {
+                  // Share handling is in PostCardPremium component
+                }}
+                onReactionChange={(reactionType) =>
+                  handleReactionChange(post.id, reactionType)
+                }
+                currentUserId={user?.id}
+                currentUserRole={user?.role}
               />
             ))}
           </div>
@@ -258,147 +319,6 @@ export default function MyPosts() {
         postId={statsPostId || ""}
         postTitle={statsPostTitle}
       />
-    </div>
-  );
-}
-
-/**
- * PostCard Component - Karta pojedynczego postu
- */
-interface PostCardProps {
-  post: Post;
-  onToggleActive: (postId: string, currentStatus: boolean) => void;
-  onEdit: (postId: string) => void;
-  onDelete: (postId: string) => void;
-  onViewStats: (postId: string) => void;
-}
-
-function PostCard({
-  post,
-  onToggleActive,
-  onEdit,
-  onDelete,
-  onViewStats,
-}: PostCardProps) {
-  const getTypeBadge = () => {
-    switch (post.type) {
-      case "job_offer":
-        return (
-          <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-bold">
-            💼 Oferta pracy
-          </span>
-        );
-      case "ad":
-        return (
-          <span className="px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-xs font-bold">
-            📣 Reklama
-          </span>
-        );
-      case "announcement":
-        return (
-          <span className="px-3 py-1 bg-amber-100 text-amber-800 rounded-full text-xs font-bold">
-            📢 Ogłoszenie
-          </span>
-        );
-      default:
-        return null;
-    }
-  };
-
-  return (
-    <div
-      className={`bg-white/90 backdrop-blur-xl rounded-2xl shadow-lg border-2 p-6 transition-all hover:shadow-2xl hover:scale-105 ${
-        post.is_active ? "border-green-200" : "border-gray-200 opacity-60"
-      }`}
-    >
-      {/* Header */}
-      <div className="flex items-start justify-between mb-4">
-        {getTypeBadge()}
-        <div
-          className={`px-3 py-1 rounded-full text-xs font-bold ${
-            post.is_active
-              ? "bg-green-100 text-green-800"
-              : "bg-gray-100 text-gray-800"
-          }`}
-        >
-          {post.is_active ? "✅ Aktywny" : "⛔ Nieaktywny"}
-        </div>
-      </div>
-
-      {/* Title & Content */}
-      <h3 className="text-xl font-bold text-gray-900 mb-2 line-clamp-2">
-        {post.title || "Bez tytułu"}
-      </h3>
-      <p className="text-gray-600 text-sm mb-4 line-clamp-3">{post.content}</p>
-
-      {/* Stats */}
-      <div className="grid grid-cols-4 gap-2 mb-4 pb-4 border-b border-gray-200">
-        <div className="text-center">
-          <Eye className="w-4 h-4 mx-auto text-gray-500 mb-1" />
-          <p className="text-xs font-bold text-gray-900">
-            {post.views_count || 0}
-          </p>
-        </div>
-        <div className="text-center">
-          <Heart className="w-4 h-4 mx-auto text-red-500 mb-1" />
-          <p className="text-xs font-bold text-gray-900">
-            {post.likes_count || 0}
-          </p>
-        </div>
-        <div className="text-center">
-          <MessageSquare className="w-4 h-4 mx-auto text-blue-500 mb-1" />
-          <p className="text-xs font-bold text-gray-900">
-            {post.comments_count || 0}
-          </p>
-        </div>
-        <div className="text-center">
-          <Bookmark className="w-4 h-4 mx-auto text-amber-500 mb-1" />
-          <p className="text-xs font-bold text-gray-900">
-            {post.shares_count || 0}
-          </p>
-        </div>
-      </div>
-
-      {/* Actions */}
-      <div className="grid grid-cols-2 gap-2">
-        <button
-          onClick={() => onToggleActive(post.id, post.is_active)}
-          className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${
-            post.is_active
-              ? "bg-gray-100 text-gray-700 hover:bg-gray-200"
-              : "bg-green-100 text-green-700 hover:bg-green-200"
-          }`}
-        >
-          {post.is_active ? "⛔ Dezaktywuj" : "✅ Aktywuj"}
-        </button>
-
-        <button
-          onClick={() => onViewStats(post.id)}
-          className="px-4 py-2 bg-blue-100 text-blue-700 rounded-lg text-sm font-bold hover:bg-blue-200 transition-all flex items-center justify-center gap-1"
-        >
-          <TrendingUp className="w-4 h-4" />
-          Statystyki
-        </button>
-
-        <button
-          onClick={() => onEdit(post.id)}
-          className="px-4 py-2 bg-purple-100 text-purple-700 rounded-lg text-sm font-bold hover:bg-purple-200 transition-all flex items-center justify-center gap-1"
-        >
-          ✏️ Edytuj
-        </button>
-
-        <button
-          onClick={() => onDelete(post.id)}
-          className="px-4 py-2 bg-red-100 text-red-700 rounded-lg text-sm font-bold hover:bg-red-200 transition-all flex items-center justify-center gap-1"
-        >
-          🗑️ Usuń
-        </button>
-      </div>
-
-      {/* Date */}
-      <p className="text-xs text-gray-500 mt-4 text-center">
-        Utworzono: {new Date(post.created_at).toLocaleDateString("pl-PL")}
-      </p>
     </div>
   );
 }

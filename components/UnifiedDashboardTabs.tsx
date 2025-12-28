@@ -58,7 +58,7 @@ const ALL_TABS: TabConfig[] = [
   },
   {
     id: "profile",
-    label: "Profil",
+    label: "Przegląd", // ✅ ZMIENIONE: Profil → Przegląd (dla spójności ze wszystkimi rolami)
     icon: "💼",
     description: "Profil, statystyki, aktywność, edycja",
     roles: ["admin", "employer", "accountant", "cleaning_company"], // Pozostali mają overview w profilu

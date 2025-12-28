@@ -61,10 +61,17 @@ import {
   ClockIcon,
   Eye,
 } from "../../components/icons";
+import { StatChipsGrid, StatChipItem } from "../../components/StatChips";
 import MyPosts from "./MyPosts";
 import SavedActivity from "./SavedActivity";
 import { MyProfilePreview } from "../../components/profile/MyProfilePreview";
 import AccountantSubscriptionPage from "./AccountantSubscriptionPage";
+import {
+  getAllSavedProfiles,
+  removeSavedProfile,
+  type SavedProfile,
+  type EntityType,
+} from "../../services/savedProfilesService";
 // NOTE: Kilometers, Appointments and I18nProvider removed - they are only in /faktury module
 
 // ===================================================================
@@ -193,12 +200,12 @@ export default function AccountantDashboard() {
   const isMobile = useIsMobile();
 
   // Unified tabs state
-  const { activeTab, setActiveTab } = useUnifiedTabs("overview");
+  const { activeTab, setActiveTab } = useUnifiedTabs("tablica");
   const { isSidebarOpen, closeSidebar } = useSidebar();
 
   // Profile sub-navigation state (drugi poziom menu dla tabu Profile)
   const [profileSubTab, setProfileSubTab] = useState<
-    "overview" | "edit" | "availability" | "team" | "stats"
+    "overview" | "edit" | "team" | "stats" | "availability"
   >("overview");
   const [isProfileSidebarOpen, setIsProfileSidebarOpen] = useState(false);
 
@@ -230,8 +237,18 @@ export default function AccountantDashboard() {
     useState<Conversation | null>(null);
   const [messageInput, setMessageInput] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
+  const [messagesSubTab, setMessagesSubTab] = useState<
+    "wiadomosci" | "reakcje"
+  >("wiadomosci");
+  const [reactions, setReactions] = useState<any[]>([]);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [uploadingFile, setUploadingFile] = useState(false);
+
+  // Saved Profiles State
+  const [savedProfiles, setSavedProfiles] = useState<SavedProfile[]>([]);
+  const [savedProfilesFilter, setSavedProfilesFilter] = useState<
+    "all" | EntityType
+  >("all");
 
   // Reviews state
   const [reviews, setReviews] = useState<any[]>([]);
@@ -286,10 +303,40 @@ export default function AccountantDashboard() {
 
   const [settingsSaving, setSettingsSaving] = useState(false);
 
+  // =====================================================
+  // PORTFOLIO STATE
+  // =====================================================
+  const [portfolio, setPortfolio] = useState<any[]>([]);
+  const [portfolioForm, setPortfolioForm] = useState({
+    title: "",
+    description: "",
+    images: [] as string[],
+    project_url: "",
+    video_url: "",
+    category: "",
+    start_date: "",
+    end_date: "",
+    completion_date: "",
+    client_name: "",
+    client_company: "",
+    location: "",
+    address: "",
+    is_public: true,
+    is_featured: false,
+  });
+  const [showPortfolioModal, setShowPortfolioModal] = useState(false);
+  const [editingProjectId, setEditingProjectId] = useState<string | null>(null);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [lightboxImages, setLightboxImages] = useState<string[]>([]);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
+  const [selectedProject, setSelectedProject] = useState<any>(null);
+  const [showProjectDetail, setShowProjectDetail] = useState(false);
+
   useEffect(() => {
     if (user?.id) {
       loadAccountant();
       loadMessages(user.id);
+      loadReactions(user.id);
 
       // Auto-refresh profile_views co 30 sekund
       const refreshInterval = setInterval(() => {
@@ -450,6 +497,27 @@ export default function AccountantDashboard() {
       setMessages([]);
       setConversations([]);
       setUnreadCount(0);
+    }
+  };
+
+  // Load reactions (all social interactions: reactions, comments, reviews)
+  const loadReactions = async (userId: string) => {
+    try {
+      // WHY: Using as any because notifications table is not yet in database.types.ts
+      const { data, error } = await (supabase.from("notifications") as any)
+        .select("id, type, title, message, is_read, created_at, link, data")
+        .eq("user_id", userId)
+        .in("type", ["story_reaction", "story_reply", "review"])
+        .order("created_at", { ascending: false })
+        .limit(50);
+
+      if (error) throw error;
+
+      setReactions(data || []);
+      console.log("💗 REACTIONS LOADED:", data?.length || 0);
+    } catch (err) {
+      console.error("❌ ERROR LOADING REACTIONS:", err);
+      setReactions([]);
     }
   };
 
@@ -700,6 +768,29 @@ export default function AccountantDashboard() {
         latitude: data.latitude || null,
         longitude: data.longitude || null,
       });
+
+      // Load portfolio
+      // WHY: Using as any because accountant_portfolio table is not yet in database.types.ts
+      const { data: portfolioData, error: portfolioError } = await (
+        supabase.from("accountant_portfolio") as any
+      )
+        .select("*")
+        .eq("accountant_id", data.id)
+        .order("created_at", { ascending: false });
+
+      if (!portfolioError && portfolioData) {
+        setPortfolio(portfolioData);
+      }
+
+      // Load saved profiles
+      if (user) {
+        try {
+          const profiles = await getAllSavedProfiles(user.id);
+          setSavedProfiles(profiles);
+        } catch (err) {
+          console.warn("[ACCOUNTANT-DASH] Could not load saved profiles:", err);
+        }
+      }
     } catch (error) {
       console.error("Error loading accountant:", error);
     } finally {
@@ -1053,867 +1144,274 @@ export default function AccountantDashboard() {
         />
       )}
 
-      {/* Stats Cards - 4 karty (usunięto "Zgłoszenia") */}
-      <div
-        className={`grid ${
-          isMobile ? "grid-cols-2" : "grid-cols-1 md:grid-cols-4"
-        } gap-3 md:gap-6`}
-      >
-        <div className="bg-gradient-to-br from-blue-100 to-blue-50 rounded-xl shadow-md border border-blue-200 p-4 md:p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p
-                className={`text-blue-600 mb-1 ${
-                  isMobile ? "text-xs" : "text-sm"
-                }`}
-              >
-                Aktywni klienci
-              </p>
-              <p
-                className={`font-bold text-blue-900 ${
-                  isMobile ? "text-xl" : "text-3xl"
-                }`}
-              >
-                {accountant?.total_clients || 0}
-              </p>
-            </div>
-            <Users className={isMobile ? "w-6 h-6" : "w-10 h-10"} />
-          </div>
-        </div>
-        <div className="bg-gradient-to-br from-yellow-100 to-yellow-50 rounded-xl shadow-md border border-yellow-200 p-4 md:p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p
-                className={`text-yellow-600 mb-1 ${
-                  isMobile ? "text-xs" : "text-sm"
-                }`}
-              >
-                Ocena
-              </p>
-              <p
-                className={`font-bold text-yellow-900 ${
-                  isMobile ? "text-xl" : "text-3xl"
-                }`}
-              >
-                {accountant?.rating
-                  ? `${accountant.rating.toFixed(1)} ⭐`
-                  : "0.0 ⭐"}
-              </p>
-            </div>
-            <Star className={isMobile ? "w-6 h-6" : "w-10 h-10"} />
-          </div>
-        </div>
-        <div className="bg-gradient-to-br from-green-100 to-green-50 rounded-xl shadow-md border border-green-200 p-4 md:p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p
-                className={`text-green-600 mb-1 ${
-                  isMobile ? "text-xs" : "text-sm"
-                }`}
-              >
-                {isMobile ? "Wyświetlenia" : "Wyświetlenia profilu"}
-              </p>
-              <p
-                className={`font-bold text-green-900 ${
-                  isMobile ? "text-xl" : "text-3xl"
-                }`}
-              >
-                {accountant?.profile_views || 0}
-              </p>
-            </div>
-            <Eye className={isMobile ? "w-6 h-6" : "w-10 h-10"} />
-          </div>
-        </div>
-        <div className="bg-gradient-to-br from-purple-100 to-purple-50 rounded-xl shadow-md border border-purple-200 p-4 md:p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p
-                className={`text-purple-600 mb-1 ${
-                  isMobile ? "text-xs" : "text-sm"
-                }`}
-              >
-                Wiadomości
-              </p>
-              <p
-                className={`font-bold text-purple-900 ${
-                  isMobile ? "text-xl" : "text-3xl"
-                }`}
-              >
-                {unreadCount || 0}
-              </p>
-            </div>
-            <Bell className={isMobile ? "w-6 h-6" : "w-10 h-10"} />
-          </div>
-        </div>
-      </div>
-
-      {/* Szybkie działania Card - Premium Glass Style */}
-      <QuickActionsCard
-        role="accountant"
-        isMobile={isMobile}
-        onSubscription={handleViewSubscription}
+      {/* Stats Cards - Premium StatChips */}
+      <StatChipsGrid
+        items={
+          [
+            {
+              id: "clients",
+              label: "Active Clients",
+              value: accountant?.total_clients || 0,
+              tone: "cyan",
+              icon: <Users className="w-4 h-4" />,
+            },
+            {
+              id: "rating",
+              label: "Rating",
+              value: accountant?.rating ? accountant.rating.toFixed(1) : "0.0",
+              tone: "amber",
+              icon: <Star className="w-4 h-4" />,
+            },
+            {
+              id: "views",
+              label: "Profile Views",
+              value: accountant?.profile_views || 0,
+              tone: "emerald",
+              icon: <Eye className="w-4 h-4" />,
+            },
+            {
+              id: "messages",
+              label: "Messages",
+              value: unreadCount || 0,
+              tone: "violet",
+              icon: <Bell className="w-4 h-4" />,
+            },
+          ] as StatChipItem[]
+        }
+        columns={4}
       />
 
-      <div
-        className={`grid ${
-          isMobile ? "grid-cols-1" : "grid-cols-1 md:grid-cols-3"
-        } gap-4 md:gap-6`}
-      >
-        <div
-          onClick={() => setActiveTab("submissions")}
-          className={`bg-gradient-to-br from-orange-500 to-orange-600 rounded-lg shadow-lg text-white cursor-pointer hover:shadow-xl ${
-            isMobile ? "p-4" : "p-6"
-          }`}
-        >
-          <FileText className={isMobile ? "w-6 h-6 mb-2" : "w-8 h-8 mb-4"} />
-          <h3 className={`font-bold mb-2 ${isMobile ? "text-lg" : "text-xl"}`}>
-            Zgłoszenia
-          </h3>
-          <p className={`text-orange-100 ${isMobile ? "text-sm" : ""}`}>
-            Nowe zgłoszenia od klientów
-          </p>
-        </div>
-
-        <div
-          onClick={() => setActiveTab("services")}
-          className={`bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg shadow-lg text-white cursor-pointer hover:shadow-xl ${
-            isMobile ? "p-4" : "p-6"
-          }`}
-        >
-          <Briefcase className={isMobile ? "w-6 h-6 mb-2" : "w-8 h-8 mb-4"} />
-          <h3 className={`font-bold mb-2 ${isMobile ? "text-lg" : "text-xl"}`}>
-            Usługi
-          </h3>
-          <p className={`text-purple-100 ${isMobile ? "text-sm" : ""}`}>
-            Zarządzaj ofertą księgową
-          </p>
-        </div>
-
-        <div
-          onClick={() => setActiveTab("forms")}
-          className={`bg-gradient-to-br from-green-500 to-green-600 rounded-lg shadow-lg text-white cursor-pointer hover:shadow-xl ${
-            isMobile ? "p-4" : "p-6"
-          }`}
-        >
-          <ClipboardList
-            className={isMobile ? "w-6 h-6 mb-2" : "w-8 h-8 mb-4"}
-          />
-          <h3 className={`font-bold mb-2 ${isMobile ? "text-lg" : "text-xl"}`}>
-            Formularze
-          </h3>
-          <p className={`text-green-100 ${isMobile ? "text-sm" : ""}`}>
-            Szablony dla klientów
-          </p>
-        </div>
-      </div>
-
-      {/* Profil + Ostatnie wiadomości */}
-      <div
-        className={`grid ${
-          isMobile ? "grid-cols-1" : "grid-cols-1 lg:grid-cols-2"
-        } gap-4 md:gap-6`}
-      >
-        {/* Zdjęcie profilowe + dane */}
-        <div
-          className={`bg-white rounded-lg shadow ${isMobile ? "p-4" : "p-6"}`}
-        >
-          <h3
-            className={`font-semibold mb-4 ${
-              isMobile ? "text-base" : "text-lg"
-            }`}
-          >
-            📸 Profil księgowy
-          </h3>
-
-          {/* Avatar Section */}
-          <div
-            className={`flex gap-4 mb-6 ${
-              isMobile ? "flex-col items-center" : ""
-            }`}
-          >
-            <div className="flex flex-col items-center gap-3">
-              {accountant?.avatar_url ? (
-                <>
-                  <img
-                    src={accountant.avatar_url}
-                    alt="Avatar księgowego"
-                    className={`rounded-full object-cover border-4 border-blue-100 shadow-lg ${
-                      isMobile ? "w-20 h-20" : "w-24 h-24"
-                    }`}
-                    onError={(e) => {
-                      console.error(
-                        "❌ Avatar failed to load:",
-                        accountant.avatar_url
-                      );
-                      (e.target as HTMLImageElement).style.display = "none";
-                      const fallback = (e.target as HTMLImageElement)
-                        .nextElementSibling;
-                      if (fallback)
-                        (fallback as HTMLElement).style.display = "flex";
-                    }}
-                  />
-                  <div
-                    className={`bg-gradient-to-br from-blue-500 to-blue-600 rounded-full items-center justify-center text-white font-bold shadow-lg border-4 border-blue-100 ${
-                      isMobile ? "w-20 h-20 text-3xl" : "w-24 h-24 text-4xl"
-                    }`}
-                    style={{ display: "none" }}
-                  >
-                    {accountant?.company_name?.[0]?.toUpperCase() || "K"}
-                  </div>
-                </>
-              ) : (
-                <div
-                  className={`bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white font-bold shadow-lg flex-shrink-0 ${
-                    isMobile ? "w-20 h-20 text-3xl" : "w-24 h-24 text-4xl"
-                  }`}
-                >
-                  {accountant?.company_name?.[0]?.toUpperCase() || "K"}
-                </div>
-              )}
-
-              {/* Upload/Remove buttons */}
-              <div
-                className={`flex gap-2 ${
-                  isMobile ? "flex-row w-full" : "flex-col w-full"
-                }`}
-              >
-                <label
-                  className={`bg-blue-600 hover:bg-blue-700 text-white rounded-lg cursor-pointer text-center transition-colors ${
-                    isMobile ? "flex-1 text-xs px-2 py-2" : "text-xs px-3 py-2"
-                  }`}
-                >
-                  Zmień
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleAvatarUpload}
-                    className="hidden"
-                  />
-                </label>
-                {accountant?.avatar_url && (
-                  <button
-                    onClick={handleRemoveAvatar}
-                    className={`bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors ${
-                      isMobile
-                        ? "flex-1 text-xs px-2 py-2"
-                        : "text-xs px-3 py-2"
-                    }`}
-                  >
-                    Usuń
-                  </button>
-                )}
-              </div>
-            </div>
-
-            <div className={`flex-1 ${isMobile ? "text-center" : ""}`}>
-              <h4
-                className={`font-bold mb-1 ${isMobile ? "text-lg" : "text-xl"}`}
-              >
-                {accountant?.company_name || "Księgowość"}
-              </h4>
-              <p
-                className={`text-gray-600 mb-2 ${
-                  isMobile ? "text-xs" : "text-sm"
-                }`}
-              >
-                {accountant?.email}
-              </p>
-              <div
-                className={`flex gap-2 mb-3 ${
-                  isMobile ? "justify-center" : ""
-                }`}
-              >
-                <span
-                  className={`bg-green-100 text-green-700 font-medium rounded-full flex items-center gap-1 ${
-                    isMobile ? "px-2 py-1 text-xs" : "px-2 py-1 text-xs"
-                  }`}
-                >
-                  ✓ Aktywny
-                </span>
-                <span
-                  className={`bg-blue-100 text-blue-700 font-medium rounded-full flex items-center gap-1 ${
-                    isMobile ? "px-2 py-1 text-xs" : "px-2 py-1 text-xs"
-                  }`}
-                >
-                  ✓ Zweryfikowany
-                </span>
-              </div>
-
-              {accountant?.bio && (
-                <p
-                  className={`text-gray-600 italic mb-3 ${
-                    isMobile ? "text-xs" : "text-sm"
-                  }`}
-                >
-                  "{accountant.bio}"
-                </p>
-              )}
-            </div>
-          </div>
-
-          {/* Cover Image Section */}
-          {accountant && (
-            <div className="mb-6">
-              <h4 className="text-sm font-semibold text-gray-700 mb-3">
-                🖼️ Zdjęcie w tle profilu
-              </h4>
-              <CoverImageUploader
-                currentCoverUrl={accountant.cover_image_url}
-                onUploadSuccess={handleCoverImageUploadSuccess}
-                profileType="accountant"
-                profileId={accountant.id}
-              />
-            </div>
-          )}
-
-          {/* Contact info */}
-          <div
-            className={`space-y-2 mb-4 bg-gray-50 rounded-lg ${
-              isMobile ? "p-3" : "p-4"
-            }`}
-          >
-            <div
-              className={`flex items-center gap-2 ${
-                isMobile ? "text-xs" : "text-sm"
-              }`}
-            >
-              <User className={isMobile ? "w-3 h-3" : "w-4 h-4"} />
-              <span className="text-gray-600">
-                Email: {accountant?.email || "Nie podano"}
-              </span>
-            </div>
-            {accountant?.phone && (
-              <div
-                className={`flex items-center gap-2 ${
-                  isMobile ? "text-xs" : "text-sm"
-                }`}
-              >
-                <span className="text-gray-400">📱</span>
-                <span className="text-gray-600">Tel: {accountant.phone}</span>
-              </div>
-            )}
-            <div
-              className={`flex items-center gap-2 ${
-                isMobile ? "text-xs" : "text-sm"
-              }`}
-            >
-              <MapPin className={isMobile ? "w-3 h-3" : "w-4 h-4"} />
-              <span className="text-gray-600">
-                {accountant?.city || "Rotterdam"},{" "}
-                {accountant?.country || "Nederland"}
-              </span>
-            </div>
-            {accountant?.website && (
-              <div
-                className={`flex items-center gap-2 ${
-                  isMobile ? "text-xs" : "text-sm"
-                }`}
-              >
-                <span className="text-gray-400">🌐</span>
-                <a
-                  href={accountant.website}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-blue-600 hover:underline break-all"
-                >
-                  {accountant.website}
-                </a>
-              </div>
-            )}
-            {accountant?.years_experience &&
-              accountant.years_experience > 0 && (
-                <div
-                  className={`flex items-center gap-2 ${
-                    isMobile ? "text-xs" : "text-sm"
-                  }`}
-                >
-                  <span className="text-gray-400">📊</span>
-                  <span className="text-gray-600">
-                    Doświadczenie: {accountant.years_experience} lat
-                  </span>
-                </div>
-              )}
-          </div>
-
-          {/* Specializations */}
-          {accountant?.specializations &&
-            accountant.specializations.length > 0 && (
-              <div className="mb-4">
-                <h5
-                  className={`font-semibold text-gray-700 mb-2 ${
-                    isMobile ? "text-xs" : "text-sm"
-                  }`}
-                >
-                  Specjalizacje:
-                </h5>
-                <div className="flex flex-wrap gap-2">
-                  {accountant.specializations.map((spec, idx) => (
-                    <span
-                      key={idx}
-                      className={`bg-blue-100 text-blue-700 font-medium rounded-full ${
-                        isMobile ? "px-2 py-1 text-xs" : "px-3 py-1 text-xs"
-                      }`}
-                    >
-                      {spec}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
-
-          {/* Languages */}
-          {accountant?.languages && accountant.languages.length > 0 && (
-            <div className="mb-4">
-              <h5
-                className={`font-semibold text-gray-700 mb-2 ${
-                  isMobile ? "text-xs" : "text-sm"
-                }`}
-              >
-                Języki:
-              </h5>
-              <div className="flex flex-wrap gap-2">
-                {accountant.languages.map((lang, idx) => (
-                  <span
-                    key={idx}
-                    className={`bg-green-100 text-green-700 font-medium rounded-full ${
-                      isMobile ? "px-2 py-1 text-xs" : "px-3 py-1 text-xs"
-                    }`}
-                  >
-                    {lang}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Licenses */}
-          {(accountant?.kvk_number ||
-            accountant?.btw_number ||
-            accountant?.license_number) && (
-            <div className="mb-4 bg-gray-50 rounded-lg p-4 space-y-1">
-              <h5 className="text-sm font-semibold text-gray-700 mb-2">
-                Licencje i certyfikaty:
-              </h5>
-              {accountant?.kvk_number && (
-                <p className="text-xs text-gray-600">
-                  KVK: {accountant.kvk_number}
-                </p>
-              )}
-              {accountant?.btw_number && (
-                <p className="text-xs text-gray-600">
-                  BTW: {accountant.btw_number}
-                </p>
-              )}
-              {accountant?.license_number && (
-                <p className="text-xs text-gray-600">
-                  Licencja: {accountant.license_number}
-                </p>
-              )}
-            </div>
-          )}
-
-          <button
-            onClick={() => setIsEditingProfile(true)}
-            className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
-          >
-            Edytuj profil
-          </button>
-        </div>
-
-        {/* Ostatnie wiadomości */}
-        <div
-          className={`bg-white rounded-lg shadow ${isMobile ? "p-4" : "p-6"}`}
-        >
-          <div
-            className={`flex items-center justify-between mb-4 ${
-              isMobile ? "flex-col gap-2" : ""
-            }`}
-          >
-            <div className="flex items-center gap-2">
-              <h3
-                className={`font-semibold ${
-                  isMobile ? "text-base" : "text-lg"
-                }`}
-              >
-                📬 Ostatnie wiadomości
-              </h3>
-              {unreadCount > 0 && (
-                <span
-                  className={`bg-red-500 text-white font-bold rounded-full ${
-                    isMobile ? "text-xs px-2 py-1" : "text-xs px-2 py-1"
-                  }`}
-                >
-                  {unreadCount} nowe
-                </span>
-              )}
-            </div>
+      {/* GŁÓWNY GRID 3 kolumny */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* � Ostatnie wyszukiwania */}
+        <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-xl font-bold text-gray-900">
+              Ostatnie wyszukiwania
+            </h2>
             <button
-              onClick={() => setActiveTab("messages")}
-              className={`text-blue-600 hover:text-blue-700 font-medium ${
-                isMobile ? "text-xs" : "text-sm"
-              }`}
+              onClick={() => setActiveTab("services")}
+              className="text-sm text-orange-600 hover:text-orange-700 font-medium"
             >
-              Zobacz wszystkie →
+              Nowe wyszukiwanie →
             </button>
           </div>
 
-          {messages.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
-              <div className={isMobile ? "text-3xl mb-2" : "text-4xl mb-2"}>
-                📭
-              </div>
-              <p className={isMobile ? "text-sm" : ""}>Brak wiadomości</p>
-            </div>
-          ) : (
-            <div className={isMobile ? "space-y-2" : "space-y-3"}>
-              {messages.slice(0, 3).map((msg: any) => (
-                <button
-                  key={msg.id}
-                  onClick={() => {
-                    setSelectedMessage(msg);
-                    setActiveTab("messages");
-                    if (!msg.is_read) handleMarkAsRead(msg.id);
-                  }}
-                  className={`w-full text-left flex items-start gap-3 hover:bg-gray-50 rounded-lg cursor-pointer transition-colors ${
-                    isMobile ? "p-2" : "p-3"
-                  }`}
-                >
-                  {/* Avatar */}
-                  {msg.sender_profile?.avatar_url ? (
-                    <img
-                      src={msg.sender_profile.avatar_url}
-                      alt={msg.sender_profile.full_name || "Avatar"}
-                      className={`rounded-full object-cover flex-shrink-0 ${
-                        isMobile ? "w-8 h-8" : "w-10 h-10"
-                      }`}
-                      onError={(e) => {
-                        // Fallback to initials if image fails
-                        (e.target as HTMLImageElement).style.display = "none";
-                        const fallback = (e.target as HTMLImageElement)
-                          .nextElementSibling;
-                        if (fallback)
-                          (fallback as HTMLElement).style.display = "flex";
-                      }}
-                    />
-                  ) : null}
-                  <div
-                    className={`bg-blue-100 rounded-full flex items-center justify-center font-bold text-blue-600 flex-shrink-0 ${
-                      isMobile ? "w-8 h-8 text-sm" : "w-10 h-10"
-                    }`}
-                    style={{
-                      display: msg.sender_profile?.avatar_url ? "none" : "flex",
-                    }}
-                  >
-                    {msg.sender_profile?.full_name?.[0]?.toUpperCase() || "?"}
-                  </div>
-
-                  <div className="flex-1 min-w-0">
-                    <div
-                      className={`flex items-center justify-between mb-1 ${
-                        isMobile ? "flex-col items-start gap-1" : ""
-                      }`}
-                    >
-                      <p
-                        className={`font-medium ${
-                          msg.is_read ? "text-gray-700" : "text-blue-700"
-                        } ${isMobile ? "text-xs" : "text-sm"}`}
-                      >
-                        {msg.sender_profile?.full_name || "Nieznany nadawca"}
-                      </p>
-                      <span
-                        className={`text-gray-400 ${
-                          isMobile ? "text-xs" : "text-xs"
-                        }`}
-                      >
-                        {new Date(msg.created_at).toLocaleDateString("pl-PL")}
-                      </span>
-                    </div>
-                    <p
-                      className={`text-gray-600 mb-1 ${
-                        isMobile ? "text-xs" : "text-sm"
-                      }`}
-                    >
-                      {msg.subject || "Brak tematu"}
-                    </p>
-                    <p
-                      className={`text-gray-500 truncate ${
-                        isMobile ? "text-xs" : "text-xs"
-                      }`}
-                    >
-                      {msg.content}
-                    </p>
-                  </div>
-                  {!msg.is_read && (
-                    <div
-                      className={`bg-blue-500 rounded-full flex-shrink-0 mt-2 ${
-                        isMobile ? "w-1.5 h-1.5" : "w-2 h-2"
-                      }`}
-                    ></div>
-                  )}
-                </button>
-              ))}
-            </div>
-          )}
+          <div className="text-center py-8">
+            <p className="text-gray-500">Brak historii wyszukiwań</p>
+            <button
+              onClick={() => setActiveTab("services")}
+              className="mt-4 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700"
+            >
+              Rozpocznij pierwsze wyszukiwanie
+            </button>
+          </div>
         </div>
-      </div>
 
-      {/* Nadchodzące spotkania + Opinie */}
-      <div
-        className={`grid ${
-          isMobile ? "grid-cols-1" : "grid-cols-1 lg:grid-cols-2"
-        } gap-4 md:gap-6`}
-      >
-        {/* Kalendarz spotkań - REAL DATA from calendar_events */}
+        {/* 📅 Nadchodzące spotkania */}
         <UpcomingEventsCard maxEvents={5} showAddButton={true} />
 
-        {/* Ostatnie opinie */}
-        <div
-          className={`bg-white rounded-lg shadow ${isMobile ? "p-4" : "p-6"}`}
-        >
-          <div
-            className={`flex items-center justify-between mb-4 ${
-              isMobile ? "flex-col gap-2" : ""
-            }`}
-          >
-            <h3
-              className={`font-semibold ${isMobile ? "text-base" : "text-lg"}`}
+        {/* 👥 Zapisane profile */}
+        <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-bold text-gray-900">
+              Zapisane profile
+            </h2>
+            <Link
+              to="/search"
+              className="text-sm text-orange-600 hover:text-orange-700 font-medium"
             >
-              ⭐ Ostatnie opinie
-            </h3>
-            {accountant && (
-              <div className="flex items-center gap-2">
-                <span
-                  className={`font-bold text-yellow-600 ${
-                    isMobile ? "text-xl" : "text-2xl"
-                  }`}
-                >
-                  {accountant.rating?.toFixed(1) || "0.0"}
-                </span>
-                <span
-                  className={`text-gray-500 ${
-                    isMobile ? "text-xs" : "text-sm"
-                  }`}
-                >
-                  ({accountant.rating_count || 0})
-                </span>
-              </div>
-            )}
+              Szukaj więcej →
+            </Link>
           </div>
 
-          {reviewsLoading ? (
-            <div
-              className={`text-center py-8 text-gray-500 ${
-                isMobile ? "text-sm" : ""
-              }`}
-            >
-              <p>Ładowanie opinii...</p>
-            </div>
-          ) : reviews.length === 0 ? (
-            <div
-              className={`text-center py-8 text-gray-500 ${
-                isMobile ? "text-sm" : ""
-              }`}
-            >
-              <p>Brak opinii</p>
-              <p className={`mt-2 ${isMobile ? "text-xs" : "text-sm"}`}>
-                Opinie pojawią się tutaj gdy klienci je wystawią
-              </p>
-            </div>
-          ) : (
-            <div className={isMobile ? "space-y-3" : "space-y-4"}>
-              {reviews.slice(0, 2).map((review: any) => (
-                <div
-                  key={review.id}
-                  className={`border border-gray-200 rounded-lg hover:shadow-md transition-shadow ${
-                    isMobile ? "p-3" : "p-4"
-                  }`}
-                >
-                  <div
-                    className={`flex items-center justify-between mb-2 ${
-                      isMobile ? "flex-col items-start gap-2" : ""
-                    }`}
-                  >
-                    <div className="flex items-center gap-2">
-                      <div
-                        className={`bg-blue-100 rounded-full flex items-center justify-center font-bold text-blue-600 ${
-                          isMobile ? "w-6 h-6 text-xs" : "w-8 h-8 text-sm"
+          {/* Entity Type Filters */}
+          <div className="flex flex-wrap gap-2 mb-4">
+            {[
+              { key: "all", label: "Wszystkie", icon: "📋" },
+              { key: "worker", label: "Pracownicy", icon: "👷" },
+              { key: "employer", label: "Pracodawcy", icon: "🏢" },
+              { key: "accountant", label: "Księgowi", icon: "📊" },
+              {
+                key: "cleaning_company",
+                label: "Firmy sprzątające",
+                icon: "🧹",
+              },
+            ].map((filter) => (
+              <button
+                key={filter.key}
+                onClick={() =>
+                  setSavedProfilesFilter(
+                    filter.key as typeof savedProfilesFilter
+                  )
+                }
+                className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors flex items-center gap-1 ${
+                  savedProfilesFilter === filter.key
+                    ? "bg-orange-500 text-white"
+                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                }`}
+              >
+                <span>{filter.icon}</span>
+                <span>{filter.label}</span>
+              </button>
+            ))}
+          </div>
+
+          {(() => {
+            const filteredProfiles =
+              savedProfilesFilter === "all"
+                ? savedProfiles
+                : savedProfiles.filter(
+                    (p) => p.entity_type === savedProfilesFilter
+                  );
+
+            if (filteredProfiles.length === 0) {
+              return (
+                <div className="text-center py-8">
+                  <p className="text-gray-500">
+                    {savedProfilesFilter === "all"
+                      ? "Brak zapisanych profili"
+                      : `Brak zapisanych ${
+                          savedProfilesFilter === "worker"
+                            ? "pracowników"
+                            : savedProfilesFilter === "employer"
+                            ? "pracodawców"
+                            : savedProfilesFilter === "accountant"
+                            ? "księgowych"
+                            : "firm sprzątających"
                         }`}
-                      >
-                        {(review.reviewer_name || "?")[0].toUpperCase()}
-                      </div>
-                      <div>
-                        <p
-                          className={`font-medium ${
-                            isMobile ? "text-xs" : "text-sm"
-                          }`}
-                        >
-                          {review.reviewer_name || "Pracodawca"}
-                        </p>
-                        <div className="flex">
-                          {[1, 2, 3, 4, 5].map((i) => (
-                            <Star
-                              key={i}
-                              className={`${
-                                i <= review.rating
-                                  ? "text-yellow-400 fill-current"
-                                  : "text-gray-300"
-                              } ${isMobile ? "w-3 h-3" : "w-3 h-3"}`}
-                            />
-                          ))}
+                  </p>
+                  <p className="text-sm text-gray-400 mt-2">
+                    Zapisz profile podczas wyszukiwania, aby szybko do nich
+                    wrócić
+                  </p>
+                </div>
+              );
+            }
+
+            return (
+              <div className="space-y-3">
+                {filteredProfiles.slice(0, 6).map((profile) => {
+                  const typeConfig: Record<
+                    string,
+                    {
+                      icon: string;
+                      bgClass: string;
+                      textClass: string;
+                      label: string;
+                      link: string;
+                    }
+                  > = {
+                    worker: {
+                      icon: "👷",
+                      bgClass: "bg-orange-100",
+                      textClass: "text-orange-700",
+                      label: "Pracownik",
+                      link: `/worker/profile/${profile.entity_id}`,
+                    },
+                    employer: {
+                      icon: "🏢",
+                      bgClass: "bg-blue-100",
+                      textClass: "text-blue-700",
+                      label: "Pracodawca",
+                      link: `/employer/profile/${profile.entity_id}`,
+                    },
+                    accountant: {
+                      icon: "📊",
+                      bgClass: "bg-green-100",
+                      textClass: "text-green-700",
+                      label: "Księgowy",
+                      link: `/accountant/profile/${profile.entity_id}`,
+                    },
+                    cleaning_company: {
+                      icon: "🧹",
+                      bgClass: "bg-purple-100",
+                      textClass: "text-purple-700",
+                      label: "Firma sprzątająca",
+                      link: `/cleaning-company/profile/${profile.entity_id}`,
+                    },
+                  };
+                  const config =
+                    typeConfig[profile.entity_type] || typeConfig.worker;
+
+                  return (
+                    <Link
+                      key={profile.id}
+                      to={config.link}
+                      className="block border border-gray-200 rounded-lg p-3 hover:border-orange-500 transition-colors relative group"
+                    >
+                      <div className="flex items-center gap-3">
+                        {profile.entity_avatar ? (
+                          <img
+                            src={profile.entity_avatar}
+                            alt={profile.entity_name || "Profile"}
+                            className="w-10 h-10 rounded-full object-cover"
+                          />
+                        ) : (
+                          <div
+                            className={`w-10 h-10 rounded-full ${config.bgClass} flex items-center justify-center text-lg`}
+                          >
+                            {config.icon}
+                          </div>
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-gray-900 truncate text-sm">
+                            {profile.entity_name || "Nieznany"}
+                          </p>
+                          <div className="flex items-center gap-2">
+                            <span
+                              className={`text-xs px-2 py-0.5 rounded-full ${config.bgClass} ${config.textClass}`}
+                            >
+                              {config.label}
+                            </span>
+                            {profile.entity_location && (
+                              <span className="text-xs text-gray-500">
+                                📍 {profile.entity_location}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {profile.entity_rating != null &&
+                            profile.entity_rating > 0 && (
+                              <span className="text-sm font-medium text-gray-900">
+                                ⭐ {Number(profile.entity_rating).toFixed(1)}
+                              </span>
+                            )}
+                          <button
+                            onClick={async (e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              await removeSavedProfile(profile.id);
+                              setSavedProfiles((prev) =>
+                                prev.filter((p) => p.id !== profile.id)
+                              );
+                            }}
+                            className="opacity-0 group-hover:opacity-100 text-red-500 hover:text-red-700 transition-opacity"
+                            title="Usuń"
+                          >
+                            <svg
+                              className="w-4 h-4"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M6 18L18 6M6 6l12 12"
+                              />
+                            </svg>
+                          </button>
                         </div>
                       </div>
-                    </div>
-                    <span
-                      className={`text-gray-400 ${
-                        isMobile ? "text-xs self-start" : "text-xs"
-                      }`}
-                    >
-                      {new Date(review.created_at).toLocaleDateString("pl-PL")}
-                    </span>
-                  </div>
-                  {review.comment && (
-                    <p
-                      className={`text-gray-600 ${
-                        isMobile ? "text-xs" : "text-sm"
-                      }`}
-                    >
-                      "{review.comment}"
-                    </p>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-          <button
-            onClick={() => setActiveTab("reviews")}
-            className={`mt-4 w-full text-blue-600 hover:text-blue-700 font-medium ${
-              isMobile ? "text-xs" : "text-sm"
-            }`}
-          >
-            Zobacz wszystkie opinie →
-          </button>
-        </div>
-      </div>
-
-      {/* DOSTĘPNOŚĆ + ZARZĄDZANIE DATAMI */}
-      <div
-        className={`grid ${
-          isMobile ? "grid-cols-1" : "grid-cols-1 lg:grid-cols-2"
-        } gap-4 md:gap-6`}
-      >
-        {/* Kalendarz dostępności */}
-        <div
-          className={`bg-white rounded-lg shadow ${isMobile ? "p-4" : "p-6"}`}
-        >
-          <h3
-            className={`font-semibold mb-2 ${
-              isMobile ? "text-base" : "text-lg"
-            }`}
-          >
-            📅 Twoja dostępność
-          </h3>
-          <p
-            className={`text-gray-600 mb-4 ${isMobile ? "text-xs" : "text-sm"}`}
-          >
-            Zaznacz dni kiedy możesz przyjmować klientów
-          </p>
-
-          <div className={`bg-blue-50 rounded-lg ${isMobile ? "p-4" : "p-6"}`}>
-            <AvailabilityCalendar
-              availability={availability}
-              onChange={handleAvailabilityChange}
-              editable={true}
-            />
-            <p
-              className={`text-gray-500 mt-4 text-center ${
-                isMobile ? "text-xs" : "text-xs"
-              }`}
-            >
-              Kliknij na dzień aby zmienić dostępność. Zmiany są zapisywane
-              automatycznie.
-            </p>
-          </div>
-
-          {/* Quick Stats */}
-          <div
-            className={`mt-4 grid grid-cols-2 ${isMobile ? "gap-2" : "gap-4"}`}
-          >
-            <div
-              className={`bg-white border border-gray-200 rounded-lg ${
-                isMobile ? "p-3" : "p-4"
-              }`}
-            >
-              <p
-                className={`text-gray-600 ${isMobile ? "text-xs" : "text-sm"}`}
-              >
-                Dostępne dni
-              </p>
-              <p
-                className={`font-bold text-blue-600 ${
-                  isMobile ? "text-xl" : "text-2xl"
-                }`}
-              >
-                {Object.values(availability).filter(Boolean).length}
-              </p>
-            </div>
-            <div
-              className={`bg-white border border-gray-200 rounded-lg ${
-                isMobile ? "p-3" : "p-4"
-              }`}
-            >
-              <p
-                className={`text-gray-600 ${isMobile ? "text-xs" : "text-sm"}`}
-              >
-                Preferowane
-              </p>
-              <p
-                className={`font-bold text-gray-700 ${
-                  isMobile ? "text-xl" : "text-2xl"
-                }`}
-              >
-                5 dni/tydzień
-              </p>
-            </div>
-          </div>
-
-          <div
-            className={`mt-4 bg-blue-50 border border-blue-200 rounded-lg ${
-              isMobile ? "p-2" : "p-3"
-            }`}
-          >
-            <p className={`text-blue-800 ${isMobile ? "text-xs" : "text-sm"}`}>
-              <strong>Wskazówka:</strong> Klienci widzą Twoją dostępność przy
-              rezerwacji konsultacji.
-            </p>
-          </div>
-        </div>
-
-        {/* Zarządzanie niedostępnymi terminami */}
-        <div className="bg-white rounded-lg shadow p-6">
-          <h3 className="text-lg font-semibold mb-2">� Niedostępne terminy</h3>
-          <p className="text-sm text-gray-600 mb-4">
-            Zaznacz daty lub okresy kiedy nie przyjmujesz nowych zleceń (urlop,
-            święta, zajęte)
-          </p>
-
-          <DateBlocker
-            blockedDates={blockedDates}
-            onBlock={handleBlockDate}
-            onUnblock={handleUnblockDate}
-          />
-
-          {/* Info o zablokowanych datach */}
-          {blockedDates.length > 0 && (
-            <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-              <p className="text-sm text-yellow-800">
-                <strong>{blockedDates.length}</strong>{" "}
-                {blockedDates.length === 1
-                  ? "data zablokowana"
-                  : "daty zablokowane"}
-                . Klienci nie będą mogli umówić spotkań w tych terminach.
-              </p>
-            </div>
-          )}
+                    </Link>
+                  );
+                })}
+              </div>
+            );
+          })()}
         </div>
       </div>
     </div>
@@ -2127,33 +1625,164 @@ export default function AccountantDashboard() {
                           ← Powrót
                         </button>
                       )}
-                      {selectedConversation.partnerAvatar ? (
-                        <img
-                          src={selectedConversation.partnerAvatar}
-                          alt={selectedConversation.partnerName}
-                          className={`rounded-full object-cover border-2 border-blue-500 ${
-                            isMobile ? "w-8 h-8" : "w-10 h-10"
-                          }`}
-                        />
-                      ) : (
-                        <div
-                          className={`rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold shadow-lg ${
-                            isMobile ? "w-8 h-8 text-sm" : "w-10 h-10"
-                          }`}
-                        >
-                          {selectedConversation.partnerName
-                            .charAt(0)
-                            .toUpperCase()}
-                        </div>
-                      )}
+                      {/* Avatar - clickable to navigate to profile */}
+                      <button
+                        onClick={async () => {
+                          const partnerId = selectedConversation.partnerId;
+                          if (!partnerId) return;
+
+                          try {
+                            const { data: profile } = await supabase
+                              .from("profiles")
+                              .select("role")
+                              .eq("id", partnerId)
+                              .single();
+
+                            const userRole = profile?.role || "worker";
+                            let roleSpecificId = partnerId;
+
+                            if (userRole === "worker") {
+                              const { data: worker } = await supabase
+                                .from("workers")
+                                .select("id")
+                                .eq("profile_id", partnerId)
+                                .maybeSingle();
+                              if (worker) roleSpecificId = worker.id;
+                            } else if (userRole === "employer") {
+                              const { data: employer } = await supabase
+                                .from("employers")
+                                .select("id")
+                                .eq("profile_id", partnerId)
+                                .maybeSingle();
+                              if (employer) roleSpecificId = employer.id;
+                            } else if (userRole === "accountant") {
+                              const { data: accountantData } = await supabase
+                                .from("accountants")
+                                .select("id")
+                                .eq("profile_id", partnerId)
+                                .maybeSingle();
+                              if (accountantData)
+                                roleSpecificId = accountantData.id;
+                            } else if (userRole === "cleaning_company") {
+                              const { data: company } = await supabase
+                                .from("cleaning_companies")
+                                .select("id")
+                                .eq("profile_id", partnerId)
+                                .maybeSingle();
+                              if (company) roleSpecificId = company.id;
+                            }
+
+                            const roleMap: Record<string, string> = {
+                              worker: "/worker/profile",
+                              employer: "/employer/profile",
+                              accountant: "/accountant/profile",
+                              cleaning_company: "/cleaning-company/profile",
+                              admin: "/admin/profile",
+                            };
+                            const url = `${
+                              roleMap[userRole] || "/worker/profile"
+                            }/${roleSpecificId}#contact`;
+                            navigate(url);
+                          } catch (error) {
+                            console.error(
+                              "Error navigating to profile:",
+                              error
+                            );
+                          }
+                        }}
+                        className="cursor-pointer hover:opacity-80 transition-opacity"
+                      >
+                        {selectedConversation.partnerAvatar ? (
+                          <img
+                            src={selectedConversation.partnerAvatar}
+                            alt={selectedConversation.partnerName}
+                            className={`rounded-full object-cover border-2 border-blue-500 hover:border-blue-700 transition-colors ${
+                              isMobile ? "w-8 h-8" : "w-10 h-10"
+                            }`}
+                          />
+                        ) : (
+                          <div
+                            className={`rounded-full bg-gradient-to-br from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 flex items-center justify-center text-white font-bold shadow-lg transition-all ${
+                              isMobile ? "w-8 h-8 text-sm" : "w-10 h-10"
+                            }`}
+                          >
+                            {selectedConversation.partnerName
+                              .charAt(0)
+                              .toUpperCase()}
+                          </div>
+                        )}
+                      </button>
                       <div>
-                        <h4
-                          className={`font-bold text-gray-900 ${
+                        <button
+                          onClick={async () => {
+                            const partnerId = selectedConversation.partnerId;
+                            if (!partnerId) return;
+
+                            try {
+                              const { data: profile } = await supabase
+                                .from("profiles")
+                                .select("role")
+                                .eq("id", partnerId)
+                                .single();
+
+                              const userRole = profile?.role || "worker";
+                              let roleSpecificId = partnerId;
+
+                              if (userRole === "worker") {
+                                const { data: worker } = await supabase
+                                  .from("workers")
+                                  .select("id")
+                                  .eq("profile_id", partnerId)
+                                  .maybeSingle();
+                                if (worker) roleSpecificId = worker.id;
+                              } else if (userRole === "employer") {
+                                const { data: employer } = await supabase
+                                  .from("employers")
+                                  .select("id")
+                                  .eq("profile_id", partnerId)
+                                  .maybeSingle();
+                                if (employer) roleSpecificId = employer.id;
+                              } else if (userRole === "accountant") {
+                                const { data: accountantData } = await supabase
+                                  .from("accountants")
+                                  .select("id")
+                                  .eq("profile_id", partnerId)
+                                  .maybeSingle();
+                                if (accountantData)
+                                  roleSpecificId = accountantData.id;
+                              } else if (userRole === "cleaning_company") {
+                                const { data: company } = await supabase
+                                  .from("cleaning_companies")
+                                  .select("id")
+                                  .eq("profile_id", partnerId)
+                                  .maybeSingle();
+                                if (company) roleSpecificId = company.id;
+                              }
+
+                              const roleMap: Record<string, string> = {
+                                worker: "/worker/profile",
+                                employer: "/employer/profile",
+                                accountant: "/accountant/profile",
+                                cleaning_company: "/cleaning-company/profile",
+                                admin: "/admin/profile",
+                              };
+                              const url = `${
+                                roleMap[userRole] || "/worker/profile"
+                              }/${roleSpecificId}#contact`;
+                              navigate(url);
+                            } catch (error) {
+                              console.error(
+                                "Error navigating to profile:",
+                                error
+                              );
+                            }
+                          }}
+                          className={`font-bold text-gray-900 hover:text-blue-600 hover:underline transition-colors cursor-pointer ${
                             isMobile ? "text-sm" : ""
                           }`}
                         >
                           {selectedConversation.partnerName}
-                        </h4>
+                        </button>
                         <p
                           className={`text-gray-500 ${
                             isMobile ? "text-xs" : "text-xs"
@@ -2845,6 +2474,293 @@ export default function AccountantDashboard() {
     );
   };
 
+  // =====================================================
+  // PORTFOLIO HANDLERS
+  // =====================================================
+
+  const openPortfolioModal = (project?: any) => {
+    if (project) {
+      setEditingProjectId(project.id);
+      setPortfolioForm({
+        title: project.title || "",
+        description: project.description || "",
+        images: project.images || [],
+        project_url: project.project_url || "",
+        video_url: project.video_url || "",
+        category: project.category || "",
+        start_date: project.start_date || "",
+        end_date: project.end_date || "",
+        completion_date: project.completion_date || "",
+        client_name: project.client_name || "",
+        client_company: project.client_company || "",
+        location: project.location || "",
+        address: project.address || "",
+        is_public: project.is_public ?? true,
+        is_featured: project.is_featured ?? false,
+      });
+    }
+    setShowPortfolioModal(true);
+  };
+
+  const resetPortfolioForm = () => {
+    setPortfolioForm({
+      title: "",
+      description: "",
+      images: [],
+      project_url: "",
+      video_url: "",
+      category: "",
+      start_date: "",
+      end_date: "",
+      completion_date: "",
+      client_name: "",
+      client_company: "",
+      location: "",
+      address: "",
+      is_public: true,
+      is_featured: false,
+    });
+    setEditingProjectId(null);
+  };
+
+  const handlePortfolioSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!accountant?.id) return;
+
+    try {
+      setSaving(true);
+
+      const portfolioData = {
+        accountant_id: accountant.id,
+        title: portfolioForm.title,
+        description: portfolioForm.description,
+        images: portfolioForm.images,
+        project_url: portfolioForm.project_url || null,
+        video_url: portfolioForm.video_url || null,
+        category: portfolioForm.category || null,
+        start_date: portfolioForm.start_date || null,
+        end_date: portfolioForm.end_date || null,
+        completion_date: portfolioForm.completion_date || null,
+        client_name: portfolioForm.client_name || null,
+        client_company: portfolioForm.client_company || null,
+        location: portfolioForm.location || null,
+        address: portfolioForm.address || null,
+        is_public: portfolioForm.is_public,
+        is_featured: portfolioForm.is_featured,
+      };
+
+      if (editingProjectId) {
+        // WHY: Using as any because accountant_portfolio table is not yet in database.types.ts
+        const { error } = await (supabase.from("accountant_portfolio") as any)
+          .update(portfolioData)
+          .eq("id", editingProjectId);
+        if (error) throw error;
+      } else {
+        // WHY: Using as any because accountant_portfolio table is not yet in database.types.ts
+        const { error } = await (
+          supabase.from("accountant_portfolio") as any
+        ).insert([portfolioData]);
+        if (error) throw error;
+      }
+
+      await loadAccountant();
+      setShowPortfolioModal(false);
+      resetPortfolioForm();
+    } catch (err) {
+      console.error("Portfolio submit error:", err);
+      alert("❌ Nie udało się zapisać projektu");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handlePortfolioDelete = async (projectId: string) => {
+    if (!confirm("Czy na pewno chcesz usunąć ten projekt?")) return;
+
+    try {
+      // WHY: Using as any because accountant_portfolio table is not yet in database.types.ts
+      const { error } = await (supabase.from("accountant_portfolio") as any)
+        .delete()
+        .eq("id", projectId);
+
+      if (error) throw error;
+      await loadAccountant();
+    } catch (err) {
+      console.error("Portfolio delete error:", err);
+      alert("❌ Nie udało się usunąć projektu");
+    }
+  };
+
+  const handlePortfolioImageUpload = async (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = e.target.files?.[0];
+    if (!file || !user?.id) return;
+
+    try {
+      setSaving(true);
+      const fileExt = file.name.split(".").pop();
+      const fileName = `${Math.random()}.${fileExt}`;
+      const filePath = `${user.id}/${fileName}`;
+
+      const { error: uploadError, data } = await supabase.storage
+        .from("portfolio-images")
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data: urlData } = supabase.storage
+        .from("portfolio-images")
+        .getPublicUrl(filePath);
+
+      setPortfolioForm({
+        ...portfolioForm,
+        images: [...portfolioForm.images, urlData.publicUrl],
+      });
+    } catch (err) {
+      console.error("Image upload error:", err);
+      alert("❌ Nie udało się przesłać zdjęcia");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const renderPortfolio = () => {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-blue-950 to-indigo-950 p-8">
+        <div className="max-w-7xl mx-auto">
+          {/* Header */}
+          <div className="flex justify-between items-center mb-8">
+            <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+              🎨 Moje Portfolio
+            </h1>
+            <button
+              onClick={() => openPortfolioModal()}
+              className="px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold rounded-xl hover:shadow-lg hover:shadow-blue-500/50 transition-all transform hover:scale-105"
+            >
+              ➕ Dodaj projekt
+            </button>
+          </div>
+
+          {/* Portfolio Grid */}
+          {portfolio.length === 0 ? (
+            <div className="text-center py-16 relative">
+              <div
+                className="relative rounded-2xl overflow-hidden"
+                style={{
+                  background: "rgba(255,255,255,0.05)",
+                  backdropFilter: "blur(20px)",
+                  border: "1px solid rgba(255,255,255,0.1)",
+                }}
+              >
+                <div className="p-12">
+                  <div className="text-6xl mb-4">📂</div>
+                  <p className="text-gray-300 mb-6">
+                    Brak projektów w portfolio
+                  </p>
+                  <button
+                    onClick={() => openPortfolioModal()}
+                    className="px-8 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold rounded-xl hover:shadow-lg hover:shadow-purple-500/50 transition-all"
+                  >
+                    Dodaj pierwszy projekt
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {portfolio.map((project) => (
+                <div
+                  key={project.id}
+                  className="relative group cursor-pointer"
+                  onClick={() => {
+                    setSelectedProject(project);
+                    setShowProjectDetail(true);
+                  }}
+                >
+                  <div
+                    className="relative rounded-2xl overflow-hidden h-full transition-all duration-300 group-hover:scale-105"
+                    style={{
+                      background: "rgba(255,255,255,0.08)",
+                      backdropFilter: "blur(20px)",
+                      border: "1px solid rgba(255,255,255,0.15)",
+                    }}
+                  >
+                    {project.images && project.images.length > 0 && (
+                      <div className="relative h-56 overflow-hidden">
+                        <img
+                          src={project.images[0]}
+                          alt={project.title}
+                          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setLightboxImages(project.images);
+                            setLightboxIndex(0);
+                            setLightboxOpen(true);
+                          }}
+                        />
+                        {project.images.length > 1 && (
+                          <div className="absolute top-3 right-3 px-3 py-1 rounded-full bg-black/60 backdrop-blur-md text-white text-xs font-bold">
+                            📷 {project.images.length}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    <div className="p-6">
+                      <div className="flex items-start justify-between mb-3">
+                        <h3 className="text-xl font-bold text-white mb-2 flex-1">
+                          {project.title}
+                        </h3>
+                        {project.is_featured && (
+                          <span className="ml-2 px-2 py-1 bg-yellow-500/20 text-yellow-300 text-xs rounded-lg font-bold">
+                            ⭐ Wyróżnione
+                          </span>
+                        )}
+                      </div>
+
+                      <p className="text-gray-300 text-sm mb-4 line-clamp-3">
+                        {project.description}
+                      </p>
+
+                      {project.location && (
+                        <div className="flex items-center gap-2 text-gray-300 text-sm mb-2">
+                          <span className="text-purple-400">📍</span>
+                          <span>{project.location}</span>
+                        </div>
+                      )}
+
+                      <div className="flex gap-2 pt-4 border-t border-white/10">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openPortfolioModal(project);
+                          }}
+                          className="px-4 py-2 bg-blue-600/80 text-white rounded-lg hover:bg-blue-600 transition-all"
+                        >
+                          ✏️
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handlePortfolioDelete(project.id);
+                          }}
+                          className="px-4 py-2 bg-red-600/80 text-white rounded-lg hover:bg-red-600 transition-all"
+                        >
+                          🗑️
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
@@ -2908,7 +2824,9 @@ export default function AccountantDashboard() {
                 accountant.company_name || accountant.full_name
               }`}
               subtitle="Panel księgowego - zarządzaj klientami i usługami"
-              icon="📊"
+              avatarUrl={accountant.avatar_url}
+              avatarFallback={(accountant.company_name ||
+                accountant.full_name)?.[0]?.toUpperCase()}
             >
               <button
                 onClick={() => setIsCommunicationOpen(!isCommunicationOpen)}
@@ -3423,7 +3341,6 @@ export default function AccountantDashboard() {
                     <h2 className="text-lg font-bold">
                       {profileSubTab === "overview" && "📊 Przegląd"}
                       {profileSubTab === "edit" && "✏️ Edytuj Profil"}
-                      {profileSubTab === "availability" && "📅 Dostępność"}
                       {profileSubTab === "team" && "👥 Drużyna"}
                       {profileSubTab === "stats" && "📈 Statystyki"}
                     </h2>
@@ -3470,34 +3387,6 @@ export default function AccountantDashboard() {
                 </div>
               )}
 
-              {profileSubTab === "availability" && (
-                <div className={isMobile ? "mt-0" : "mt-8"}>
-                  <div
-                    className={`bg-white rounded-lg shadow ${
-                      isMobile ? "p-4" : "p-6"
-                    }`}
-                  >
-                    <h2
-                      className={`font-bold text-gray-900 mb-6 ${
-                        isMobile ? "text-xl" : "text-2xl"
-                      }`}
-                    >
-                      📅 Dostępność i Kalendarz
-                    </h2>
-                    <AvailabilityCalendar
-                      availability={availability}
-                      onChange={setAvailability}
-                      editable={true}
-                    />
-                    <DateBlocker
-                      blockedDates={blockedDates}
-                      onBlock={handleBlockDate}
-                      onUnblock={handleUnblockDate}
-                    />
-                  </div>
-                </div>
-              )}
-
               {profileSubTab === "team" && (
                 <div className={isMobile ? "mt-0" : "mt-8"}>{renderTeam()}</div>
               )}
@@ -3529,7 +3418,270 @@ export default function AccountantDashboard() {
             </TabPanel>
 
             <TabPanel isActive={activeTab === "messages"}>
-              {renderMessages()}
+              {/* 💬 SUB-TABS: WIADOMOŚCI | REAKCJE */}
+              <div className={isMobile ? "px-2" : "max-w-7xl mx-auto mb-6"}>
+                <div className="flex gap-2 border-b-2 border-gray-200">
+                  <button
+                    onClick={() => setMessagesSubTab("wiadomosci")}
+                    className={`px-6 py-3 font-semibold transition-all ${
+                      messagesSubTab === "wiadomosci"
+                        ? "text-blue-600 border-b-4 border-blue-600 -mb-0.5"
+                        : "text-gray-600 hover:text-gray-900"
+                    }`}
+                  >
+                    💬 Wiadomości
+                  </button>
+                  <button
+                    onClick={() => setMessagesSubTab("reakcje")}
+                    className={`px-6 py-3 font-semibold transition-all ${
+                      messagesSubTab === "reakcje"
+                        ? "text-pink-600 border-b-4 border-pink-600 -mb-0.5"
+                        : "text-gray-600 hover:text-gray-900"
+                    }`}
+                  >
+                    💗 Reakcje
+                    {reactions.filter((r) => !r.is_read).length > 0 && (
+                      <span className="ml-2 px-2 py-0.5 bg-pink-500 text-white text-xs rounded-full">
+                        {reactions.filter((r) => !r.is_read).length}
+                      </span>
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              {/* WIADOMOŚCI CONTENT */}
+              {messagesSubTab === "wiadomosci" && renderMessages()}
+
+              {/* REAKCJE CONTENT */}
+              {messagesSubTab === "reakcje" && (
+                <div className={isMobile ? "px-2" : "max-w-7xl mx-auto"}>
+                  <div className="bg-white rounded-2xl shadow-xl overflow-hidden p-6">
+                    <h3 className="text-2xl font-bold mb-6 text-gray-900">
+                      💗 Reakcje na Twoje relacje
+                    </h3>
+
+                    {reactions.length === 0 ? (
+                      <div className="text-center py-20">
+                        <div className="text-6xl mb-4">💭</div>
+                        <p className="text-gray-500 text-lg">Brak reakcji</p>
+                        <p className="text-gray-400 text-sm mt-2">
+                          Gdy ktoś zareaguje na Twoją relację, zobaczysz to
+                          tutaj
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        {reactions.map((reaction) => {
+                          const reactorData = reaction.data || {};
+                          const reactorId =
+                            reactorData.reactor_id || reactorData.sender_id;
+                          const reactorName =
+                            reactorData.reactor_name ||
+                            reactorData.sender_name ||
+                            "Użytkownik";
+                          const reactorAvatar =
+                            reactorData.reactor_avatar ||
+                            reactorData.sender_avatar;
+                          const reactorRole =
+                            reactorData.reactor_role ||
+                            reactorData.sender_role ||
+                            "regular_user";
+
+                          // Type-specific display
+                          const getTypeInfo = (type: string) => {
+                            switch (type) {
+                              case "story_reaction":
+                                return {
+                                  emoji: "👀",
+                                  text: "zainteresował się Twoją relacją",
+                                  color: "pink",
+                                };
+                              case "story_reply":
+                                return {
+                                  emoji: "💬",
+                                  text: "skomentował Twoją relację",
+                                  color: "blue",
+                                };
+                              case "review":
+                                return {
+                                  emoji: "⭐",
+                                  text: "wystawił Ci opinię",
+                                  color: "yellow",
+                                };
+                              default:
+                                return {
+                                  emoji: "🔔",
+                                  text: "interakcja",
+                                  color: "gray",
+                                };
+                            }
+                          };
+
+                          const typeInfo = getTypeInfo(reaction.type);
+
+                          // Generate profile URL based on role
+                          const getProfileUrl = (role: string, id: string) => {
+                            const roleMap: Record<string, string> = {
+                              worker: "/worker/profile",
+                              employer: "/employer/profile",
+                              accountant: "/accountant/profile",
+                              cleaning_company: "/cleaning-company/profile",
+                              admin: "/admin/profile",
+                              regular_user: "/worker/profile",
+                            };
+                            return `${
+                              roleMap[role] || "/worker/profile"
+                            }/${id}#contact`;
+                          };
+
+                          const handleProfileClick = async () => {
+                            if (!reactorId) return;
+
+                            try {
+                              // First get the user's role from profiles table
+                              const { data: profile } = await supabase
+                                .from("profiles")
+                                .select("role")
+                                .eq("id", reactorId)
+                                .single();
+
+                              const userRole =
+                                profile?.role || reactorRole || "worker";
+
+                              // Get the role-specific ID based on role
+                              let roleSpecificId = reactorId;
+
+                              if (userRole === "worker") {
+                                const { data: worker } = await supabase
+                                  .from("workers")
+                                  .select("id")
+                                  .eq("profile_id", reactorId)
+                                  .maybeSingle();
+                                if (worker) roleSpecificId = worker.id;
+                              } else if (userRole === "employer") {
+                                const { data: employer } = await supabase
+                                  .from("employers")
+                                  .select("id")
+                                  .eq("profile_id", reactorId)
+                                  .maybeSingle();
+                                if (employer) roleSpecificId = employer.id;
+                              } else if (userRole === "accountant") {
+                                const { data: accountantData } = await supabase
+                                  .from("accountants")
+                                  .select("id")
+                                  .eq("profile_id", reactorId)
+                                  .maybeSingle();
+                                if (accountantData)
+                                  roleSpecificId = accountantData.id;
+                              } else if (userRole === "cleaning_company") {
+                                const { data: company } = await supabase
+                                  .from("cleaning_companies")
+                                  .select("id")
+                                  .eq("profile_id", reactorId)
+                                  .maybeSingle();
+                                if (company) roleSpecificId = company.id;
+                              } else if (userRole === "admin") {
+                                // Admin uses profile_id directly
+                                roleSpecificId = reactorId;
+                              }
+
+                              const url = getProfileUrl(
+                                userRole,
+                                roleSpecificId
+                              );
+                              navigate(url);
+                            } catch (error) {
+                              console.error(
+                                "Error navigating to profile:",
+                                error
+                              );
+                              // Fallback to worker profile with profile_id
+                              navigate(`/worker/profile/${reactorId}#contact`);
+                            }
+                          };
+
+                          return (
+                            <div
+                              key={reaction.id}
+                              className={`p-4 rounded-xl border-2 transition-all hover:shadow-lg ${
+                                !reaction.is_read
+                                  ? "bg-pink-50 border-pink-300"
+                                  : "bg-white border-gray-200"
+                              }`}
+                            >
+                              <div className="flex items-start gap-4">
+                                {/* Avatar - clickable */}
+                                <button
+                                  onClick={handleProfileClick}
+                                  className="flex-shrink-0 group cursor-pointer"
+                                >
+                                  {reactorAvatar ? (
+                                    <img
+                                      src={reactorAvatar}
+                                      alt={reactorName}
+                                      className="w-12 h-12 rounded-full object-cover border-2 border-pink-300 group-hover:border-pink-500 transition-all"
+                                    />
+                                  ) : (
+                                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-pink-500 to-purple-600 flex items-center justify-center text-white text-xl border-2 border-pink-300 group-hover:border-pink-500 transition-all">
+                                      {reactorName.charAt(0).toUpperCase()}
+                                    </div>
+                                  )}
+                                </button>
+
+                                {/* Content */}
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center justify-between mb-2">
+                                    <div>
+                                      <div className="flex items-center gap-2">
+                                        <span className="text-2xl">
+                                          {typeInfo.emoji}
+                                        </span>
+                                        <button
+                                          onClick={handleProfileClick}
+                                          className={`font-bold text-lg hover:underline cursor-pointer ${
+                                            !reaction.is_read
+                                              ? "text-pink-700"
+                                              : "text-gray-900"
+                                          }`}
+                                        >
+                                          {reactorName}
+                                        </button>
+                                      </div>
+                                      <p className="text-sm text-gray-600">
+                                        {typeInfo.text}
+                                      </p>
+                                      {reaction.type === "story_reply" &&
+                                        reaction.message && (
+                                          <p className="text-sm text-gray-700 mt-2 italic bg-gray-50 p-2 rounded">
+                                            "{reaction.message}"
+                                          </p>
+                                        )}
+                                    </div>
+                                    {!reaction.is_read && (
+                                      <span className="w-3 h-3 bg-pink-500 rounded-full"></span>
+                                    )}
+                                  </div>
+                                  <p className="text-xs text-gray-500">
+                                    {new Date(
+                                      reaction.created_at
+                                    ).toLocaleString("pl-PL", {
+                                      day: "numeric",
+                                      month: "long",
+                                      year: "numeric",
+                                      hour: "2-digit",
+                                      minute: "2-digit",
+                                    })}
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
             </TabPanel>
 
             <TabPanel isActive={activeTab === "reviews"}>
@@ -4148,21 +4300,401 @@ export default function AccountantDashboard() {
 
             {/* Portfolio Tab */}
             <TabPanel isActive={activeTab === "portfolio"}>
-              <div className="min-h-screen bg-gradient-to-br from-slate-950 via-blue-950 to-indigo-950 p-8">
-                <div className="max-w-7xl mx-auto">
-                  <div className="text-center py-16">
-                    <div className="text-6xl mb-4">🎨</div>
-                    <h2 className="text-3xl font-bold text-white mb-4">
-                      Portfolio Księgowego
+              {renderPortfolio()}
+
+              {/* Portfolio Form Modal */}
+              {showPortfolioModal && (
+                <div className="fixed inset-0 bg-black/90 flex items-center justify-center z-50 p-4 overflow-y-auto">
+                  <div className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-2xl p-8 max-w-3xl w-full border border-slate-700 my-8 max-h-[90vh] overflow-y-auto">
+                    <h2 className="text-2xl font-bold text-white mb-6">
+                      {editingProjectId
+                        ? "✏️ Edytuj projekt"
+                        : "➕ Dodaj nowy projekt"}
                     </h2>
-                    <p className="text-gray-300 mb-8">
-                      Funkcja portfolio dla księgowych jest w trakcie implementacji.
-                      <br />
-                      Wkrótce będziesz mógł dodawać projekty, zdjęcia i szczegóły realizacji.
-                    </p>
+
+                    <form
+                      onSubmit={handlePortfolioSubmit}
+                      className="space-y-4"
+                    >
+                      {/* Nazwa projektu */}
+                      <div>
+                        <label className="block text-gray-300 text-sm mb-2">
+                          Nazwa projektu *
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          value={portfolioForm.title}
+                          onChange={(e) =>
+                            setPortfolioForm({
+                              ...portfolioForm,
+                              title: e.target.value,
+                            })
+                          }
+                          className="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-xl text-white placeholder-gray-500"
+                          placeholder="np. Optymalizacja rozliczeń podatkowych dla firmy IT"
+                        />
+                      </div>
+
+                      {/* Opis projektu */}
+                      <div>
+                        <label className="block text-gray-300 text-sm mb-2">
+                          Opis projektu *
+                        </label>
+                        <textarea
+                          required
+                          rows={5}
+                          value={portfolioForm.description}
+                          onChange={(e) =>
+                            setPortfolioForm({
+                              ...portfolioForm,
+                              description: e.target.value,
+                            })
+                          }
+                          className="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-xl text-white resize-none placeholder-gray-500"
+                          placeholder="Opisz szczegółowo zakres usług księgowych, użyte technologie, organizację projektu, rezultaty..."
+                        />
+                      </div>
+
+                      {/* Lokalizacja i Adres */}
+                      <div className="grid md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-gray-300 text-sm mb-2">
+                            📍 Lokalizacja (kraj/województwo)
+                          </label>
+                          <input
+                            type="text"
+                            value={portfolioForm.location}
+                            onChange={(e) =>
+                              setPortfolioForm({
+                                ...portfolioForm,
+                                location: e.target.value,
+                              })
+                            }
+                            className="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-xl text-white placeholder-gray-500"
+                            placeholder="np. Warszawa, Mazowieckie"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-gray-300 text-sm mb-2">
+                            🏠 Adres realizacji usługi
+                          </label>
+                          <input
+                            type="text"
+                            value={portfolioForm.address}
+                            onChange={(e) =>
+                              setPortfolioForm({
+                                ...portfolioForm,
+                                address: e.target.value,
+                              })
+                            }
+                            className="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-xl text-white placeholder-gray-500"
+                            placeholder="ul. Przykładowa 123, Warszawa"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Daty */}
+                      <div className="grid md:grid-cols-3 gap-4">
+                        <div>
+                          <label className="block text-gray-300 text-sm mb-2">
+                            Data rozpoczęcia *
+                          </label>
+                          <input
+                            type="date"
+                            value={portfolioForm.start_date}
+                            onChange={(e) =>
+                              setPortfolioForm({
+                                ...portfolioForm,
+                                start_date: e.target.value,
+                              })
+                            }
+                            className="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-xl text-white"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-gray-300 text-sm mb-2">
+                            Data zakończenia
+                          </label>
+                          <input
+                            type="date"
+                            value={portfolioForm.end_date}
+                            onChange={(e) =>
+                              setPortfolioForm({
+                                ...portfolioForm,
+                                end_date: e.target.value,
+                              })
+                            }
+                            className="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-xl text-white"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-gray-300 text-sm mb-2">
+                            Data oddania projektu
+                          </label>
+                          <input
+                            type="date"
+                            value={portfolioForm.completion_date}
+                            onChange={(e) =>
+                              setPortfolioForm({
+                                ...portfolioForm,
+                                completion_date: e.target.value,
+                              })
+                            }
+                            className="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-xl text-white"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Klient i Firma */}
+                      <div className="grid md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-gray-300 text-sm mb-2">
+                            👤 Klient (nazwisko/imię)
+                          </label>
+                          <input
+                            type="text"
+                            value={portfolioForm.client_name}
+                            onChange={(e) =>
+                              setPortfolioForm({
+                                ...portfolioForm,
+                                client_name: e.target.value,
+                              })
+                            }
+                            className="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-xl text-white placeholder-gray-500"
+                            placeholder="Jan Kowalski"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-gray-300 text-sm mb-2">
+                            🏢 Firma/klienta
+                          </label>
+                          <input
+                            type="text"
+                            value={portfolioForm.client_company}
+                            onChange={(e) =>
+                              setPortfolioForm({
+                                ...portfolioForm,
+                                client_company: e.target.value,
+                              })
+                            }
+                            className="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-xl text-white placeholder-gray-500"
+                            placeholder="XYZ Development Sp. z o.o."
+                          />
+                        </div>
+                      </div>
+
+                      {/* Kategoria */}
+                      <div>
+                        <label className="block text-gray-300 text-sm mb-2">
+                          🏷️ Kategoria
+                        </label>
+                        <select
+                          value={portfolioForm.category}
+                          onChange={(e) =>
+                            setPortfolioForm({
+                              ...portfolioForm,
+                              category: e.target.value,
+                            })
+                          }
+                          className="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-xl text-white"
+                        >
+                          <option value="">Wybierz kategorię</option>
+                          <option value="Księgowość pełna">
+                            Księgowość pełna
+                          </option>
+                          <option value="Księgowość uproszczona">
+                            Księgowość uproszczona
+                          </option>
+                          <option value="Kadry i płace">Kadry i płace</option>
+                          <option value="Rozliczenia podatkowe">
+                            Rozliczenia podatkowe
+                          </option>
+                          <option value="Deklaracje VAT">Deklaracje VAT</option>
+                          <option value="Sprawozdania finansowe">
+                            Sprawozdania finansowe
+                          </option>
+                          <option value="Optymalizacja podatkowa">
+                            Optymalizacja podatkowa
+                          </option>
+                          <option value="Konsulting finansowy">
+                            Konsulting finansowy
+                          </option>
+                          <option value="Audyt">Audyt</option>
+                          <option value="Doradztwo biznesowe">
+                            Doradztwo biznesowe
+                          </option>
+                          <option value="Zakładanie firm">
+                            Zakładanie firm
+                          </option>
+                          <option value="Reprezentacja w US">
+                            Reprezentacja w US
+                          </option>
+                          <option value="Inne">Inne</option>
+                        </select>
+                      </div>
+
+                      {/* Link do projektu */}
+                      <div>
+                        <label className="block text-gray-300 text-sm mb-2">
+                          🔗 Link do projektu
+                        </label>
+                        <input
+                          type="url"
+                          value={portfolioForm.project_url}
+                          onChange={(e) =>
+                            setPortfolioForm({
+                              ...portfolioForm,
+                              project_url: e.target.value,
+                            })
+                          }
+                          className="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-xl text-white placeholder-gray-500"
+                          placeholder="https://example.com"
+                        />
+                      </div>
+
+                      {/* Zdjęcia projektu */}
+                      <div>
+                        <label className="block text-gray-300 text-sm mb-2">
+                          🖼️ Zdjęcia projektu
+                        </label>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handlePortfolioImageUpload}
+                          className="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-xl text-white file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-blue-600 file:text-white hover:file:bg-blue-500"
+                        />
+                      </div>
+
+                      {portfolioForm.images.length > 0 && (
+                        <div className="flex flex-wrap gap-2">
+                          {portfolioForm.images.map((img, idx) => (
+                            <div key={idx} className="relative group">
+                              <img
+                                src={img}
+                                alt={`Preview ${idx + 1}`}
+                                className="w-20 h-20 object-cover rounded-lg border-2 border-slate-600"
+                              />
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setPortfolioForm({
+                                    ...portfolioForm,
+                                    images: portfolioForm.images.filter(
+                                      (_, i) => i !== idx
+                                    ),
+                                  })
+                                }
+                                className="absolute -top-2 -right-2 w-6 h-6 bg-red-600 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity text-xs flex items-center justify-center"
+                              >
+                                ✕
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Opcje widoczności */}
+                      <div className="flex gap-6 pt-2">
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={portfolioForm.is_public}
+                            onChange={(e) =>
+                              setPortfolioForm({
+                                ...portfolioForm,
+                                is_public: e.target.checked,
+                              })
+                            }
+                            className="w-5 h-5 rounded bg-slate-800 border-slate-600 text-blue-600 focus:ring-2 focus:ring-blue-500"
+                          />
+                          <span className="text-gray-300">
+                            👁️ Widoczne osmotniczo
+                          </span>
+                        </label>
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={portfolioForm.is_featured}
+                            onChange={(e) =>
+                              setPortfolioForm({
+                                ...portfolioForm,
+                                is_featured: e.target.checked,
+                              })
+                            }
+                            className="w-5 h-5 rounded bg-slate-800 border-slate-600 text-yellow-500 focus:ring-2 focus:ring-yellow-500"
+                          />
+                          <span className="text-gray-300">⭐ Wyróżnione</span>
+                        </label>
+                      </div>
+
+                      <div className="flex gap-4 pt-4 border-t border-slate-700 mt-6">
+                        <button
+                          type="submit"
+                          disabled={saving}
+                          className="flex-1 px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold rounded-xl hover:from-blue-500 hover:to-purple-500 disabled:opacity-50 transition-all"
+                        >
+                          {saving ? "⏳ Zapisywanie..." : "💾 Dodaj projekt"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowPortfolioModal(false);
+                            resetPortfolioForm();
+                          }}
+                          className="px-6 py-3 bg-slate-700 text-white font-bold rounded-xl hover:bg-slate-600 transition-all"
+                        >
+                          ❌ Anuluj
+                        </button>
+                      </div>
+                    </form>
                   </div>
                 </div>
-              </div>
+              )}
+
+              {/* Lightbox */}
+              {lightboxOpen && (
+                <div className="fixed inset-0 bg-black/95 flex items-center justify-center z-[100] p-4">
+                  <button
+                    onClick={() => setLightboxOpen(false)}
+                    className="absolute top-4 right-4 w-12 h-12 bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-full text-white text-2xl"
+                  >
+                    ✕
+                  </button>
+                  {lightboxImages.length > 1 && (
+                    <>
+                      <button
+                        onClick={() =>
+                          setLightboxIndex(Math.max(0, lightboxIndex - 1))
+                        }
+                        disabled={lightboxIndex === 0}
+                        className="absolute left-4 w-12 h-12 bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-full text-white text-2xl disabled:opacity-30"
+                      >
+                        ←
+                      </button>
+                      <button
+                        onClick={() =>
+                          setLightboxIndex(
+                            Math.min(
+                              lightboxImages.length - 1,
+                              lightboxIndex + 1
+                            )
+                          )
+                        }
+                        disabled={lightboxIndex === lightboxImages.length - 1}
+                        className="absolute right-4 w-12 h-12 bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-full text-white text-2xl disabled:opacity-30"
+                      >
+                        →
+                      </button>
+                    </>
+                  )}
+                  <img
+                    src={lightboxImages[lightboxIndex]}
+                    alt={`Image ${lightboxIndex + 1}`}
+                    className="max-w-full max-h-[85vh] object-contain rounded-2xl"
+                  />
+                </div>
+              )}
             </TabPanel>
 
             {/* Settings Tab */}
@@ -4171,6 +4703,8 @@ export default function AccountantDashboard() {
                 accountantProfile={accountant}
                 notificationSettings={notificationSettings}
                 privacySettings={privacySettings}
+                availability={availability}
+                blockedDates={blockedDates}
                 saving={settingsSaving}
                 onAvatarUpload={handleAvatarUpload}
                 onCoverImageUpload={handleCoverImageUploadSuccess}
@@ -4179,6 +4713,9 @@ export default function AccountantDashboard() {
                 onPrivacySettingsChange={setPrivacySettings}
                 onPrivacySettingsSave={handlePrivacySettingsSave}
                 onAccountantDataSave={handleAccountantDataSave}
+                onAvailabilityChange={handleAvailabilityChange}
+                onBlockDate={handleBlockDate}
+                onUnblockDate={handleUnblockDate}
                 isMobile={isMobile}
               />
             </TabPanel>

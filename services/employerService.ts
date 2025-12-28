@@ -6,7 +6,7 @@
  * Created: 2025-01-13
  */
 
-import { supabase } from "@/lib/supabase";
+import { supabase, supabaseUntyped } from "@/lib/supabase";
 import type { Database } from "@/lib/database.types";
 
 // =====================================================
@@ -236,7 +236,7 @@ export async function getEmployerStats(
     }
 
     // Get subscription info (cast to any - new table not in types)
-    const { data: subscription } = await (supabase.from("subscriptions") as any)
+    const { data: subscription } = await supabaseUntyped.from("subscriptions")
       .select("*")
       .eq("employer_id", employerId)
       .eq("status", "active")
@@ -298,7 +298,7 @@ export async function getSearchHistory(
 ): Promise<SearchHistoryItem[]> {
   try {
     // WHY: Using new search_history table (as any) - not yet in database.types.ts
-    const { data, error } = await (supabase.from("search_history") as any)
+    const { data, error } = await supabaseUntyped.from("search_history")
       .select(
         "id, search_date, category, level, location, postal_code, radius_km, results_count"
       )
@@ -333,7 +333,7 @@ export async function addSearchToHistory(
 ): Promise<boolean> {
   try {
     // WHY: Using new search_history table (as any) - not yet in database.types.ts
-    const { error } = await (supabase.from("search_history") as any).insert({
+    const { error } = await supabaseUntyped.from("search_history").insert({
       employer_id: employerId,
       ...searchParams,
     });
@@ -354,7 +354,7 @@ export async function deleteSearchFromHistory(
 ): Promise<boolean> {
   try {
     // WHY: Using new search_history table (as any) - not yet in database.types.ts
-    const { error } = await (supabase.from("search_history") as any)
+    const { error } = await supabaseUntyped.from("search_history")
       .delete()
       .eq("id", searchId);
 
@@ -367,23 +367,48 @@ export async function deleteSearchFromHistory(
 }
 
 // =====================================================
-// SAVED WORKERS
+// SAVED ENTITIES (Workers, Employers, Accountants, Cleaning Companies)
 // =====================================================
 
+export type SavedEntityType =
+  | "worker"
+  | "employer"
+  | "accountant"
+  | "cleaning_company";
+
+export interface SavedEntity {
+  id: string;
+  entity_id: string;
+  entity_type: SavedEntityType;
+  saved_at: string;
+  notes?: string;
+  tags?: string[];
+  // Entity details (filled based on type)
+  entity_name?: string;
+  entity_avatar?: string;
+  entity_location?: string;
+  entity_rating?: number;
+  entity_specialization?: string;
+}
+
 /**
- * Get employer's saved workers
+ * Get employer's saved workers (backward compatible)
  */
 export async function getSavedWorkers(
   employerId: string
 ): Promise<SavedWorker[]> {
   try {
-    // WHY: Using new saved_workers table (as any) - not yet in database.types.ts
+    // WHY: Using employer_saved_workers table (as any) - not yet in database.types.ts
     // WHY: workers(profile_id) explicitly specifies which foreign key to use for profiles join
-    const { data, error } = await (supabase.from("saved_workers") as any)
+    const { data, error } = await (
+      supabase.from("employer_saved_workers") as any
+    )
       .select(
         `
         id,
         worker_id,
+        entity_id,
+        entity_type,
         saved_at,
         notes,
         tags,
@@ -402,6 +427,7 @@ export async function getSavedWorkers(
       `
       )
       .eq("employer_id", employerId)
+      .eq("entity_type", "worker")
       .order("saved_at", { ascending: false });
 
     if (error) throw error;
@@ -413,7 +439,151 @@ export async function getSavedWorkers(
 }
 
 /**
- * Save/bookmark a worker
+ * Get all saved entities of all types
+ */
+export async function getAllSavedEntities(
+  employerId: string
+): Promise<SavedEntity[]> {
+  try {
+    const { data, error } = await (
+      supabase.from("employer_saved_workers") as any
+    )
+      .select(`id, entity_id, entity_type, saved_at, notes, tags, worker_id`)
+      .eq("employer_id", employerId)
+      .order("saved_at", { ascending: false });
+
+    if (error) throw error;
+    if (!data || data.length === 0) return [];
+
+    // Fetch details for each entity type
+    const entities: SavedEntity[] = [];
+
+    for (const saved of data) {
+      const entityId = saved.entity_id || saved.worker_id;
+      const entityType = saved.entity_type || "worker";
+
+      let entityDetails: any = null;
+
+      try {
+        switch (entityType) {
+          case "worker":
+            const { data: workerData } = await supabase
+              .from("workers")
+              .select(
+                `id, specialization, rating, location_city, profile:profiles!workers_profile_id_fkey(full_name, avatar_url)`
+              )
+              .eq("id", entityId)
+              .single();
+            if (workerData) {
+              entityDetails = {
+                entity_name: (workerData as any).profile?.full_name,
+                entity_avatar: (workerData as any).profile?.avatar_url,
+                entity_location: workerData.location_city,
+                entity_rating: workerData.rating,
+                entity_specialization: workerData.specialization,
+              };
+            }
+            break;
+
+          case "employer":
+            const { data: employerData } = await supabase
+              .from("employers")
+              .select(
+                `id, company_name, logo_url, city, industry, avg_rating, rating`
+              )
+              .eq("id", entityId)
+              .single();
+            if (employerData) {
+              entityDetails = {
+                entity_name: employerData.company_name,
+                entity_avatar: employerData.logo_url,
+                entity_location: employerData.city,
+                entity_rating: employerData.avg_rating || employerData.rating,
+                entity_specialization: employerData.industry,
+              };
+            }
+            break;
+
+          case "accountant":
+            const { data: accountantData } = await supabase
+              .from("accountants")
+              .select(
+                `id, full_name, avatar_url, city, rating, average_rating, specializations, company_name`
+              )
+              .eq("id", entityId)
+              .single();
+            if (accountantData) {
+              entityDetails = {
+                entity_name:
+                  accountantData.full_name ||
+                  accountantData.company_name ||
+                  "Księgowy",
+                entity_avatar: accountantData.avatar_url,
+                entity_location: accountantData.city,
+                entity_rating:
+                  accountantData.rating || accountantData.average_rating,
+                entity_specialization: Array.isArray(
+                  accountantData.specializations
+                )
+                  ? accountantData.specializations[0]
+                  : accountantData.specializations,
+              };
+            }
+            break;
+
+          case "cleaning_company":
+            const { data: cleaningData } = await supabase
+              .from("cleaning_companies")
+              .select(
+                `id, company_name, owner_name, location_city, average_rating, specialization, avatar_url`
+              )
+              .eq("id", entityId)
+              .single();
+            if (cleaningData) {
+              entityDetails = {
+                entity_name:
+                  cleaningData.company_name ||
+                  cleaningData.owner_name ||
+                  "Firma sprzątająca",
+                entity_avatar: cleaningData.avatar_url,
+                entity_location: cleaningData.location_city,
+                entity_rating: cleaningData.average_rating,
+                entity_specialization: Array.isArray(
+                  cleaningData.specialization
+                )
+                  ? cleaningData.specialization[0]
+                  : cleaningData.specialization,
+              };
+            }
+            break;
+        }
+      } catch (fetchError) {
+        console.warn(
+          `Error fetching ${entityType} with id ${entityId}:`,
+          fetchError
+        );
+      }
+
+      entities.push({
+        id: saved.id,
+        entity_id: entityId,
+        entity_type: entityType,
+        saved_at: saved.saved_at,
+        notes: saved.notes,
+        tags: saved.tags,
+        ...entityDetails,
+      });
+    }
+
+    return entities;
+  } catch (error) {
+    console.error("Error fetching all saved entities:", error);
+    return [];
+  }
+}
+
+/**
+ * Save/bookmark a worker (backward compatible)
  */
 export async function saveWorker(
   employerId: string,
@@ -421,11 +591,27 @@ export async function saveWorker(
   notes?: string,
   tags?: string[]
 ): Promise<boolean> {
+  return saveEntity(employerId, workerId, "worker", notes, tags);
+}
+
+/**
+ * Save/bookmark any entity type
+ */
+export async function saveEntity(
+  employerId: string,
+  entityId: string,
+  entityType: SavedEntityType,
+  notes?: string,
+  tags?: string[]
+): Promise<boolean> {
   try {
-    // WHY: Using new saved_workers table (as any) - not yet in database.types.ts
-    const { error } = await (supabase.from("saved_workers") as any).insert({
+    const { error } = await (
+      supabase.from("employer_saved_workers") as any
+    ).insert({
       employer_id: employerId,
-      worker_id: workerId,
+      worker_id: entityType === "worker" ? entityId : null, // backward compatibility
+      entity_id: entityId,
+      entity_type: entityType,
       notes: notes || null,
       tags: tags || [],
     });
@@ -433,51 +619,98 @@ export async function saveWorker(
     if (error) throw error;
     return true;
   } catch (error) {
-    console.error("Error saving worker:", error);
+    console.error(`Error saving ${entityType}:`, error);
     return false;
   }
 }
 
 /**
- * Remove saved worker
+ * Remove saved worker (backward compatible)
  */
 export async function removeSavedWorker(
   savedWorkerId: string
 ): Promise<boolean> {
+  return removeSavedEntity(savedWorkerId);
+}
+
+/**
+ * Remove saved entity
+ */
+export async function removeSavedEntity(
+  savedEntityId: string
+): Promise<boolean> {
   try {
-    // WHY: Using new saved_workers table (as any) - not yet in database.types.ts
-    const { error } = await (supabase.from("saved_workers") as any)
+    const { error } = await supabaseUntyped.from("employer_saved_workers")
       .delete()
-      .eq("id", savedWorkerId);
+      .eq("id", savedEntityId);
 
     if (error) throw error;
     return true;
   } catch (error) {
-    console.error("Error removing saved worker:", error);
+    console.error("Error removing saved entity:", error);
     return false;
   }
 }
 
 /**
- * Check if worker is saved
+ * Check if worker is saved (backward compatible)
  */
 export async function isWorkerSaved(
   employerId: string,
   workerId: string
 ): Promise<boolean> {
+  return isEntitySaved(employerId, workerId, "worker");
+}
+
+/**
+ * Check if any entity is saved
+ */
+export async function isEntitySaved(
+  employerId: string,
+  entityId: string,
+  entityType: SavedEntityType
+): Promise<boolean> {
   try {
-    // WHY: Using new saved_workers table (as any), .maybeSingle() returns null if worker not saved
-    const { data, error } = await (supabase.from("saved_workers") as any)
+    const { data, error } = await (
+      supabase.from("employer_saved_workers") as any
+    )
       .select("id")
       .eq("employer_id", employerId)
-      .eq("worker_id", workerId)
+      .eq("entity_id", entityId)
+      .eq("entity_type", entityType)
       .maybeSingle();
 
     if (error) throw error;
     return !!data;
   } catch (error) {
-    console.error("Error checking if worker is saved:", error);
+    console.error(`Error checking if ${entityType} is saved:`, error);
     return false;
+  }
+}
+
+/**
+ * Get saved entity record (to get its ID for deletion)
+ */
+export async function getSavedEntityRecord(
+  employerId: string,
+  entityId: string,
+  entityType: SavedEntityType
+): Promise<{ id: string } | null> {
+  try {
+    const { data, error } = await (
+      supabase.from("employer_saved_workers") as any
+    )
+      .select("id")
+      .eq("employer_id", employerId)
+      .eq("entity_id", entityId)
+      .eq("entity_type", entityType)
+      .maybeSingle();
+
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error(`Error getting saved ${entityType} record:`, error);
+    return null;
   }
 }
 
@@ -611,7 +844,7 @@ export async function getUnreadMessageCount(userId: string): Promise<number> {
 export async function markMessageAsRead(messageId: string): Promise<boolean> {
   try {
     // WHY: cast to any - messages table not in database.types.ts
-    const { error } = await (supabase.from("messages") as any)
+    const { error } = await supabaseUntyped.from("messages")
       .update({ is_read: true, read_at: new Date().toISOString() })
       .eq("id", messageId);
 
@@ -634,7 +867,7 @@ export async function sendMessage(
 ): Promise<boolean> {
   try {
     // WHY: cast to any - messages table not in database.types.ts
-    const { error } = await (supabase.from("messages") as any).insert({
+    const { error } = await supabaseUntyped.from("messages").insert({
       sender_id: senderId,
       recipient_id: recipientId,
       subject,
@@ -706,11 +939,18 @@ const employerService = {
   addSearchToHistory,
   deleteSearchFromHistory,
 
-  // Saved Workers
+  // Saved Workers (backward compatible)
   getSavedWorkers,
   saveWorker,
   removeSavedWorker,
   isWorkerSaved,
+
+  // Saved Entities (all types)
+  getAllSavedEntities,
+  saveEntity,
+  removeSavedEntity,
+  isEntitySaved,
+  getSavedEntityRecord,
 
   // Messages
   getMessages,

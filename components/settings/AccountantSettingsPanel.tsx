@@ -31,9 +31,17 @@ import {
   Plus,
   Check,
   Image as ImageIcon,
+  Calendar,
+  Link2,
+  Briefcase,
+  Award,
+  Languages,
 } from "lucide-react";
 import { CoverImageUploader } from "../../src/components/common/CoverImageUploader";
 import { GlowButton } from "../ui/GlowButton";
+import AvailabilityCalendar from "../../src/components/common/AvailabilityCalendar";
+import DateBlocker from "../../src/components/common/DateBlocker";
+import type { WeeklyAvailability, UnavailableDate } from "../../types";
 
 // ================================================================
 // TYPES
@@ -103,6 +111,7 @@ interface PrivacySettings {
 type SettingsSection =
   | "profile"
   | "personal_data"
+  | "availability"
   | "notifications"
   | "privacy";
 
@@ -110,6 +119,8 @@ interface AccountantSettingsPanelProps {
   accountantProfile: AccountantProfile | null;
   notificationSettings: NotificationSettings;
   privacySettings: PrivacySettings;
+  availability?: WeeklyAvailability;
+  blockedDates?: UnavailableDate[];
   saving: boolean;
   onAvatarUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onCoverImageUpload: (url: string) => void;
@@ -118,6 +129,9 @@ interface AccountantSettingsPanelProps {
   onPrivacySettingsChange: (settings: PrivacySettings) => void;
   onPrivacySettingsSave: () => void;
   onAccountantDataSave: (data: AccountantFormData) => Promise<void>;
+  onAvailabilityChange?: (availability: WeeklyAvailability) => void;
+  onBlockDate?: (date: UnavailableDate) => void;
+  onUnblockDate?: (dateString: string) => void;
   isMobile?: boolean;
 }
 
@@ -142,6 +156,12 @@ const SECTIONS: {
     label: "Dane Księgowego",
     icon: FileText,
     description: "Informacje osobiste i firmowe",
+  },
+  {
+    id: "availability",
+    label: "Dostępność",
+    icon: Calendar,
+    description: "Kalendarz i zablokowane daty",
   },
   {
     id: "notifications",
@@ -195,6 +215,8 @@ export const AccountantSettingsPanel: React.FC<
   accountantProfile,
   notificationSettings,
   privacySettings,
+  availability,
+  blockedDates = [],
   saving,
   onAvatarUpload,
   onCoverImageUpload,
@@ -203,6 +225,9 @@ export const AccountantSettingsPanel: React.FC<
   onPrivacySettingsChange,
   onPrivacySettingsSave,
   onAccountantDataSave,
+  onAvailabilityChange,
+  onBlockDate,
+  onUnblockDate,
   isMobile = false,
 }) => {
   const [activeSection, setActiveSection] =
@@ -1227,6 +1252,103 @@ export const AccountantSettingsPanel: React.FC<
   );
 
   // ================================================================
+  // AVAILABILITY SECTION
+  // ================================================================
+
+  const renderAvailabilitySection = () => (
+    <div className="space-y-6">
+      {/* Weekly Availability */}
+      <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-white/60 shadow-xl p-6">
+        <div className="flex items-center gap-3 mb-6">
+          <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-cyan-600 rounded-xl flex items-center justify-center">
+            <Calendar size={20} className="text-white" />
+          </div>
+          <div>
+            <h3 className="font-bold text-gray-900">Twoja dostępność</h3>
+            <p className="text-sm text-gray-500">
+              Zaznacz dni kiedy przyjmujesz klientów
+            </p>
+          </div>
+        </div>
+
+        {availability && onAvailabilityChange ? (
+          <div className="bg-blue-50 rounded-lg p-6">
+            <AvailabilityCalendar
+              availability={availability}
+              onChange={onAvailabilityChange}
+              editable={true}
+            />
+            <p className="text-gray-500 mt-4 text-center text-xs">
+              Kliknij na dzień aby zmienić dostępność. Zmiany są zapisywane
+              automatycznie.
+            </p>
+          </div>
+        ) : (
+          <div className="text-center py-8 text-gray-500">
+            <p>Ładowanie kalendarza dostępności...</p>
+          </div>
+        )}
+
+        {/* Quick Stats */}
+        {availability && (
+          <div className="mt-4 grid grid-cols-2 gap-4">
+            <div className="bg-white border border-gray-200 rounded-lg p-4">
+              <p className="text-gray-600 text-sm">Dostępne dni</p>
+              <p className="font-bold text-blue-600 text-2xl">
+                {Object.values(availability).filter(Boolean).length}
+              </p>
+            </div>
+            <div className="bg-white border border-gray-200 rounded-lg p-4">
+              <p className="text-gray-600 text-sm">Preferowane</p>
+              <p className="font-bold text-gray-700 text-2xl">5 dni/tydzień</p>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Blocked Dates */}
+      <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-white/60 shadow-xl p-6">
+        <div className="flex items-center gap-3 mb-6">
+          <div className="w-10 h-10 bg-gradient-to-br from-red-500 to-orange-600 rounded-xl flex items-center justify-center">
+            <X size={20} className="text-white" />
+          </div>
+          <div>
+            <h3 className="font-bold text-gray-900">Niedostępne terminy</h3>
+            <p className="text-sm text-gray-500">
+              Zaznacz daty kiedy nie przyjmujesz zleceń
+            </p>
+          </div>
+        </div>
+
+        {onBlockDate && onUnblockDate ? (
+          <>
+            <DateBlocker
+              blockedDates={blockedDates}
+              onBlock={onBlockDate}
+              onUnblock={onUnblockDate}
+            />
+            {blockedDates.length > 0 && (
+              <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                <p className="text-sm text-yellow-800">
+                  <strong>{blockedDates.length}</strong>{" "}
+                  {blockedDates.length === 1
+                    ? "data zablokowana"
+                    : "daty zablokowane"}
+                  . Klienci nie będą mogli umówić spotkań w tych terminach.
+                </p>
+              </div>
+            )}
+          </>
+        ) : (
+          <div className="text-center py-8 text-gray-500">
+            <p>Ładowanie...</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
+  // ================================================================
   // MAIN RENDER
   // ================================================================
 
@@ -1236,6 +1358,8 @@ export const AccountantSettingsPanel: React.FC<
         return renderProfileSection();
       case "personal_data":
         return renderPersonalDataSection();
+      case "availability":
+        return renderAvailabilitySection();
       case "notifications":
         return renderNotificationsSection();
       case "privacy":

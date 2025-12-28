@@ -53,6 +53,10 @@ interface PageHeaderProps {
   title: string;
   subtitle?: string;
   actionButton?: ReactNode;
+  badge?: string;
+  badgeVariant?: "default" | "success" | "warning" | "premium";
+  avatarUrl?: string;
+  avatarFallback?: string;
 }
 
 export const PageHeader = ({
@@ -60,23 +64,96 @@ export const PageHeader = ({
   title,
   subtitle,
   actionButton,
+  badge,
+  badgeVariant = "premium",
+  avatarUrl,
+  avatarFallback,
 }: PageHeaderProps) => {
-  return (
-    <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-700 p-8 text-white shadow-2xl">
-      <div className="absolute inset-0 bg-black/10"></div>
-      <div className="relative flex items-center justify-between">
-        <div>
-          <h1 className="text-4xl font-bold tracking-tight mb-2">
-            {icon && <span className="mr-2">{icon}</span>}
-            {title}
-          </h1>
-          {subtitle && <p className="text-blue-100 text-lg">{subtitle}</p>}
+  const getBadgeClasses = () => {
+    switch (badgeVariant) {
+      case "premium":
+        return "bg-gradient-to-r from-amber-400 to-yellow-500 text-amber-900 border-amber-300 shadow-lg shadow-amber-200/50";
+      case "success":
+        return "bg-gradient-to-r from-emerald-400 to-green-500 text-white border-emerald-300";
+      case "warning":
+        return "bg-gradient-to-r from-orange-400 to-red-500 text-white border-orange-300";
+      default:
+        return "bg-white/20 text-white border-white/30";
+    }
+  };
+
+  const renderAvatar = () => {
+    if (avatarUrl) {
+      return (
+        <img
+          src={avatarUrl}
+          alt="Profile"
+          className="w-14 h-14 rounded-full object-cover border-3 border-white/40 shadow-lg"
+        />
+      );
+    }
+    if (avatarFallback) {
+      return (
+        <div className="w-14 h-14 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center text-white font-bold text-xl border-3 border-white/40 shadow-lg">
+          {avatarFallback}
         </div>
-        {actionButton && <div>{actionButton}</div>}
+      );
+    }
+    if (icon) {
+      return <span className="heroBannerIcon">{icon}</span>;
+    }
+    return null;
+  };
+
+  return (
+    <div className="heroBanner">
+      {/* Animated gradient background */}
+      <div className="heroBannerBg" />
+
+      {/* Glow orbs */}
+      <div className="heroBannerOrb heroBannerOrb1" />
+      <div className="heroBannerOrb heroBannerOrb2" />
+      <div className="heroBannerOrb heroBannerOrb3" />
+
+      {/* Glass overlay */}
+      <div className="heroBannerGlass" />
+
+      {/* Content */}
+      <div className="heroBannerContent">
+        <div className="heroBannerLeft">
+          {/* Greeting */}
+          <div className="heroBannerGreeting">
+            {renderAvatar()}
+            <h1 className="heroBannerTitle">
+              <span className="heroBannerName">{title}</span>
+              {badge && (
+                <span className={`heroBannerBadge ${getBadgeClasses()}`}>
+                  ✨ {badge}
+                </span>
+              )}
+            </h1>
+          </div>
+
+          {/* Subtitle */}
+          {subtitle && (
+            <p
+              className="heroBannerSubtitle"
+              style={{
+                paddingLeft:
+                  avatarUrl || avatarFallback ? "70px" : icon ? "44px" : "0",
+              }}
+            >
+              {subtitle}
+            </p>
+          )}
+        </div>
+
+        {/* Right content */}
+        {actionButton && <div className="heroBannerRight">{actionButton}</div>}
       </div>
-      {/* Decorative elements */}
-      <div className="absolute -top-10 -right-10 w-40 h-40 bg-white/10 rounded-full blur-xl"></div>
-      <div className="absolute -bottom-10 -left-10 w-40 h-40 bg-purple-400/20 rounded-full blur-xl"></div>
+
+      {/* Bottom shine line */}
+      <div className="heroBannerShine" />
     </div>
   );
 };

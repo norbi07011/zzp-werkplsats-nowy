@@ -2,18 +2,17 @@ import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "../../src/lib/supabase";
 import { useToasts } from "../../contexts/ToastContext";
+import { useAuth } from "../../contexts/AuthContext";
+import {
+  saveProfile,
+  removeSavedProfile,
+  getSavedProfileRecord,
+  getSavedProfileIds,
+} from "../../services/savedProfilesService";
 
-// Simplified types based on actual database structure
 interface CleaningCompany {
   id: string;
-  profile_id: string;
   company_name: string;
-  owner_name: string;
-  phone: string | null;
-  email: string | null;
-  location_city: string | null;
-  location_province: string | null;
-  service_radius_km: number | null;
   specialization: string[] | null;
   availability: any | null; // JSON field
   hourly_rate_min: number | null;
@@ -26,6 +25,9 @@ interface CleaningCompany {
   total_reviews: number | null;
   accepting_new_clients: boolean;
   created_at: string;
+
+  location_city: string | null;
+  service_radius_km: number | null;
 }
 
 type DayOfWeek =
@@ -65,14 +67,63 @@ export const CleaningCompanySearch: React.FC<CleaningCompanySearchProps> = ({
   defaultCity,
 }) => {
   const { addToast } = useToasts();
+  const { user } = useAuth();
   const [companies, setCompanies] = useState<CleaningCompany[]>([]);
   const [loading, setLoading] = useState(false);
+  const [savedCompanies, setSavedCompanies] = useState<string[]>([]);
 
   const [filters, setFilters] = useState({
     city: defaultCity || "",
     requiredDays: [] as DayOfWeek[],
     minRating: 0,
   });
+
+  // ✅ UPDATED: Load saved cleaning companies using universal savedProfilesService
+  useEffect(() => {
+    const loadSavedCompanies = async () => {
+      if (!user?.id) return;
+      try {
+        const savedIds = await getSavedProfileIds(user.id, "cleaning_company");
+        setSavedCompanies(savedIds);
+      } catch (err) {
+        console.error("Error loading saved cleaning companies:", err);
+      }
+    };
+    loadSavedCompanies();
+  }, [user?.id]);
+
+  // ✅ UPDATED: Toggle save company using universal savedProfilesService
+  const toggleSaveCompany = async (companyId: string) => {
+    if (!user?.id) {
+      addToast("Zaloguj się, aby zapisać firmę", "error");
+      return;
+    }
+    try {
+      const isSaved = savedCompanies.includes(companyId);
+      if (isSaved) {
+        const savedRecord = await getSavedProfileRecord(
+          user.id,
+          "cleaning_company",
+          companyId
+        );
+        if (savedRecord) {
+          const removed = await removeSavedProfile(savedRecord.id);
+          if (removed) {
+            setSavedCompanies((prev) => prev.filter((id) => id !== companyId));
+            addToast("✅ Usunięto z zapisanych", "success");
+          }
+        }
+      } else {
+        const saved = await saveProfile(user.id, "cleaning_company", companyId);
+        if (saved) {
+          setSavedCompanies((prev) => [...prev, companyId]);
+          addToast("✅ Zapisano firmę sprzątającą", "success");
+        }
+      }
+    } catch (err) {
+      addToast("❌ Błąd podczas zapisywania", "error");
+    }
+  };
 
   useEffect(() => {
     fetchCleaningCompanies();
@@ -137,13 +188,22 @@ export const CleaningCompanySearch: React.FC<CleaningCompanySearchProps> = ({
   });
 
   return (
-    <div className="max-w-7xl mx-auto p-6">
+    <div
+      className="max-w-7xl mx-auto p-6 relative"
+      style={{
+        opacity: 1,
+        background: "none",
+        color: "#111",
+        zIndex: 100,
+        pointerEvents: "auto",
+      }}
+    >
       {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">
+      <div className="mb-8 relative" style={{ opacity: 1, zIndex: 100 }}>
+        <h1 className="text-3xl font-bold text-slate-900 dark:text-white mb-2">
           Firmy Sprzątające
         </h1>
-        <p className="text-gray-600">
+        <p className="text-slate-700 dark:text-slate-300">
           Znajdź firmę sprzątającą dostępną w dni, które Cię interesują
         </p>
       </div>
@@ -237,7 +297,10 @@ export const CleaningCompanySearch: React.FC<CleaningCompanySearchProps> = ({
         </aside>
 
         {/* Lista firm */}
-        <div className="lg:col-span-3">
+        <div
+          className="lg:col-span-3 relative"
+          style={{ opacity: 1, background: "none", color: "#111", zIndex: 100 }}
+        >
           {loading ? (
             <div className="text-center py-12">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
@@ -308,14 +371,14 @@ export const CleaningCompanySearch: React.FC<CleaningCompanySearchProps> = ({
                     <div className="p-5 flex flex-col flex-1">
                       {/* Company name */}
                       <Link to={`/cleaning-company/profile/${company.id}`}>
-                        <h3 className="text-xl font-bold text-gray-900 hover:text-blue-600 transition-colors mb-2">
+                        <h3 className="text-xl font-bold text-slate-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 transition-colors mb-2">
                           {company.company_name}
                         </h3>
                       </Link>
 
                       {/* Location */}
                       {company.location_city && (
-                        <p className="text-gray-600 text-sm mb-4 flex items-center gap-1">
+                        <p className="text-slate-700 dark:text-slate-300 text-sm mb-4 flex items-center gap-1">
                           <span>📍</span>
                           {company.location_city}
                           {company.service_radius_km &&
@@ -326,7 +389,7 @@ export const CleaningCompanySearch: React.FC<CleaningCompanySearchProps> = ({
                       {/* AVAILABILITY DAYS */}
                       {company.availability && (
                         <div className="mb-4 flex-1">
-                          <h4 className="text-xs font-semibold text-gray-700 mb-2 uppercase tracking-wide">
+                          <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200 mb-2 uppercase tracking-wide">
                             📅 Dostępne dni (
                             {countAvailableDays(company.availability)})
                           </h4>
@@ -335,11 +398,11 @@ export const CleaningCompanySearch: React.FC<CleaningCompanySearchProps> = ({
                               <span
                                 key={day}
                                 className={`
-                                  px-2 py-1.5 text-xs text-center rounded font-medium transition-all
+                                  px-2 py-1.5 text-xs text-center rounded font-semibold transition-all
                                   ${
                                     company.availability[day]
                                       ? "bg-green-100 text-green-800 border border-green-300"
-                                      : "bg-gray-100 text-gray-400"
+                                      : "bg-slate-200 text-slate-500 dark:bg-slate-600 dark:text-slate-300"
                                   }
                                 `}
                               >
@@ -358,9 +421,21 @@ export const CleaningCompanySearch: React.FC<CleaningCompanySearchProps> = ({
                         >
                           Zobacz profil
                         </Link>
-                        <button className="w-full py-3 px-4 border-2 border-yellow-400 bg-yellow-50 text-yellow-700 rounded-lg hover:bg-yellow-100 transition-colors font-semibold shadow-sm">
-                          ⭐ Zapisz
-                        </button>
+                        {user && (
+                          <button
+                            onClick={() => toggleSaveCompany(company.id)}
+                            className={`w-full py-3 px-4 border-2 rounded-lg transition-colors font-bold shadow-sm ${
+                              savedCompanies.includes(company.id)
+                                ? "border-amber-500 bg-amber-100 text-amber-900"
+                                : "border-amber-400 bg-amber-50 text-amber-800 hover:bg-amber-100"
+                            }`}
+                          >
+                            ⭐{" "}
+                            {savedCompanies.includes(company.id)
+                              ? "Zapisano"
+                              : "Zapisz"}
+                          </button>
+                        )}
                       </div>
                     </div>
                   </div>

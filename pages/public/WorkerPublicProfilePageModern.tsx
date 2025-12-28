@@ -97,6 +97,9 @@ export default function WorkerPublicProfilePageModern({
   const [worker, setWorker] = useState<Worker | null>(null);
   const [reviews, setReviews] = useState<WorkerReview[]>([]);
   const [portfolioProjects, setPortfolioProjects] = useState<any[]>([]);
+  const [selectedProject, setSelectedProject] = useState<any | null>(null);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
   const [loading, setLoading] = useState(true);
 
   // Modals
@@ -227,7 +230,7 @@ export default function WorkerPublicProfilePageModern({
           .eq("worker_id", workerData.id)
           .eq("is_public", true)
           .order("created_at", { ascending: false });
-        
+
         setPortfolioProjects(portfolioData || []);
       }
 
@@ -708,12 +711,14 @@ export default function WorkerPublicProfilePageModern({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {portfolioProjects.map((project, idx) => {
             const images = project.images || [];
-            const mainImage = images[0] || 'https://via.placeholder.com/400x300?text=No+Image';
-            
+            const mainImage =
+              images[0] || "https://via.placeholder.com/400x300?text=No+Image";
+
             return (
               <div
                 key={project.id}
-                className="bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 border border-slate-200"
+                onClick={() => setSelectedProject(project)}
+                className="bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 border border-slate-200 cursor-pointer"
               >
                 {/* Main Image */}
                 <div className="relative aspect-video overflow-hidden">
@@ -739,7 +744,7 @@ export default function WorkerPublicProfilePageModern({
                   <h3 className="text-xl font-bold text-slate-900 mb-3">
                     {project.title}
                   </h3>
-                  
+
                   {project.description && (
                     <p className="text-slate-600 mb-4 line-clamp-3">
                       {project.description}
@@ -753,7 +758,9 @@ export default function WorkerPublicProfilePageModern({
                         <span className="text-slate-400">👤</span>
                         <div>
                           <div className="text-slate-500 text-xs">Klient</div>
-                          <div className="text-slate-700 font-medium">{project.client_name}</div>
+                          <div className="text-slate-700 font-medium">
+                            {project.client_name}
+                          </div>
                         </div>
                       </div>
                     )}
@@ -761,8 +768,12 @@ export default function WorkerPublicProfilePageModern({
                       <div className="flex items-start gap-2">
                         <span className="text-slate-400">📍</span>
                         <div>
-                          <div className="text-slate-500 text-xs">Lokalizacja</div>
-                          <div className="text-slate-700 font-medium">{project.location}</div>
+                          <div className="text-slate-500 text-xs">
+                            Lokalizacja
+                          </div>
+                          <div className="text-slate-700 font-medium">
+                            {project.location}
+                          </div>
                         </div>
                       </div>
                     )}
@@ -770,9 +781,13 @@ export default function WorkerPublicProfilePageModern({
                       <div className="flex items-start gap-2">
                         <span className="text-slate-400">📅</span>
                         <div>
-                          <div className="text-slate-500 text-xs">Data zakończenia</div>
+                          <div className="text-slate-500 text-xs">
+                            Data zakończenia
+                          </div>
                           <div className="text-slate-700 font-medium">
-                            {new Date(project.completion_date).toLocaleDateString('pl-PL')}
+                            {new Date(
+                              project.completion_date
+                            ).toLocaleDateString("pl-PL")}
                           </div>
                         </div>
                       </div>
@@ -781,9 +796,16 @@ export default function WorkerPublicProfilePageModern({
                       <div className="flex items-start gap-2">
                         <span className="text-slate-400">⏱️</span>
                         <div>
-                          <div className="text-slate-500 text-xs">Czas trwania</div>
+                          <div className="text-slate-500 text-xs">
+                            Czas trwania
+                          </div>
                           <div className="text-slate-700 font-medium">
-                            {Math.ceil((new Date(project.end_date).getTime() - new Date(project.start_date).getTime()) / (1000 * 60 * 60 * 24))} dni
+                            {Math.ceil(
+                              (new Date(project.end_date).getTime() -
+                                new Date(project.start_date).getTime()) /
+                                (1000 * 60 * 60 * 24)
+                            )}{" "}
+                            dni
                           </div>
                         </div>
                       </div>
@@ -821,6 +843,283 @@ export default function WorkerPublicProfilePageModern({
       )}
     </div>
   );
+
+  // Portfolio Detail Modal
+  const PortfolioDetailModal = () => {
+    if (!selectedProject) return null;
+    const images = selectedProject.images || [];
+
+    return (
+      <div
+        className="fixed inset-0 z-[200] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
+        onClick={() => setSelectedProject(null)}
+      >
+        <div
+          className="bg-white rounded-3xl max-w-6xl w-full max-h-[90vh] overflow-y-auto"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Header */}
+          <div className="sticky top-0 bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between z-10">
+            <h2 className="text-2xl font-bold text-slate-900">
+              {selectedProject.title}
+            </h2>
+            <button
+              onClick={() => setSelectedProject(null)}
+              className="w-10 h-10 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition-colors"
+            >
+              <span className="text-xl">✕</span>
+            </button>
+          </div>
+
+          {/* Content */}
+          <div className="p-6 space-y-6">
+            {/* Main Image */}
+            {images.length > 0 && (
+              <div
+                className="relative aspect-video rounded-2xl overflow-hidden cursor-pointer group"
+                onClick={() => {
+                  setLightboxIndex(0);
+                  setLightboxOpen(true);
+                }}
+              >
+                <img
+                  src={images[0]}
+                  alt={selectedProject.title}
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                />
+                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center">
+                  <div className="opacity-0 group-hover:opacity-100 transition-opacity bg-white/90 backdrop-blur-sm px-4 py-2 rounded-full">
+                    <span className="text-slate-900 font-medium">
+                      🔍 Powiększ
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Category Badge */}
+            {selectedProject.category && (
+              <div className="inline-flex items-center gap-2 bg-blue-100 text-blue-800 px-4 py-2 rounded-full text-sm font-medium">
+                <span>📂</span> {selectedProject.category}
+              </div>
+            )}
+
+            {/* Description */}
+            {selectedProject.description && (
+              <div className="bg-slate-50 rounded-xl p-6">
+                <h3 className="text-lg font-bold text-slate-900 mb-3">
+                  Opis projektu
+                </h3>
+                <p className="text-slate-700 leading-relaxed whitespace-pre-wrap">
+                  {selectedProject.description}
+                </p>
+              </div>
+            )}
+
+            {/* Project Details Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {selectedProject.client_name && (
+                <div className="bg-white border border-slate-200 rounded-xl p-4 flex items-start gap-3">
+                  <span className="text-2xl">👤</span>
+                  <div>
+                    <div className="text-slate-500 text-sm">Klient</div>
+                    <div className="text-slate-900 font-semibold">
+                      {selectedProject.client_name}
+                    </div>
+                    {selectedProject.client_company && (
+                      <div className="text-slate-600 text-sm">
+                        {selectedProject.client_company}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+              {selectedProject.location && (
+                <div className="bg-white border border-slate-200 rounded-xl p-4 flex items-start gap-3">
+                  <span className="text-2xl">📍</span>
+                  <div>
+                    <div className="text-slate-500 text-sm">Lokalizacja</div>
+                    <div className="text-slate-900 font-semibold">
+                      {selectedProject.location}
+                    </div>
+                    {selectedProject.address && (
+                      <div className="text-slate-600 text-sm">
+                        {selectedProject.address}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+              {selectedProject.start_date && (
+                <div className="bg-white border border-slate-200 rounded-xl p-4 flex items-start gap-3">
+                  <span className="text-2xl">📅</span>
+                  <div>
+                    <div className="text-slate-500 text-sm">
+                      Data rozpoczęcia
+                    </div>
+                    <div className="text-slate-900 font-semibold">
+                      {new Date(selectedProject.start_date).toLocaleDateString(
+                        "pl-PL"
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+              {selectedProject.end_date && (
+                <div className="bg-white border border-slate-200 rounded-xl p-4 flex items-start gap-3">
+                  <span className="text-2xl">🏁</span>
+                  <div>
+                    <div className="text-slate-500 text-sm">
+                      Data zakończenia
+                    </div>
+                    <div className="text-slate-900 font-semibold">
+                      {new Date(selectedProject.end_date).toLocaleDateString(
+                        "pl-PL"
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+              {selectedProject.completion_date && (
+                <div className="bg-white border border-slate-200 rounded-xl p-4 flex items-start gap-3">
+                  <span className="text-2xl">✅</span>
+                  <div>
+                    <div className="text-slate-500 text-sm">Data oddania</div>
+                    <div className="text-slate-900 font-semibold">
+                      {new Date(
+                        selectedProject.completion_date
+                      ).toLocaleDateString("pl-PL")}
+                    </div>
+                  </div>
+                </div>
+              )}
+              {selectedProject.start_date && selectedProject.end_date && (
+                <div className="bg-white border border-slate-200 rounded-xl p-4 flex items-start gap-3">
+                  <span className="text-2xl">⏱️</span>
+                  <div>
+                    <div className="text-slate-500 text-sm">Czas trwania</div>
+                    <div className="text-slate-900 font-semibold">
+                      {Math.ceil(
+                        (new Date(selectedProject.end_date).getTime() -
+                          new Date(selectedProject.start_date).getTime()) /
+                          (1000 * 60 * 60 * 24)
+                      )}{" "}
+                      dni
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Image Gallery */}
+            {images.length > 1 && (
+              <div>
+                <h3 className="text-lg font-bold text-slate-900 mb-4">
+                  Galeria ({images.length} zdjęć)
+                </h3>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  {images.map((img: string, i: number) => (
+                    <div
+                      key={i}
+                      onClick={() => {
+                        setLightboxIndex(i);
+                        setLightboxOpen(true);
+                      }}
+                      className="relative aspect-square rounded-xl overflow-hidden cursor-pointer group border-2 border-slate-200 hover:border-blue-500 transition-colors"
+                    >
+                      <img
+                        src={img}
+                        alt={`${selectedProject.title} ${i + 1}`}
+                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                      />
+                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
+                        <span className="opacity-0 group-hover:opacity-100 text-white text-2xl transition-opacity">
+                          🔍
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Project URL */}
+            {selectedProject.project_url && (
+              <a
+                href={selectedProject.project_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl font-medium transition-colors"
+              >
+                <span>🔗</span> Odwiedź projekt
+              </a>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // Image Lightbox
+  const ImageLightbox = () => {
+    if (!lightboxOpen || !selectedProject) return null;
+    const images = selectedProject.images || [];
+    if (images.length === 0) return null;
+
+    const currentImage = images[lightboxIndex];
+
+    return (
+      <div
+        className="fixed inset-0 z-[300] bg-black/95 backdrop-blur-sm flex items-center justify-center"
+        onClick={() => setLightboxOpen(false)}
+      >
+        {/* Close Button */}
+        <button
+          onClick={() => setLightboxOpen(false)}
+          className="absolute top-4 right-4 w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-sm flex items-center justify-center text-white text-2xl transition-colors z-10"
+        >
+          ✕
+        </button>
+
+        {/* Image Counter */}
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-black/70 backdrop-blur-sm px-4 py-2 rounded-full text-white font-medium">
+          {lightboxIndex + 1} / {images.length}
+        </div>
+
+        {/* Navigation Arrows */}
+        {lightboxIndex > 0 && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setLightboxIndex(lightboxIndex - 1);
+            }}
+            className="absolute left-4 w-14 h-14 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-sm flex items-center justify-center text-white text-3xl transition-colors"
+          >
+            ←
+          </button>
+        )}
+        {lightboxIndex < images.length - 1 && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setLightboxIndex(lightboxIndex + 1);
+            }}
+            className="absolute right-4 w-14 h-14 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-sm flex items-center justify-center text-white text-3xl transition-colors"
+          >
+            →
+          </button>
+        )}
+
+        {/* Image */}
+        <img
+          src={currentImage}
+          alt={`${selectedProject.title} ${lightboxIndex + 1}`}
+          className="max-w-[90vw] max-h-[90vh] object-contain"
+          onClick={(e) => e.stopPropagation()}
+        />
+      </div>
+    );
+  };
 
   const customTabs = [
     {
@@ -1134,7 +1433,7 @@ export default function WorkerPublicProfilePageModern({
         }}
         skills={skills}
         languages={worker?.languages || []}
-        portfolio={portfolio}
+        portfolio={[]}
         rating={worker?.rating}
         ratingCount={worker?.rating_count}
         yearsExperience={worker?.years_experience}
@@ -1173,6 +1472,10 @@ export default function WorkerPublicProfilePageModern({
           inviteeAvatar={worker.avatar_url}
         />
       )}
+
+      {/* Portfolio Modals */}
+      <PortfolioDetailModal />
+      <ImageLightbox />
     </>
   );
 }

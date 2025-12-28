@@ -529,7 +529,7 @@ export const StoryViewerPro = ({
       // Create notification for story author
       const { data: senderProfile } = await supabaseAny
         .from("profiles")
-        .select("full_name, avatar_url")
+        .select("full_name, avatar_url, role")
         .eq("id", user.id)
         .single();
 
@@ -545,6 +545,7 @@ export const StoryViewerPro = ({
           reactor_id: user.id,
           reactor_name: senderProfile?.full_name,
           reactor_avatar: senderProfile?.avatar_url,
+          reactor_role: senderProfile?.role || "regular_user",
         },
         is_read: false,
       });
@@ -635,6 +636,7 @@ export const StoryViewerPro = ({
             sender_id: user.id,
             sender_name: senderProfile?.full_name || user.email || "Użytkownik",
             sender_avatar: senderProfile?.avatar_url,
+            sender_role: senderProfile?.role || "regular_user",
           },
           is_read: false,
         });

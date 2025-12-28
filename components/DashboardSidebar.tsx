@@ -107,7 +107,7 @@ const ALL_TABS: TabConfig[] = [
     label: "Portfolio",
     icon: Palette,
     description: "Portfolio prac, galeria, projekty",
-    roles: ["worker", "cleaning_company"],
+    roles: ["worker", "employer", "accountant", "cleaning_company"], // ✅ Added employer & accountant
   },
   {
     id: "subscription",

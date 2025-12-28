@@ -23,8 +23,11 @@ import { Input } from "../components/ui/input";
 import { Card } from "../components/ui/card";
 import { Textarea } from "../components/ui/textarea";
 import { Badge } from "../components/ui/badge";
+import { SuccessCelebration } from "../components/ui/SuccessCelebration";
 import { formatCurrency } from "../lib";
 import { useAuth } from "../../../../contexts/AuthContext";
+import { StatChipsGrid, StatChipItem } from "../../../../components/StatChips";
+import { BarChart3, TrendingUp, Receipt, Percent } from "lucide-react";
 import type { BTWDeclaration, BTWPeriod, BTWStatus } from "../types";
 
 interface BTWAangifteProps {
@@ -87,6 +90,14 @@ export default function BTWAangifte({ onNavigate }: BTWAangifteProps) {
     `${selectedYear}-12-31`
   );
   const deadlines = useBTWDeadlines();
+
+  // Success celebration state
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [successData, setSuccessData] = useState<{
+    title: string;
+    message: string;
+    icon: "🎉" | "✅" | "🏆" | "⭐" | "💰" | "📄" | "👤";
+  }>({ title: "", message: "", icon: "🎉" });
 
   const [formData, setFormData] = useState({
     year: selectedYear,
@@ -565,15 +576,22 @@ export default function BTWAangifte({ onNavigate }: BTWAangifteProps) {
 
       if (editingDeclaration) {
         await updateDeclaration(editingDeclaration.id, declarationData);
-        alert("Deklaracja zaktualizowana");
+        setSuccessData({
+          title: "Zaktualizowano! 🎊",
+          message: `Deklaracja BTW za ${formData.quarter} ${formData.year} została zaktualizowana`,
+          icon: "✅",
+        });
       } else {
         await createDeclaration(declarationData);
-        alert("Deklaracja utworzona");
+        setSuccessData({
+          title: "Deklaracja Utworzona! 🎉",
+          message: `Nowa deklaracja BTW za ${formData.quarter} ${formData.year} została pomyślnie utworzona`,
+          icon: "🏆",
+        });
       }
-
+      setShowSuccess(true);
       setIsDialogOpen(false);
     } catch (error) {
-      alert("Błąd zapisu deklaracji");
       console.error(error);
     }
   };
@@ -905,64 +923,66 @@ export default function BTWAangifte({ onNavigate }: BTWAangifteProps) {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-            <Card className="p-4 bg-gradient-to-br from-green-50 to-emerald-100 border-2 border-green-200">
-              <div className="text-sm text-gray-600 mb-1">
-                📈 Obroty 21% VAT
-              </div>
-              <div className="text-2xl font-bold text-green-600">
-                {formatCurrency(calculatedData.invoices.vat21)}
-              </div>
-              <div className="text-xs text-gray-500 mt-1">
-                VAT: {formatCurrency(calculatedData.invoices.vat21 * 0.21)}
-              </div>
-            </Card>
-            <Card className="p-4 bg-gradient-to-br from-blue-50 to-cyan-100 border-2 border-blue-200">
-              <div className="text-sm text-gray-600 mb-1">📊 Obroty 9% VAT</div>
-              <div className="text-2xl font-bold text-blue-600">
-                {formatCurrency(calculatedData.invoices.vat9)}
-              </div>
-              <div className="text-xs text-gray-500 mt-1">
-                VAT: {formatCurrency(calculatedData.invoices.vat9 * 0.09)}
-              </div>
-            </Card>
-            <Card className="p-4 bg-gradient-to-br from-purple-50 to-pink-100 border-2 border-purple-200">
-              <div className="text-sm text-gray-600 mb-1">
-                🇪🇺 EU zakupy (4a)
-              </div>
-              <div className="text-2xl font-bold text-purple-600">
-                {formatCurrency(calculatedData.expenses.euPurchases)}
-              </div>
-              <div className="text-xs text-gray-500 mt-1">
-                VAT: {formatCurrency(calculatedData.expenses.euPurchaseVat)}
-              </div>
-            </Card>
-            <Card className="p-4 bg-gradient-to-br from-teal-50 to-cyan-100 border-2 border-teal-200">
-              <div className="text-sm text-gray-600 mb-1">
-                💳 Voorbelasting (5b)
-              </div>
-              <div className="text-2xl font-bold text-teal-600">
-                -{formatCurrency(calculatedData.totalDeductibleVat)}
-              </div>
-              <div className="text-xs text-gray-500 mt-1">
-                Inkl. {formatCurrency(calculatedData.kilometers.vatDeduction)}{" "}
-                km
-              </div>
-            </Card>
-            <Card className="p-4 bg-gradient-to-br from-orange-50 to-red-100 border-2 border-orange-200">
-              <div className="text-sm text-gray-600 mb-1">💰 Saldo (5g)</div>
-              <div
-                className={`text-3xl font-bold ${
-                  calculatedData.balance > 0 ? "text-red-600" : "text-green-600"
-                }`}
-              >
-                {formatCurrency(calculatedData.balance)}
-              </div>
-              <div className="text-xs text-gray-500 mt-1">
-                {calculatedData.balance > 0
-                  ? "Te betalen"
-                  : "Terug te ontvangen"}
-              </div>
-            </Card>
+            <StatChipsGrid
+              items={
+                [
+                  {
+                    id: "vat21",
+                    label: "📈 Obroty 21% VAT",
+                    value: formatCurrency(calculatedData.invoices.vat21),
+                    tone: "emerald",
+                    hint: `VAT: ${formatCurrency(
+                      calculatedData.invoices.vat21 * 0.21
+                    )}`,
+                    icon: <TrendingUp className="w-4 h-4" />,
+                  },
+                  {
+                    id: "vat9",
+                    label: "📊 Obroty 9% VAT",
+                    value: formatCurrency(calculatedData.invoices.vat9),
+                    tone: "cyan",
+                    hint: `VAT: ${formatCurrency(
+                      calculatedData.invoices.vat9 * 0.09
+                    )}`,
+                    icon: <BarChart3 className="w-4 h-4" />,
+                  },
+                  {
+                    id: "euPurchases",
+                    label: "🇪🇺 EU zakupy (4a)",
+                    value: formatCurrency(calculatedData.expenses.euPurchases),
+                    tone: "violet",
+                    hint: `VAT: ${formatCurrency(
+                      calculatedData.expenses.euPurchaseVat
+                    )}`,
+                    icon: <Receipt className="w-4 h-4" />,
+                  },
+                  {
+                    id: "voorbelasting",
+                    label: "💳 Voorbelasting (5b)",
+                    value: `-${formatCurrency(
+                      calculatedData.totalDeductibleVat
+                    )}`,
+                    tone: "cyan",
+                    hint: `Inkl. ${formatCurrency(
+                      calculatedData.kilometers.vatDeduction
+                    )} km`,
+                    icon: <Percent className="w-4 h-4" />,
+                  },
+                  {
+                    id: "balance",
+                    label: "💰 Saldo (5g)",
+                    value: formatCurrency(calculatedData.balance),
+                    tone: calculatedData.balance > 0 ? "rose" : "emerald",
+                    hint:
+                      calculatedData.balance > 0
+                        ? "Te betalen"
+                        : "Terug te ontvangen",
+                    icon: <TrendingUp className="w-4 h-4" />,
+                  },
+                ] as StatChipItem[]
+              }
+              columns={5}
+            />
           </div>
 
           {/* Quick Actions */}
@@ -1481,6 +1501,15 @@ export default function BTWAangifte({ onNavigate }: BTWAangifteProps) {
           </div>
         </div>
       )}
+
+      {/* Success Celebration Modal */}
+      <SuccessCelebration
+        isOpen={showSuccess}
+        onClose={() => setShowSuccess(false)}
+        title={successData.title}
+        message={successData.message}
+        icon={successData.icon}
+      />
     </div>
   );
 }

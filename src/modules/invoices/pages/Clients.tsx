@@ -26,6 +26,7 @@ import { useTranslation } from "../i18n";
 import { useSupabaseClients } from "../hooks";
 import { Textarea } from "../components/ui/textarea";
 import { useAuth } from "../../../../contexts/AuthContext";
+import { SuccessCelebration } from "../components/ui/SuccessCelebration";
 import type { Client, ClientType } from "../types";
 
 const COUNTRIES = [
@@ -54,6 +55,14 @@ export default function Clients({ onNavigate }: ClientsProps) {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
+
+  // Success celebration state
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [successData, setSuccessData] = useState<{
+    title: string;
+    message: string;
+    icon: "🎉" | "✅" | "🏆" | "⭐" | "💰" | "📄" | "👤";
+  }>({ title: "", message: "", icon: "🎉" });
 
   const [formData, setFormData] = useState<{
     name: string;
@@ -148,10 +157,20 @@ export default function Clients({ onNavigate }: ClientsProps) {
 
       if (editingClient) {
         await updateClient(editingClient.id, clientData);
-        alert("Klient zaktualizowany");
+        setSuccessData({
+          title: "Zaktualizowano! 🎊",
+          message: `Dane klienta "${formData.name}" zostały pomyślnie zaktualizowane`,
+          icon: "✅",
+        });
+        setShowSuccess(true);
       } else {
         await createClient(clientData);
-        alert("Klient utworzony");
+        setSuccessData({
+          title: "Nowy Klient! 🎉",
+          message: `Klient "${formData.name}" został pomyślnie dodany do bazy`,
+          icon: "👤",
+        });
+        setShowSuccess(true);
       }
       setIsDialogOpen(false);
     } catch (error) {
@@ -757,6 +776,15 @@ export default function Clients({ onNavigate }: ClientsProps) {
           </div>
         </div>
       )}
+
+      {/* Success Celebration Modal */}
+      <SuccessCelebration
+        isOpen={showSuccess}
+        onClose={() => setShowSuccess(false)}
+        title={successData.title}
+        message={successData.message}
+        icon={successData.icon}
+      />
     </div>
   );
 }

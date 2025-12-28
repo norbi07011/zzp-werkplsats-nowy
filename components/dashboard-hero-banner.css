@@ -1,0 +1,288 @@
+/* =====================================================
+   DASHBOARD HERO BANNER - Ultra Premium Styles
+   =====================================================
+   Animated gradient header with glassmorphism
+   Used across all dashboard panels
+   ===================================================== */
+
+.heroBanner {
+  position: relative;
+  border-radius: 20px;
+  overflow: hidden;
+  min-height: 100px;
+  isolation: isolate;
+}
+
+/* Animated gradient background */
+.heroBannerBg {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    135deg,
+    #667eea 0%,
+    #764ba2 25%,
+    #f093fb 50%,
+    #f5576c 75%,
+    #667eea 100%
+  );
+  background-size: 400% 400%;
+  animation: heroGradient 15s ease infinite;
+  z-index: 0;
+}
+
+@keyframes heroGradient {
+  0%,
+  100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+/* Floating glow orbs */
+.heroBannerOrb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(40px);
+  opacity: 0.5;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.heroBannerOrb1 {
+  width: 200px;
+  height: 200px;
+  background: rgba(255, 255, 255, 0.3);
+  top: -60px;
+  right: 10%;
+  animation: orbFloat1 8s ease-in-out infinite;
+}
+
+.heroBannerOrb2 {
+  width: 150px;
+  height: 150px;
+  background: rgba(168, 85, 247, 0.4);
+  bottom: -40px;
+  left: 15%;
+  animation: orbFloat2 10s ease-in-out infinite;
+}
+
+.heroBannerOrb3 {
+  width: 100px;
+  height: 100px;
+  background: rgba(236, 72, 153, 0.3);
+  top: 20%;
+  left: 60%;
+  animation: orbFloat3 12s ease-in-out infinite;
+}
+
+@keyframes orbFloat1 {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(-20px, 10px) scale(1.1);
+  }
+}
+
+@keyframes orbFloat2 {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(15px, -15px) scale(0.9);
+  }
+}
+
+@keyframes orbFloat3 {
+  0%,
+  100% {
+    transform: translate(0, 0);
+  }
+  33% {
+    transform: translate(10px, 10px);
+  }
+  66% {
+    transform: translate(-10px, 5px);
+  }
+}
+
+/* Glass overlay */
+.heroBannerGlass {
+  position: absolute;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(2px);
+  z-index: 2;
+}
+
+/* Content container */
+.heroBannerContent {
+  position: relative;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 24px 32px;
+}
+
+.heroBannerLeft {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.heroBannerRight {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* Greeting row */
+.heroBannerGreeting {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.heroBannerIcon {
+  font-size: 32px;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
+  animation: iconBounce 2s ease-in-out infinite;
+}
+
+@keyframes iconBounce {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-4px);
+  }
+}
+
+.heroBannerTitle {
+  font-size: 28px;
+  font-weight: 700;
+  color: white;
+  letter-spacing: -0.02em;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.heroBannerName {
+  background: linear-gradient(135deg, #fff 0%, #e0e7ff 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  font-weight: 800;
+}
+
+/* Badge */
+.heroBannerBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  border: 1px solid;
+  white-space: nowrap;
+}
+
+/* Subtitle */
+.heroBannerSubtitle {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.85);
+  font-weight: 500;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
+  padding-left: 44px; /* Align with title (icon width + gap) */
+}
+
+/* Bottom shine line */
+.heroBannerShine {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.6) 20%,
+    rgba(255, 255, 255, 0.9) 50%,
+    rgba(255, 255, 255, 0.6) 80%,
+    transparent 100%
+  );
+  z-index: 4;
+  animation: shineMove 3s ease-in-out infinite;
+}
+
+@keyframes shineMove {
+  0% {
+    opacity: 0.4;
+    transform: scaleX(0.8);
+  }
+  50% {
+    opacity: 1;
+    transform: scaleX(1);
+  }
+  100% {
+    opacity: 0.4;
+    transform: scaleX(0.8);
+  }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .heroBannerContent {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 20px 20px;
+    gap: 16px;
+  }
+
+  .heroBannerTitle {
+    font-size: 22px;
+  }
+
+  .heroBannerIcon {
+    font-size: 26px;
+  }
+
+  .heroBannerSubtitle {
+    padding-left: 38px;
+    font-size: 13px;
+  }
+
+  .heroBannerRight {
+    width: 100%;
+    justify-content: flex-start;
+    padding-left: 38px;
+  }
+}
+
+/* Dark mode */
+.dark .heroBannerGlass {
+  background: rgba(0, 0, 0, 0.15);
+}
+
+.dark .heroBannerBg {
+  background: linear-gradient(
+    135deg,
+    #1e1b4b 0%,
+    #312e81 25%,
+    #4c1d95 50%,
+    #581c87 75%,
+    #1e1b4b 100%
+  );
+  background-size: 400% 400%;
+}

@@ -14,6 +14,8 @@ import { formatCurrency, formatDate } from "../lib";
 import { useMemo } from "react";
 import { useAuth } from "../../../../contexts/AuthContext";
 import { useIsMobile } from "../../../hooks/useIsMobile";
+import { StatChipsGrid, StatChipItem } from "../../../../components/StatChips";
+import { FileText, Calendar, TrendingUp, Receipt } from "lucide-react";
 import {
   MobileCardView,
   type CardItem,
@@ -220,222 +222,42 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
           <div className="absolute -bottom-10 -left-10 w-40 h-40 bg-purple-400/20 rounded-full blur-xl"></div>
         </div>
 
-        {/* Modern Stats Cards */}
-        <div
-          className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 ${
-            isMobile ? "gap-3" : "gap-6"
-          }`}
-        >
-          {/* Unpaid */}
-          <Card
-            className={`group relative overflow-hidden bg-white/80 backdrop-blur-sm border border-white/30 shadow-xl transition-all duration-300 ${
-              isMobile
-                ? "rounded-xl p-4"
-                : "rounded-2xl p-6 hover:shadow-2xl transform hover:scale-105"
-            }`}
-          >
-            <div className="absolute inset-0 bg-gradient-to-br from-red-500/10 to-red-600/10"></div>
-            <div
-              className={`relative flex items-center justify-between ${
-                isMobile ? "mb-2" : "mb-4"
-              }`}
-            >
-              <h3
-                className={`font-medium text-gray-600 ${
-                  isMobile ? "text-xs" : "text-sm"
-                }`}
-              >
-                {t.dashboard.unpaidInvoices}
-              </h3>
-              <div
-                className={`bg-red-100 rounded-xl ${
-                  isMobile ? "p-1.5" : "p-2"
-                }`}
-              >
-                <svg
-                  className={`text-red-600 ${isMobile ? "w-4 h-4" : "w-5 h-5"}`}
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                  />
-                </svg>
-              </div>
-            </div>
-            <div
-              className={`relative font-bold text-gray-900 font-mono ${
-                isMobile ? "text-xl" : "text-3xl"
-              }`}
-            >
-              {formatCurrency(stats.unpaid)}
-            </div>
-            <div className="absolute -bottom-2 -right-2 w-16 h-16 bg-red-200/30 rounded-full blur-lg"></div>
-          </Card>
-
-          {/* This Month */}
-          <Card
-            className={`group relative overflow-hidden bg-white/80 backdrop-blur-sm border border-white/30 shadow-xl transition-all duration-300 ${
-              isMobile
-                ? "rounded-xl p-4"
-                : "rounded-2xl p-6 hover:shadow-2xl transform hover:scale-105"
-            }`}
-          >
-            <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 to-blue-600/10"></div>
-            <div
-              className={`relative flex items-center justify-between ${
-                isMobile ? "mb-2" : "mb-4"
-              }`}
-            >
-              <h3
-                className={`font-medium text-gray-600 ${
-                  isMobile ? "text-xs" : "text-sm"
-                }`}
-              >
-                {t.dashboard.thisMonth}
-              </h3>
-              <div
-                className={`bg-blue-100 rounded-xl ${
-                  isMobile ? "p-1.5" : "p-2"
-                }`}
-              >
-                <svg
-                  className={`text-blue-600 ${
-                    isMobile ? "w-4 h-4" : "w-5 h-5"
-                  }`}
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
-                  />
-                </svg>
-              </div>
-            </div>
-            <div
-              className={`relative font-bold text-gray-900 font-mono ${
-                isMobile ? "text-xl" : "text-3xl"
-              }`}
-            >
-              {formatCurrency(stats.thisMonth)}
-            </div>
-            <div className="absolute -bottom-2 -right-2 w-16 h-16 bg-blue-200/30 rounded-full blur-lg"></div>
-          </Card>
-
-          {/* This Year */}
-          <Card
-            className={`group relative overflow-hidden bg-white/80 backdrop-blur-sm border border-white/30 shadow-xl transition-all duration-300 ${
-              isMobile
-                ? "rounded-xl p-4"
-                : "rounded-2xl p-6 hover:shadow-2xl transform hover:scale-105"
-            }`}
-          >
-            <div className="absolute inset-0 bg-gradient-to-br from-green-500/10 to-green-600/10"></div>
-            <div
-              className={`relative flex items-center justify-between ${
-                isMobile ? "mb-2" : "mb-4"
-              }`}
-            >
-              <h3
-                className={`font-medium text-gray-600 ${
-                  isMobile ? "text-xs" : "text-sm"
-                }`}
-              >
-                {t.dashboard.thisYear}
-              </h3>
-              <div
-                className={`bg-green-100 rounded-xl ${
-                  isMobile ? "p-1.5" : "p-2"
-                }`}
-              >
-                <svg
-                  className={`text-green-600 ${
-                    isMobile ? "w-4 h-4" : "w-5 h-5"
-                  }`}
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
-                  />
-                </svg>
-              </div>
-            </div>
-            <div
-              className={`relative font-bold text-gray-900 font-mono ${
-                isMobile ? "text-xl" : "text-3xl"
-              }`}
-            >
-              {formatCurrency(stats.thisYear)}
-            </div>
-            <div className="absolute -bottom-2 -right-2 w-16 h-16 bg-green-200/30 rounded-full blur-lg"></div>
-          </Card>
-
-          {/* Total Invoices */}
-          <Card
-            className={`group relative overflow-hidden bg-white/80 backdrop-blur-sm border border-white/30 shadow-xl transition-all duration-300 ${
-              isMobile
-                ? "rounded-xl p-4"
-                : "rounded-2xl p-6 hover:shadow-2xl transform hover:scale-105"
-            }`}
-          >
-            <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 to-purple-600/10"></div>
-            <div
-              className={`relative flex items-center justify-between ${
-                isMobile ? "mb-2" : "mb-4"
-              }`}
-            >
-              <h3
-                className={`font-medium text-gray-600 ${
-                  isMobile ? "text-xs" : "text-sm"
-                }`}
-              >
-                {t.dashboard.totalInvoices}
-              </h3>
-              <div
-                className={`bg-purple-100 rounded-xl ${
-                  isMobile ? "p-1.5" : "p-2"
-                }`}
-              >
-                <svg
-                  className={`text-purple-600 ${
-                    isMobile ? "w-4 h-4" : "w-5 h-5"
-                  }`}
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                  />
-                </svg>
-              </div>
-            </div>
-            <div
-              className={`relative font-bold text-gray-900 font-mono ${
-                isMobile ? "text-xl" : "text-3xl"
-              }`}
-            >
-              {stats.totalInvoices}
-            </div>
-            <div className="absolute -bottom-2 -right-2 w-16 h-16 bg-purple-200/30 rounded-full blur-lg"></div>
-          </Card>
-        </div>
+        {/* Premium Stats Chips */}
+        <StatChipsGrid
+          items={
+            [
+              {
+                id: "unpaid",
+                label: t.dashboard.unpaidInvoices,
+                value: formatCurrency(stats.unpaid),
+                tone: "rose",
+                icon: <FileText className="w-4 h-4" />,
+              },
+              {
+                id: "thisMonth",
+                label: t.dashboard.thisMonth,
+                value: formatCurrency(stats.thisMonth),
+                tone: "cyan",
+                icon: <Calendar className="w-4 h-4" />,
+              },
+              {
+                id: "thisYear",
+                label: t.dashboard.thisYear,
+                value: formatCurrency(stats.thisYear),
+                tone: "emerald",
+                icon: <TrendingUp className="w-4 h-4" />,
+              },
+              {
+                id: "total",
+                label: t.dashboard.totalInvoices,
+                value: stats.totalInvoices,
+                tone: "violet",
+                icon: <Receipt className="w-4 h-4" />,
+              },
+            ] as StatChipItem[]
+          }
+          columns={4}
+        />
 
         {/* Modern Recent Invoices */}
         <Card

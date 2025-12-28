@@ -16,10 +16,21 @@ import {
   type UnifiedTab,
 } from "../components/UnifiedDashboardTabs";
 import { AdminSidebar } from "../components/Admin/AdminSidebar";
-import { Menu } from "lucide-react";
+import {
+  Menu,
+  Calendar,
+  Users,
+  Building2,
+  CheckCircle,
+  DollarSign,
+  Activity,
+  BarChart3,
+  Shield,
+} from "lucide-react";
 import FeedPage from "./FeedPage_PREMIUM";
 import MyPosts from "./Admin/MyPosts";
 import SavedActivity from "./Admin/SavedActivity";
+import { StatChipsGrid, StatChipItem } from "../components/StatChips";
 
 // Lazy load modals (only when opened)
 const AddWorkerModal = lazy(() =>
@@ -253,7 +264,7 @@ export const AdminDashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
 
   // Tab state management
-  const { activeTab, setActiveTab } = useUnifiedTabs("overview");
+  const { activeTab, setActiveTab } = useUnifiedTabs("tablica");
 
   // Load real data from database
   useEffect(() => {
@@ -1188,7 +1199,7 @@ export const AdminDashboard: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Summary Stats */}
+                {/* Summary Stats - Premium StatChips */}
                 <div className="mb-12">
                   <div className="flex items-center gap-3 mb-6">
                     <div className="w-12 h-12 bg-primary-500 rounded-full flex items-center justify-center shadow-md">
@@ -1198,94 +1209,80 @@ export const AdminDashboard: React.FC = () => {
                       Statystyki Kluczowe
                     </h2>
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                    <StatCard
-                      title="Oczekujące terminy"
-                      value={stats.pendingSchedules}
-                      change={
-                        stats.pendingSchedules > 0
-                          ? "Wymagają zaplanowania"
-                          : "Brak oczekujących"
-                      }
-                      changeType={
-                        stats.pendingSchedules > 0 ? "neutral" : "positive"
-                      }
-                      icon="📅"
-                      color="cyber"
-                    />
-                    <StatCard
-                      title="Aktywni pracownicy"
-                      value={stats.activeWorkers}
-                      change="Real-time z bazy"
-                      changeType="positive"
-                      icon="👷"
-                      color="success"
-                    />
-                    <StatCard
-                      title="Aktywne firmy"
-                      value={stats.activeFirms}
-                      change="Real-time z bazy"
-                      changeType="positive"
-                      icon="🏢"
-                      color="premium"
-                    />
-                    <StatCard
-                      title="Testy w tym tygodniu"
-                      value={stats.weeklyTests}
-                      change="Ostatnie 7 dni"
-                      changeType={
-                        stats.weeklyTests > 0 ? "positive" : "neutral"
-                      }
-                      icon="✅"
-                      color="success"
-                    />
-                    <StatCard
-                      title="Miesięczny przychód (MRR)"
-                      value={
-                        stats.monthlyRevenue > 0
-                          ? `€${stats.monthlyRevenue.toFixed(2)}`
-                          : "€0.00"
-                      }
-                      change={
-                        stats.monthlyRevenue > 0
-                          ? "Aktywne subskrypcje"
-                          : "Brak subskrypcji"
-                      }
-                      changeType={
-                        stats.monthlyRevenue > 0 ? "positive" : "neutral"
-                      }
-                      icon="💰"
-                      color="success"
-                    />
-                    <StatCard
-                      title="Daily Active Users"
-                      value={stats.dailyActiveUsers}
-                      change="Wszyscy użytkownicy"
-                      changeType="positive"
-                      icon="👥"
-                      color="cyber"
-                    />
-                    <StatCard
-                      title="Conversion Rate"
-                      value={
-                        stats.conversionRate > 0
-                          ? `${stats.conversionRate}%`
-                          : "Brak danych"
-                      }
-                      change="Wymaga analytics"
-                      changeType="neutral"
-                      icon="📊"
-                      color="premium"
-                    />
-                    <StatCard
-                      title="System Health"
-                      value={`${stats.systemHealth}%`}
-                      change="Wszystkie systemy działają"
-                      changeType="positive"
-                      icon="🛡️"
-                      color="success"
-                    />
-                  </div>
+                  <StatChipsGrid
+                    items={
+                      [
+                        {
+                          id: "pending",
+                          label: "Pending Schedules",
+                          value: stats.pendingSchedules,
+                          tone: "cyan",
+                          icon: <Calendar size={16} />,
+                          hint:
+                            stats.pendingSchedules > 0
+                              ? "Require scheduling"
+                              : "None pending",
+                        },
+                        {
+                          id: "workers",
+                          label: "Active Workers",
+                          value: stats.activeWorkers,
+                          tone: "emerald",
+                          icon: <Users size={16} />,
+                        },
+                        {
+                          id: "firms",
+                          label: "Active Companies",
+                          value: stats.activeFirms,
+                          tone: "violet",
+                          icon: <Building2 size={16} />,
+                        },
+                        {
+                          id: "tests",
+                          label: "Tests This Week",
+                          value: stats.weeklyTests,
+                          tone: "emerald",
+                          icon: <CheckCircle size={16} />,
+                          hint: "Last 7 days",
+                        },
+                        {
+                          id: "mrr",
+                          label: "Monthly Revenue",
+                          value:
+                            stats.monthlyRevenue > 0
+                              ? `€${stats.monthlyRevenue.toFixed(0)}`
+                              : "€0",
+                          tone: "amber",
+                          icon: <DollarSign size={16} />,
+                        },
+                        {
+                          id: "dau",
+                          label: "Daily Active Users",
+                          value: stats.dailyActiveUsers,
+                          tone: "cyan",
+                          icon: <Activity size={16} />,
+                        },
+                        {
+                          id: "conversion",
+                          label: "Conversion Rate",
+                          value:
+                            stats.conversionRate > 0
+                              ? `${stats.conversionRate}%`
+                              : "N/A",
+                          tone: "violet",
+                          icon: <BarChart3 size={16} />,
+                        },
+                        {
+                          id: "health",
+                          label: "System Health",
+                          value: `${stats.systemHealth}%`,
+                          tone: "emerald",
+                          icon: <Shield size={16} />,
+                        },
+                      ] as StatChipItem[]
+                    }
+                    columns={4}
+                  />
                 </div>
 
                 {/* Modules Grid */}

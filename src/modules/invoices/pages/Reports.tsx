@@ -31,6 +31,7 @@ import {
 } from "../components/ui/tabs.js";
 import { formatCurrency, formatDate } from "../lib";
 import { useAuth } from "../../../../contexts/AuthContext";
+import { StatChipsGrid, StatChipItem } from "../../../../components/StatChips";
 import {
   Download,
   FileText,
@@ -38,6 +39,8 @@ import {
   AlertTriangle,
   Info,
   BarChart3,
+  Receipt,
+  Wallet,
 } from "lucide-react";
 import { toast } from "sonner";
 import { jsPDF } from "jspdf";
@@ -695,51 +698,50 @@ export default function Reports({ onNavigate }: ReportsProps) {
         )}
 
         {/* Summary Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <Card className="p-6 bg-gradient-to-br from-blue-50 to-cyan-100 border-blue-200">
-            <div className="text-sm text-gray-600 mb-1">Przychody brutto</div>
-            <div className="text-3xl font-bold text-blue-600">
-              {formatCurrency(yearData.totalRevenue)}
-            </div>
-            <div className="text-xs text-gray-500 mt-1">
-              {yearData.invoicesCount} faktur
-            </div>
-          </Card>
-          <Card className="p-6 bg-gradient-to-br from-red-50 to-orange-100 border-red-200">
-            <div className="text-sm text-gray-600 mb-1">Wydatki</div>
-            <div className="text-3xl font-bold text-red-600">
-              {formatCurrency(yearData.totalExpenses)}
-            </div>
-            <div className="text-xs text-gray-500 mt-1">
-              {yearData.expensesCount} pozycji
-            </div>
-          </Card>
-          <Card className="p-6 bg-gradient-to-br from-green-50 to-emerald-100 border-green-200">
-            <div className="text-sm text-gray-600 mb-1">Zysk netto</div>
-            <div
-              className={`text-3xl font-bold ${
-                yearData.profit >= 0 ? "text-green-600" : "text-red-600"
-              }`}
-            >
-              {formatCurrency(yearData.profit)}
-            </div>
-            <div className="text-xs text-gray-500 mt-1 flex items-center gap-1">
-              <TrendingUp className="w-3 h-3" />
-              {yearData.profit >= 0 ? "Dodatni" : "Ujemny"}
-            </div>
-          </Card>
-          <Card className="p-6 bg-gradient-to-br from-purple-50 to-pink-100 border-purple-200">
-            <div className="text-sm text-gray-600 mb-1">VAT saldo</div>
-            <div className="text-3xl font-bold text-purple-600">
-              {formatCurrency(yearData.totalVat - yearData.totalExpensesVat)}
-            </div>
-            <div className="text-xs text-gray-500 mt-1">
-              {yearData.totalVat - yearData.totalExpensesVat >= 0
-                ? "Do zapłaty"
-                : "Do zwrotu"}
-            </div>
-          </Card>
-        </div>
+        <StatChipsGrid
+          items={
+            [
+              {
+                id: "revenue",
+                label: "Przychody brutto",
+                value: formatCurrency(yearData.totalRevenue),
+                tone: "cyan",
+                hint: `${yearData.invoicesCount} faktur`,
+                icon: <TrendingUp className="w-4 h-4" />,
+              },
+              {
+                id: "expenses",
+                label: "Wydatki",
+                value: formatCurrency(yearData.totalExpenses),
+                tone: "rose",
+                hint: `${yearData.expensesCount} pozycji`,
+                icon: <Wallet className="w-4 h-4" />,
+              },
+              {
+                id: "profit",
+                label: "Zysk netto",
+                value: formatCurrency(yearData.profit),
+                tone: yearData.profit >= 0 ? "emerald" : "rose",
+                hint: yearData.profit >= 0 ? "Dodatni" : "Ujemny",
+                icon: <BarChart3 className="w-4 h-4" />,
+              },
+              {
+                id: "vat",
+                label: "VAT saldo",
+                value: formatCurrency(
+                  yearData.totalVat - yearData.totalExpensesVat
+                ),
+                tone: "violet",
+                hint:
+                  yearData.totalVat - yearData.totalExpensesVat >= 0
+                    ? "Do zapłaty"
+                    : "Do zwrotu",
+                icon: <Receipt className="w-4 h-4" />,
+              },
+            ] as StatChipItem[]
+          }
+          columns={4}
+        />
 
         {/* Main Tabs */}
         <Tabs

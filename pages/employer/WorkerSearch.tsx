@@ -14,6 +14,12 @@ import {
 import { useAuth } from "../../contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
 import { AddToTeamButton } from "../../components/AddToTeamButton";
+import {
+  saveProfile,
+  removeSavedProfile,
+  getSavedProfileRecord,
+  getSavedProfileIds,
+} from "../../services/savedProfilesService";
 
 interface Worker {
   id: string;
@@ -318,6 +324,23 @@ export const WorkerSearch = () => {
     fetchEmployerId();
   }, [user]);
 
+  // ✅ UPDATED: Load saved workers using universal savedProfilesService
+  useEffect(() => {
+    async function loadSavedWorkers() {
+      if (!user?.id) return;
+
+      try {
+        const savedIds = await getSavedProfileIds(user.id, "worker");
+        setSavedWorkers(savedIds);
+        console.log("[WORKER-SEARCH] Loaded saved workers:", savedIds.length);
+      } catch (err) {
+        console.error("[WORKER-SEARCH] Error loading saved workers:", err);
+      }
+    }
+
+    loadSavedWorkers();
+  }, [user?.id]);
+
   // NEW: Fetch workers from database on component mount
   useEffect(() => {
     async function loadWorkers() {
@@ -481,12 +504,45 @@ export const WorkerSearch = () => {
   );
   const totalPages = Math.ceil(sortedWorkers.length / workersPerPage);
 
-  const toggleSaveWorker = (workerId: string) => {
-    setSavedWorkers((prev) =>
-      prev.includes(workerId)
-        ? prev.filter((id) => id !== workerId)
-        : [...prev, workerId]
-    );
+  // ✅ UPDATED: Real save/unsave worker using universal savedProfilesService
+  const toggleSaveWorker = async (workerId: string) => {
+    if (!user?.id) {
+      showError("Zaloguj się, aby zapisać pracownika");
+      return;
+    }
+
+    try {
+      const isSaved = savedWorkers.includes(workerId);
+
+      if (isSaved) {
+        // Find and remove saved record
+        const savedRecord = await getSavedProfileRecord(
+          user.id,
+          "worker",
+          workerId
+        );
+
+        if (savedRecord) {
+          const removed = await removeSavedProfile(savedRecord.id);
+
+          if (removed) {
+            setSavedWorkers((prev) => prev.filter((id) => id !== workerId));
+            success("✅ Usunięto z zapisanych");
+          }
+        }
+      } else {
+        // Save worker
+        const saved = await saveProfile(user.id, "worker", workerId);
+
+        if (saved) {
+          setSavedWorkers((prev) => [...prev, workerId]);
+          success("✅ Zapisano pracownika");
+        }
+      }
+    } catch (error) {
+      console.error("Error toggling save worker:", error);
+      showError("❌ Błąd podczas zapisywania");
+    }
   };
 
   const handleLevelChange = (level: string) => {
@@ -981,10 +1037,12 @@ export const WorkerSearch = () => {
 
                     {/* Worker info - centered */}
                     <div className="px-6 py-4 text-center">
-                      <h3 className="text-2xl font-bold text-gray-900 mb-1">
+                      <h3 className="text-2xl font-bold text-slate-900 dark:text-white mb-1">
                         {worker.fullName}
                       </h3>
-                      <p className="text-gray-600">📍 {worker.city}</p>
+                      <p className="text-slate-700 dark:text-slate-300 font-medium">
+                        📍 {worker.city}
+                      </p>
 
                       {/* Badges row */}
                       <div className="flex flex-wrap justify-center gap-2 mt-2">

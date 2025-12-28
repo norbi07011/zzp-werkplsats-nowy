@@ -57,7 +57,7 @@ export function useSupabaseCompany(userId: string): UseCompanyReturn {
   }, [userId]);
 
   // =====================================================
-  // CREATE COMPANY
+  // CREATE COMPANY (with UPSERT to prevent duplicates)
   // =====================================================
   const createCompany = async (
     data: Omit<Company, "id" | "user_id" | "created_at" | "updated_at">
@@ -65,12 +65,20 @@ export function useSupabaseCompany(userId: string): UseCompanyReturn {
     try {
       setError(null);
 
+      // Use UPSERT to prevent "duplicate key" errors
+      // If user already has a company, update it instead of failing
       const { data: newCompany, error: createError } = await supabase
         .from("invoice_companies")
-        .insert({
-          ...data,
-          user_id: userId,
-        })
+        .upsert(
+          {
+            ...data,
+            user_id: userId,
+          },
+          {
+            onConflict: "user_id", // If user_id already exists, update
+            ignoreDuplicates: false, // We want to update, not ignore
+          }
+        )
         .select()
         .single();
 

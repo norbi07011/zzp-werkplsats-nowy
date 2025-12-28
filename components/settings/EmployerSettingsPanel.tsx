@@ -20,6 +20,7 @@ import {
   ChevronDown,
   ChevronUp,
   User,
+  Users,
   Building2,
   Phone,
   Mail,
@@ -31,10 +32,16 @@ import {
   Check,
   Briefcase,
   Image as ImageIcon,
+  Calendar,
+  Lock,
+  Link2,
 } from "lucide-react";
 
 import { CoverImageUploader } from "../../src/components/common/CoverImageUploader";
 import { GlowButton } from "../ui/GlowButton";
+import AvailabilityCalendar from "../../src/components/common/AvailabilityCalendar";
+import DateBlocker from "../../src/components/common/DateBlocker";
+import type { WeeklyAvailability, UnavailableDate } from "../../types";
 
 // ================================================================
 // TYPES
@@ -98,7 +105,12 @@ interface PrivacySettings {
   allow_messages: boolean;
 }
 
-type SettingsSection = "profile" | "company_data" | "notifications" | "privacy";
+type SettingsSection =
+  | "profile"
+  | "company_data"
+  | "availability"
+  | "notifications"
+  | "privacy";
 
 interface EmployerSettingsPanelProps {
   employerProfile: EmployerProfile | null;
@@ -112,6 +124,12 @@ interface EmployerSettingsPanelProps {
   onPrivacySettingsChange: (settings: PrivacySettings) => void;
   onPrivacySettingsSave: () => void;
   onCompanyDataSave: (data: CompanyFormData) => Promise<void>;
+  // Availability props
+  availability?: WeeklyAvailability;
+  blockedDates?: UnavailableDate[];
+  onAvailabilityChange?: (availability: WeeklyAvailability) => void;
+  onBlockDate?: (date: UnavailableDate) => void;
+  onUnblockDate?: (dateId: string) => void;
   isMobile?: boolean;
 }
 
@@ -136,6 +154,12 @@ const SECTIONS: {
     label: "Dane Firmy",
     icon: Building2,
     description: "Informacje o firmie",
+  },
+  {
+    id: "availability",
+    label: "Dostępność",
+    icon: Calendar,
+    description: "Dni pracy i urlopy",
   },
   {
     id: "notifications",
@@ -201,6 +225,12 @@ export const EmployerSettingsPanel: React.FC<EmployerSettingsPanelProps> = ({
   onPrivacySettingsChange,
   onPrivacySettingsSave,
   onCompanyDataSave,
+  // Availability props
+  availability,
+  blockedDates = [],
+  onAvailabilityChange,
+  onBlockDate,
+  onUnblockDate,
   isMobile = false,
 }) => {
   const [activeSection, setActiveSection] =
@@ -1147,6 +1177,103 @@ export const EmployerSettingsPanel: React.FC<EmployerSettingsPanelProps> = ({
   );
 
   // ================================================================
+  // AVAILABILITY SECTION
+  // ================================================================
+
+  const renderAvailabilitySection = () => (
+    <div className="space-y-6">
+      {/* Weekly Availability */}
+      <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-white/60 shadow-xl p-6">
+        <div className="flex items-center gap-3 mb-6">
+          <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-cyan-600 rounded-xl flex items-center justify-center">
+            <Calendar size={20} className="text-white" />
+          </div>
+          <div>
+            <h3 className="font-bold text-gray-900">Dostępność firmy</h3>
+            <p className="text-sm text-gray-500">
+              Zaznacz dni kiedy firma jest otwarta
+            </p>
+          </div>
+        </div>
+
+        {availability && onAvailabilityChange ? (
+          <div className="bg-blue-50 rounded-lg p-6">
+            <AvailabilityCalendar
+              availability={availability}
+              onChange={onAvailabilityChange}
+              editable={true}
+            />
+            <p className="text-gray-500 mt-4 text-center text-xs">
+              Kliknij na dzień aby zmienić dostępność. Zmiany są zapisywane
+              automatycznie.
+            </p>
+          </div>
+        ) : (
+          <div className="text-center py-8 text-gray-500">
+            <p>Ładowanie kalendarza dostępności...</p>
+          </div>
+        )}
+
+        {/* Quick Stats */}
+        {availability && (
+          <div className="mt-4 grid grid-cols-2 gap-4">
+            <div className="bg-white border border-gray-200 rounded-lg p-4">
+              <p className="text-gray-600 text-sm">Dni otwarte</p>
+              <p className="font-bold text-blue-600 text-2xl">
+                {Object.values(availability).filter(Boolean).length}
+              </p>
+            </div>
+            <div className="bg-white border border-gray-200 rounded-lg p-4">
+              <p className="text-gray-600 text-sm">Standardowo</p>
+              <p className="font-bold text-gray-700 text-2xl">5 dni/tydzień</p>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Blocked Dates */}
+      <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-white/60 shadow-xl p-6">
+        <div className="flex items-center gap-3 mb-6">
+          <div className="w-10 h-10 bg-gradient-to-br from-red-500 to-orange-600 rounded-xl flex items-center justify-center">
+            <Lock size={20} className="text-white" />
+          </div>
+          <div>
+            <h3 className="font-bold text-gray-900">Zamknięte terminy</h3>
+            <p className="text-sm text-gray-500">
+              Urlopy firmowe, święta, dni wolne
+            </p>
+          </div>
+        </div>
+
+        {onBlockDate && onUnblockDate ? (
+          <>
+            <DateBlocker
+              blockedDates={blockedDates}
+              onBlock={onBlockDate}
+              onUnblock={onUnblockDate}
+            />
+            {blockedDates.length > 0 && (
+              <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                <p className="text-sm text-yellow-800">
+                  <strong>{blockedDates.length}</strong>{" "}
+                  {blockedDates.length === 1
+                    ? "dzień zamknięty"
+                    : "dni zamkniętych"}
+                  . Pracownicy i klienci będą widzieć te daty jako niedostępne.
+                </p>
+              </div>
+            )}
+          </>
+        ) : (
+          <div className="text-center py-8 text-gray-500">
+            <p>Ładowanie...</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
+  // ================================================================
   // MAIN RENDER
   // ================================================================
 
@@ -1156,6 +1283,8 @@ export const EmployerSettingsPanel: React.FC<EmployerSettingsPanelProps> = ({
         return renderProfileSection();
       case "company_data":
         return renderCompanyDataSection();
+      case "availability":
+        return renderAvailabilitySection();
       case "notifications":
         return renderNotificationsSection();
       case "privacy":

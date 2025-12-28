@@ -34,6 +34,10 @@ import {
   Award,
   Globe,
   Image as ImageIcon,
+  Lock,
+  Euro,
+  Wrench,
+  Car,
 } from "lucide-react";
 
 import { CoverImageUploader } from "../../src/components/common/CoverImageUploader";

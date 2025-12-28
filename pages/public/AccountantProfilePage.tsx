@@ -415,8 +415,8 @@ export default function AccountantProfilePage({
                   <span>{accountant.years_experience} lat doświadczenia</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Award className="w-4 h-4" />
-                  <span>{accountant.total_clients} klientów</span>
+                  <Briefcase className="w-4 h-4" />
+                  <span>{services.length + forms.length} ofert</span>
                 </div>
               </div>
             </div>
@@ -490,6 +490,8 @@ export default function AccountantProfilePage({
                 accountant={accountant}
                 unavailableDates={unavailableDates}
                 availability={availability}
+                services={services}
+                forms={forms}
               />
             )}
             {activeTab === "services" && (
@@ -1565,10 +1567,14 @@ function AboutTab({
   accountant,
   unavailableDates,
   availability,
+  services,
+  forms,
 }: {
   accountant: Accountant;
   unavailableDates: UnavailableDate[];
   availability: any;
+  services: AccountantService[];
+  forms: AccountantForm[];
 }) {
   // Group consecutive dates into ranges
   const groupDateRanges = (
@@ -1679,8 +1685,8 @@ function AboutTab({
             value={`${accountant.years_experience} lat`}
           />
           <InfoField
-            label="Liczba klientów"
-            value={accountant.total_clients.toString()}
+            label="Liczba ofert"
+            value={(services.length + forms.length).toString()}
           />
           {accountant.kvk_number && (
             <InfoField label="KVK" value={accountant.kvk_number} />

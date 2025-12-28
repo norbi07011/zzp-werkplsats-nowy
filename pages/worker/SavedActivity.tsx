@@ -9,12 +9,18 @@
 
 import { useState, useEffect } from "react";
 import { useAuth } from "../../contexts/AuthContext";
+import { supabase } from "../../src/lib/supabase";
 import {
   getSavedPostsByFolder,
   getLikedPosts,
   getCommentedPosts,
+  likePost,
+  reactToPost,
+  unreactToPost,
   type Post,
+  type ReactionType,
 } from "../../src/services/feedService";
+import { PostCardPremium } from "../public/FeedPage_PREMIUM";
 
 type FolderType =
   | "do_aplikowania"
@@ -239,56 +245,51 @@ export default function SavedActivity() {
               </p>
             </div>
           ) : (
-            /* Posts Grid */
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            /* Posts Grid with PostCardPremium */
+            <div className="grid grid-cols-1 gap-6">
               {posts.map((post) => (
-                <div
+                <PostCardPremium
                   key={post.id}
-                  className="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-2xl transition-shadow duration-300"
-                >
-                  {/* Post Header */}
-                  <div className="p-4 border-b border-gray-100">
-                    <div className="flex items-center gap-3 mb-2">
-                      <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-teal-500 rounded-full flex items-center justify-center text-white font-bold">
-                        {post.author_name?.[0]?.toUpperCase() || "U"}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-gray-900 truncate">
-                          {post.author_name || "Użytkownik"}
-                        </p>
-                        <p className="text-xs text-gray-500">
-                          {new Date(post.created_at).toLocaleDateString(
-                            "pl-PL"
-                          )}
-                        </p>
-                      </div>
-                    </div>
-                    {/* Type Badge */}
-                    <span className="inline-block px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-600">
-                      {post.type === "job_offer" && "💼 Oferta pracy"}
-                      {post.type === "ad" && "📣 Reklama"}
-                      {post.type === "announcement" && "📢 Ogłoszenie"}
-                    </span>
-                  </div>
-
-                  {/* Post Content */}
-                  <div className="p-4">
-                    <h3 className="font-bold text-gray-900 mb-2 line-clamp-2">
-                      {post.title}
-                    </h3>
-                    <p className="text-sm text-gray-600 line-clamp-3">
-                      {post.content}
-                    </p>
-                  </div>
-
-                  {/* Post Stats */}
-                  <div className="px-4 pb-4 flex items-center gap-4 text-sm text-gray-500">
-                    <span>👁️ {post.views_count || 0}</span>
-                    <span>❤️ {post.likes_count || 0}</span>
-                    <span>💬 {post.comments_count || 0}</span>
-                    <span>🔗 {post.shares_count || 0}</span>
-                  </div>
-                </div>
+                  post={post}
+                  onLike={async () => {
+                    if (!user) return;
+                    const workerId = await (async () => {
+                      const { data } = await (supabase as any)
+                        .from("worker_profiles")
+                        .select("id")
+                        .eq("profile_id", user.id)
+                        .single();
+                      return data?.id || user.id;
+                    })();
+                    await likePost(post.id, workerId, "worker");
+                  }}
+                  onReactionChange={async (
+                    reactionType: ReactionType | null
+                  ) => {
+                    if (!user) return;
+                    const workerId = await (async () => {
+                      const { data } = await (supabase as any)
+                        .from("worker_profiles")
+                        .select("id")
+                        .eq("profile_id", user.id)
+                        .single();
+                      return data?.id || user.id;
+                    })();
+                    if (reactionType === null) {
+                      await unreactToPost(post.id, user.id);
+                    } else {
+                      await reactToPost(
+                        post.id,
+                        workerId,
+                        "worker",
+                        user.id,
+                        reactionType
+                      );
+                    }
+                  }}
+                  currentUserId={user?.id}
+                  currentUserRole={user?.role}
+                />
               ))}
             </div>
           )}

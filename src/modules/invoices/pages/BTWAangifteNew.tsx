@@ -23,6 +23,7 @@ import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Card } from "../components/ui/card";
 import { Badge } from "../components/ui/badge";
+import { SuccessCelebration } from "../components/ui/SuccessCelebration";
 import { formatCurrency } from "../lib";
 import { useAuth } from "../../../../contexts/AuthContext";
 import type { BTWDeclaration, BTWPeriod, BTWStatus } from "../types";
@@ -136,6 +137,14 @@ export default function BTWAangifteNew({ onNavigate }: BTWAangifteProps) {
   );
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
+
+  // Success celebration state
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [successData, setSuccessData] = useState<{
+    title: string;
+    message: string;
+    icon: "🎉" | "✅" | "🏆" | "⭐" | "💰" | "📄" | "👤";
+  }>({ title: "", message: "", icon: "🎉" });
 
   // Editable rubrieken values
   const [editableValues, setEditableValues] = useState<Record<string, number>>(
@@ -660,14 +669,28 @@ export default function BTWAangifteNew({ onNavigate }: BTWAangifteProps) {
           await createDeclaration(data);
         }
 
-        alert(
-          status === "submitted"
-            ? "✅ Deklaracja wysłana!"
-            : "💾 Deklaracja zapisana"
-        );
+        if (status === "submitted") {
+          setSuccessData({
+            title: "Deklaracja Wysłana! 🎊",
+            message: `Deklaracja BTW za ${selectedPeriod} ${selectedYear} została pomyślnie wysłana do Belastingdienst`,
+            icon: "🏆",
+          });
+        } else {
+          setSuccessData({
+            title: "Zapisano! 💾",
+            message: `Deklaracja BTW za ${selectedPeriod} ${selectedYear} została zapisana jako szkic`,
+            icon: "✅",
+          });
+        }
+        setShowSuccess(true);
       } catch (error) {
         console.error("Error saving declaration:", error);
-        alert("❌ Błąd zapisu deklaracji");
+        setSuccessData({
+          title: "Błąd! ❌",
+          message: "Nie udało się zapisać deklaracji. Spróbuj ponownie.",
+          icon: "📄",
+        });
+        setShowSuccess(true);
       } finally {
         setIsSubmitting(false);
       }
@@ -1279,6 +1302,15 @@ export default function BTWAangifteNew({ onNavigate }: BTWAangifteProps) {
           </p>
         </div>
       </div>
+
+      {/* Success Celebration Modal */}
+      <SuccessCelebration
+        isOpen={showSuccess}
+        onClose={() => setShowSuccess(false)}
+        title={successData.title}
+        message={successData.message}
+        icon={successData.icon}
+      />
     </div>
   );
 }

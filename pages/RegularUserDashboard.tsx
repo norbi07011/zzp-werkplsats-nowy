@@ -3,6 +3,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { useSidebar } from "../contexts/SidebarContext";
 import { supabase } from "../src/lib/supabase";
 import { toast } from "sonner";
+import { Briefcase, FileText, CheckCircle, Mail } from "lucide-react";
 import {
   CheckCircleIcon,
   XMarkIcon,
@@ -17,6 +18,7 @@ import { SupportTicketModal } from "../src/components/SupportTicketModal";
 import { LanguageSwitcher } from "../components/LanguageSwitcher";
 import type { UnifiedTab } from "../components/UnifiedDashboardTabs";
 import { uploadAvatar } from "../src/services/storage";
+import { StatChipsGrid, StatChipItem } from "../components/StatChips";
 
 interface RegularUserData {
   first_name: string | null;
@@ -268,7 +270,7 @@ export default function RegularUserDashboard() {
 
       // Pobierz zlecenia użytkownika (posty typu request)
       // Posty service request mają wypełnione request_category
-      const { data: posts, error: postsError } = await supabase
+      const { data: posts, error: postsError } = await (supabase as any)
         .from("posts")
         .select(
           `
@@ -348,7 +350,7 @@ export default function RegularUserDashboard() {
     }
 
     try {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from("messages")
         .select(
           `
@@ -442,7 +444,7 @@ export default function RegularUserDashboard() {
 
       if (!messagesToMark || messagesToMark.length === 0) return;
 
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from("messages")
         .update({ is_read: true })
         .in("id", messagesToMark);
@@ -461,7 +463,7 @@ export default function RegularUserDashboard() {
     const currentPartnerId = selectedConversation.partnerId;
 
     try {
-      const { error } = await supabase.from("messages").insert({
+      const { error } = await (supabase as any).from("messages").insert({
         sender_id: user.id,
         recipient_id: selectedConversation.partnerId,
         subject: "Chat message",
@@ -751,7 +753,7 @@ export default function RegularUserDashboard() {
     }
 
     try {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from("posts")
         .delete()
         .eq("id", requestId)
@@ -788,73 +790,51 @@ export default function RegularUserDashboard() {
 
   const renderOverview = () => (
     <>
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-        {/* Limity zleceń */}
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-gray-600 text-sm">Zlecenia w tym miesiącu</p>
-              <p className="text-3xl font-bold text-blue-600 mt-2">
-                {userData?.is_premium ? (
-                  <>
-                    {userData?.requests_this_month || 0}
-                    <span className="text-lg text-green-600 ml-2">
-                      ✓ Unlimited
-                    </span>
-                  </>
-                ) : (
-                  <>
-                    {userData?.requests_this_month || 0}/
-                    {userData?.free_requests_limit || 3}
-                  </>
-                )}
-              </p>
-            </div>
-            <BriefcaseIcon className="w-12 h-12 text-blue-600 opacity-20" />
-          </div>
-        </div>
-
-        {/* Wszystkie zlecenia */}
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-gray-600 text-sm">Wszystkie zlecenia</p>
-              <p className="text-3xl font-bold text-gray-900 mt-2">
-                {serviceRequests.length}
-              </p>
-            </div>
-            <BriefcaseIcon className="w-12 h-12 text-gray-400 opacity-20" />
-          </div>
-        </div>
-
-        {/* Otrzymane oferty */}
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-gray-600 text-sm">Otrzymane oferty</p>
-              <p className="text-3xl font-bold text-green-600 mt-2">
-                {serviceRequests.reduce(
-                  (sum, req) => sum + req.responses_count,
-                  0
-                )}
-              </p>
-            </div>
-            <CheckCircleIcon className="w-12 h-12 text-green-600 opacity-20" />
-          </div>
-        </div>
-
-        {/* Wiadomości */}
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-gray-600 text-sm">Nowe wiadomości</p>
-              <p className="text-3xl font-bold text-purple-600 mt-2">0</p>
-            </div>
-            <BriefcaseIcon className="w-12 h-12 text-purple-600 opacity-20" />
-          </div>
-        </div>
-      </div>
+      {/* Stats Cards - Premium StatChips */}
+      <StatChipsGrid
+        items={
+          [
+            {
+              id: "requests",
+              label: "Requests This Month",
+              value: userData?.is_premium
+                ? `${userData?.requests_this_month || 0} ∞`
+                : `${userData?.requests_this_month || 0}/${
+                    userData?.free_requests_limit || 3
+                  }`,
+              tone: "cyan",
+              icon: <Briefcase size={16} />,
+              hint: userData?.is_premium ? "Unlimited" : undefined,
+            },
+            {
+              id: "total",
+              label: "All Requests",
+              value: serviceRequests.length,
+              tone: "slate",
+              icon: <FileText size={16} />,
+            },
+            {
+              id: "offers",
+              label: "Received Offers",
+              value: serviceRequests.reduce(
+                (sum, req) => sum + req.responses_count,
+                0
+              ),
+              tone: "emerald",
+              icon: <CheckCircle size={16} />,
+            },
+            {
+              id: "messages",
+              label: "New Messages",
+              value: 0,
+              tone: "violet",
+              icon: <Mail size={16} />,
+            },
+          ] as StatChipItem[]
+        }
+        columns={4}
+        className="mb-8"
+      />
 
       {/* Freemium Alert */}
       {!userData?.is_premium &&
@@ -2803,45 +2783,68 @@ export default function RegularUserDashboard() {
         <main className="flex-1 overflow-y-auto">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
             {/* Modern Header with Avatar */}
-            <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-purple-600 via-pink-600 to-indigo-700 p-8 text-white shadow-2xl mb-8">
-              <div className="absolute inset-0 bg-black/10"></div>
-              <div className="relative flex items-center justify-between">
-                <div className="flex items-center gap-6">
-                  {/* User Avatar */}
-                  {userData?.avatar_url ? (
-                    <img
-                      src={userData.avatar_url}
-                      alt={userData.first_name || "User"}
-                      className="w-20 h-20 rounded-full object-cover border-4 border-white/30 shadow-lg"
-                    />
-                  ) : (
-                    <div className="w-20 h-20 bg-gradient-to-br from-white/20 to-white/10 backdrop-blur-sm rounded-full flex items-center justify-center text-white font-bold text-3xl border-4 border-white/30 shadow-lg">
-                      {userData?.first_name?.[0]?.toUpperCase() || "👤"}
-                    </div>
-                  )}
+            <div className="heroBanner mb-8">
+              {/* Animated gradient background */}
+              <div className="heroBannerBg" />
 
-                  {/* Header Text */}
-                  <div>
-                    <h1 className="text-4xl font-bold tracking-tight mb-2">
-                      Witaj, {userData?.first_name || "Użytkowniku"}! 👋
+              {/* Glow orbs */}
+              <div className="heroBannerOrb heroBannerOrb1" />
+              <div className="heroBannerOrb heroBannerOrb2" />
+              <div className="heroBannerOrb heroBannerOrb3" />
+
+              {/* Glass overlay */}
+              <div className="heroBannerGlass" />
+
+              {/* Content */}
+              <div className="heroBannerContent">
+                <div className="heroBannerLeft">
+                  <div className="heroBannerGreeting">
+                    {/* User Avatar */}
+                    {userData?.avatar_url ? (
+                      <img
+                        src={userData.avatar_url}
+                        alt={userData.first_name || "User"}
+                        className="w-14 h-14 rounded-full object-cover border-3 border-white/30 shadow-lg"
+                      />
+                    ) : (
+                      <div className="w-14 h-14 bg-gradient-to-br from-white/20 to-white/10 backdrop-blur-sm rounded-full flex items-center justify-center text-white font-bold text-2xl border-3 border-white/30 shadow-lg">
+                        {userData?.first_name?.[0]?.toUpperCase() || "👤"}
+                      </div>
+                    )}
+
+                    <h1 className="heroBannerTitle">
+                      <span className="heroBannerName">
+                        Witaj, {userData?.first_name || "Użytkowniku"}!
+                      </span>
+                      {userData?.is_premium && (
+                        <span className="heroBannerBadge bg-gradient-to-r from-amber-400 to-yellow-500 text-amber-900 border-amber-300 shadow-lg shadow-amber-200/50">
+                          ⭐ Premium
+                        </span>
+                      )}
                     </h1>
-                    <p className="text-purple-100 text-lg">
-                      {userData?.is_premium
-                        ? "Konto Premium ⭐"
-                        : "Konto Darmowe"}
-                    </p>
                   </div>
+
+                  <p
+                    className="heroBannerSubtitle"
+                    style={{ paddingLeft: "62px" }}
+                  >
+                    {userData?.is_premium ? "Konto Premium" : "Konto Darmowe"}
+                  </p>
                 </div>
 
-                {/* Action Button */}
-                <button
-                  onClick={handleCreateRequest}
-                  disabled={!canCreateRequest()}
-                  className="bg-white text-purple-600 hover:bg-purple-50 px-6 py-3 rounded-lg font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  ➕ Utwórz Zlecenie
-                </button>
+                <div className="heroBannerRight">
+                  <button
+                    onClick={handleCreateRequest}
+                    disabled={!canCreateRequest()}
+                    className="bg-white text-purple-600 hover:bg-purple-50 px-6 py-3 rounded-lg font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    ➕ Utwórz Zlecenie
+                  </button>
+                </div>
               </div>
+
+              {/* Bottom shine line */}
+              <div className="heroBannerShine" />
             </div>
 
             {/* Tab Content */}

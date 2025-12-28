@@ -95,6 +95,14 @@ export default function CleaningCompanyPublicProfilePageModern() {
   const [loading, setLoading] = useState(true);
   const [profileViews, setProfileViews] = useState(0);
 
+  // Portfolio state
+  const [portfolio, setPortfolio] = useState<any[]>([]);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [lightboxImages, setLightboxImages] = useState<string[]>([]);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
+  const [showProjectDetail, setShowProjectDetail] = useState(false);
+  const [selectedProject, setSelectedProject] = useState<any | null>(null);
+
   // Contact modal
   const [isContactModalOpen, setIsContactModalOpen] = useState(false);
   const [contactSubject, setContactSubject] = useState("");
@@ -289,6 +297,17 @@ export default function CleaningCompanyPublicProfilePageModern() {
         setReviews(mappedReviews);
       }
 
+      // Load portfolio
+      const { data: portfolioData } = await supabase
+        .from("cleaning_company_portfolio")
+        .select("*")
+        .eq("company_id", actualCompanyId)
+        .eq("is_public", true)
+        .order("sort_order", { ascending: true })
+        .order("created_at", { ascending: false });
+
+      setPortfolio(portfolioData || []);
+
       // Load profile views count
       const { count } = await (supabase as any)
         .from("profile_views")
@@ -388,7 +407,16 @@ export default function CleaningCompanyPublicProfilePageModern() {
       id: "portfolio",
       label: "Portfolio",
       icon: "📸",
-      content: <PortfolioTabContent company={company} />,
+      content: (
+        <PortfolioTabContent
+          portfolio={portfolio}
+          setLightboxImages={setLightboxImages}
+          setLightboxIndex={setLightboxIndex}
+          setLightboxOpen={setLightboxOpen}
+          setSelectedProject={setSelectedProject}
+          setShowProjectDetail={setShowProjectDetail}
+        />
+      ),
     },
     {
       id: "reviews",
@@ -730,6 +758,178 @@ export default function CleaningCompanyPublicProfilePageModern() {
           inviteeAvatar={company.avatar_url ?? undefined}
         />
       )}
+
+      {/* Portfolio Lightbox */}
+      {lightboxOpen && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-90 z-50 flex items-center justify-center"
+          onClick={() => setLightboxOpen(false)}
+        >
+          <button
+            onClick={() => setLightboxOpen(false)}
+            className="absolute top-4 right-4 text-white text-4xl font-bold hover:text-gray-300"
+          >
+            ×
+          </button>
+          {lightboxIndex > 0 && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setLightboxIndex(lightboxIndex - 1);
+              }}
+              className="absolute left-4 text-white text-4xl font-bold hover:text-gray-300"
+            >
+              ‹
+            </button>
+          )}
+          <img
+            src={lightboxImages[lightboxIndex]}
+            alt={`Zdjęcie ${lightboxIndex + 1}`}
+            className="max-w-full max-h-full object-contain"
+            onClick={(e) => e.stopPropagation()}
+          />
+          {lightboxIndex < lightboxImages.length - 1 && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setLightboxIndex(lightboxIndex + 1);
+              }}
+              className="absolute right-4 text-white text-4xl font-bold hover:text-gray-300"
+            >
+              ›
+            </button>
+          )}
+          <div className="absolute bottom-4 text-white text-lg">
+            {lightboxIndex + 1} / {lightboxImages.length}
+          </div>
+        </div>
+      )}
+
+      {/* Project Detail Modal */}
+      {showProjectDetail && selectedProject && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 z-40 flex items-center justify-center p-4"
+          onClick={() => setShowProjectDetail(false)}
+        >
+          <div
+            className="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-6">
+              <div className="flex justify-between items-start mb-4">
+                <h2 className="text-3xl font-bold text-gray-900">
+                  {selectedProject.title}
+                </h2>
+                <button
+                  onClick={() => setShowProjectDetail(false)}
+                  className="text-gray-400 hover:text-gray-600 text-3xl"
+                >
+                  ×
+                </button>
+              </div>
+
+              {selectedProject.category && (
+                <span className="inline-block px-4 py-2 bg-blue-100 text-blue-800 rounded-full mb-4">
+                  {selectedProject.category}
+                </span>
+              )}
+
+              {selectedProject.images && selectedProject.images.length > 0 && (
+                <div className="grid grid-cols-2 gap-4 mb-6">
+                  {selectedProject.images.map((img: string, idx: number) => (
+                    <img
+                      key={idx}
+                      src={img}
+                      alt={`${selectedProject.title} - ${idx + 1}`}
+                      className="w-full h-64 object-cover rounded-lg cursor-pointer hover:opacity-80"
+                      onClick={() => {
+                        setLightboxImages(selectedProject.images);
+                        setLightboxIndex(idx);
+                        setLightboxOpen(true);
+                      }}
+                    />
+                  ))}
+                </div>
+              )}
+
+              {selectedProject.description && (
+                <div className="mb-6">
+                  <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                    Opis projektu
+                  </h3>
+                  <p className="text-gray-700 whitespace-pre-wrap">
+                    {selectedProject.description}
+                  </p>
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                {selectedProject.client_name && (
+                  <div>
+                    <span className="font-semibold text-gray-700">Klient:</span>
+                    <p className="text-gray-600">
+                      {selectedProject.client_name}
+                    </p>
+                  </div>
+                )}
+                {selectedProject.client_company && (
+                  <div>
+                    <span className="font-semibold text-gray-700">Firma:</span>
+                    <p className="text-gray-600">
+                      {selectedProject.client_company}
+                    </p>
+                  </div>
+                )}
+                {selectedProject.location && (
+                  <div>
+                    <span className="font-semibold text-gray-700">
+                      Lokalizacja:
+                    </span>
+                    <p className="text-gray-600">{selectedProject.location}</p>
+                  </div>
+                )}
+                {selectedProject.start_date && (
+                  <div>
+                    <span className="font-semibold text-gray-700">
+                      Data rozpoczęcia:
+                    </span>
+                    <p className="text-gray-600">
+                      {new Date(selectedProject.start_date).toLocaleDateString(
+                        "pl-PL"
+                      )}
+                    </p>
+                  </div>
+                )}
+                {selectedProject.end_date && (
+                  <div>
+                    <span className="font-semibold text-gray-700">
+                      Data zakończenia:
+                    </span>
+                    <p className="text-gray-600">
+                      {new Date(selectedProject.end_date).toLocaleDateString(
+                        "pl-PL"
+                      )}
+                    </p>
+                  </div>
+                )}
+                {selectedProject.project_url && (
+                  <div className="col-span-2">
+                    <span className="font-semibold text-gray-700">Link:</span>
+                    <a
+                      href={selectedProject.project_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-600 hover:underline ml-2"
+                    >
+                      {selectedProject.project_url}
+                    </a>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }
@@ -860,16 +1060,30 @@ function AboutTabContent({ company }: { company: CleaningCompany }) {
   );
 }
 
-function PortfolioTabContent({ company }: { company: CleaningCompany }) {
-  if (!company.portfolio_images || company.portfolio_images.length === 0) {
+function PortfolioTabContent({
+  portfolio,
+  setLightboxImages,
+  setLightboxIndex,
+  setLightboxOpen,
+  setSelectedProject,
+  setShowProjectDetail,
+}: {
+  portfolio: any[];
+  setLightboxImages: (images: string[]) => void;
+  setLightboxIndex: (index: number) => void;
+  setLightboxOpen: (open: boolean) => void;
+  setSelectedProject: (project: any) => void;
+  setShowProjectDetail: (show: boolean) => void;
+}) {
+  if (!portfolio || portfolio.length === 0) {
     return (
       <div className="bg-white dark:bg-gray-800 rounded-xl p-12 text-center shadow-sm border border-gray-100 dark:border-gray-700">
         <Image className="w-16 h-16 mx-auto mb-4 text-gray-400" />
         <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-          Brak zdjęć w portfolio
+          Brak projektów w portfolio
         </h3>
         <p className="text-gray-600 dark:text-gray-400">
-          Ta firma nie dodała jeszcze zdjęć swoich realizacji
+          Ta firma nie dodała jeszcze swoich realizacji
         </p>
       </div>
     );
@@ -877,16 +1091,50 @@ function PortfolioTabContent({ company }: { company: CleaningCompany }) {
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-      {company.portfolio_images.map((image, index) => (
+      {portfolio.map((project) => (
         <div
-          key={index}
-          className="rounded-xl overflow-hidden shadow-lg hover:shadow-xl transition-shadow"
+          key={project.id}
+          className="bg-white dark:bg-gray-800 rounded-xl overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer group"
+          onClick={() => {
+            setSelectedProject(project);
+            setShowProjectDetail(true);
+          }}
         >
-          <img
-            src={image}
-            alt={`Portfolio ${index + 1}`}
-            className="w-full h-64 object-cover hover:scale-105 transition-transform duration-300"
-          />
+          {project.images && project.images.length > 0 && (
+            <div className="relative h-64 overflow-hidden">
+              <img
+                src={project.images[0]}
+                alt={project.title}
+                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+              />
+              {project.images.length > 1 && (
+                <div className="absolute top-2 right-2 bg-black/60 text-white px-2 py-1 rounded-lg text-sm">
+                  +{project.images.length - 1} zdjęć
+                </div>
+              )}
+            </div>
+          )}
+          <div className="p-4">
+            <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-2 group-hover:text-blue-600 transition-colors">
+              {project.title}
+            </h3>
+            {project.category && (
+              <span className="inline-block px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm mb-2">
+                {project.category}
+              </span>
+            )}
+            {project.description && (
+              <p className="text-gray-600 dark:text-gray-400 text-sm line-clamp-2">
+                {project.description}
+              </p>
+            )}
+            {project.location && (
+              <p className="text-gray-500 text-sm mt-2 flex items-center gap-1">
+                <MapPin className="w-4 h-4" />
+                {project.location}
+              </p>
+            )}
+          </div>
         </div>
       ))}
     </div>

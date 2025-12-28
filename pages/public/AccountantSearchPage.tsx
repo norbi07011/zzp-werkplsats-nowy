@@ -14,6 +14,15 @@ import {
 } from "../../components/icons";
 import { LoadingOverlay } from "../../components/Loading";
 import { AddToTeamButton } from "../../components/AddToTeamButton";
+import { useAuth } from "../../contexts/AuthContext";
+import { useToasts } from "../../contexts/ToastContext";
+import { supabase } from "../../src/lib/supabase";
+import {
+  saveProfile,
+  removeSavedProfile,
+  getSavedProfileRecord,
+  getSavedProfileIds,
+} from "../../services/savedProfilesService";
 
 const CITIES = [
   "Amsterdam",
@@ -44,6 +53,8 @@ const LANGUAGES = ["Nederlands", "English", "Polski", "Deutsch", "Français"];
 type SortOption = "popular" | "rating" | "experience" | "name";
 
 export default function AccountantSearchPage() {
+  const { user } = useAuth();
+  const { success, error: showError } = useToasts();
   const [accountants, setAccountants] = useState<Accountant[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
@@ -56,6 +67,58 @@ export default function AccountantSearchPage() {
   const [sortBy, setSortBy] = useState<SortOption>("popular");
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 12;
+  const [savedAccountants, setSavedAccountants] = useState<string[]>([]);
+
+  // Load saved accountants when user is logged in
+  useEffect(() => {
+    if (user?.id) {
+      loadSavedAccountants();
+    }
+  }, [user?.id]);
+
+  const loadSavedAccountants = async () => {
+    if (!user?.id) return;
+    try {
+      const ids = await getSavedProfileIds(user.id, "accountant");
+      setSavedAccountants(ids);
+    } catch (err) {
+      console.error("Error loading saved accountants:", err);
+    }
+  };
+
+  const toggleSaveAccountant = async (accountantId: string) => {
+    if (!user?.id) {
+      showError("Musisz być zalogowany");
+      return;
+    }
+    try {
+      const isSaved = savedAccountants.includes(accountantId);
+      if (isSaved) {
+        const savedRecord = await getSavedProfileRecord(
+          user.id,
+          "accountant",
+          accountantId
+        );
+        if (savedRecord) {
+          const removed = await removeSavedProfile(savedRecord.id);
+          if (removed) {
+            setSavedAccountants((prev) =>
+              prev.filter((id) => id !== accountantId)
+            );
+            success("✅ Usunięto z zapisanych");
+          }
+        }
+      } else {
+        const saved = await saveProfile(user.id, "accountant", accountantId);
+        if (saved) {
+          setSavedAccountants((prev) => [...prev, accountantId]);
+          success("✅ Zapisano księgowego");
+        }
+      }
+    } catch (err) {
+      showError("❌ Błąd podczas zapisywania");
+    }
+  };
 
   useEffect(() => {
     loadAccountants();
@@ -415,14 +478,16 @@ export default function AccountantSearchPage() {
 
                       {/* Accountant info - centered */}
                       <div className="px-6 py-4 text-center">
-                        <h3 className="text-2xl font-bold text-gray-900 mb-1">
+                        <h3 className="text-2xl font-bold text-slate-900 dark:text-white mb-1">
                           {accountant.full_name}
                         </h3>
                         {accountant.city && (
-                          <p className="text-gray-600">📍 {accountant.city}</p>
+                          <p className="text-slate-700 dark:text-slate-300 font-medium">
+                            📍 {accountant.city}
+                          </p>
                         )}
                         {accountant.company_name && (
-                          <p className="text-sm text-gray-500 mt-1">
+                          <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
                             {accountant.company_name}
                           </p>
                         )}
@@ -436,6 +501,24 @@ export default function AccountantSearchPage() {
                         >
                           Zobacz profil
                         </Link>
+                        {/* Save button - only for logged-in employers */}
+                        {user && (
+                          <button
+                            onClick={() => toggleSaveAccountant(accountant.id)}
+                            className={`px-4 py-3 rounded-xl transition-colors ${
+                              savedAccountants.includes(accountant.id)
+                                ? "bg-amber-100 text-amber-600"
+                                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                            }`}
+                            aria-label={
+                              savedAccountants.includes(accountant.id)
+                                ? "Usuń z zapisanych"
+                                : "Zapisz księgowego"
+                            }
+                          >
+                            <span className="text-xl">⭐</span>
+                          </button>
+                        )}
                         <div onClick={(e) => e.stopPropagation()}>
                           <AddToTeamButton
                             userId={accountant.profile_id || accountant.id}

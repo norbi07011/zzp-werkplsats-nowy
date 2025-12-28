@@ -13,6 +13,8 @@ import { AuthenticatedLayout } from "./layouts/AuthenticatedLayout";
 import { LoadingOverlay } from "./components/Loading";
 import { EnhancedErrorBoundary } from "./components/EnhancedErrorBoundary";
 import "./src/styles/theme.css";
+import "./components/stat-chips.css"; // Premium glassmorphism stat chips
+import "./components/dashboard-hero-banner.css"; // Ultra premium dashboard headers
 
 // Public pages (keep eager loaded - first paint critical)
 import { HomePage } from "./pages/public/HomePage";
