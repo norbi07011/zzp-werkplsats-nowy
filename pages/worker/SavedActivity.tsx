@@ -20,7 +20,7 @@ import {
   type Post,
   type ReactionType,
 } from "../../src/services/feedService";
-import { PostCardPremium } from "../public/FeedPage_PREMIUM";
+import { PostCardPremium } from "../FeedPage_PREMIUM";
 
 type FolderType =
   | "do_aplikowania"
