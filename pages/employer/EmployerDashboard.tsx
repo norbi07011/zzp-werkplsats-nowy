@@ -197,7 +197,7 @@ export const EmployerDashboard = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
-  const { activeTab, setActiveTab } = useUnifiedTabs("tablica");
+  const { activeTab, setActiveTab } = useUnifiedTabs("profile");
 
   // State
   const [loading, setLoading] = useState(true);

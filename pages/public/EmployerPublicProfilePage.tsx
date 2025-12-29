@@ -383,7 +383,7 @@ export default function EmployerPublicProfilePage({
             />
           )}
           <div className="absolute inset-0 bg-black bg-opacity-30"></div>
-          
+
           {/* Back button - only show when NOT embedded */}
           {!embedded && (
             <button

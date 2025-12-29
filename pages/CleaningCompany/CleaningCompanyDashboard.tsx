@@ -112,7 +112,7 @@ const CleaningCompanyDashboard = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
-  const { activeTab, setActiveTab } = useUnifiedTabs("tablica");
+  const { activeTab, setActiveTab } = useUnifiedTabs("profile");
 
   const { isSidebarOpen, closeSidebar } = useSidebar();
   const [loading, setLoading] = useState(true);

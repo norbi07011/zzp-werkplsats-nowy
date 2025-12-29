@@ -263,6 +263,8 @@ export default function SavedActivity() {
                     })();
                     await likePost(post.id, workerId, "worker");
                   }}
+                  onComment={() => {}}
+                  onShare={() => {}}
                   onReactionChange={async (
                     reactionType: ReactionType | null
                   ) => {

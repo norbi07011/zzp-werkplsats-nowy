@@ -16,33 +16,34 @@ export const AuthenticatedLayout = () => {
     navigate("/");
   };
 
+  // Get dashboard route based on user role
+  const getDashboardRoute = () => {
+    if (!user) return "/";
+    switch (user.role) {
+      case "admin":
+        return "/admin";
+      case "employer":
+        return "/employer";
+      case "worker":
+        return "/worker";
+      case "accountant":
+        return "/accountant/dashboard";
+      case "cleaning_company":
+        return "/cleaning-company";
+      case "regular_user":
+        return "/regular-user";
+      default:
+        return "/";
+    }
+  };
+
   // Unified navigation - simple & consistent for all roles
   const getNavItems = () => {
     if (!user) return [];
 
-    // Get role-specific panel route
-    const getPanelRoute = () => {
-      switch (user.role) {
-        case "admin":
-          return "/admin";
-        case "employer":
-          return "/employer";
-        case "worker":
-          return "/worker";
-        case "accountant":
-          return "/accountant/dashboard";
-        case "cleaning_company":
-          return "/cleaning-company";
-        case "regular_user":
-          return "/regular-user";
-        default:
-          return "/";
-      }
-    };
-
     // Base navigation (available for all roles)
     return [
-      { to: getPanelRoute(), label: "🏠 Panel" },
+      { to: getDashboardRoute(), label: "🏠 Profil" },
       { to: "/feed", label: "📰 Feed" },
     ];
   };

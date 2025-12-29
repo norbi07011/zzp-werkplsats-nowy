@@ -200,7 +200,7 @@ export default function AccountantDashboard() {
   const isMobile = useIsMobile();
 
   // Unified tabs state
-  const { activeTab, setActiveTab } = useUnifiedTabs("tablica");
+  const { activeTab, setActiveTab } = useUnifiedTabs("profile");
   const { isSidebarOpen, closeSidebar } = useSidebar();
 
   // Profile sub-navigation state (drugi poziom menu dla tabu Profile)
@@ -448,9 +448,17 @@ export default function AccountantDashboard() {
       const typedMessages: Message[] =
         data?.map((msg: any) => {
           // Ensure sender and recipient are properly mapped
-          const sender = msg.sender || { id: msg.sender_id, full_name: "Unknown", avatar_url: undefined };
-          const recipient = msg.recipient || { id: msg.recipient_id, full_name: "Unknown", avatar_url: undefined };
-          
+          const sender = msg.sender || {
+            id: msg.sender_id,
+            full_name: "Unknown",
+            avatar_url: undefined,
+          };
+          const recipient = msg.recipient || {
+            id: msg.recipient_id,
+            full_name: "Unknown",
+            avatar_url: undefined,
+          };
+
           return {
             id: msg.id,
             subject: msg.subject || "",
@@ -3359,7 +3367,7 @@ export default function AccountantDashboard() {
               {/* Profile Content based on profileSubTab */}
               {profileSubTab === "overview" && (
                 <>
-                  {/* Overview content merged into profile */}
+                  {/* Dashboard overview with stats and widgets */}
                   {renderOverview()}
                 </>
               )}

@@ -40,6 +40,7 @@ import {
   Building2,
   Calculator,
   Sparkles,
+  LogOut,
 } from "lucide-react";
 
 import type { UnifiedTab } from "./UnifiedDashboardTabs";
@@ -62,7 +63,7 @@ const ALL_TABS: TabConfig[] = [
   },
   {
     id: "profile",
-    label: "Profil",
+    label: "Przegląd",
     icon: User,
     description: "Profil, statystyki, aktywność, edycja",
     roles: ["admin", "employer", "accountant", "cleaning_company"],
@@ -189,7 +190,7 @@ export const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
   onMobileMenuToggle,
   onSupportClick,
 }) => {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isExpertsOpen, setIsExpertsOpen] = useState(false);
 
@@ -491,11 +492,28 @@ export const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
       {/* Footer */}
       <div className="p-4 border-t border-white/10">
         {(!isCollapsed || isMobile) && (
-          <div className="text-xs text-blue-300">
+          <div className="text-xs text-blue-300 mb-3">
             <div className="font-bold truncate">{user.email}</div>
             <div>ZZP Werkplaats v1.0</div>
           </div>
         )}
+
+        {/* Logout Button */}
+        <button
+          onClick={async () => {
+            if (isMobile && onMobileMenuToggle) onMobileMenuToggle();
+            await logout();
+          }}
+          className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all min-h-[48px] hover:bg-red-500/20 text-red-300 hover:text-red-200 ${
+            isCollapsed && !isMobile ? "justify-center" : ""
+          }`}
+          title={isCollapsed && !isMobile ? "Wyloguj się" : undefined}
+        >
+          <LogOut size={22} className="flex-shrink-0" />
+          {(!isCollapsed || isMobile) && (
+            <span className="font-medium text-sm">Wyloguj się</span>
+          )}
+        </button>
       </div>
     </>
   );

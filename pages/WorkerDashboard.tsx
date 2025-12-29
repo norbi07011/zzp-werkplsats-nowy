@@ -265,7 +265,7 @@ export default function WorkerDashboard() {
   }
 
   // State Management
-  const { activeTab, setActiveTab } = useUnifiedTabs("tablica");
+  const { activeTab, setActiveTab } = useUnifiedTabs("overview");
   const { isSidebarOpen, closeSidebar } = useSidebar();
   const [isProfileSidebarOpen, setIsProfileSidebarOpen] = useState(false);
 

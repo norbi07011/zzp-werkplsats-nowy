@@ -29,12 +29,22 @@ import {
   Calendar,
   DollarSign,
   Send,
-  Music,
-  Play,
-  Pause,
-  Volume2,
   Clock,
 } from "lucide-react";
+
+// Placeholder komponenty dla brakujących ikon
+const Music = ({ className }: { className?: string }) => (
+  <span className={className}>🎵</span>
+);
+const Play = ({ className }: { className?: string }) => (
+  <span className={className}>▶️</span>
+);
+const Pause = ({ className }: { className?: string }) => (
+  <span className={className}>⏸️</span>
+);
+const Volume2 = ({ className }: { className?: string }) => (
+  <span className={className}>🔊</span>
+);
 import { supabase } from "../../src/lib/supabase";
 import { useAuth } from "../../contexts/AuthContext";
 import { toast } from "sonner";
@@ -445,7 +455,9 @@ export const CreateStoryEditor = ({
 
     // Skip if placeholder track (no URL)
     if (!track.url) {
-      toast.info("💡 Biblioteka muzyki będzie dostępna wkrótce. Użyj własnego pliku audio poniżej.");
+      toast.info(
+        "💡 Biblioteka muzyki będzie dostępna wkrótce. Użyj własnego pliku audio poniżej."
+      );
       return;
     }
 
@@ -785,8 +797,7 @@ export const CreateStoryEditor = ({
             className="relative w-full max-w-[360px] aspect-[9/16] rounded-2xl overflow-hidden shadow-2xl"
             style={{
               background:
-                currentSlide.backgroundGradient ||
-                currentSlide.backgroundColor,
+                currentSlide.backgroundGradient || currentSlide.backgroundColor,
             }}
           >
             {/* Media Layer with positioning controls */}
@@ -818,8 +829,10 @@ export const CreateStoryEditor = ({
                     style={{
                       objectFit: currentSlide.mediaFit,
                       objectPosition: `${currentSlide.mediaPositionX}% ${currentSlide.mediaPositionY}%`,
-                      width: currentSlide.mediaFit === 'contain' ? 'auto' : '100%',
-                      height: currentSlide.mediaFit === 'contain' ? 'auto' : '100%',
+                      width:
+                        currentSlide.mediaFit === "contain" ? "auto" : "100%",
+                      height:
+                        currentSlide.mediaFit === "contain" ? "auto" : "100%",
                     }}
                   />
                 )}
@@ -1057,7 +1070,8 @@ export const CreateStoryEditor = ({
                   {/* Position X */}
                   <div>
                     <label className="text-gray-400 text-sm mb-2 block">
-                      Pozycja pozioma: {Math.round(currentSlide.mediaPositionX)}%
+                      Pozycja pozioma: {Math.round(currentSlide.mediaPositionX)}
+                      %
                     </label>
                     <input
                       type="range"
@@ -1081,7 +1095,8 @@ export const CreateStoryEditor = ({
                   {/* Position Y */}
                   <div>
                     <label className="text-gray-400 text-sm mb-2 block">
-                      Pozycja pionowa: {Math.round(currentSlide.mediaPositionY)}%
+                      Pozycja pionowa: {Math.round(currentSlide.mediaPositionY)}
+                      %
                     </label>
                     <input
                       type="range"
@@ -1401,7 +1416,9 @@ export const CreateStoryEditor = ({
                       )}
                     </button>
                     <div className="flex-1 text-xs text-gray-400">
-                      {isPlayingAudio ? "Odtwarzanie..." : "Kliknij aby odsłuchać"}
+                      {isPlayingAudio
+                        ? "Odtwarzanie..."
+                        : "Kliknij aby odsłuchać"}
                     </div>
                   </div>
 
@@ -1442,9 +1459,7 @@ export const CreateStoryEditor = ({
 
               {/* Custom Audio Upload */}
               <div>
-                <h4 className="text-gray-400 text-sm mb-3">
-                  📁 Własna muzyka
-                </h4>
+                <h4 className="text-gray-400 text-sm mb-3">📁 Własna muzyka</h4>
                 <input
                   ref={audioInputRef}
                   type="file"
@@ -1465,7 +1480,8 @@ export const CreateStoryEditor = ({
               {/* Info */}
               <div className="p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg">
                 <p className="text-xs text-blue-400 leading-relaxed">
-                  💡 <strong>Wskazówka:</strong> Dodaj własną muzykę do Story!<br />
+                  💡 <strong>Wskazówka:</strong> Dodaj własną muzykę do Story!
+                  <br />
                   Twoja muzyka zostanie automatycznie odtworzona przez widzów.
                 </p>
               </div>

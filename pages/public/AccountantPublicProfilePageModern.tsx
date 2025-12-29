@@ -21,7 +21,14 @@ import {
   type AccountantForm,
 } from "../../src/services/accountantFormService";
 import type { UnavailableDate } from "../../types";
-import { getPosts } from "../../src/services/feedService";
+import {
+  getPosts,
+  likePost,
+  reactToPost,
+  unreactToPost,
+  type ReactionType,
+} from "../../src/services/feedService";
+import { PostCardPremium } from "../FeedPage_PREMIUM";
 import { Modal } from "../../components/Modal";
 import {
   ModernPublicProfile,
@@ -535,26 +542,47 @@ export default function AccountantPublicProfilePageModern({
     </div>
   );
 
+  const handleReactionChange = async (
+    postId: string,
+    reactionType: ReactionType | null
+  ) => {
+    if (!authUser?.id) return;
+    try {
+      if (reactionType === null) {
+        await unreactToPost(postId, authUser.id);
+      } else {
+        await reactToPost(
+          postId,
+          authUser.id,
+          authUser.role as any,
+          authUser.id,
+          reactionType
+        );
+      }
+    } catch (error) {
+      console.error("Error changing reaction:", error);
+    }
+  };
+
   const JobsTabContent = () => (
     <div className="space-y-4">
       {jobOffers.length > 0 ? (
         jobOffers.map((post: any) => (
-          <div
+          <PostCardPremium
             key={post.id}
-            className="bg-white rounded-xl p-5 border border-slate-200 shadow-sm"
-          >
-            <h4 className="font-bold text-slate-800 mb-2">{post.title}</h4>
-            <p className="text-slate-600 text-sm line-clamp-3">
-              {post.content}
-            </p>
-            <div className="mt-3 flex items-center gap-4 text-sm text-slate-500">
-              <span>❤️ {post.likes_count || 0}</span>
-              <span>💬 {post.comments_count || 0}</span>
-              <span>
-                {new Date(post.created_at).toLocaleDateString("pl-PL")}
-              </span>
-            </div>
-          </div>
+            post={post}
+            onLike={async () => {
+              if (!authUser?.id || !authUser?.role) return;
+              await likePost(post.id, authUser.id, authUser.role as any);
+            }}
+            onComment={() => {}}
+            onShare={() => {}}
+            onReactionChange={(reactionType) =>
+              handleReactionChange(post.id, reactionType)
+            }
+            currentUserId={authUser?.id}
+            currentUserRole={authUser?.role}
+          />
         ))
       ) : (
         <div className="text-center py-12 bg-slate-50 rounded-xl">
@@ -569,22 +597,21 @@ export default function AccountantPublicProfilePageModern({
     <div className="space-y-4">
       {regularPosts.length > 0 ? (
         regularPosts.map((post: any) => (
-          <div
+          <PostCardPremium
             key={post.id}
-            className="bg-white rounded-xl p-5 border border-slate-200 shadow-sm"
-          >
-            <h4 className="font-bold text-slate-800 mb-2">{post.title}</h4>
-            <p className="text-slate-600 text-sm line-clamp-3">
-              {post.content}
-            </p>
-            <div className="mt-3 flex items-center gap-4 text-sm text-slate-500">
-              <span>❤️ {post.likes_count || 0}</span>
-              <span>💬 {post.comments_count || 0}</span>
-              <span>
-                {new Date(post.created_at).toLocaleDateString("pl-PL")}
-              </span>
-            </div>
-          </div>
+            post={post}
+            onLike={async () => {
+              if (!authUser?.id || !authUser?.role) return;
+              await likePost(post.id, authUser.id, authUser.role as any);
+            }}
+            onComment={() => {}}
+            onShare={() => {}}
+            onReactionChange={(reactionType) =>
+              handleReactionChange(post.id, reactionType)
+            }
+            currentUserId={authUser?.id}
+            currentUserRole={authUser?.role}
+          />
         ))
       ) : (
         <div className="text-center py-12 bg-slate-50 rounded-xl">

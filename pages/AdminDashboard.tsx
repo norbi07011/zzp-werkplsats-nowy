@@ -264,7 +264,7 @@ export const AdminDashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
 
   // Tab state management
-  const { activeTab, setActiveTab } = useUnifiedTabs("tablica");
+  const { activeTab, setActiveTab } = useUnifiedTabs("profile");
 
   // Load real data from database
   useEffect(() => {

@@ -12,11 +12,11 @@ import { useAuth } from "../../contexts/AuthContext";
 import { supabase } from "../../src/lib/supabase";
 import { Loader2, User } from "lucide-react";
 
-// Import public profile components
-import WorkerPublicProfilePage from "../../pages/public/WorkerPublicProfilePage";
-import EmployerPublicProfilePage from "../../pages/public/EmployerPublicProfilePage";
-import AccountantProfilePage from "../../pages/public/AccountantProfilePage";
-import CleaningCompanyPublicProfilePage from "../../pages/public/CleaningCompanyPublicProfilePage";
+// Import public profile components - MODERN versions (same as in App.tsx routes)
+import WorkerPublicProfilePage from "../../pages/public/WorkerPublicProfilePageModern";
+import EmployerPublicProfilePage from "../../pages/public/EmployerPublicProfilePageModern";
+import AccountantProfilePage from "../../pages/public/AccountantPublicProfilePageModern";
+import CleaningCompanyPublicProfilePage from "../../pages/public/CleaningCompanyPublicProfilePageModern";
 
 interface MyProfilePreviewProps {
   role: "worker" | "employer" | "accountant" | "cleaning_company" | "admin";
@@ -116,7 +116,12 @@ export function MyProfilePreview({ role }: MyProfilePreviewProps) {
   }
 
   if (error || !profileId) {
-    console.log("❌ MyProfilePreview ERROR:", { role, error, profileId, userId: user?.id });
+    console.log("❌ MyProfilePreview ERROR:", {
+      role,
+      error,
+      profileId,
+      userId: user?.id,
+    });
     return (
       <div className="min-h-[60vh] flex items-center justify-center">
         <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-8 shadow-xl text-center max-w-md">
@@ -130,7 +135,12 @@ export function MyProfilePreview({ role }: MyProfilePreviewProps) {
     );
   }
 
-  console.log("✅ MyProfilePreview RENDERING:", { role, profileId, userId: user?.id, embedded: true });
+  console.log("✅ MyProfilePreview RENDERING:", {
+    role,
+    profileId,
+    userId: user?.id,
+    embedded: true,
+  });
 
   // Render the appropriate public profile component directly
   switch (role) {

@@ -86,8 +86,17 @@ interface CleaningReview {
   };
 }
 
-export default function CleaningCompanyPublicProfilePageModern() {
-  const { id } = useParams<{ id: string }>();
+interface CleaningCompanyPublicProfilePageModernProps {
+  companyId?: string;
+  embedded?: boolean;
+}
+
+export default function CleaningCompanyPublicProfilePageModern({
+  companyId: propId,
+  embedded = false,
+}: CleaningCompanyPublicProfilePageModernProps) {
+  const { id: urlId } = useParams<{ id: string }>();
+  const id = propId || urlId;
   const navigate = useNavigate();
   const { user } = useAuth();
   const [company, setCompany] = useState<CleaningCompany | null>(null);

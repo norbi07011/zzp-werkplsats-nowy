@@ -17,8 +17,7 @@ import {
   type AccountantForm,
 } from "../../src/services/accountantFormService";
 import type { UnavailableDate } from "../../types";
-import { getPosts, likePost, sharePost } from "../../src/services/feedService";
-import type { Post } from "../../types";
+import { getPosts, likePost, sharePost, type Post } from "../../src/services/feedService";
 import { Modal } from "../../components/Modal";
 import { LocationCard } from "../../components/LocationCard";
 import { Animated3DProfileBackground } from "../../components/Animated3DProfileBackground";
@@ -119,7 +118,7 @@ export default function AccountantProfilePage({
 
     try {
       // Track view with employer_id if available, otherwise null
-      await supabase.from("profile_views").insert({
+      await (supabase as any).from("profile_views").insert({
         accountant_id: id,
         employer_id: employerId || null, // Can be null for anonymous/non-employer visitors
         viewed_at: new Date().toISOString(),
@@ -200,7 +199,7 @@ export default function AccountantProfilePage({
     }
 
     try {
-      const { error } = await supabase.from("messages").insert({
+      const { error } = await (supabase as any).from("messages").insert({
         sender_id: authUser.id,
         recipient_id: accountant.profile_id,
         subject: contactSubject,
@@ -237,7 +236,7 @@ export default function AccountantProfilePage({
 
     // Check if user already reviewed this accountant
     try {
-      const { data: existingReview, error } = await supabase
+      const { data: existingReview, error } = await (supabase as any)
         .from("accountant_reviews")
         .select("id, rating, created_at")
         .eq("reviewer_id", authUser.id)
@@ -315,11 +314,11 @@ export default function AccountantProfilePage({
   (window as any).handleOpenContact = handleOpenContact;
   (window as any).handleOpenReview = handleOpenReview;
 
-  console.log("✅ AccountantProfilePage RENDERING:", { 
-    accountantId: id, 
-    embedded, 
+  console.log("✅ AccountantProfilePage RENDERING:", {
+    accountantId: id,
+    embedded,
     fullName: accountant?.full_name,
-    timestamp: new Date().toISOString() 
+    timestamp: new Date().toISOString(),
   });
 
   return (
@@ -344,7 +343,7 @@ export default function AccountantProfilePage({
           />
         )}
         <div className="absolute inset-0 bg-black bg-opacity-30"></div>
-        
+
         {/* Back button - only show when NOT embedded */}
         {!embedded && (
           <button
